@@ -1,0 +1,342 @@
+/* ═══════════════════════════════════════════════════
+   Layout Pages — MainLayout, Sidebar, Topbar
+═══════════════════════════════════════════════════ */
+
+:root {
+  --layout-sidebar-bg: #3A1A0A;
+  --layout-sidebar-text: #F0E0D8;
+  --layout-sidebar-text-muted: #D9C0AE;
+  --layout-sidebar-hover: #5A2D15;
+  --layout-sidebar-active: #7A4B35;
+  --layout-sidebar-width: 260px;
+
+  --layout-topbar-bg: #ffffff;
+  --layout-topbar-height: 64px;
+
+  --layout-main-bg: #F5EBE5;
+  --layout-text-dark: #2C1810;
+
+  --layout-transition: 0.3s ease-in-out;
+}
+
+/* ─── Main Layout Container ─── */
+.layout-container {
+  min-height: 100vh;
+  background-color: var(--layout-main-bg);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════
+   Sidebar 
+═══════════════════════════════════════════════════ */
+.layout-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--layout-sidebar-width);
+  height: 100vh;
+  background-color: var(--layout-sidebar-bg);
+  color: var(--layout-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transition: transform var(--layout-transition);
+  overflow: hidden;
+}
+
+.layout-sidebar-header {
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.layout-sidebar-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #fff;
+  padding: 4px;
+  object-fit: contain;
+}
+
+.layout-sidebar-brand h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.layout-sidebar-brand p {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--layout-sidebar-text-muted);
+}
+
+
+.layout-sidebar-nav {
+  flex: 1;
+  padding: 1.25rem 0.75rem;
+  overflow-y: auto;
+}
+
+.layout-sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.layout-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.layout-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+.layout-sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1rem;
+  color: var(--layout-sidebar-text-muted);
+  text-decoration: none;
+  border-radius: 8px;
+  margin-bottom: 0.25rem;
+  transition: background-color 0.2s, color 0.2s;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.layout-sidebar-nav-item i {
+  font-size: 1.125rem;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.layout-sidebar-nav-item:hover {
+  background-color: var(--layout-sidebar-hover);
+  color: var(--layout-sidebar-text);
+}
+
+.layout-sidebar-nav-item.active {
+  background-color: var(--layout-sidebar-active);
+  color: #fff;
+}
+
+
+.layout-sidebar-footer {
+  padding: 1.25rem 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.layout-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: var(--layout-sidebar-text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.2s, color 0.2s;
+  text-align: left;
+}
+
+.layout-logout-btn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+}
+
+/* ═══════════════════════════════════════════════════
+   Content Wrapper 
+═══════════════════════════════════════════════════ */
+.layout-content-wrapper {
+  margin-left: var(--layout-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   Topbar 
+═══════════════════════════════════════════════════ */
+.layout-topbar {
+  position: sticky;
+  top: 0;
+  height: var(--layout-topbar-height);
+  background-color: var(--layout-topbar-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  border-bottom: 1px solid #f0e0d8;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  z-index: 90;
+  flex-shrink: 0;
+}
+
+.layout-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.layout-hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--layout-text-dark);
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-left: -0.5rem;
+}
+
+.layout-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.layout-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.layout-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--layout-main-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--layout-sidebar-active);
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.layout-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--layout-text-dark);
+  margin: 0;
+}
+
+.layout-user-role {
+  font-size: 0.7rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   Main Content Scroll Area
+═══════════════════════════════════════════════════ */
+.layout-main {
+  flex: 1;
+  padding: 1.5rem 2rem 2rem;
+  overflow-x: hidden;
+}
+
+/* ═══════════════════════════════════════════════════
+   Reusable Page Heading
+   Use inside every page for consistent page titles.
+   
+   Usage:
+     <div class="layout-page-heading">
+       <h2>Dashboard</h2>
+       <p>Welcome back, Kate</p>
+     </div>
+═══════════════════════════════════════════════════ */
+.layout-page-heading {
+  margin-bottom: 0.5rem;
+}
+
+.layout-page-heading h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--layout-text-dark);
+  display: inline-block;
+  width: fit-content;
+  margin: 0;
+  padding-bottom: 0.25rem;
+}
+
+.layout-page-heading p {
+  font-size: 0.9375rem;
+  color: #6c757d;
+  margin: 0.5rem 0 0 0;
+}
+
+/* ═══════════════════════════════════════════════════
+   Mobile Overlay
+═══════════════════════════════════════════════════ */
+.layout-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 95;
+  opacity: 0;
+  transition: opacity var(--layout-transition);
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive 
+═══════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .layout-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .layout-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .layout-content-wrapper {
+    margin-left: 0;
+  }
+
+  .layout-hamburger-btn {
+    display: block;
+  }
+
+  .layout-overlay.open {
+    display: block;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .layout-topbar {
+    padding: 0 1rem;
+  }
+
+  .layout-main {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .layout-user-info {
+    display: none;
+  }
+
+  .layout-page-heading h2 {
+    font-size: 1.25rem;
+  }
+}

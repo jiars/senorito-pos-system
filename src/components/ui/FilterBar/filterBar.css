@@ -1,0 +1,47 @@
+/* ─────────────────────────────────────────────────
+   FilterBar
+   Use: Wraps a row of filter controls (dropdowns,
+   buttons, search bars) on any page
+───────────────────────────────────────────────── */
+.ui-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;             /* tight — keeps the row compact like the screenshot */
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Spacing variant — adds bottom margin between consecutive filter rows */
+.ui-filter-bar + .ui-filter-bar {
+  margin-top: 0.625rem;
+}
+
+.ui-filter-bar--left    { justify-content: flex-start; }
+.ui-filter-bar--right   { justify-content: flex-end; }
+.ui-filter-bar--between { justify-content: space-between; }
+
+/* ─── Filter Row Container ─────────────────────── */
+/* Wrap in this when a filter bar lives in its own card/section */
+.ui-filter-bar-section {
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+@media (max-width: 768px) {
+  .ui-filter-bar { gap: var(--space-xs); }
+}
+
+@media (max-width: 576px) {
+  .ui-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ui-filter-bar > * {
+    width: 100%;
+    max-width: none;
+  }
+}

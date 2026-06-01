@@ -1,0 +1,19 @@
+/* responsive.css */
+
+/* Tablet breakpoint */
+@media (max-width: 768px) {
+  :root {
+    --space-2xl: 2rem;
+    --space-xl: 1.5rem;
+    --space-lg: 1rem;
+  }
+}
+
+/* Mobile breakpoint */
+@media (max-width: 576px) {
+  :root {
+    --space-2xl: 1.5rem;
+    --space-xl: 1rem;
+    --space-lg: 0.75rem;
+  }
+}

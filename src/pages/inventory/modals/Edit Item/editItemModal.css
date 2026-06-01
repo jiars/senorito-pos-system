@@ -1,0 +1,234 @@
+.edit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(18, 10, 6, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.edit-modal-content {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 650px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+.edit-modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1.5rem 1.25rem;
+  border-bottom: 1px solid #E9ECEF;
+  position: relative;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.edit-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2C1810;
+  line-height: 1.2;
+}
+
+.edit-modal-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #7A4B35;
+}
+
+.edit-modal-close {
+  position: absolute;
+  right: 1.5rem;
+  top: 1.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #6C757D;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+
+.edit-modal-close:hover {
+  color: #2C1810;
+}
+
+.edit-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Custom Thin Scrollbar */
+.edit-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.edit-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edit-modal-body::-webkit-scrollbar-thumb {
+  background-color: #D9C0AE;
+  border-radius: 10px;
+}
+
+.edit-modal-body::-webkit-scrollbar-thumb:hover {
+  background-color: #BCAAA4;
+}
+
+/* ─── Form Grid ─── */
+.edit-modal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem 1rem;
+}
+
+.edit-modal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.edit-modal-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2C1810;
+  margin: 0;
+}
+
+.edit-modal-input,
+.edit-modal-select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #D9C0AE;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #495057;
+  background-color: #FAFAFA;
+  transition: border-color 0.2s, background-color 0.2s;
+  box-sizing: border-box;
+}
+
+.edit-modal-input:focus,
+.edit-modal-select:focus {
+  outline: none;
+  border-color: #7A4B35;
+  background-color: #ffffff;
+}
+
+.edit-modal-input::placeholder {
+  color: #ADB5BD;
+}
+
+/* Error States */
+.edit-modal-input.is-invalid,
+.edit-modal-select.is-invalid {
+  border-color: #dc3545;
+  background-color: #fff8f8;
+}
+
+.edit-modal-error-msg {
+  color: #dc3545;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* ─── Footer ─── */
+.edit-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #E9ECEF;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.edit-btn-cancel {
+  background-color: #E2E2E2;
+  color: #495057;
+  border: 1px solid #D1D1D1;
+  border-radius: 6px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn-cancel:hover {
+  background-color: #D6D6D6;
+}
+
+.edit-btn-save {
+  background-color: #7A4B35;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn-save:hover:not(:disabled) {
+  background-color: #5A2D15;
+}
+
+.edit-btn-save:disabled {
+  background-color: #D9C0AE;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .edit-modal-form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .edit-modal-content {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .edit-modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .edit-btn-cancel,
+  .edit-btn-save {
+    width: 100%;
+    justify-content: center;
+  }
+}

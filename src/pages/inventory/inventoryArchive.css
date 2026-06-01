@@ -1,0 +1,10 @@
+.inventory-archive-action-btn--restore {
+  color: #C62828;
+  border: 1px solid #C62828;
+}
+
+.inventory-archive-action-btn--restore:hover {
+  background-color: #ffebee;
+  color: #8E1600;
+  border-color: #8E1600;
+}

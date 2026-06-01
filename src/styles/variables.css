@@ -1,0 +1,62 @@
+:root {
+  /* ─── Brand Colors ───────────────────────────────────────────── */
+  /* Green palette — used for primary actions, chips, summary card */
+  --color-primary: #4A7A5A;          /* medium green (completed chip, icon) */
+  --color-primary-dark: #3A6049;     /* hover on green buttons */
+  --color-primary-light: #7EAD88;    /* focus rings */
+  --color-primary-card: #3A6849;     /* dark forest green — summary card bg */
+
+  /* Brown palette — used for "Add Item" button, Dashboard title */
+  --color-secondary: #3D1F10;        /* dark brown (Add Item button) */
+  --color-secondary-dark: #2B1509;   /* hover on dark brown buttons */
+  --color-secondary-title: #2C1810;  /* very dark brown for page title */
+
+  /* ─── Status Colors ──────────────────────────────────────────── */
+  --color-success: #4A7A5A;          /* success chip / in-stock badge */
+  --color-success-dark: #2D5E3A;     /* darker success */
+  --color-danger: #dc3545;
+  --color-warning: #ffc107;
+  --color-info: #0dcaf0;
+
+  /* ─── Neutral / Text ─────────────────────────────────────────── */
+  --color-text-main: #1A1A1A;
+  --color-text-muted: #6B7280;
+  --color-text-inverse: #ffffff;
+
+  /* ─── Surfaces & Borders ─────────────────────────────────────── */
+  --color-border: #E5E7EB;
+  --color-border-dark: #D1D5DB;
+  --color-bg-main: #F5F5F5;
+  --color-bg-card: #ffffff;
+  --color-bg-hover: #F3F4F6;
+  --color-bg-muted: #F9FAFB;
+
+  /* ─── Typography ─────────────────────────────────────────────── */
+  --font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* ─── Border Radius ──────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ─── Spacing ────────────────────────────────────────────────── */
+  --space-xs: 0.25rem;   /*  4px */
+  --space-sm: 0.5rem;    /*  8px */
+  --space-md: 1rem;      /* 16px */
+  --space-lg: 1.5rem;    /* 24px */
+  --space-xl: 2rem;      /* 32px */
+  --space-2xl: 3rem;     /* 48px */
+
+  /* ─── Control Heights (unified across buttons, dropdowns, inputs) ── */
+  --ctrl-height-sm: 30px;   /* compact / pagination controls  */
+  --ctrl-height-md: 36px;   /* standard row controls          */
+  --ctrl-height-lg: 42px;   /* prominent / primary CTA        */
+
+  /* ─── Shadows ────────────────────────────────────────────────── */
+  --shadow-sm:   0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:   0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --shadow-lg:   0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+  --shadow-card: 0 1px 4px rgba(0,0,0,0.06);
+}

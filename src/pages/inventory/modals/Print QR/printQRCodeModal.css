@@ -1,0 +1,374 @@
+.qr-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.qr-modal-content {
+  background-color: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+.qr-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #E9ECEF;
+  position: relative;
+}
+
+.qr-modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2C1810;
+}
+
+.qr-modal-close {
+  position: absolute;
+  right: 1.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #6C757D;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+  padding: 0;
+}
+
+.qr-modal-close:hover {
+  color: #2C1810;
+}
+
+.qr-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar */
+.qr-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.qr-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.qr-modal-body::-webkit-scrollbar-thumb {
+  background: #D9C0AE;
+  border-radius: 10px;
+}
+.qr-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #7A4B35;
+}
+
+.qr-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.qr-card {
+  border: 1px solid #D9C0AE;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  background-color: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.qr-card--selected {
+  border-color: #7A4B35;
+  box-shadow: 0 4px 12px rgba(122, 75, 53, 0.1);
+}
+
+.qr-card-checkbox {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  cursor: pointer;
+}
+
+.qr-card-image {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.qr-card-details {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+}
+
+.qr-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2C1810;
+  margin: 0;
+}
+
+.qr-card-unit {
+  font-size: 0.875rem;
+  color: #495057;
+  margin: 0;
+}
+
+.qr-card-batch {
+  font-size: 0.875rem;
+  color: #495057;
+  margin: 0;
+}
+
+.qr-card-expiry {
+  font-size: 0.75rem;
+  color: #6C757D;
+  margin: 0;
+  margin-top: 0.25rem;
+}
+
+.qr-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #E9ECEF;
+  background-color: #ffffff;
+}
+
+.qr-modal-btn-cancel {
+  background-color: #E2E2E2;
+  color: #495057;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.qr-modal-btn-cancel:hover {
+  background-color: #D6D6D6;
+}
+
+.qr-modal-btn-print {
+  background-color: #7A4B35;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.qr-modal-btn-print:hover:not(:disabled) {
+  background-color: #5A3525;
+}
+
+.qr-modal-btn-print:disabled {
+  background-color: #E9ECEF;
+  color: #ADB5BD;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .qr-modal-content {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .qr-card-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .qr-modal-footer {
+    flex-direction: column;
+  }
+  
+  .qr-modal-btn-cancel,
+  .qr-modal-btn-print {
+    width: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Print Layout Specific Styles
+═══════════════════════════════════════════════════ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm;
+  }
+
+  /* Hide all app shells, sidebars, and parent containers */
+  body * {
+    visibility: hidden;
+  }
+  
+  body, html {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* CRITICAL FIX: Chrome stops paginating if any parent has height: 100vh or overflow: hidden */
+  #root,
+  .layout-container,
+  .layout-content-wrapper,
+  .layout-content,
+  .inventory-page {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Explicitly hide the rest of the app elements */
+  .layout-sidebar,
+  .layout-topbar,
+  .layout-header,
+  .inventory-page-header,
+  .inventory-summary-cards,
+  .inventory-panel {
+    display: none !important;
+  }
+
+  /* Bring the modal and all its children back to visibility */
+  .qr-modal-overlay,
+  .qr-modal-overlay * {
+    visibility: visible;
+  }
+
+  /* Remove overlay background and centering */
+  .qr-modal-overlay {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    height: auto !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Strip modal styling (shadows, rounded corners, max-width) */
+  .qr-modal-content {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Hide unnecessary modal UI elements */
+  .qr-modal-header,
+  .qr-modal-footer,
+  .qr-card-checkbox {
+    display: none !important;
+  }
+
+  /* Reset body padding to maximize print area */
+  .qr-modal-body {
+    padding: 0;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Enforce exactly 4 QR cards per row using inline-flex for 100% bulletproof pagination */
+  .qr-card-grid {
+    display: block !important;
+    width: 100%;
+    text-align: left;
+    font-size: 0; /* Remove whitespace gaps between inline elements */
+  }
+
+  /* Style the card for clean printing */
+  .qr-card {
+    display: inline-flex !important;
+    vertical-align: top;
+    
+    border: 1px solid #000000 !important;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    
+    /* 4 columns: 23% width + 2% right margin = 25% per card */
+    width: 23% !important;
+    margin-right: 2% !important;
+    margin-bottom: 2% !important;
+    box-sizing: border-box !important;
+    
+    /* Crucial: Prevent cards from being sliced in half across pages */
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    
+    /* Reset font size back to normal since parent is font-size: 0 */
+    font-size: 1rem;
+  }
+
+  /* Automatically exclude unselected items from printing */
+  .qr-card:not(.qr-card--selected) {
+    display: none !important;
+  }
+
+  /* Ensure the QR code is crisp and right-sized for a 4-column A4 grid */
+  .qr-card-image {
+    width: 110px;
+    height: 110px;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  /* Force all text inside the print card to pure black */
+  .qr-card-title,
+  .qr-card-unit,
+  .qr-card-batch,
+  .qr-card-expiry {
+    color: #000000 !important;
+  }
+}
