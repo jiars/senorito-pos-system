@@ -1,41 +1,27 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import { useMenu } from '../../hooks/useMenu';
+
 import ManageMenuCategoriesModal from './modals/Menu Categories/ManageMenuCategoriesModal';
 import AddMenuItemModal from './modals/Add Menu Item/AddMenuItemModal';
 import EditMenuItemModal from './modals/Edit Menu Item/EditMenuItemModal';
 import ConfirmDeleteMenuItemModal from './modals/Confirm Delete Menu Item/ConfirmDeleteMenuItemModal';
+
 import './menuManagement.css';
 
-/* ═══════════════════════════════════════════════════
-   Placeholder Data
-═══════════════════════════════════════════════════ */
-const menuData = [
-  { id: 1, name: 'Chocolate Chip Frappe', category: 'Frappuccino', price: '₱159.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 2, name: 'Matcha Blend', category: 'Non-coffee', price: '₱159.00', recipeStatus: 'Ingredient archived', posStatus: 'Unavailable' },
-  { id: 3, name: 'Brownies (2 pcs)', category: 'Pastry', price: '₱70.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 4, name: 'Chocolate Chip Cookie (1 pc)', category: 'Pastry', price: '₱60.00', recipeStatus: 'Ingredient out of stock', posStatus: 'Unavailable' },
-  { id: 5, name: 'Creamy Oreo', category: 'Frappuccino', price: '₱129.00 - ₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 6, name: 'Hot Americano (12oz)', category: 'Hot Coffee', price: '₱129.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 7, name: 'Hot Cafe Latte (12oz)', category: 'Hot Coffee', price: '₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 8, name: 'Hot Spanish Latte (12oz)', category: 'Hot Coffee', price: '₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 9, name: 'Hot White Mocha (12oz)', category: 'Hot Coffee', price: '₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 10, name: 'Hungarian Morning', category: 'Rice Meal', price: '₱159.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 11, name: 'Iced Americano', category: 'Iced Coffee', price: '₱109.00 - ₱129.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 12, name: 'Iced Cafe Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 13, name: 'Iced Mocha Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 14, name: 'Iced Spanish Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 15, name: 'Milky Choco', category: 'Non-coffee', price: '₱129.00 - ₱149.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 16, name: 'Oreo Frappe (22oz)', category: 'Frappuccino', price: '₱159.00', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 17, name: 'Tocino Classic', category: 'Rice Meal', price: '₱159.00', recipeStatus: 'Complete', posStatus: 'Available' }
-];
-
 const MenuManagementPage = () => {
+  const { menuItems, isLoading, refetchMenu } = useMenu();
+
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [isAddMenuItemModalOpen, setIsAddMenuItemModalOpen] = useState(false);
   const [isEditMenuItemModalOpen, setIsEditMenuItemModalOpen] = useState(false);
   const [isDeleteMenuItemModalOpen, setIsDeleteMenuItemModalOpen] = useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const navigate = useNavigate();
 
   const getPosStatusClass = (status) => {
@@ -56,8 +42,33 @@ const MenuManagementPage = () => {
     setIsDeleteMenuItemModalOpen(true);
   };
 
+  // ─── FILTER LOGIC ───
+  const filteredMenuItems = menuItems.filter((item) => {
+    // 1. Check Search Term
+    if (searchTerm && !item.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+
+    // 2. Check Status Filter
+    if (statusFilter === 'Available' && item.is_available === false) {
+      return false;
+    }
+    if (statusFilter === 'Unavailable' && item.is_available === true) {
+      return false;
+    }
+
+    // If it passes both checks, keep it in the list!
+    return true;
+  });
+
+
   return (
     <div className="menu-page">
+      {isLoading && (
+        <div style={{ padding: '20px', textAlign: 'center', backgroundColor: '#fff', marginBottom: '20px', borderRadius: '8px' }}>
+          Loading menu items from database...
+        </div>
+      )}
       {/* ───── Page Header ───── */}
       <div className="menu-page-header">
         <div className="layout-page-heading">
@@ -74,14 +85,14 @@ const MenuManagementPage = () => {
             <i className="bi bi-tag"></i>
             Manage Categories
           </button>
-          <button 
-            className="menu-btn" 
+          <button
+            className="menu-btn"
             title="Manage Add-ons"
             onClick={() => navigate('/menu/addons')}
           >
             Manage Add-ons
           </button>
-          <button 
+          <button
             className="menu-btn menu-btn--primary"
             onClick={() => setIsAddMenuItemModalOpen(true)}
           >
@@ -114,11 +125,16 @@ const MenuManagementPage = () => {
             <option value="Iced Coffee">Iced Coffee</option>
           </select>
 
-          <select className="menu-filter-select">
+          <select
+            className="menu-filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
             <option value="all">All Status</option>
             <option value="Available">Available</option>
             <option value="Unavailable">Unavailable</option>
           </select>
+
 
           <button className="menu-reset-btn">Reset</button>
         </div>
@@ -137,30 +153,30 @@ const MenuManagementPage = () => {
               </tr>
             </thead>
             <tbody>
-              {menuData.map((item) => (
+              {filteredMenuItems.map((item) => (
                 <tr key={item.id}>
                   <td>
                     <span className="menu-item-name">{item.name}</span>
                   </td>
-                  <td>{item.category}</td>
-                  <td>{item.price}</td>
-                  <td>{item.recipeStatus}</td>
+                  <td>{item.category?.name || 'Uncategorized'}</td>
+                  <td>{item.variants && item.variants.length > 0 ? `₱${item.variants[0].selling_price}` : 'N/A'}</td>
+                  <td>Complete</td>
                   <td>
-                    <span className={`menu-chip ${getPosStatusClass(item.posStatus)}`}>
-                      {item.posStatus}
+                    <span className={`menu-chip ${getPosStatusClass(item.is_available ? 'Available' : 'Unavailable')}`}>
+                      {item.is_available ? 'Available' : 'Unavailable'}
                     </span>
                   </td>
                   <td>
                     <div className="menu-actions">
-                      <button 
-                        className="menu-action-btn menu-action-btn--edit" 
+                      <button
+                        className="menu-action-btn menu-action-btn--edit"
                         title="Edit Item"
                         onClick={() => handleEditClick(item)}
                       >
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button 
-                        className="menu-action-btn menu-action-btn--archive" 
+                      <button
+                        className="menu-action-btn menu-action-btn--archive"
                         title="Delete Item"
                         onClick={() => handleDeleteClick(item)}
                       >

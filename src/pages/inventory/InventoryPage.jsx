@@ -105,8 +105,8 @@ const InventoryPage = () => {
     if (item.expiry === 'Expired') prefix = 'Expired:';
 
     return (
-      <div 
-        className="inventory-expiry-cell" 
+      <div
+        className="inventory-expiry-cell"
         style={{ cursor: 'pointer', transition: 'opacity 0.2s' }}
         onMouseOver={(e) => e.currentTarget.style.opacity = '0.7'}
         onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
@@ -260,8 +260,8 @@ const InventoryPage = () => {
                   </td>
                   <td>
                     <div className="inventory-actions">
-                      <button 
-                        className="inventory-action-btn inventory-action-btn--view" 
+                      <button
+                        className="inventory-action-btn inventory-action-btn--view"
                         title="Stock Log"
                         onClick={() => {
                           setSelectedLogItem(item);
@@ -270,8 +270,8 @@ const InventoryPage = () => {
                       >
                         <i className="bi bi-card-list"></i>
                       </button>
-                      <button 
-                        className="inventory-action-btn inventory-action-btn--history" 
+                      <button
+                        className="inventory-action-btn inventory-action-btn--history"
                         title="History"
                         onClick={() => {
                           setSelectedHistoryItem(item);
@@ -280,8 +280,8 @@ const InventoryPage = () => {
                       >
                         <i className="bi bi-clock-history"></i>
                       </button>
-                      <button 
-                        className="inventory-action-btn inventory-action-btn--edit" 
+                      <button
+                        className="inventory-action-btn inventory-action-btn--edit"
                         title="Edit Item"
                         onClick={() => {
                           setSelectedEditItem(item);
@@ -290,8 +290,8 @@ const InventoryPage = () => {
                       >
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button 
-                        className="inventory-action-btn inventory-action-btn--archive" 
+                      <button
+                        className="inventory-action-btn inventory-action-btn--archive"
                         title="Archive Item"
                         onClick={() => {
                           setSelectedArchiveItem(item);
