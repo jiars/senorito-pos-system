@@ -1,22 +1,36 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+
+import { formatRoleKey } from '../../utils/stringFormatters';
+
 import senoritoLogo from '../../assets/images/senorito_logo.png';
 import ConfirmLogoutModal from './modals/Confirm Logout/ConfirmLogoutModal';
+
+import { useAuth } from '../../hooks/useAuth';
+import { ROLE_ROUTES } from '../../routes/roleRoutes';
+
 import './layout.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
+  const { logout, role } = useAuth();
+
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
   };
 
-  const confirmLogout = () => {
-    // In the future, clear auth tokens here
-    console.log('Logging out...');
-    setIsLogoutModalOpen(false);
-    navigate('/login');
+  const confirmLogout = async () => {
+    try {
+      await logout();
+
+      setIsLogoutModalOpen(false);
+
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   const navItems = [
@@ -31,6 +45,12 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Menu Management', path: '/menu', icon: 'bi-journal-richtext' },
   ];
 
+  let userRoleKey = formatRoleKey(role);
+
+  const allowedRoutes = ROLE_ROUTES[userRoleKey];
+
+  const visibleNavItems = navItems.filter((item) => allowedRoutes.includes(item.path));
+
   return (
     <>
       <aside className={`layout-sidebar ${isOpen ? 'open' : ''}`}>
@@ -43,7 +63,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         <nav className="layout-sidebar-nav">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -67,7 +87,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
       </aside>
 
-      <ConfirmLogoutModal 
+      <ConfirmLogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={confirmLogout}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useMenu } from '../../hooks/useMenu';
+import { formatCurrency } from '../../utils/currencyFormatters';
 
 import ManageMenuCategoriesModal from './modals/Menu Categories/ManageMenuCategoriesModal';
 import AddMenuItemModal from './modals/Add Menu Item/AddMenuItemModal';
@@ -159,7 +160,7 @@ const MenuManagementPage = () => {
                     <span className="menu-item-name">{item.name}</span>
                   </td>
                   <td>{item.category?.name || 'Uncategorized'}</td>
-                  <td>{item.variants && item.variants.length > 0 ? `₱${item.variants[0].selling_price}` : 'N/A'}</td>
+                  <td>{item.variants && item.variants.length > 0 ? formatCurrency(item.variants[0].selling_price) : 'N/A'}</td>
                   <td>Complete</td>
                   <td>
                     <span className={`menu-chip ${getPosStatusClass(item.is_available ? 'Available' : 'Unavailable')}`}>

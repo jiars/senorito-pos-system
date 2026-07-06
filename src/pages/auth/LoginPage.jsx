@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+
 import senoritoLogo from '../../assets/images/senorito_logo.png';
+
+import { useAuth } from '../../hooks/useAuth';
+
 import './auth.css';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login submitted:', { email, password });
-    navigate('/dashboard');
+
+    setErrorMsg('');
+    setIsLoggingIn(true);
+
+    try {
+      await login(email, password);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error(error);
+      setErrorMsg('Invalid email or password. Please try again.');
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -75,8 +92,19 @@ const LoginPage = () => {
                 </Link>
               </div>
 
-              <button type="submit" className="auth-submit-btn" id="login-submit">
-                Login
+              {errorMsg !== '' && (
+                <div style={{ color: 'red', marginBottom: '15px', textAlign: 'center' }}>
+                  {errorMsg}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="auth-submit-btn"
+                id="login-submit"
+                disabled={isLoggingIn === true}
+              >
+                {isLoggingIn === true ? 'Logging in...' : 'Login'}
               </button>
             </form>
           </div>

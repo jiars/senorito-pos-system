@@ -7,6 +7,7 @@ import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
 import ComponentPreview from '../pages/ComponentPreview';
 
 import MainLayout from '../components/layout/MainLayout';
+
 import DashboardPage from '../pages/dashboard/DashboardPage';
 
 import InventoryPage from '../pages/inventory/InventoryPage';
@@ -18,134 +19,183 @@ import MenuManagementPage from '../pages/menu/MenuManagementPage';
 import ManageAddonsPage from '../pages/menu/addons/ManageAddonsPage';
 
 import ExpenseTrackingPage from '../pages/expenses/ExpenseTrackingPage';
-
 import OrdersPage from '../pages/orders/OrdersPage';
-
 import POSPage from '../pages/pos/POSPage';
-
 import SalesReportPage from '../pages/reports/sales/SalesReportPage';
-
 import UserProfilePage from '../pages/profile/UserProfilePage';
+
+import ProtectedRoute from './ProtectedRoute';
+import PublicOnlyRoute from './PublicOnlyRoute';
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Auth routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-      {/* Main Authenticated Layout */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
+      {/* ── Public Auth Routes (Protected from logged-in users!) ── */}
       <Route
-        path="/dashboard"
+        path="/login"
         element={
-          <MainLayout>
-            <DashboardPage />
-          </MainLayout>
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicOnlyRoute>
+            <ForgotPasswordPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <PublicOnlyRoute>
+            <ResetPasswordPage />
+          </PublicOnlyRoute>
         }
       />
 
+      {/* ── Default Root Redirect ── */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* ── Protected Dashboard ── */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <DashboardPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ── Protected Inventory Routes ── */}
       <Route
         path="/inventory"
         element={
-          <MainLayout>
-            <InventoryPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <InventoryPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/inventory/archive"
         element={
-          <MainLayout>
-            <InventoryArchivePage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <InventoryArchivePage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/inventory/audit"
         element={
-          <MainLayout>
-            <InventoryAuditLogPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <InventoryAuditLogPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/inventory/valuation"
         element={
-          <MainLayout>
-            <InventoryValuationReport />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <InventoryValuationReport />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
-      <Route
-        path="/expenses"
-        element={
-          <MainLayout>
-            <ExpenseTrackingPage />
-          </MainLayout>
-        }
-      />
-
-      <Route
-        path="/reports/sales"
-        element={
-          <MainLayout>
-            <SalesReportPage />
-          </MainLayout>
-        }
-      />
-
+      {/* ── Protected Menu Routes ── */}
       <Route
         path="/menu"
         element={
-          <MainLayout>
-            <MenuManagementPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <MenuManagementPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
       <Route
         path="/menu/addons"
         element={
-          <MainLayout>
-            <ManageAddonsPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <ManageAddonsPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
-      {/* POS Page */}
+      {/* ── Protected POS Page ── */}
       <Route
         path="/pos"
         element={
-          <MainLayout>
-            <POSPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <POSPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
-      {/* User Profile Page */}
+      {/* ── Protected Profile Page ── */}
       <Route
         path="/profile"
         element={
-          <MainLayout>
-            <UserProfilePage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <UserProfilePage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
-      {/* Orders Page */}
+      {/* ── Protected Orders Page ── */}
       <Route
         path="/orders"
         element={
-          <MainLayout>
-            <OrdersPage />
-          </MainLayout>
+          <ProtectedRoute>
+            <MainLayout>
+              <OrdersPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ── Protected Expenses Page ── */}
+      <Route
+        path="/expenses"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <ExpenseTrackingPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ── Protected Sales Report Page ── */}
+      <Route
+        path="/reports/sales"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <SalesReportPage />
+            </MainLayout>
+          </ProtectedRoute>
         }
       />
 
@@ -153,7 +203,7 @@ const AppRoutes = () => {
       <Route path="/preview" element={<ComponentPreview />} />
 
       {/* Default redirect for unmatched paths */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };
