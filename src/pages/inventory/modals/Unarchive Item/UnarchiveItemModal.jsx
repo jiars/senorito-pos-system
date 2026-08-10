@@ -1,24 +1,53 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './unarchiveItemModal.css';
+import { unarchiveInventoryItem } from '../../../../services/inventory/inventoryItemsService';
+import { fetchAffectedMenuItems } from '../../../../services/menu/menuRecipesService';
 
-const UnarchiveItemModal = ({ isOpen, onClose, item }) => {
+const UnarchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState('');
+  const [affectedMenuItems, setAffectedMenuItems] = useState([]);
+  const [isLoadingAffected, setIsLoadingAffected] = useState(false);
+
+  useEffect(() => {
+    const loadAffectedItems = async () => {
+      if (isOpen && item) {
+        setIsLoadingAffected(true);
+        try {
+          const items = await fetchAffectedMenuItems(item.id);
+          setAffectedMenuItems(items);
+        } catch (error) {
+          console.error("Failed to load affected menu items", error);
+        } finally {
+          setIsLoadingAffected(false);
+        }
+      }
+    };
+    
+    loadAffectedItems();
+  }, [isOpen, item]);
+
   if (!isOpen || !item) return null;
 
-  // Placeholder data based on the design
-  const affectedMenuItems = [
-    'Iced Café Latte',
-    'Hot Café Latte',
-    'Matcha Latte',
-    'Chocolate Frappe',
-    'Hot White Mocha',
-    'Iced Mocha Latte',
-    'Spanish Latte',
-    'Milky Choco'
-  ];
+  const handleUnarchive = async () => {
+    if (isSubmitting) return;
 
-  const handleUnarchive = () => {
-    console.log(`Unarchiving item: ${item.name} (ID: ${item.id})`);
-    onClose();
+    setIsSubmitting(true);
+    setApiError('');
+
+    try {
+      await unarchiveInventoryItem(item.id);
+      
+      if (refetchInventory) {
+        await refetchInventory();
+      }
+
+      onClose();
+    } catch (error) {
+      setApiError(error.message || 'Failed to unarchive item.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -30,8 +59,8 @@ const UnarchiveItemModal = ({ isOpen, onClose, item }) => {
             <i className="bi bi-box-arrow-up"></i>
           </div>
           <h3>Unarchive Item</h3>
-          <span className="unarchive-modal-subtitle">{item.name}</span>
-          <button className="unarchive-modal-close" onClick={onClose} aria-label="Close">
+          <span className="unarchive-modal-subtitle">{item.item_name}</span>
+          <button className="unarchive-modal-close" onClick={onClose} aria-label="Close" disabled={isSubmitting}>
             <i className="bi bi-x"></i>
           </button>
         </div>
@@ -47,7 +76,7 @@ const UnarchiveItemModal = ({ isOpen, onClose, item }) => {
               </div>
               <div className="unarchive-stat-details">
                 <span className="unarchive-stat-label">Last Stock</span>
-                <span className="unarchive-stat-value">{item.qty} {item.unit}</span>
+                <span className="unarchive-stat-value">{item.current_stock || 0} {item.base_unit}</span>
               </div>
             </div>
             <div className="unarchive-stat-card">
@@ -76,11 +105,17 @@ const UnarchiveItemModal = ({ isOpen, onClose, item }) => {
           <div className="unarchive-affected-section">
             <h4>Affected menu items</h4>
             <div className="unarchive-affected-list">
-              {affectedMenuItems.map((menuItem, idx) => (
-                <div key={idx} className="unarchive-affected-pill">
-                  <span>{menuItem}</span>
-                </div>
-              ))}
+              {isLoadingAffected ? (
+                <div style={{ fontSize: '0.85rem', color: '#666' }}>Loading affected items...</div>
+              ) : affectedMenuItems.length > 0 ? (
+                affectedMenuItems.map((menuItem, idx) => (
+                  <div key={idx} className="unarchive-affected-pill">
+                    <span>{menuItem}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.85rem', color: '#666' }}>No menu items currently use this ingredient.</div>
+              )}
             </div>
           </div>
 
@@ -95,12 +130,13 @@ const UnarchiveItemModal = ({ isOpen, onClose, item }) => {
 
         {/* Footer */}
         <div className="unarchive-modal-footer">
-          <button className="unarchive-btn-cancel" onClick={onClose}>
+          {apiError && <p className="unarchive-error-msg" style={{color: 'red', marginRight: 'auto', marginBottom: 0, fontSize: '0.85rem'}}>{apiError}</p>}
+          <button className="unarchive-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button className="unarchive-btn-confirm" onClick={handleUnarchive}>
+          <button className="unarchive-btn-confirm" onClick={handleUnarchive} disabled={isSubmitting}>
             <i className="bi bi-box-arrow-up"></i>
-            Unarchive Item
+            {isSubmitting ? 'Unarchiving...' : 'Unarchive'}
           </button>
         </div>
       </div>

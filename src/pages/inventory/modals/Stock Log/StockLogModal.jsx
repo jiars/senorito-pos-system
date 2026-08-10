@@ -1,11 +1,24 @@
 import React, { useState, useEffect } from 'react';
+
+import { fetchItemBatches, fetchLiveItemStock, logStockAdjustment } from '../../../../services/inventory/inventoryStockService';
+import { useAuth } from '../../../../hooks/useAuth';
+
 import './stockLogModal.css';
 
-const StockLogModal = ({ isOpen, onClose, item }) => {
-  const [actionType, setActionType] = useState('restock'); // 'restock', 'wastage', 'correct'
+const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
+  const { user } = useAuth();
+
+  const [totalCost, setTotalCost] = useState('');
+  const [batches, setBatches] = useState([]);
+  const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [liveStock, setLiveStock] = useState(null);
+
+  const [actionType, setActionType] = useState('restock');
   const [quantity, setQuantity] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [reason, setReason] = useState('');
+  const [isCustomReason, setIsCustomReason] = useState(false);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
 
@@ -16,14 +29,52 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
       setQuantity('');
       setExpirationDate('');
       setReason('');
+      setIsCustomReason(false);
       setNotes('');
+      setTotalCost('');
+      setSelectedBatchId('');
+      setLiveStock(null);
       setErrors({});
-    }
-  }, [isOpen]);
 
-  const currentStock = item ? Number(item.qty || 0) : 0;
-  const unit = item ? item.unit || 'pcs' : 'pcs';
-  const isExpiryTracked = item && item.expiry !== null;
+      if (item) {
+        fetchItemBatches(item.id)
+          .then(data => setBatches(data || []))
+          .catch(err => console.error("Error fetching batches:", err));
+
+        fetchLiveItemStock(item.id)
+          .then(stock => setLiveStock(stock))
+          .catch(err => console.error("Error fetching live stock:", err));
+      }
+    }
+  }, [isOpen, item]);
+
+  // Auto-select oldest batch for Wastage/Correct
+  useEffect(() => {
+    if ((actionType === 'wastage' || actionType === 'correct') && batches.length > 0) {
+      // Find oldest active batch (quantity > 0)
+      const activeBatches = [...batches].filter(b => b.quantity > 0);
+
+      // Sort by expiration_date (or received_date if no expiry)
+      activeBatches.sort((a, b) => {
+        const dateA = new Date(a.expiration_date || a.received_date);
+        const dateB = new Date(b.expiration_date || b.received_date);
+        return dateA - dateB;
+      });
+
+      if (activeBatches.length > 0) {
+        setSelectedBatchId(activeBatches[0].id);
+      } else {
+        setSelectedBatchId(batches[0].id); // Fallback to first if all depleted
+      }
+    } else if (actionType === 'restock') {
+      setSelectedBatchId('');
+    }
+  }, [batches, actionType]);
+
+  // Use live stock if fetched, otherwise fallback to item prop
+  const currentStock = liveStock !== null ? Number(liveStock) : (item ? Number(item.current_stock || 0) : 0);
+  const unit = item ? item.base_unit || 'pcs' : 'pcs';
+  const isExpiryTracked = item ? item.track_expiry : false;
 
   // Real-time validation and calculations
   useEffect(() => {
@@ -35,40 +86,71 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
       newErrors.quantity = 'Quantity is required.';
     } else if (isNaN(numQuantity)) {
       newErrors.quantity = 'Quantity must be a valid number.';
-    } else if (actionType === 'correct' && numQuantity < 0) {
-      newErrors.quantity = 'Quantity cannot be negative.';
-    } else if (actionType !== 'correct' && numQuantity <= 0) {
+    } else if (actionType === 'restock' && numQuantity <= 0) {
       newErrors.quantity = 'Quantity must be greater than 0.';
+    } else if (actionType === 'wastage') {
+      if (numQuantity <= 0) {
+        newErrors.quantity = 'Quantity must be greater than 0.';
+      } else if (numQuantity > currentStock) {
+        newErrors.quantity = `Cannot waste more than current stock (${currentStock}).`;
+      }
+    } else if (actionType === 'correct') {
+      if (numQuantity < 0) {
+        newErrors.quantity = 'Quantity cannot be negative.';
+      } else if (numQuantity === currentStock) {
+        newErrors.quantity = 'New stock is the same as current stock (no changes).';
+      }
     }
 
     if (actionType === 'restock' && isExpiryTracked) {
       if (!expirationDate) {
-        newErrors.expirationDate = 'Expiration date is required.';
+        newErrors.expirationDate = 'Expiration date is required for expiry-tracked items.';
       }
     }
 
-    if (!reason) {
+    if (!isCustomReason && !reason) {
       newErrors.reason = 'Reason is required.';
+    } else if (isCustomReason && !reason.trim()) {
+      newErrors.reason = 'Please specify a reason.';
     }
 
     setErrors(newErrors);
-  }, [quantity, expirationDate, reason, actionType, isOpen]);
+  }, [quantity, expirationDate, reason, isCustomReason, actionType, isOpen, isExpiryTracked, currentStock]);
 
   if (!isOpen || !item) return null;
 
   const isFormValid = Object.keys(errors).length === 0;
 
-  const handleSave = () => {
-    if (!isFormValid) return;
-    console.log('Saving Stock Log:', {
-      item: item.name,
-      actionType,
-      quantity: Number(quantity),
-      expirationDate: actionType === 'restock' ? expirationDate : null,
-      reason,
-      notes
-    });
-    onClose();
+  const handleSave = async () => {
+    if (!isFormValid || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const numQty = Number(quantity);
+      const newTotalStock = actionType === 'restock' ? (currentStock + numQty) :
+        actionType === 'wastage' ? Math.max(0, currentStock - numQty) : numQty;
+
+      await logStockAdjustment({
+        item,
+        actionType,
+        quantityChange: numQty,
+        newTotalStock,
+        userId: user?.id,
+        reason,
+        notes,
+        totalCost: Number(totalCost) || 0,
+        supplier: notes, // In restock, the 'notes' field acts as Supplier
+        expirationDate,
+        selectedBatchId
+      });
+
+      if (refetchInventory) refetchInventory();
+      onClose();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getSubtext = () => {
@@ -82,19 +164,19 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
 
   const renderActionButtons = () => (
     <div className="stocklog-action-types">
-      <button 
+      <button
         className={`stocklog-action-btn stocklog-action-btn--restock ${actionType === 'restock' ? 'active' : ''}`}
-        onClick={() => { setActionType('restock'); setReason(''); }}
+        onClick={() => { setActionType('restock'); setReason(''); setSelectedBatchId(''); }}
       >
         <i className="bi bi-plus-circle"></i> Restock
       </button>
-      <button 
+      <button
         className={`stocklog-action-btn stocklog-action-btn--wastage ${actionType === 'wastage' ? 'active' : ''}`}
         onClick={() => { setActionType('wastage'); setReason(''); }}
       >
         <i className="bi bi-dash-circle"></i> Wastage
       </button>
-      <button 
+      <button
         className={`stocklog-action-btn stocklog-action-btn--correct ${actionType === 'correct' ? 'active' : ''}`}
         onClick={() => { setActionType('correct'); setReason(''); }}
       >
@@ -111,6 +193,7 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
           <option value="Supplier Delivery">Supplier Delivery</option>
           <option value="Manual Stock Addition">Manual Stock Addition</option>
           <option value="Owner Adjustment">Owner Adjustment</option>
+          <option value="Others">Others (Please specify)</option>
         </>
       );
     }
@@ -128,6 +211,7 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
           <option value="Overproduction">Overproduction</option>
           <option value="Storage Issue">Storage Issue</option>
           <option value="Missing Item">Missing Item</option>
+          <option value="Others">Others (Please specify)</option>
         </>
       );
     }
@@ -141,6 +225,7 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
         <option value="System Sync Error">System Sync Error</option>
         <option value="Batch Count Correction">Batch Count Correction</option>
         <option value="Audit Adjustment">Audit Adjustment</option>
+        <option value="Others">Others (Please specify)</option>
       </>
     );
   };
@@ -149,7 +234,7 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
   const numQty = Number(quantity) || 0;
   let previewLabel = "New Stock (preview)";
   let previewValue = "";
-  
+
   if (actionType === 'restock') {
     previewValue = `${currentStock + numQty} ${unit}`;
   } else if (actionType === 'wastage') {
@@ -181,7 +266,7 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
           {/* Item Info */}
           <div className="stocklog-section">
             <label className="stocklog-label">Item</label>
-            <input type="text" className="stocklog-input" value={item.name} readOnly />
+            <input type="text" className="stocklog-input" value={item ? item.item_name : ''} readOnly />
             <div className="stocklog-subtext" style={{ color: '#6C757D' }}>
               Current stock: <strong style={{ color: '#2C1810' }}>{currentStock} {unit}</strong>
             </div>
@@ -199,6 +284,33 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
           </div>
 
           <hr className="stocklog-divider" />
+
+          {/* Wastage/Correct View: Select Batch Dropdown */}
+          {(actionType === 'wastage' || actionType === 'correct') && (
+            <>
+              <div className="stocklog-section">
+                <label className="stocklog-label">Select Batch</label>
+                <select
+                  className="stocklog-select"
+                  value={selectedBatchId}
+                  onChange={(e) => setSelectedBatchId(e.target.value)}
+                >
+                  {batches.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.batch_number} ({b.quantity} left) {b.expiration_date ? `- Expires: ${b.expiration_date}` : ''}
+                    </option>
+                  ))}
+                  {batches.length === 0 && (
+                    <option value="" disabled>No batches available</option>
+                  )}
+                </select>
+                <div className="stocklog-subtext">
+                  If the deduction exceeds this batch's stock, the remaining amount will automatically be deducted from the next oldest batch.
+                </div>
+              </div>
+              <hr className="stocklog-divider" />
+            </>
+          )}
 
           {/* Quantity & Preview */}
           <div className="stocklog-section-row">
@@ -224,22 +336,34 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
 
           <hr className="stocklog-divider" />
 
-          {/* Expiration Date - Only for restock and if item tracks expiry */}
-          {actionType === 'restock' && isExpiryTracked && (
+          {/* Restock View: Total Cost & Expiration Date */}
+          {actionType === 'restock' && (
             <>
-              <div className="stocklog-section">
-                <label className="stocklog-label">Expiration Date</label>
-                <input
-                  type="date"
-                  className={`stocklog-input ${(expirationDate !== '' && errors.expirationDate) ? 'is-invalid' : ''}`}
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                />
-                {(expirationDate !== '' && errors.expirationDate) && (
-                  <p className="stocklog-error-msg">{errors.expirationDate}</p>
-                )}
-                <div className="stocklog-subtext">
-                  Required for expiry-tracked items when restocking
+              <div className="stocklog-section-row">
+                <div className="stocklog-section">
+                  <label className="stocklog-label">Total Cost (Amount Paid)</label>
+                  <input
+                    type="number"
+                    className="stocklog-input"
+                    value={totalCost}
+                    onChange={(e) => setTotalCost(e.target.value)}
+                    placeholder="₱ 0.00"
+                    min="0"
+                  />
+                </div>
+
+                {/* Always show expiration date on restock, but only error if required */}
+                <div className="stocklog-section">
+                  <label className="stocklog-label">Expiration Date (Optional)</label>
+                  <input
+                    type="date"
+                    className={`stocklog-input ${(expirationDate !== '' && errors.expirationDate) ? 'is-invalid' : ''}`}
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                  />
+                  {(errors.expirationDate) && (
+                    <p className="stocklog-error-msg">{errors.expirationDate}</p>
+                  )}
                 </div>
               </div>
               <hr className="stocklog-divider" />
@@ -250,14 +374,45 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
           <div className="stocklog-section-row">
             <div className="stocklog-section">
               <label className="stocklog-label">Reason</label>
-              <select
-                className={`stocklog-select ${(reason !== '' && errors.reason) ? 'is-invalid' : ''}`}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-              >
-                <option value="" disabled>Select reason...</option>
-                {renderReasonOptions()}
-              </select>
+              {isCustomReason ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className={`stocklog-input ${(errors.reason) ? 'is-invalid' : ''}`}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Others (please specify)"
+                    autoFocus
+                  />
+                  <button
+                    className="stocklog-btn-cancel"
+                    style={{ padding: '0 12px', flexShrink: 0, margin: 0, height: '42px' }}
+                    onClick={() => {
+                      setIsCustomReason(false);
+                      setReason('');
+                    }}
+                    title="Cancel custom reason"
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className={`stocklog-select ${(reason !== '' && errors.reason) ? 'is-invalid' : ''}`}
+                  value={reason}
+                  onChange={(e) => {
+                    if (e.target.value === 'Others') {
+                      setIsCustomReason(true);
+                      setReason('');
+                    } else {
+                      setReason(e.target.value);
+                    }
+                  }}
+                >
+                  <option value="" disabled>Select reason...</option>
+                  {renderReasonOptions()}
+                </select>
+              )}
               {(reason !== '' && errors.reason) && (
                 <p className="stocklog-error-msg">{errors.reason}</p>
               )}
@@ -278,15 +433,15 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
         </div>
 
         <div className="stocklog-modal-footer">
-          <button className="stocklog-btn-cancel" onClick={onClose}>
+          <button className="stocklog-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button 
-            className="stocklog-btn-save" 
+          <button
+            className="stocklog-btn-save"
             onClick={handleSave}
-            disabled={!isFormValid}
+            disabled={!isFormValid || isSubmitting}
           >
-            Save Log
+            {isSubmitting ? 'Saving...' : 'Save Log'}
           </button>
         </div>
       </div>
@@ -295,3 +450,4 @@ const StockLogModal = ({ isOpen, onClose, item }) => {
 };
 
 export default StockLogModal;
+

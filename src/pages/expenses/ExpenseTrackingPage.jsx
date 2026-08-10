@@ -5,31 +5,17 @@ import AddExpenseModal from './Add Expense/AddExpenseModal';
 import EditExpenseModal from './Edit Expense/EditExpenseModal';
 import ConfirmDeleteExpenseModal from './Confirm Delete Expense/ConfirmDeleteExpenseModal';
 
-/* ═══════════════════════════════════════════════════
-   Placeholder Data
-═══════════════════════════════════════════════════ */
-
-const summaryCards = [
-  { id: 'total', title: 'Total Expenses', value: '₱13,750', pct: '+12%', color: 'brown', icon: 'bi-receipt' },
-  { id: 'wastage', title: 'Wastage Cost', value: '₱1,240', pct: '+5%', color: 'red', icon: 'bi-trash' },
-  { id: 'inventory', title: 'Inventory Purchases', value: '₱3,750', pct: '-8%', color: 'green', icon: 'bi-box-seam' },
-  { id: 'net', title: 'Net Operational', value: '₱14,990', pct: '', color: 'grey', icon: 'bi-percent' }
-];
-
-const expenseRecords = [
-  { id: 1, date: 'Mar 1, 2026', category: 'Rent', description: 'Monthly Rent', vendor: '-', amount: '₱10,000.00', recordedBy: 'Jane Velarde Mayorga' },
-  { id: 2, date: 'Mar 1, 2026', category: 'Inventory Purchase', description: 'Purchase Order', vendor: 'John Rick Mabalot', amount: '₱3,750.00', recordedBy: 'Lyanna Magtuloy' }
-];
-
-const wastageRecords = [
-  { id: 1, date: 'Mar 1, 2026', item: 'Fresh Milk', quantity: '3 L', reason: 'Expired', cost: '₱420.00', recordedBy: 'Jane Velarde Mayorga' },
-  { id: 2, date: 'Mar 1, 2026', item: 'Coffee Beans', quantity: '1 KG', reason: 'Expired', cost: '₱150.00', recordedBy: 'Lyanna Magtuloy' }
-];
+import { useExpenses } from '../../hooks/useExpenses';
+import { formatCurrency } from '../../utils/currencyFormatters';
+import { formatDate } from '../../utils/dateFormatters';
 
 const ExpenseTrackingPage = () => {
+  const { expenses, categories, wastage, purchases, isLoading, refetchExpenses } = useExpenses();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false);
@@ -37,13 +23,113 @@ const ExpenseTrackingPage = () => {
   const [isDeleteExpenseOpen, setIsDeleteExpenseOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
 
-  const handleEditExpense = (expense) => {
-    setExpenseToEdit(expense);
+  // --- 1. Combine Operational Expenses and Inventory Purchases ---
+  const operationalExpensesFormatted = expenses.map(e => ({
+    id: `op-${e.id}`,
+    originalId: e.id,
+    type: 'Operational',
+    date: e.expense_date,
+    category: e.expense_categories?.category_name || 'Uncategorized',
+    description: e.description,
+    vendor: e.vendor || '-',
+    amount: e.amount,
+    recordedBy: e.profiles ? `${e.profiles.first_name} ${e.profiles.last_name}` : 'Unknown',
+    rawExpense: e
+  }));
+
+  const purchaseExpensesFormatted = purchases.map(p => ({
+    id: `inv-${p.id}`,
+    originalId: p.id,
+    type: 'Inventory',
+    date: p.purchased_at,
+    category: 'Inventory Purchase',
+    description: `Purchase: ${p.inventory_items?.item_name || 'Item'}`,
+    vendor: p.supplier || '-',
+    amount: p.total_cost,
+    recordedBy: p.profiles ? `${p.profiles.first_name} ${p.profiles.last_name}` : 'Unknown',
+    rawExpense: p
+  }));
+
+  const allExpenseRecords = [...operationalExpensesFormatted, ...purchaseExpensesFormatted]
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  // --- 2. Filter Logic ---
+  const filteredExpenseRecords = allExpenseRecords.filter(record => {
+    // Search
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = 
+      record.category.toLowerCase().includes(searchLower) ||
+      record.description.toLowerCase().includes(searchLower) ||
+      record.vendor.toLowerCase().includes(searchLower);
+    
+    // Date
+    let matchesDate = true;
+    if (fromDate && toDate) {
+      const recordDate = new Date(record.date);
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+      end.setHours(23, 59, 59, 999);
+      matchesDate = recordDate >= start && recordDate <= end;
+    }
+
+    return matchesSearch && matchesDate;
+  });
+
+  // --- 3. Compute Totals ---
+  const totalOperationalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalInventoryPurchases = purchases.reduce((sum, p) => sum + Number(p.total_cost), 0);
+  const totalWastageCost = wastage.reduce((sum, w) => sum + Number(w.cost), 0);
+  const overallExpenses = totalOperationalExpenses + totalInventoryPurchases;
+
+  // --- 4. Wastage Summary Logic ---
+  let mostWastedItem = '-';
+  let mostCommonReason = '-';
+  
+  if (wastage.length > 0) {
+    const itemCounts = {};
+    const reasonCounts = {};
+    
+    wastage.forEach(w => {
+      const itemName = w.inventory_items?.item_name || 'Unknown';
+      itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
+      
+      const reason = w.reason || 'Unknown';
+      reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+    });
+
+    mostWastedItem = Object.keys(itemCounts).reduce((a, b) => itemCounts[a] > itemCounts[b] ? a : b);
+    mostCommonReason = Object.keys(reasonCounts).reduce((a, b) => reasonCounts[a] > reasonCounts[b] ? a : b);
+  }
+
+  // --- 5. Expense Distribution ---
+  const categoryTotals = {};
+  filteredExpenseRecords.forEach(record => {
+    categoryTotals[record.category] = (categoryTotals[record.category] || 0) + Number(record.amount);
+  });
+
+  const categoryBreakdown = Object.entries(categoryTotals).map(([category, amount]) => ({
+    category,
+    amount,
+    pct: overallExpenses > 0 ? ((amount / overallExpenses) * 100).toFixed(2) : 0
+  })).sort((a, b) => b.amount - a.amount);
+
+
+  // --- Handlers ---
+  const handleEditExpense = (record) => {
+    if (record.type === 'Inventory') {
+      alert("Inventory purchases cannot be edited here. Please use the Inventory module.");
+      return;
+    }
+    setExpenseToEdit(record.rawExpense);
     setIsEditExpenseOpen(true);
   };
 
-  const handleDeleteExpense = (expense) => {
-    setExpenseToDelete(expense);
+  const handleDeleteExpense = (record) => {
+    if (record.type === 'Inventory') {
+      alert("Inventory purchases cannot be deleted here. Please use the Inventory module.");
+      return;
+    }
+    setExpenseToDelete(record.rawExpense);
     setIsDeleteExpenseOpen(true);
   };
 
@@ -52,6 +138,10 @@ const ExpenseTrackingPage = () => {
     if (cat === 'Inventory Purchase') return 'inventory';
     return '';
   };
+
+  if (isLoading) {
+      return <div className="expense-page"><p>Loading expense data...</p></div>;
+  }
 
   return (
     <div className="expense-page">
@@ -103,12 +193,6 @@ const ExpenseTrackingPage = () => {
           <option>This Year</option>
         </select>
 
-        <select className="expense-filter-select">
-          <option>All Categories</option>
-          <option>Rent</option>
-          <option>Inventory Purchase</option>
-        </select>
-
         <div className="expense-date-group">
           <span className="expense-date-label">From</span>
           <input
@@ -150,16 +234,37 @@ const ExpenseTrackingPage = () => {
         <div className="expense-left-col">
           {/* Summary Cards */}
           <div className="expense-summary-cards">
-            {summaryCards.map((card) => (
-              <div key={card.id} className={`expense-summary-card expense-summary-card--${card.color}`}>
+              <div className={`expense-summary-card expense-summary-card--brown`}>
                 <div className="expense-summary-card-icon">
-                  <i className={`bi ${card.icon}`}></i>
+                  <i className={`bi bi-receipt`}></i>
                 </div>
-                <p className="expense-summary-card-value">{card.value}</p>
-                <p className="expense-summary-card-label">{card.title}</p>
-                {card.pct && <span className="expense-summary-card-pct">{card.pct}</span>}
+                <p className="expense-summary-card-value">{formatCurrency(overallExpenses)}</p>
+                <p className="expense-summary-card-label">Total Expenses</p>
               </div>
-            ))}
+
+              <div className={`expense-summary-card expense-summary-card--red`}>
+                <div className="expense-summary-card-icon">
+                  <i className={`bi bi-trash`}></i>
+                </div>
+                <p className="expense-summary-card-value">{formatCurrency(totalWastageCost)}</p>
+                <p className="expense-summary-card-label">Wastage Cost</p>
+              </div>
+
+              <div className={`expense-summary-card expense-summary-card--green`}>
+                <div className="expense-summary-card-icon">
+                  <i className={`bi bi-box-seam`}></i>
+                </div>
+                <p className="expense-summary-card-value">{formatCurrency(totalInventoryPurchases)}</p>
+                <p className="expense-summary-card-label">Inventory Purchases</p>
+              </div>
+
+              <div className={`expense-summary-card expense-summary-card--grey`}>
+                <div className="expense-summary-card-icon">
+                  <i className={`bi bi-percent`}></i>
+                </div>
+                <p className="expense-summary-card-value">{formatCurrency(overallExpenses)}</p>
+                <p className="expense-summary-card-label">Net Operational (No Sales Yet)</p>
+              </div>
           </div>
 
           {/* Wastage Summary */}
@@ -168,27 +273,19 @@ const ExpenseTrackingPage = () => {
             <ul className="expense-wastage-list">
               <li>
                 <strong>Total Wastage Cost:</strong>
-                <span>₱1,240.00</span>
+                <span>{formatCurrency(totalWastageCost)}</span>
               </li>
               <li>
                 <strong>Total Wastage Logs:</strong>
-                <span>2</span>
+                <span>{wastage.length}</span>
               </li>
               <li>
                 <strong>Most Wasted Item:</strong>
-                <span>Fresh Milk</span>
+                <span>{mostWastedItem}</span>
               </li>
               <li>
                 <strong>Most Common Reason:</strong>
-                <span>Expired</span>
-              </li>
-              <li>
-                <strong>Highest Loss Category:</strong>
-                <span>Ingredient</span>
-              </li>
-              <li>
-                <strong>Total Wasted Quantity:</strong>
-                <span>18 L</span>
+                <span>{mostCommonReason}</span>
               </li>
             </ul>
           </div>
@@ -201,16 +298,17 @@ const ExpenseTrackingPage = () => {
             <h3 className="expense-box-title">Expense Distribution</h3>
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem 0' }}>
               <div className="expense-chart-container">
-                <div className="expense-pie-chart"></div>
+                <div className="expense-pie-chart" style={{
+                    // Fallback visual
+                    background: 'conic-gradient(#5D4037 0% 50%, #8D6E63 50% 100%)'
+                }}></div>
                 <div className="expense-legend">
-                  <div className="expense-legend-item">
-                    <div className="expense-legend-color" style={{ backgroundColor: '#42a5f5' }}></div>
-                    <span>Rent</span>
-                  </div>
-                  <div className="expense-legend-item">
-                    <div className="expense-legend-color" style={{ backgroundColor: '#5D4037' }}></div>
-                    <span>Inventory Purchase</span>
-                  </div>
+                  {categoryBreakdown.slice(0,3).map((cat, idx) => (
+                      <div className="expense-legend-item" key={idx}>
+                        <div className="expense-legend-color" style={{ backgroundColor: idx === 0 ? '#5D4037' : '#8D6E63' }}></div>
+                        <span>{cat.category}</span>
+                      </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -219,32 +317,24 @@ const ExpenseTrackingPage = () => {
           {/* Bottom Expense Distribution List box */}
           <div className="expense-box" style={{ height: '100%' }}>
             <div className="expense-distribution-info">
-              <p className="expense-dist-total">₱13,750.00</p>
-              <p className="expense-dist-label">Total expenses this month</p>
+              <p className="expense-dist-total">{formatCurrency(overallExpenses)}</p>
+              <p className="expense-dist-label">Total expenses overall</p>
             </div>
             <div style={{ borderBottom: '1px solid #f0e0d8', margin: '0.5rem 0 1rem 0' }}></div>
             <h4 style={{ fontSize: '0.8125rem', color: '#2C1810', textAlign: 'center', margin: '0 0 1rem 0' }}>By Category</h4>
             <div className="expense-category-breakdown">
-              <div className="expense-cat-row">
-                <div>
-                  <span className="expense-cat-chip inventory">Inventory Purchase</span>
-                  <span style={{ fontSize: '0.75rem', color: '#6c757d', marginLeft: '0.5rem' }}>(1)</span>
-                </div>
-                <div>
-                  <span className="expense-cat-amount">₱3,750.00</span>
-                  <span className="expense-cat-pct">27.27%</span>
-                </div>
-              </div>
-              <div className="expense-cat-row">
-                <div>
-                  <span className="expense-cat-chip rent">Rent</span>
-                  <span style={{ fontSize: '0.75rem', color: '#6c757d', marginLeft: '0.5rem' }}>(1)</span>
-                </div>
-                <div>
-                  <span className="expense-cat-amount">₱10,000.00</span>
-                  <span className="expense-cat-pct">72.73%</span>
-                </div>
-              </div>
+              {categoryBreakdown.map((cat, idx) => (
+                  <div className="expense-cat-row" key={idx}>
+                    <div>
+                      <span className={`expense-cat-chip ${getCategoryClass(cat.category)}`}>{cat.category}</span>
+                    </div>
+                    <div>
+                      <span className="expense-cat-amount">{formatCurrency(cat.amount)}</span>
+                      <span className="expense-cat-pct">{cat.pct}%</span>
+                    </div>
+                  </div>
+              ))}
+              {categoryBreakdown.length === 0 && <p style={{textAlign: 'center', color: '#888'}}>No expenses found.</p>}
             </div>
           </div>
         </div>
@@ -267,9 +357,14 @@ const ExpenseTrackingPage = () => {
               </tr>
             </thead>
             <tbody>
-              {expenseRecords.map((record) => (
+              {filteredExpenseRecords.length === 0 && (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '1rem' }}>No expenses found.</td>
+                </tr>
+              )}
+              {filteredExpenseRecords.map((record) => (
                 <tr key={record.id}>
-                  <td>{record.date}</td>
+                  <td>{formatDate(record.date)}</td>
                   <td>
                     <span className={`expense-cat-chip ${getCategoryClass(record.category)}`}>
                       {record.category}
@@ -277,7 +372,7 @@ const ExpenseTrackingPage = () => {
                   </td>
                   <td>{record.description}</td>
                   <td>{record.vendor}</td>
-                  <td style={{ fontWeight: 600 }}>{record.amount}</td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(record.amount)}</td>
                   <td>{record.recordedBy}</td>
                   <td>
                     <div className="expense-actions" style={{ justifyContent: 'center' }}>
@@ -285,6 +380,8 @@ const ExpenseTrackingPage = () => {
                         className="expense-action-btn expense-action-btn--edit" 
                         title="Edit"
                         onClick={() => handleEditExpense(record)}
+                        disabled={record.type === 'Inventory'}
+                        style={{ opacity: record.type === 'Inventory' ? 0.3 : 1 }}
                       >
                         <i className="bi bi-pencil"></i>
                       </button>
@@ -292,6 +389,8 @@ const ExpenseTrackingPage = () => {
                         className="expense-action-btn expense-action-btn--delete" 
                         title="Delete"
                         onClick={() => handleDeleteExpense(record)}
+                        disabled={record.type === 'Inventory'}
+                        style={{ opacity: record.type === 'Inventory' ? 0.3 : 1 }}
                       >
                         <i className="bi bi-trash"></i>
                       </button>
@@ -306,7 +405,7 @@ const ExpenseTrackingPage = () => {
 
       {/* ───── Wastage Records Table ───── */}
       <div className="expense-table-container">
-        <h3 className="expense-table-title">Wastage Records</h3>
+        <h3 className="expense-table-title">Wastage Records (From Inventory)</h3>
         <div className="expense-table-wrapper">
           <table className="expense-table">
             <thead>
@@ -320,14 +419,19 @@ const ExpenseTrackingPage = () => {
               </tr>
             </thead>
             <tbody>
-              {wastageRecords.map((record) => (
+              {wastage.length === 0 && (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '1rem' }}>No wastage records found.</td>
+                  </tr>
+              )}
+              {wastage.map((record) => (
                 <tr key={record.id}>
-                  <td>{record.date}</td>
-                  <td>{record.item}</td>
+                  <td>{formatDate(record.created_at)}</td>
+                  <td>{record.inventory_items?.item_name}</td>
                   <td>{record.quantity}</td>
                   <td>{record.reason}</td>
-                  <td style={{ fontWeight: 600 }}>{record.cost}</td>
-                  <td>{record.recordedBy}</td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(record.cost)}</td>
+                  <td>{record.profiles ? `${record.profiles.first_name} ${record.profiles.last_name}` : 'Auto/Unknown'}</td>
                 </tr>
               ))}
             </tbody>
@@ -339,23 +443,30 @@ const ExpenseTrackingPage = () => {
       <ManageExpenseCategoriesModal
         isOpen={isManageCategoriesOpen}
         onClose={() => setIsManageCategoriesOpen(false)}
+        categories={categories}
+        refetch={refetchExpenses}
       />
 
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
         onClose={() => setIsAddExpenseOpen(false)}
+        categories={categories}
+        refetch={refetchExpenses}
       />
 
       <EditExpenseModal
         isOpen={isEditExpenseOpen}
         onClose={() => setIsEditExpenseOpen(false)}
         expenseData={expenseToEdit}
+        categories={categories}
+        refetch={refetchExpenses}
       />
 
       <ConfirmDeleteExpenseModal
         isOpen={isDeleteExpenseOpen}
         onClose={() => setIsDeleteExpenseOpen(false)}
         expense={expenseToDelete}
+        refetch={refetchExpenses}
       />
 
     </div>

@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './confirmDeleteExpenseModal.css';
+import { deleteExpense } from '../../../services/expenses/expenseService';
+import { formatCurrency } from '../../../utils/currencyFormatters';
 
-const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense }) => {
+const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense, refetch }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState(null);
+
   if (!isOpen || !expense) return null;
 
-  const handleDelete = () => {
-    console.log(`Deleting expense: ${expense.description} (ID: ${expense.id})`);
-    onClose();
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      setError(null);
+      await deleteExpense(expense.id);
+      await refetch();
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -19,13 +33,14 @@ const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense }) => {
           </div>
           <h3>Confirm Delete</h3>
           <span className="cde-modal-subtitle">{expense.description || 'Expense Record'}</span>
-          <button className="cde-modal-close" onClick={onClose} aria-label="Close">
+          <button className="cde-modal-close" onClick={onClose} aria-label="Close" disabled={isDeleting}>
             <i className="bi bi-x"></i>
           </button>
         </div>
 
         {/* Body */}
         <div className="cde-modal-body">
+          {error && <div style={{ color: 'red', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
 
           {/* Stat Cards */}
           <div className="cde-stats-grid">
@@ -35,7 +50,7 @@ const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense }) => {
               </div>
               <div className="cde-stat-details">
                 <span className="cde-stat-label">Category</span>
-                <span className="cde-stat-value">{expense.category || 'N/A'}</span>
+                <span className="cde-stat-value">{expense.expense_categories?.category_name || 'N/A'}</span>
               </div>
             </div>
             <div className="cde-stat-card">
@@ -44,7 +59,7 @@ const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense }) => {
               </div>
               <div className="cde-stat-details">
                 <span className="cde-stat-label">Amount</span>
-                <span className="cde-stat-value">{expense.amount || 'N/A'}</span>
+                <span className="cde-stat-value">{formatCurrency(expense.amount)}</span>
               </div>
             </div>
           </div>
@@ -62,12 +77,12 @@ const ConfirmDeleteExpenseModal = ({ isOpen, onClose, expense }) => {
 
         {/* Footer */}
         <div className="cde-modal-footer">
-          <button className="cde-btn-cancel" onClick={onClose}>
+          <button className="cde-btn-cancel" onClick={onClose} disabled={isDeleting}>
             Cancel
           </button>
-          <button className="cde-btn-confirm" onClick={handleDelete}>
+          <button className="cde-btn-confirm" onClick={handleDelete} disabled={isDeleting}>
             <i className="bi bi-trash"></i>
-            Confirm
+            {isDeleting ? 'Deleting...' : 'Confirm'}
           </button>
         </div>
       </div>

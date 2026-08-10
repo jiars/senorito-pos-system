@@ -1,26 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import './addMenuItemModal.css';
+import { fetchMenuCategories } from '../../../../services/menu/menuCategoriesService';
+import { addMenuItem } from '../../../../services/menu/menuItemsService';
+import { addMenuItemPrices } from '../../../../services/menu/menuPricesService';
+import { addMenuRecipes } from '../../../../services/menu/menuRecipesService';
+import { useInventory } from '../../../../hooks/useInventory';
 
-/* ─── Placeholder Data ─── */
-const CATEGORIES = [
-  'Frappuccino', 'Non-coffee', 'Pastry', 'Hot Coffee', 'Rice Meal', 'Iced Coffee'
-];
-
-const UNITS = ['g', 'ml', 'pc', 'pump', 'cup'];
-
-const INGREDIENTS = [
-  { id: 'i1', label: 'Chocolate chips (g) - ₱0.35/g', cost: 0.35, defaultUnit: 'g' },
-  { id: 'i2', label: 'Milk (ml) - ₱0.50/ml', cost: 0.50, defaultUnit: 'ml' },
-  { id: 'i3', label: 'Frappe base (ml) - ₱0.12/ml', cost: 0.12, defaultUnit: 'ml' },
-  { id: 'i4', label: 'Chocolate sauce (pump) - ₱1.00/pump', cost: 1.00, defaultUnit: 'pump' },
-  { id: 'i5', label: 'Ice (g) - ₱0.01/g', cost: 0.01, defaultUnit: 'g' },
-  { id: 'i6', label: '22oz cup (pcs) - ₱3.50/pc', cost: 3.50, defaultUnit: 'pc' },
-  { id: 'i7', label: 'Straw (pcs) - ₱0.20/pc', cost: 0.20, defaultUnit: 'pc' },
-  { id: 'i8', label: '16oz cup (pcs) - ₱2.50/pc', cost: 2.50, defaultUnit: 'pc' }
-];
-
-const AddMenuItemModal = ({ isOpen, onClose }) => {
+const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
+  const { inventoryItems } = useInventory();
   /* ─── State ─── */
+  const [categories, setCategories] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const [pricingMode, setPricingMode] = useState('single'); // 'single' or 'variants'
 
   const [baseInfo, setBaseInfo] = useState({
@@ -50,9 +42,11 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
     }
   ]);
 
-  /* ─── Reset State on Open ─── */
+  /* ─── Load Categories & Reset State on Open ─── */
   useEffect(() => {
     if (isOpen) {
+      setErrorMessage('');
+      setIsSubmitting(false);
       setPricingMode('single');
       setBaseInfo({ name: '', category: '', description: '', isAvailable: false, image: null });
       setSingleRecipe({
@@ -63,6 +57,12 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
         id: Date.now(), name: '', isAvailable: true, sellingPrice: '',
         ingredients: [{ id: Date.now() + 1, ingredientId: '', qty: '', unit: '' }]
       }]);
+
+      const loadCategories = async () => {
+        const cats = await fetchMenuCategories();
+        setCategories(cats);
+      };
+      loadCategories();
     }
   }, [isOpen]);
 
@@ -72,12 +72,11 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
   const calculateEstCost = (ingredients) => {
     return ingredients.reduce((total, ing) => {
       if (!ing.ingredientId || !ing.qty) return total;
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+      const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
-      
-      // Simple qty * cost logic (ignoring complex unit conversions for placeholder)
+
       const parsedQty = parseFloat(ing.qty) || 0;
-      return total + (parsedQty * ref.cost);
+      return total + (parsedQty * ref.cost_per_unit);
     }, 0);
   };
 
@@ -93,29 +92,14 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
   };
 
   /* ─── Validation Helpers ─── */
-  const isBaseInfoValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
-
-  const areIngredientsValid = (ingredients) => {
-    if (ingredients.length === 0) return true; // allow 0 ingredients
-    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '');
-  };
-
   const isFormValid = () => {
-    if (!isBaseInfoValid) return false;
+    const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
+    if (!isBaseValid) return false;
 
     if (pricingMode === 'single') {
-      const sp = parseFloat(singleRecipe.sellingPrice);
-      if (isNaN(sp) || sp <= 0) return false;
-      return areIngredientsValid(singleRecipe.ingredients);
+      return singleRecipe.sellingPrice !== '';
     } else {
-      if (variants.length === 0) return false;
-      return variants.every(v => {
-        const sp = parseFloat(v.sellingPrice);
-        const nameValid = v.name.trim() !== '';
-        const spValid = !isNaN(sp) && sp > 0;
-        const ingValid = areIngredientsValid(v.ingredients);
-        return nameValid && spValid && ingValid;
-      });
+      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '');
     }
   };
 
@@ -139,8 +123,8 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
       if (ing.id !== id) return ing;
       const updated = { ...ing, [field]: value };
       if (field === 'ingredientId') {
-        const ref = INGREDIENTS.find(i => i.id === value);
-        if (ref) updated.unit = ref.defaultUnit;
+        const ref = inventoryItems.find(i => i.id === value);
+        if (ref) updated.unit = ref.base_unit;
       }
       return updated;
     });
@@ -196,8 +180,8 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
         if (ing.id !== iid) return ing;
         const updated = { ...ing, [field]: value };
         if (field === 'ingredientId') {
-          const ref = INGREDIENTS.find(i => i.id === value);
-          if (ref) updated.unit = ref.defaultUnit;
+          const ref = inventoryItems.find(i => i.id === value);
+          if (ref) updated.unit = ref.base_unit;
         }
         return updated;
       });
@@ -208,31 +192,38 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
   /* ─── Shared Render: Ingredient Row ─── */
   const renderIngredientRow = (ing, onUpdate, onRemove) => {
     let rowCost = 0;
-    if (ing.ingredientId && ing.qty) {
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+    let dynamicUnit = '-';
+
+    if (ing.ingredientId) {
+      const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (ref) {
-        rowCost = (parseFloat(ing.qty) || 0) * ref.cost;
+        dynamicUnit = ref.base_unit;
+        if (ing.qty) {
+          rowCost = (parseFloat(ing.qty) || 0) * ref.cost_per_unit;
+        }
       }
     }
 
     return (
       <div className="ami-ingredient-row" key={ing.id}>
         <div className="ami-section">
-          <select 
-            className="ami-select" 
-            value={ing.ingredientId} 
+          <select
+            className="ami-select"
+            value={ing.ingredientId}
             onChange={(e) => onUpdate('ingredientId', e.target.value)}
           >
             <option value="">Select ingredient</option>
-            {INGREDIENTS.map(i => (
-              <option key={i.id} value={i.id}>{i.label}</option>
+            {inventoryItems.map(i => (
+              <option key={i.id} value={i.id}>
+                {i.item_name} ({i.base_unit}) - ₱{i.cost_per_unit}/{i.base_unit}
+              </option>
             ))}
           </select>
         </div>
         <div className="ami-section">
-          <input 
-            type="number" 
-            className="ami-input" 
+          <input
+            type="number"
+            className="ami-input"
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => onUpdate('qty', e.target.value)}
@@ -240,26 +231,22 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
           />
         </div>
         <div className="ami-section">
-          <select 
-            className="ami-select"
-            value={ing.unit}
-            onChange={(e) => onUpdate('unit', e.target.value)}
-          >
-            <option value="">-</option>
-            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
+          {/* Plain Text Unit based on selection! */}
+          <div className="ami-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
+            {dynamicUnit}
+          </div>
         </div>
         <div className="ami-section ami-currency-wrapper">
           <span className="ami-currency-symbol">₱</span>
-          <input 
-            type="text" 
-            className="ami-input" 
-            readOnly 
-            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'} 
+          <input
+            type="text"
+            className="ami-input"
+            readOnly
+            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'}
           />
         </div>
-        <button 
-          className="ami-btn-remove-ing" 
+        <button
+          className="ami-btn-remove-ing"
           onClick={onRemove}
           title="Remove ingredient"
         >
@@ -269,10 +256,121 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
     );
   };
 
+  /* ─── Save Menu Item to Database ─── */
+  const handleSaveItem = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      // 1. Calculate overall item cost, profit, and margin
+      let estCost = 0;
+      let profit = 0;
+      let margin = 0;
+
+      if (pricingMode === 'single') {
+        estCost = calculateEstCost(singleRecipe.ingredients);
+        profit = calculateProfit(singleRecipe.sellingPrice, estCost);
+        margin = calculateMargin(profit, singleRecipe.sellingPrice);
+      } else {
+        if (variants.length > 0) {
+          estCost = calculateEstCost(variants[0].ingredients);
+          profit = calculateProfit(variants[0].sellingPrice, estCost);
+          margin = calculateMargin(profit, variants[0].sellingPrice);
+        }
+      }
+
+      // 2. Save base item into menu_items table
+      const createdItem = await addMenuItem({
+        item_name: baseInfo.name.trim(),
+        category_id: baseInfo.category,
+        recipe_status: 'Complete',
+        pos_status: baseInfo.isAvailable ? 'Available' : 'Unavailable',
+        pricing_type: pricingMode === 'single' ? 'Fixed' : 'Variants',
+        estimated_cost: estCost,
+        profit: profit,
+        margin: margin
+      });
+
+      // 3. Save variant prices into menu_item_prices table
+      let pricesArray = [];
+      if (pricingMode === 'single') {
+        pricesArray.push({
+          menu_item_id: createdItem.id,
+          variant_name: 'Regular',
+          selling_price: parseFloat(singleRecipe.sellingPrice) || 0
+        });
+      } else {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          pricesArray.push({
+            menu_item_id: createdItem.id,
+            variant_name: v.name.trim(),
+            selling_price: parseFloat(v.sellingPrice) || 0
+          });
+        }
+      }
+
+      const savedPrices = await addMenuItemPrices(pricesArray);
+
+      // 4. Save Recipes linked to each specific Variant!
+      let recipesArray = [];
+
+      if (pricingMode === 'single') {
+        const variantId = savedPrices[0].id;
+        singleRecipe.ingredients.forEach(ing => {
+          if (ing.ingredientId && ing.qty) {
+            const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+            recipesArray.push({
+              menu_item_id: createdItem.id,
+              menu_item_price_id: variantId,
+              inventory_item_id: ing.ingredientId,
+              quantity: parseFloat(ing.qty),
+              estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+            });
+          }
+        });
+      } else {
+        variants.forEach(v => {
+          const matchedPrice = savedPrices.find(p => p.variant_name === v.name.trim());
+          if (matchedPrice) {
+            v.ingredients.forEach(ing => {
+              if (ing.ingredientId && ing.qty) {
+                const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+                recipesArray.push({
+                  menu_item_id: createdItem.id,
+                  menu_item_price_id: matchedPrice.id,
+                  inventory_item_id: ing.ingredientId,
+                  quantity: parseFloat(ing.qty),
+                  estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+                });
+              }
+            });
+          }
+        });
+      }
+
+      if (recipesArray.length > 0) {
+        await addMenuRecipes(recipesArray);
+      }
+
+      // 5. Refresh menu list and close modal
+      if (refetchMenu) {
+        await refetchMenu();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to save menu item:', error);
+      setErrorMessage(error.message || 'Error saving item to database.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="ami-modal-overlay">
       <div className="ami-modal-content">
-        
+
         {/* Header */}
         <div className="ami-modal-header">
           <h3>Add Menu Item</h3>
@@ -283,21 +381,21 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
 
         {/* Body */}
         <div className="ami-modal-body">
-          
+
           {/* Base Info with Image Upload */}
           <div className="ami-flex-row">
             <div className="ami-image-upload-container">
               <label className="ami-label">Item Image</label>
               <div className="ami-image-upload-box">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="ami-image-input" 
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="ami-image-input"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setBaseInfo({...baseInfo, image: e.target.files[0]});
+                      setBaseInfo({ ...baseInfo, image: e.target.files[0] });
                     }
-                  }} 
+                  }}
                 />
                 {baseInfo.image ? (
                   <img src={URL.createObjectURL(baseInfo.image)} alt="Preview" className="ami-image-preview" />
@@ -311,25 +409,25 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="ami-flex-fields">
-              <div className="ami-section" style={{marginBottom: 0}}>
+              <div className="ami-section" style={{ marginBottom: 0 }}>
                 <label className="ami-label">Item Name</label>
-                <input 
-                  type="text" 
-                  className="ami-input" 
+                <input
+                  type="text"
+                  className="ami-input"
                   placeholder="Enter menu item name"
                   value={baseInfo.name}
-                  onChange={(e) => setBaseInfo({...baseInfo, name: e.target.value})}
+                  onChange={(e) => setBaseInfo({ ...baseInfo, name: e.target.value })}
                 />
               </div>
-              <div className="ami-section" style={{marginBottom: 0}}>
+              <div className="ami-section" style={{ marginBottom: 0 }}>
                 <label className="ami-label">Category</label>
-                <select 
+                <select
                   className="ami-select"
                   value={baseInfo.category}
-                  onChange={(e) => setBaseInfo({...baseInfo, category: e.target.value})}
+                  onChange={(e) => setBaseInfo({ ...baseInfo, category: e.target.value })}
                 >
                   <option value="">Select category</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
               </div>
             </div>
@@ -337,11 +435,11 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
 
           <div className="ami-row">
             <label className="ami-toggle-container">
-              <input 
-                type="checkbox" 
-                style={{display:'none'}}
+              <input
+                type="checkbox"
+                style={{ display: 'none' }}
                 checked={baseInfo.isAvailable}
-                onChange={(e) => setBaseInfo({...baseInfo, isAvailable: e.target.checked})}
+                onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
               />
               <span className="ami-toggle-switch">
                 <span className="ami-toggle-slider"></span>
@@ -351,15 +449,15 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
           </div>
 
           <div className="ami-row ami-pricing-mode">
-            <label className="ami-label" style={{marginRight: '1rem'}}>Pricing</label>
+            <label className="ami-label" style={{ marginRight: '1rem' }}>Pricing</label>
             <div className="ami-segmented-control">
-              <button 
+              <button
                 className={`ami-segment-btn ${pricingMode === 'single' ? 'active' : ''}`}
                 onClick={() => setPricingMode('single')}
               >
                 Single Price
               </button>
-              <button 
+              <button
                 className={`ami-segment-btn ${pricingMode === 'variants' ? 'active' : ''}`}
                 onClick={() => setPricingMode('variants')}
               >
@@ -381,12 +479,12 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                     <label className="ami-label">Selling Price</label>
                     <div className="ami-currency-wrapper">
                       <span className="ami-currency-symbol">₱</span>
-                      <input 
-                        type="number" 
-                        className="ami-input" 
+                      <input
+                        type="number"
+                        className="ami-input"
                         placeholder="0.00"
                         value={singleRecipe.sellingPrice}
-                        onChange={(e) => setSingleRecipe({...singleRecipe, sellingPrice: e.target.value})}
+                        onChange={(e) => setSingleRecipe({ ...singleRecipe, sellingPrice: e.target.value })}
                         min="0" step="any"
                       />
                     </div>
@@ -416,9 +514,9 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                 <div className="ami-section">
                   <label className="ami-label">Recipe / Ingredient Deductions</label>
                   <p className="ami-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-                  
+
                   <div className="ami-ingredients-table">
-                    <div className="ami-ingredient-row" style={{marginBottom: '-0.25rem'}}>
+                    <div className="ami-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
                       <label className="ami-label">Ingredient</label>
                       <label className="ami-label">Qty</label>
                       <label className="ami-label">Unit</label>
@@ -453,34 +551,34 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                     <div className="ami-variant-header">
                       <div className="ami-section">
                         <label className="ami-label">Size/ Variant Name</label>
-                        <input 
-                          type="text" 
-                          className="ami-input" 
+                        <input
+                          type="text"
+                          className="ami-input"
                           placeholder="e.g. 16oz"
                           value={v.name}
                           onChange={(e) => updateVariant(v.id, 'name', e.target.value)}
                         />
                       </div>
-                      <div className="ami-section" style={{alignSelf: 'center', marginTop: '1.25rem'}}>
+                      <div className="ami-section" style={{ alignSelf: 'center', marginTop: '1.25rem' }}>
                         <label className="ami-toggle-container">
-                          <input 
-                            type="checkbox" 
-                            style={{display:'none'}}
+                          <input
+                            type="checkbox"
+                            style={{ display: 'none' }}
                             checked={v.isAvailable}
                             onChange={(e) => updateVariant(v.id, 'isAvailable', e.target.checked)}
                           />
                           <span className="ami-toggle-switch">
                             <span className="ami-toggle-slider"></span>
                           </span>
-                          <span className="ami-toggle-label" style={{fontSize: '0.75rem'}}>Available for sale</span>
+                          <span className="ami-toggle-label" style={{ fontSize: '0.75rem' }}>Available for sale</span>
                         </label>
                       </div>
-                      <button 
-                        className="ami-btn-remove-variant" 
+                      <button
+                        className="ami-btn-remove-variant"
                         onClick={() => removeVariant(v.id)}
                         disabled={variants.length === 1}
                         title={variants.length === 1 ? "At least one variant required" : "Remove variant"}
-                        style={{opacity: variants.length === 1 ? 0.5 : 1}}
+                        style={{ opacity: variants.length === 1 ? 0.5 : 1 }}
                       >
                         <i className="bi bi-trash"></i>
                       </button>
@@ -491,9 +589,9 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                         <label className="ami-label">Selling Price</label>
                         <div className="ami-currency-wrapper">
                           <span className="ami-currency-symbol">₱</span>
-                          <input 
-                            type="number" 
-                            className="ami-input" 
+                          <input
+                            type="number"
+                            className="ami-input"
                             placeholder="0.00"
                             value={v.sellingPrice}
                             onChange={(e) => updateVariant(v.id, 'sellingPrice', e.target.value)}
@@ -524,9 +622,9 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                     <div className="ami-section">
                       <label className="ami-label">Recipe / Ingredient Deductions</label>
                       <p className="ami-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-                      
+
                       <div className="ami-ingredients-table">
-                        <div className="ami-ingredient-row" style={{marginBottom: '-0.25rem'}}>
+                        <div className="ami-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
                           <label className="ami-label">Ingredient</label>
                           <label className="ami-label">Qty</label>
                           <label className="ami-label">Unit</label>
@@ -547,7 +645,7 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
                   </div>
                 );
               })}
-              
+
               <button className="ami-btn-add-variant" onClick={addVariant}>
                 Add Variant/Size
               </button>
@@ -557,19 +655,22 @@ const AddMenuItemModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
+        {errorMessage && (
+          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
+            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
+            {errorMessage}
+          </div>
+        )}
         <div className="ami-modal-footer">
-          <button className="ami-btn-cancel" onClick={onClose}>
+          <button className="ami-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button 
-            className="ami-btn-save" 
-            disabled={!isFormValid()}
-            onClick={() => {
-              console.log("Saving Item...", { baseInfo, pricingMode, singleRecipe, variants });
-              onClose();
-            }}
+          <button
+            className="ami-btn-save"
+            disabled={!isFormValid() || isSubmitting}
+            onClick={handleSaveItem}
           >
-            Add Menu Item
+            {isSubmitting ? 'Saving...' : 'Add Menu Item'}
           </button>
         </div>
 

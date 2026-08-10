@@ -287,6 +287,20 @@
   color: #2C1810;
 }
 
+/* ─── Price & Variants Stack ─── */
+.menu-table tbody td .menu-price-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu-table tbody td .menu-price-variant {
+  font-size: 0.8125rem;
+  font-style: italic !important;
+  text-transform: lowercase;
+  color: #2C1810;
+}
+
 /* ─── Status Chips ─── */
 .menu-chip {
   display: inline-flex;

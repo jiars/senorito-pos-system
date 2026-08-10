@@ -1,47 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './inventoryValuation.css';
-
-/* ═══════════════════════════════════════════════════
-   Mock Data
-═══════════════════════════════════════════════════ */
-const MOCK_ITEMS = [
-  { item: 'Coffee Beans', category: 'Ingredient', stock: 5000, unit: 'g', reorder: 2000, cost: 1.00, value: 4888.00, pct: 21.5 },
-  { item: 'Milk', category: 'Ingredient', stock: 19080, unit: 'ml', reorder: 3000, cost: 0.18, value: 3434.40, pct: 15.1 },
-  { item: 'Water', category: 'Ingredient', stock: 99600, unit: 'ml', reorder: 5000, cost: 0.02, value: 1992.00, pct: 8.8 },
-  { item: '22oz Cup', category: 'Packaging', stock: 448, unit: 'pcs', reorder: 50, cost: 3.50, value: 1568.00, pct: 6.9 },
-  { item: 'Hungarian Sausage', category: 'Ingredient', stock: 3000, unit: 'g', reorder: 800, cost: 0.50, value: 1500.00, pct: 6.6 },
-  { item: '16oz Cup', category: 'Packaging', stock: 498, unit: 'pcs', reorder: 50, cost: 3.00, value: 1494.00, pct: 6.6 },
-  { item: 'Tocino', category: 'Ingredient', stock: 3000.00, unit: 'g', reorder: 800, cost: 0.45, value: 1350.00, pct: 5.9 },
-  { item: 'Cookie', category: 'Ingredient', stock: 50.00, unit: 'pcs', reorder: 10, cost: 20.00, value: 1000.00, pct: 4.4 },
-  { item: 'Brownie', category: 'Ingredient', stock: 21, unit: 'pcs', reorder: 10, cost: 25.00, value: 1000.00, pct: 4.4 },
-  { item: 'Rice', category: 'Ingredient', stock: 10000.00, unit: 'g', reorder: 2000, cost: 0.06, value: 600.00, pct: 2.6 },
-  { item: '12oz Hot Cup', category: 'Packaging', stock: 198.00, unit: 'pcs', reorder: 50, cost: 3.00, value: 594.00, pct: 2.6 },
-  { item: 'Food Container', category: 'Packaging', stock: 200.00, unit: 'pcs', reorder: 50, cost: 2.50, value: 500.00, pct: 2.2 },
-  { item: 'Cooking Oil', category: 'Ingredient', stock: 5000.00, unit: 'ml', reorder: 500, cost: 0.07, value: 350.00, pct: 1.5 },
-  { item: 'Chocolate Chips', category: 'Ingredient', stock: 1000.00, unit: 'g', reorder: 200, cost: 0.35, value: 350.00, pct: 1.5 },
-  { item: 'Oreo Crumbs', category: 'Ingredient', stock: 1000.00, unit: 'g', reorder: 300, cost: 0.30, value: 300.00, pct: 1.3 },
-  { item: 'Straw', category: 'Packaging', stock: 1496.00, unit: 'pcs', reorder: 100, cost: 0.20, value: 299.20, pct: 1.3 },
-  { item: 'Cocoa Powder', category: 'Ingredient', stock: 1000.00, unit: 'g', reorder: 200, cost: 0.25, value: 250.00, pct: 1.1 },
-  { item: 'Frappe Base', category: 'Ingredient', stock: 2000.00, unit: 'ml', reorder: 1000, cost: 0.12, value: 240.00, pct: 1.1 },
-  { item: 'Garlic', category: 'Ingredient', stock: 1000.00, unit: 'g', reorder: 100, cost: 0.20, value: 200.00, pct: 0.9 },
-  { item: 'Spoon and Fork Set', category: 'Packaging', stock: 300.00, unit: 'pcs', reorder: 50, cost: 0.67, value: 200.00, pct: 0.9 },
-  { item: 'Sugar Syrup', category: 'Ingredient', stock: 1943.00, unit: 'ml', reorder: 1000, cost: 0.08, value: 155.44, pct: 0.7 },
-  { item: 'Whipping Cream', category: 'Ingredient', stock: 1000.00, unit: 'ml', reorder: 500, cost: 0.15, value: 150.00, pct: 0.7 },
-  { item: 'White Chocolate Sauce', category: 'Ingredient', stock: 1000.00, unit: 'ml', reorder: 800, cost: 0.11, value: 110.00, pct: 0.5 },
-  { item: 'Chocolate Sauce', category: 'Ingredient', stock: 1000.00, unit: 'ml', reorder: 800, cost: 0.10, value: 100.00, pct: 0.4 },
-  { item: 'Ice', category: 'Ingredient', stock: 9440.00, unit: 'g', reorder: 5000, cost: 0.01, value: 94.40, pct: 0.4 },
-];
-
-const CAT_SUMMARY = [
-  { category: 'Ingredient', value: 18064.24, pct: 79.5 },
-  { category: 'Packaging', value: 4655.20, pct: 20.5 },
-];
+import { fetchInventoryItems } from '../../../services/inventory/inventoryItemsService';
 
 const InventoryValuationReport = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('All Categories');
   const [sort, setSort] = useState('Sort: Highest Value First');
   const [hoveredSegment, setHoveredSegment] = useState(null);
+
+  const [rawItems, setRawItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        const data = await fetchInventoryItems();
+        setRawItems(data || []);
+      } catch (error) {
+        console.error("Failed to load inventory valuation data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const { processedItems, totalValuation, categorySummary, availableCategories } = useMemo(() => {
+    let total = 0;
+    const cats = {};
+
+    const baseItems = rawItems.map(dbItem => {
+      const stock = Number(dbItem.current_stock) || 0;
+      const cost = Number(dbItem.cost_per_unit) || 0;
+      const val = stock * cost;
+      total += val;
+
+      const catName = dbItem.inventory_categories?.category_name || 'Uncategorized';
+      if (!cats[catName]) cats[catName] = 0;
+      cats[catName] += val;
+
+      return {
+        id: dbItem.id,
+        item: dbItem.item_name,
+        category: catName,
+        stock,
+        unit: dbItem.base_unit || '',
+        minimum: dbItem.minimum_level || 0,
+        cost,
+        value: val
+      };
+    });
+
+    const withPct = baseItems.map(item => ({
+      ...item,
+      pct: total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0'
+    }));
+
+    const catSum = Object.keys(cats).map(catName => ({
+      category: catName,
+      value: cats[catName],
+      pct: total > 0 ? ((cats[catName] / total) * 100).toFixed(1) : '0.0'
+    })).sort((a, b) => b.value - a.value);
+
+    return {
+      processedItems: withPct,
+      totalValuation: total,
+      categorySummary: catSum,
+      availableCategories: Object.keys(cats).sort()
+    };
+  }, [rawItems]);
+
+  const filteredItems = useMemo(() => {
+    let result = processedItems.filter(item => {
+      if (searchTerm && !item.item.toLowerCase().startsWith(searchTerm.toLowerCase())) return false;
+      if (category !== 'All Categories' && item.category !== category) return false;
+      return true;
+    });
+
+    if (sort === 'Sort: Highest Value First') result.sort((a, b) => b.value - a.value);
+    else if (sort === 'Sort: Lowest Value First') result.sort((a, b) => a.value - b.value);
+    else if (sort === 'Sort: A-Z') result.sort((a, b) => a.item.localeCompare(b.item));
+
+    return result;
+  }, [processedItems, searchTerm, category, sort]);
+
+  const filteredTotal = filteredItems.reduce((sum, item) => sum + item.value, 0);
 
   // SVG Chart Calculation
   const radius = 60;
@@ -54,11 +98,23 @@ const InventoryValuationReport = () => {
     'Packaging': '#A07156'
   };
 
-  const chartSegments = CAT_SUMMARY.map((d, i) => {
-    const dashArray = (d.pct / 100) * circumference;
-    const dashOffset = -offset;
+  const chartSegments = categorySummary.map((d, i) => {
+    // Use exact proportion to prevent rounding gaps, and fallback to 0 if totalValuation is 0
+    const proportion = totalValuation > 0 ? (d.value / totalValuation) : 0;
+    const dashArray = proportion * circumference;
+    const gap = circumference - dashArray;
+
+    // Use positive dashOffset to avoid negative offset rendering bugs in some browsers
+    const dashOffset = circumference - offset;
     offset += dashArray;
-    return { ...d, dashArray, dashOffset, color: colors[d.category] || '#ccc' };
+
+    return {
+      ...d,
+      dashArray,
+      gap,
+      dashOffset,
+      color: colors[d.category] || ['#D4A373', '#FAEDCD', '#E9EDC9'][i % 3]
+    };
   });
 
   return (
@@ -67,7 +123,7 @@ const InventoryValuationReport = () => {
       <div className="val-header">
         <div className="layout-page-heading" style={{ marginBottom: 0 }}>
           <h2>Inventory Valuation Report</h2>
-          <p>Current as of Mar 15, 2026, 6:00 PM</p>
+          <p>Current as of {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
         </div>
         <div className="val-actions">
           <button className="val-btn val-btn-outline">
@@ -91,21 +147,21 @@ const InventoryValuationReport = () => {
           <div className="val-summary-card-icon">
             <i className="bi bi-currency-dollar"></i>
           </div>
-          <p className="val-card-value">₱22,719.44</p>
+          <p className="val-card-value">₱{totalValuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="val-card-label">Total Inventory Value</p>
         </div>
         <div className="val-summary-card val-card--blue">
           <div className="val-summary-card-icon">
             <i className="bi bi-box-seam"></i>
           </div>
-          <p className="val-card-value">25</p>
+          <p className="val-card-value">{rawItems.length}</p>
           <p className="val-card-label">Items</p>
         </div>
         <div className="val-summary-card val-card--green">
           <div className="val-summary-card-icon">
             <i className="bi bi-tags"></i>
           </div>
-          <p className="val-card-value">2</p>
+          <p className="val-card-value">{availableCategories.length}</p>
           <p className="val-card-label">Categories</p>
         </div>
       </div>
@@ -129,7 +185,7 @@ const InventoryValuationReport = () => {
                     fill="none"
                     stroke={seg.color}
                     strokeWidth={strokeWidth}
-                    strokeDasharray={`${seg.dashArray} ${circumference - seg.dashArray}`}
+                    strokeDasharray={`${seg.dashArray} ${seg.gap}`}
                     strokeDashoffset={seg.dashOffset}
                     onMouseEnter={() => setHoveredSegment(idx)}
                     onMouseLeave={() => setHoveredSegment(null)}
@@ -139,9 +195,9 @@ const InventoryValuationReport = () => {
               </svg>
             </div>
             <div className="val-legend">
-              {CAT_SUMMARY.map(cat => (
+              {categorySummary.map((cat, i) => (
                 <div className="val-legend-item" key={cat.category}>
-                  <div className="val-legend-color" style={{ backgroundColor: colors[cat.category] }}></div>
+                  <div className="val-legend-color" style={{ backgroundColor: colors[cat.category] || ['#D4A373', '#FAEDCD', '#E9EDC9'][i % 3] }}></div>
                   <span>{cat.category}</span>
                 </div>
               ))}
@@ -164,13 +220,17 @@ const InventoryValuationReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {CAT_SUMMARY.map((cat, i) => (
-                  <tr key={i}>
-                    <td>{cat.category}</td>
-                    <td>₱{cat.value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                    <td>{cat.pct}%</td>
-                  </tr>
-                ))}
+                {categorySummary.length === 0 ? (
+                  <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>No data</td></tr>
+                ) : (
+                  categorySummary.map((cat, i) => (
+                    <tr key={i}>
+                      <td>{cat.category}</td>
+                      <td>₱{cat.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td>{cat.pct}%</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -195,8 +255,9 @@ const InventoryValuationReport = () => {
           onChange={(e) => setCategory(e.target.value)}
         >
           <option>All Categories</option>
-          <option>Ingredient</option>
-          <option>Packaging</option>
+          {availableCategories.map(cat => (
+            <option key={cat}>{cat}</option>
+          ))}
         </select>
 
         <select
@@ -209,7 +270,11 @@ const InventoryValuationReport = () => {
           <option>Sort: A-Z</option>
         </select>
 
-        <button className="val-reset-btn">Reset</button>
+        <button className="val-reset-btn" onClick={() => {
+          setSearchTerm('');
+          setCategory('All Categories');
+          setSort('Sort: Highest Value First');
+        }}>Reset</button>
       </div>
 
       {/* ─── Main Table Panel ─── */}
@@ -219,7 +284,7 @@ const InventoryValuationReport = () => {
             <i className="bi bi-table"></i> All Items
           </div>
           <div className="val-table-summary-info">
-            Showing 25 items | Filtered total: <strong>₱22,719.44</strong>
+            Showing {filteredItems.length} items | Filtered total: <strong>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
           </div>
         </div>
 
@@ -238,23 +303,31 @@ const InventoryValuationReport = () => {
               </tr>
             </thead>
             <tbody>
-              {MOCK_ITEMS.map((item, idx) => (
-                <tr key={idx}>
-                  <td>{item.item}</td>
-                  <td>{item.category}</td>
-                  <td>{item.stock}</td>
-                  <td>{item.unit}</td>
-                  <td>{item.reorder}</td>
-                  <td>₱{item.cost.toFixed(2)}</td>
-                  <td style={{ fontWeight: 600 }}>₱{item.value.toFixed(2)}</td>
-                  <td>{item.pct}%</td>
-                </tr>
-              ))}
-              <tr className="val-main-table-grand">
-                <td colSpan="6">GRAND TOTAL</td>
-                <td>₱22,719.44</td>
-                <td>100%</td>
-              </tr>
+              {isLoading ? (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px' }}>Loading valuation data...</td></tr>
+              ) : filteredItems.length === 0 ? (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>No items found.</td></tr>
+              ) : (
+                <>
+                  {filteredItems.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>{item.item}</td>
+                      <td>{item.category}</td>
+                      <td>{item.stock}</td>
+                      <td>{item.unit}</td>
+                      <td>{item.minimum}</td>
+                      <td>₱{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ fontWeight: 600 }}>₱{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td>{item.pct}%</td>
+                    </tr>
+                  ))}
+                  <tr className="val-main-table-grand">
+                    <td colSpan="6">FILTERED TOTAL</td>
+                    <td>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td>{filteredTotal > 0 ? ((filteredTotal / totalValuation) * 100).toFixed(1) : 0}%</td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
         </div>

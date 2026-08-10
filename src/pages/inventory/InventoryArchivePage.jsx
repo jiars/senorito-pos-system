@@ -1,18 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UnarchiveItemModal from './modals/Unarchive Item/UnarchiveItemModal';
+import { fetchArchivedInventoryItems } from '../../services/inventory/inventoryItemsService';
 import './inventoryArchive.css';
-
-const archivedData = [
-  { id: 1, name: '12oz hot cup', category: 'Packaging', qty: 142, unit: 'pcs', minLevel: 80, status: 'In-stock', expiry: null, archivedDate: 'Mar 7, 9:18 AM', reason: 'PO Received', archivedBy: 'Lyanna Magtuloy' },
-  { id: 2, name: '16oz cup', category: 'Packaging', qty: 189, unit: 'pcs', minLevel: 90, status: 'In-stock', expiry: null, archivedDate: 'Mar 5, 8:18 AM', reason: 'Correction', archivedBy: 'Lyanna Magtuloy' },
-  { id: 3, name: '22oz cup', category: 'Packaging', qty: 178, unit: 'pcs', minLevel: 85, status: 'In-stock', expiry: null, archivedDate: 'Mar 8, 9:45 AM', reason: 'Restock', archivedBy: 'Lyanna Magtuloy' }
-];
 
 const InventoryArchivePage = () => {
   const [isUnarchiveModalOpen, setIsUnarchiveModalOpen] = useState(false);
   const [selectedUnarchiveItem, setSelectedUnarchiveItem] = useState(null);
+  const [archivedItems, setArchivedItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  const loadArchivedItems = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchArchivedInventoryItems();
+      setArchivedItems(data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch archived inventory: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadArchivedItems();
+  }, []);
 
   const getStatusChipClass = (status) => {
     switch (status) {
@@ -36,10 +51,10 @@ const InventoryArchivePage = () => {
     if (!item.expiry) {
       return <div className="inventory-expiry-cell">-</div>;
     }
-    
+
     let prefix = 'Nearest:';
     if (item.expiry === 'Expired') prefix = 'Expired:';
-    
+
     return (
       <div className="inventory-expiry-cell">
         <span className={`inventory-expiry-chip ${getExpiryChipClass(item.expiry)}`}>
@@ -92,63 +107,77 @@ const InventoryArchivePage = () => {
         {/* ───── Table ───── */}
         <div className="inventory-table-wrapper">
           <table className="inventory-table">
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>CATEGORY</th>
-              <th>LAST QTY</th>
-              <th>UNIT</th>
-              <th>MIN LEVEL</th>
-              <th>LAST STATUS</th>
-              <th>LAST EXPIRY STATUS</th>
-              <th>ARCHIVED DATE</th>
-              <th>ARCHIVED BY</th>
-              <th>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {archivedData.map(item => (
-              <tr key={item.id}>
-                <td className="inventory-item-name">{item.name}</td>
-                <td>{item.category}</td>
-                <td>{item.qty}</td>
-                <td>{item.unit}</td>
-                <td>{item.minLevel}</td>
-                <td>
-                  <span className={`inventory-chip ${getStatusChipClass(item.status)}`}>
-                    {item.status}
-                  </span>
-                </td>
-                <td>
-                  {renderExpiry(item)}
-                </td>
-                <td>
-                  <p className="inventory-updated-date">{item.archivedDate}</p>
-                  <span className="inventory-updated-reason">{item.reason}</span>
-                </td>
-                <td className="inventory-item-name">{item.archivedBy}</td>
-                <td>
-                  <div className="inventory-actions">
-                    <button 
-                      className="inventory-action-btn inventory-archive-action-btn--restore" 
-                      title="Restore item" 
-                      aria-label="Restore item"
-                      onClick={() => {
-                        setSelectedUnarchiveItem(item);
-                        setIsUnarchiveModalOpen(true);
-                      }}
-                    >
-                      <i className="bi bi-box-arrow-up"></i>
-                    </button>
-                  </div>
-                </td>
+            <thead>
+              <tr>
+                <th>NAME</th>
+                <th>CATEGORY</th>
+                <th>LAST QTY</th>
+                <th>UNIT</th>
+                <th>MIN LEVEL</th>
+                <th>LAST STATUS</th>
+                <th>LAST EXPIRY STATUS</th>
+                <th>ARCHIVED DATE</th>
+                <th>ARCHIVED BY</th>
+                <th>ACTIONS</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '2rem' }}>Loading archived items...</td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>{error}</td>
+                </tr>
+              ) : archivedItems.length === 0 ? (
+                <tr>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '2rem' }}>No archived items found.</td>
+                </tr>
+              ) : (
+                archivedItems.map(item => {
+                  const stockStatus = item.current_stock > (item.minimum_level || 0) ? 'In-stock' : (item.current_stock === 0 ? 'Out of Stock' : 'Low Stock');
+
+                  return (
+                    <tr key={item.id}>
+                      <td><strong>{item.item_name}</strong></td>
+                      <td>{item.inventory_categories?.category_name || '-'}</td>
+                      <td>{item.current_stock || 0}</td>
+                      <td>{item.base_unit}</td>
+                      <td>{item.minimum_level}</td>
+                      <td>
+                        <span className={`inventory-chip ${getStatusChipClass(stockStatus)}`}>
+                          {stockStatus}
+                        </span>
+                      </td>
+                      <td>{renderExpiry(item)}</td>
+                      <td>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '-'}</td>
+                      <td>
+                        {item.profiles
+                          ? `${item.profiles.first_name || ''} ${item.profiles.last_name || ''}`.trim()
+                          : '-'}
+                      </td>
+                      <td>
+                        <button
+                          className="inventory-action-btn inventory-archive-action-btn--restore"
+                          onClick={() => {
+                            setSelectedUnarchiveItem(item);
+                            setIsUnarchiveModalOpen(true);
+                          }}
+                          title="Unarchive"
+                        >
+                          <i className="bi bi-box-arrow-up"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-      </div>
-      
+
       <UnarchiveItemModal
         isOpen={isUnarchiveModalOpen}
         onClose={() => {
@@ -156,6 +185,7 @@ const InventoryArchivePage = () => {
           setSelectedUnarchiveItem(null);
         }}
         item={selectedUnarchiveItem}
+        refetchInventory={loadArchivedItems}
       />
     </div>
   );

@@ -1,24 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { addInventoryCategory, updateInventoryCategory, deleteInventoryCategory } from '../../../../services/inventory/inventoryCategoriesService';
 import './manageCategoriesModal.css';
 
-const ManageCategoriesModal = ({ isOpen, onClose }) => {
-  // Placeholder data
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Ingredient', usedByCount: 18 },
-    { id: 2, name: 'Packaging', usedByCount: 7 },
-    { id: 3, name: 'Supply', usedByCount: 0 }
-  ]);
-
+const ManageCategoriesModal = ({ isOpen, onClose, categories = [], inventoryItems = [], refetchInventory }) => {
   const [newCategory, setNewCategory] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset internal states when modal opens/closes
-  React.useEffect(() => {
+  // Reset inputs when modal opens or closes
+  useEffect(() => {
     if (isOpen) {
       setNewCategory('');
       setEditingId(null);
       setEditName('');
+      setIsSubmitting(false);
     }
   }, [isOpen]);
 
@@ -28,53 +24,60 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
   const checkDuplicate = (name, excludeId = null) => {
     const trimmed = name.trim().toLowerCase();
     return categories.some(
-      (cat) => cat.id !== excludeId && cat.name.toLowerCase() === trimmed
+      (cat) => cat.id !== excludeId && cat.category_name.toLowerCase() === trimmed
     );
   };
 
-  // Add validation
   const isNewEmpty = newCategory.trim() === '';
   const isNewDuplicate = !isNewEmpty && checkDuplicate(newCategory);
-  const isAddDisabled = isNewEmpty || isNewDuplicate;
+  const isAddDisabled = isNewEmpty || isNewDuplicate || isSubmitting;
 
-  const handleAddCategory = () => {
-    if (isAddDisabled) return;
-    const newCat = {
-      id: Date.now(),
-      name: newCategory.trim(),
-      usedByCount: 0
-    };
-    setCategories([...categories, newCat]);
-    setNewCategory(''); // Reset input after adding
-  };
-
-  // Edit validation
   const isEditEmpty = editName.trim() === '';
   const isEditDuplicate = !isEditEmpty && checkDuplicate(editName, editingId);
-  const isSaveDisabled = isEditEmpty || isEditDuplicate;
+  const isSaveDisabled = isEditEmpty || isEditDuplicate || isSubmitting;
 
-  const startEdit = (cat) => {
-    setEditingId(cat.id);
-    setEditName(cat.name);
+  // ─── 1. Add Category ───
+  const handleAddCategory = async () => {
+    if (isAddDisabled) return;
+    setIsSubmitting(true);
+    try {
+      await addInventoryCategory(newCategory.trim());
+      if (refetchInventory) await refetchInventory();
+      setNewCategory('');
+    } catch (error) {
+      console.error("Failed to add category:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditName('');
-  };
-
-  const saveEdit = (id) => {
+  // ─── 2. Save Edit ───
+  const handleSaveEdit = async (id) => {
     if (isSaveDisabled) return;
-    setCategories(
-      categories.map((cat) =>
-        cat.id === id ? { ...cat, name: editName.trim() } : cat
-      )
-    );
-    setEditingId(null);
+    setIsSubmitting(true);
+    try {
+      await updateInventoryCategory(id, editName.trim());
+      if (refetchInventory) await refetchInventory();
+      setEditingId(null);
+    } catch (error) {
+      console.error("Failed to update category:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const deleteCategory = (id) => {
-    setCategories(categories.filter((cat) => cat.id !== id));
+  // ─── 3. Delete Category ───
+  const handleDeleteCategory = async (id) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await deleteInventoryCategory(id);
+      if (refetchInventory) await refetchInventory();
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -98,9 +101,7 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
               />
-              {isNewDuplicate && (
-                <span className="mc-error-text">Category already exists.</span>
-              )}
+              {isNewDuplicate && <small className="mc-error-text">Category already exists.</small>}
             </div>
             <button
               className="mc-btn-add"
@@ -113,16 +114,18 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
 
           <div className="mc-separator"></div>
 
-          {/* Category List */}
+          {/* Categories List */}
           <div className="mc-list">
             {categories.map((cat) => {
               const isEditing = editingId === cat.id;
+              // Check how many items use this category
+              const usedByCount = inventoryItems.filter((i) => i.category_id === cat.id).length;
 
               return (
                 <div className="mc-list-item" key={cat.id}>
                   {isEditing ? (
                     <>
-                      <div className="mc-edit-container">
+                      <div className="mc-input-wrapper">
                         <input
                           type="text"
                           className={`mc-edit-input ${isEditDuplicate ? 'mc-edit-input--error' : ''}`}
@@ -130,24 +133,24 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
                           onChange={(e) => setEditName(e.target.value)}
                           autoFocus
                         />
-                        {isEditDuplicate && (
-                          <span className="mc-error-text" style={{ fontSize: '0.65rem' }}>
-                            Category already exists.
-                          </span>
-                        )}
+                        {isEditDuplicate && <small className="mc-error-text">Category already exists.</small>}
                       </div>
+
                       <div className="mc-list-item-actions">
                         <button
                           className="mc-action-btn mc-action-btn--save"
                           disabled={isSaveDisabled}
-                          onClick={() => saveEdit(cat.id)}
+                          onClick={() => handleSaveEdit(cat.id)}
                           title="Save"
                         >
                           <i className="bi bi-check-lg"></i>
                         </button>
                         <button
                           className="mc-action-btn mc-action-btn--edit"
-                          onClick={cancelEdit}
+                          onClick={() => {
+                            setEditingId(null);
+                            setEditName('');
+                          }}
                           title="Cancel"
                         >
                           <i className="bi bi-x-lg"></i>
@@ -156,20 +159,25 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
                     </>
                   ) : (
                     <>
-                      <span className="mc-list-item-name">{cat.name}</span>
+                      <span className="mc-list-item-name">
+                        {cat.category_name} {usedByCount > 0 && <small style={{ color: '#6c757d' }}>({usedByCount} items)</small>}
+                      </span>
                       <div className="mc-list-item-actions">
                         <button
                           className="mc-action-btn mc-action-btn--edit"
-                          onClick={() => startEdit(cat)}
+                          onClick={() => {
+                            setEditingId(cat.id);
+                            setEditName(cat.category_name);
+                          }}
                           title="Edit"
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
                         <button
                           className="mc-action-btn mc-action-btn--delete"
-                          disabled={cat.usedByCount > 0}
-                          title={cat.usedByCount > 0 ? "Cannot delete category while items are using it." : "Delete"}
-                          onClick={() => deleteCategory(cat.id)}
+                          disabled={usedByCount > 0 || isSubmitting}
+                          title={usedByCount > 0 ? "Cannot delete category while items are using it." : "Delete"}
+                          onClick={() => handleDeleteCategory(cat.id)}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
@@ -179,6 +187,12 @@ const ManageCategoriesModal = ({ isOpen, onClose }) => {
                 </div>
               );
             })}
+
+            {categories.length === 0 && (
+              <div className="mc-empty-state">
+                No categories found.
+              </div>
+            )}
           </div>
         </div>
       </div>

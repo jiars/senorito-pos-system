@@ -1,37 +1,30 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import AddAddonModal from './modals/Add Add-on/AddAddonModal';
 import EditAddonModal from './modals/Edit Add-on/EditAddonModal';
 import ConfirmDeleteAddonModal from './modals/Confirm Delete Add-on/ConfirmDeleteAddonModal';
+
 import '../menuManagement.css';
 
-/* ═══════════════════════════════════════════════════
-   Placeholder Data
-═══════════════════════════════════════════════════ */
-const addonsData = [
-  { id: 1, name: 'Extra Shot', price: '₱50.00', applicableTo: 'Hot Coffee, Iced Coffee', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 2, name: 'Syrup', price: '₱50.00', applicableTo: 'Non-coffee', recipeStatus: 'Ingredient archived', posStatus: 'Unavailable' },
-  { id: 3, name: 'Sauce', price: '₱50.00', applicableTo: 'Hot Coffee, Iced Coffee', recipeStatus: 'Complete', posStatus: 'Available' },
-  { id: 4, name: 'Nata', price: '₱50.00', applicableTo: 'Non-coffee', recipeStatus: 'Ingredient out of stock', posStatus: 'Unavailable' },
-  { id: 5, name: 'Ice Cream', price: '₱50.00', applicableTo: 'Hot Coffee, Iced Coffee', recipeStatus: 'Complete', posStatus: 'Available' }
-];
+import { useAddons } from '../../../hooks/useAddons';
+import { formatCurrency } from '../../../utils/currencyFormatters';
 
 const ManageAddonsPage = () => {
+  /* ─── State ─── */
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   const [isAddAddonModalOpen, setIsAddAddonModalOpen] = useState(false);
   const [isEditAddonModalOpen, setIsEditAddonModalOpen] = useState(false);
   const [isDeleteAddonModalOpen, setIsDeleteAddonModalOpen] = useState(false);
   const [selectedAddon, setSelectedAddon] = useState(null);
+
   const navigate = useNavigate();
+  const { addons, categories, isLoading, refetchAddons } = useAddons();
 
-  const getPosStatusClass = (status) => {
-    switch (status) {
-      case 'Available': return 'menu-chip--available';
-      case 'Unavailable': return 'menu-chip--unavailable';
-      default: return '';
-    }
-  };
-
+  /* ─── Handlers ─── */
   const handleEditClick = (item) => {
     setSelectedAddon(item);
     setIsEditAddonModalOpen(true);
@@ -41,6 +34,30 @@ const ManageAddonsPage = () => {
     setSelectedAddon(item);
     setIsDeleteAddonModalOpen(true);
   };
+
+  /* ─── Filter Logic ─── */
+  const filteredAddons = addons.filter((item) => {
+    const matchesSearch = item.addon_name.toLowerCase().startsWith(searchTerm.toLowerCase());
+
+    // Simple check for categories without ternary or filter(Boolean) shortcuts
+    let matchesCategory = false;
+    if (categoryFilter === 'all') {
+      matchesCategory = true;
+    } else if (item.addon_categories) {
+      for (let i = 0; i < item.addon_categories.length; i++) {
+        const catObj = item.addon_categories[i].menu_categories;
+        if (catObj && catObj.category_name === categoryFilter) {
+          matchesCategory = true;
+          break;
+        }
+      }
+    }
+
+    // Check status filter
+    const matchesStatus = statusFilter === 'all' || item.pos_status === statusFilter;
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   return (
     <div className="menu-page">
@@ -57,7 +74,7 @@ const ManageAddonsPage = () => {
           >
             Back to Menu Management
           </button>
-          <button 
+          <button
             className="menu-btn menu-btn--primary"
             onClick={() => setIsAddAddonModalOpen(true)}
           >
@@ -80,20 +97,37 @@ const ManageAddonsPage = () => {
             />
           </div>
 
-          <select className="menu-filter-select">
-            <option>All Categories</option>
-            <option>Hot Coffee</option>
-            <option>Iced Coffee</option>
-            <option>Non-coffee</option>
+          <select
+            className="menu-filter-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.category_name}>{c.category_name}</option>
+            ))}
           </select>
 
-          <select className="menu-filter-select">
-            <option>All Status</option>
-            <option>Available</option>
-            <option>Unavailable</option>
+          <select
+            className="menu-filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Status</option>
+            <option value="Available">Available</option>
+            <option value="Unavailable">Unavailable</option>
           </select>
 
-          <button className="menu-reset-btn">Reset</button>
+          <button
+            className="menu-reset-btn"
+            onClick={() => {
+              setSearchTerm('');
+              setCategoryFilter('all');
+              setStatusFilter('all');
+            }}
+          >
+            Reset
+          </button>
         </div>
 
         {/* ───── Table ───── */}
@@ -110,59 +144,84 @@ const ManageAddonsPage = () => {
               </tr>
             </thead>
             <tbody>
-              {addonsData.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <span className="menu-item-name">{item.name}</span>
-                  </td>
-                  <td>{item.price}</td>
-                  <td>{item.applicableTo}</td>
-                  <td>{item.recipeStatus}</td>
-                  <td>
-                    <span className={`menu-chip ${getPosStatusClass(item.posStatus)}`}>
-                      {item.posStatus}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="menu-actions">
-                      <button 
-                        className="menu-action-btn menu-action-btn--edit" 
-                        title="Edit Add-on"
-                        onClick={() => handleEditClick(item)}
-                      >
-                        <i className="bi bi-pencil"></i>
-                      </button>
-                      <button
-                        className="menu-action-btn menu-action-btn--archive"
-                        title="Delete Add-on"
-                        onClick={() => handleDeleteClick(item)}
-                      >
-                        <i className="bi bi-trash"></i>
-                      </button>
-                    </div>
-                  </td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Loading add-ons...</td>
                 </tr>
-              ))}
+              ) : filteredAddons.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No add-ons found.</td>
+                </tr>
+              ) : (
+                filteredAddons.map((item) => {
+                  let categoryNames = 'None';
+                  if (item.addon_categories && item.addon_categories.length > 0) {
+                    const namesArray = item.addon_categories.map(ac => ac.menu_categories ? ac.menu_categories.category_name : '');
+                    categoryNames = namesArray.join(', ');
+                  }
+
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <span className="menu-item-name">{item.addon_name}</span>
+                      </td>
+                      <td>{formatCurrency(item.selling_price)}</td>
+                      <td>{categoryNames || 'None'}</td>
+                      <td>{item.recipe_status}</td>
+                      <td>
+                        <span className={`menu-chip ${item.pos_status === 'Available' ? 'menu-chip--available' : 'menu-chip--unavailable'}`}>
+                          {item.pos_status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="menu-actions">
+                          <button
+                            className="menu-action-btn menu-action-btn--edit"
+                            title="Edit Add-on"
+                            onClick={() => handleEditClick(item)}
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button
+                            className="menu-action-btn menu-action-btn--archive"
+                            title={item.archived === true ? "Already Archived" : "Delete Add-on"}
+                            onClick={() => handleDeleteClick(item)}
+                            disabled={item.archived === true}
+                            style={{ opacity: item.archived ? 0.4 : 1, cursor: item.archived === true ? 'not-allowed' : 'pointer' }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <AddAddonModal 
+      <AddAddonModal
         isOpen={isAddAddonModalOpen}
         onClose={() => setIsAddAddonModalOpen(false)}
+        refetchAddons={refetchAddons}
+        categories={categories}
       />
 
-      <EditAddonModal 
+      <EditAddonModal
         isOpen={isEditAddonModalOpen}
         onClose={() => setIsEditAddonModalOpen(false)}
         addon={selectedAddon}
+        refetchAddons={refetchAddons}
+        categories={categories}
       />
 
-      <ConfirmDeleteAddonModal 
+      <ConfirmDeleteAddonModal
         isOpen={isDeleteAddonModalOpen}
         onClose={() => setIsDeleteAddonModalOpen(false)}
         addon={selectedAddon}
+        refetchAddons={refetchAddons}
       />
     </div>
   );

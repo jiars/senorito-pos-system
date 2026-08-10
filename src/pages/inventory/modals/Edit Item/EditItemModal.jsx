@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './editItemModal.css';
+import { updateInventoryItem } from '../../../../services/inventory/inventoryItemsService';
 
-const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
+const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories = [], refetchInventory }) => {
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [category, setCategory] = useState('');
@@ -10,17 +11,21 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
   const [supplier, setSupplier] = useState('');
 
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   // Reset form when modal opens or item changes
   useEffect(() => {
     if (isOpen && item) {
-      setName(item.name || '');
-      setUnit(item.unit || '');
-      setCategory(item.category || '');
-      setCost(item.cost || '25');
-      setReorderLevel(item.minLevel !== undefined ? item.minLevel : '');
-      setSupplier(item.supplier || 'Jana Levanza');
+      setName(item.item_name || '');
+      setUnit(item.base_unit || '');
+      setCategory(item.category_id || '');
+      setCost(item.cost_per_unit ? item.cost_per_unit.toString() : '');
+      setReorderLevel(item.minimum_level !== undefined ? item.minimum_level.toString() : '');
+      setSupplier(item.supplier || '');
       setErrors({});
+      setApiError('');
+      setIsSubmitting(false);
     }
   }, [isOpen, item]);
 
@@ -36,7 +41,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
       existingItems.some(
         (existingName) =>
           existingName.toLowerCase() === name.trim().toLowerCase() &&
-          existingName.toLowerCase() !== (item?.name || '').toLowerCase()
+          existingName.toLowerCase() !== (item?.item_name || '').toLowerCase()
       )
     ) {
       newErrors.name = 'An item with this name already exists.';
@@ -67,22 +72,36 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
 
   if (!isOpen || !item) return null;
 
-  const isFormValid = Object.keys(errors).length === 0;
+  const isFormValid = Object.keys(errors).length === 0 && name.trim() !== '' && unit !== '' && category !== '' && cost !== '' && reorderLevel !== '';
 
-  const handleSave = () => {
-    if (!isFormValid) return;
+  const handleSave = async () => {
+    if (!isFormValid || isSubmitting) return;
 
-    console.log('Saving edited item:', {
-      id: item.id,
-      name: name.trim(),
-      unit,
-      category,
-      cost: Number(cost),
-      reorderLevel: Number(reorderLevel),
-      supplier: supplier.trim()
-    });
+    setIsSubmitting(true);
+    setApiError('');
 
-    onClose();
+    try {
+      const updatePayload = {
+        item_name: name.trim(),
+        base_unit: unit,
+        category_id: category,
+        cost_per_unit: Number(cost),
+        minimum_level: Number(reorderLevel),
+        supplier: supplier.trim()
+      };
+
+      await updateInventoryItem(item.id, updatePayload);
+
+      if (refetchInventory) {
+        await refetchInventory();
+      }
+
+      onClose();
+    } catch (error) {
+      setApiError(error.message || 'Failed to update inventory item.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -107,6 +126,8 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter item name"
+                disabled // Name should not be editable to prevent recipe breakage
+                title="Name cannot be changed after creation"
               />
               {errors.name && <p className="edit-modal-error-msg">{errors.name}</p>}
             </div>
@@ -118,15 +139,19 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
                 className={`edit-modal-select ${errors.unit ? 'is-invalid' : ''}`}
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
+                disabled // Unit should not be editable to prevent recipe cost calculation breakage
+                title="Base unit cannot be changed after creation"
               >
                 <option value="" disabled>Select unit</option>
-                <option value="pcs">pcs</option>
-                <option value="kg">kg</option>
                 <option value="g">g</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
                 <option value="L">L</option>
-                <option value="mL">mL</option>
-                <option value="bottle">bottle</option>
+                <option value="pcs">pcs</option>
                 <option value="pack">pack</option>
+                <option value="bottle">bottle</option>
+                <option value="tbsp">tbsp</option>
+                <option value="cup">cup</option>
               </select>
               {errors.unit && <p className="edit-modal-error-msg">{errors.unit}</p>}
             </div>
@@ -140,9 +165,11 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
                 onChange={(e) => setCategory(e.target.value)}
               >
                 <option value="" disabled>Select category</option>
-                <option value="Ingredient">Ingredient</option>
-                <option value="Packaging">Packaging</option>
-                <option value="Cleaning">Cleaning</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.category_name}
+                  </option>
+                ))}
               </select>
               {errors.category && <p className="edit-modal-error-msg">{errors.category}</p>}
             </div>
@@ -191,15 +218,16 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [] }) => {
         </div>
 
         <div className="edit-modal-footer">
-          <button className="edit-btn-cancel" onClick={onClose}>
+          {apiError && <p className="edit-modal-error-msg" style={{ marginRight: 'auto', marginBottom: 0 }}>{apiError}</p>}
+          <button className="edit-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
           <button
             className="edit-btn-save"
             onClick={handleSave}
-            disabled={!isFormValid}
+            disabled={!isFormValid || isSubmitting}
           >
-            Save
+            {isSubmitting ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>

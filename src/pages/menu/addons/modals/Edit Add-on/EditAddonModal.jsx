@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './editAddonModal.css';
 
-/* ─── Placeholder Data ─── */
-const CATEGORIES = [
-  'Hot Coffee', 'Iced Coffee', 'Pastry', 'Non-coffee', 'Rice Meal', 'Frappuccino'
-];
+import { updateAddon } from '../../../../../services/menu/addonsService';
 
 const UNITS = ['g', 'ml', 'pc', 'pump', 'cup'];
 
@@ -19,36 +16,34 @@ const INGREDIENTS = [
   { id: 'i8', label: '16oz cup (pcs) - ₱2.50/pc', cost: 2.50, defaultUnit: 'pc' }
 ];
 
-const EditAddonModal = ({ isOpen, onClose, addon }) => {
-  /* ─── State ─── */
+const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [] }) => {
   const [addonName, setAddonName] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [ingredients, setIngredients] = useState([]);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Pre-fill data when modal opens with an addon
   useEffect(() => {
     if (isOpen && addon) {
-      setAddonName(addon.name || '');
-      
-      // Parse price "₱50.00" -> "50.00"
-      if (addon.price) {
-        setSellingPrice(addon.price.replace('₱', '').replace(',', '').trim());
-      } else {
-        setSellingPrice('');
-      }
+      setIsSubmitting(false);
 
-      // Parse categories "Hot Coffee, Iced Coffee" -> ['Hot Coffee', 'Iced Coffee']
-      if (addon.applicableTo) {
-        const cats = addon.applicableTo.split(',').map(c => c.trim());
-        setSelectedCategories(cats);
-      } else {
-        setSelectedCategories([]);
-      }
+      setAddonName(addon.addon_name || '');
+      setSellingPrice(addon.selling_price !== undefined ? addon.selling_price.toString() : '');
+      setIsAvailable(addon.pos_status === 'Available');
 
-      // Pre-fill dummy ingredients for edit mode demonstration
+      const catIds = [];
+      if (addon.addon_categories) {
+        for (let i = 0; i < addon.addon_categories.length; i++) {
+          if (addon.addon_categories[i].menu_category_id) {
+            catIds.push(addon.addon_categories[i].menu_category_id);
+          }
+        }
+      }
+      setSelectedCategories(catIds);
+
       setIngredients([
-        { id: Date.now(), ingredientId: 'i2', qty: '30', unit: 'ml' }
+        { id: Date.now(), ingredientId: '', qty: '', unit: '' }
       ]);
     }
   }, [isOpen, addon]);
@@ -61,14 +56,14 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
       if (!ing.ingredientId || !ing.qty) return total;
       const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
-      
+
       const parsedQty = parseFloat(ing.qty) || 0;
       return total + (parsedQty * ref.cost);
     }, 0);
   };
 
   const estCost = calculateEstCost();
-  
+
   const calculateProfit = () => {
     const sp = parseFloat(sellingPrice) || 0;
     return sp - estCost;
@@ -97,12 +92,36 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
   };
 
   /* ─── Handlers ─── */
-  const toggleCategory = (cat) => {
-    if (selectedCategories.includes(cat)) {
-      setSelectedCategories(selectedCategories.filter(c => c !== cat));
+  const toggleCategory = (catId) => {
+    if (selectedCategories.includes(catId)) {
+      setSelectedCategories(selectedCategories.filter(id => id !== catId));
     } else {
-      setSelectedCategories([...selectedCategories, cat]);
+      setSelectedCategories([...selectedCategories, catId]);
     }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!addon || isSubmitting || !isFormValid()) return;
+    setIsSubmitting(true);
+
+    const addonPayload = {
+      addon_name: addonName.trim(),
+      selling_price: parseFloat(sellingPrice) || 0,
+      estimated_cost: estCost,
+      profit: profit,
+      margin: margin,
+      recipe_status: addon.recipe_status || 'Complete',
+      pos_status: isAvailable ? 'Available' : 'Unavailable',
+      archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
+    };
+
+    await updateAddon(addon.id, addonPayload, selectedCategories);
+    if (refetchAddons) {
+      await refetchAddons();
+    }
+
+    setIsSubmitting(false);
+    onClose();
   };
 
   const addIngredient = () => {
@@ -141,9 +160,9 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
     return (
       <div className="eao-ingredient-row" key={ing.id}>
         <div>
-          <select 
-            className="eao-select" 
-            value={ing.ingredientId} 
+          <select
+            className="eao-select"
+            value={ing.ingredientId}
             onChange={(e) => updateIngredient(ing.id, 'ingredientId', e.target.value)}
           >
             <option value="">Select ingredient</option>
@@ -153,9 +172,9 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
           </select>
         </div>
         <div>
-          <input 
-            type="number" 
-            className="eao-input" 
+          <input
+            type="number"
+            className="eao-input"
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => updateIngredient(ing.id, 'qty', e.target.value)}
@@ -163,7 +182,7 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
           />
         </div>
         <div>
-          <select 
+          <select
             className="eao-select"
             value={ing.unit}
             onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
@@ -174,15 +193,15 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
         </div>
         <div className="eao-currency-wrapper">
           <span className="eao-currency-symbol">₱</span>
-          <input 
-            type="text" 
-            className="eao-input" 
-            readOnly 
-            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'} 
+          <input
+            type="text"
+            className="eao-input"
+            readOnly
+            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'}
           />
         </div>
-        <button 
-          className="eao-btn-remove-ing" 
+        <button
+          className="eao-btn-remove-ing"
           onClick={() => removeIngredient(ing.id)}
           title="Remove ingredient"
         >
@@ -195,7 +214,7 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
   return (
     <div className="eao-modal-overlay">
       <div className="eao-modal-content">
-        
+
         {/* Header */}
         <div className="eao-modal-header">
           <h3>Edit Add-on</h3>
@@ -206,33 +225,49 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
 
         {/* Body */}
         <div className="eao-modal-body">
-          
+
           <div className="eao-top-grid">
-            
+
             {/* Left Column */}
             <div>
               <div className="eao-section">
                 <label className="eao-label">Add-on Name</label>
-                <input 
-                  type="text" 
-                  className="eao-input" 
+                <input
+                  type="text"
+                  className="eao-input"
                   placeholder="e.g. Extra Shot"
                   value={addonName}
                   onChange={(e) => setAddonName(e.target.value)}
                 />
               </div>
 
+              {/* Available Toggle */}
+              <div className="eao-section" style={{ marginTop: '0.75rem' }}>
+                <label className="emi-toggle-container">
+                  <input
+                    type="checkbox"
+                    style={{ display: 'none' }}
+                    checked={isAvailable}
+                    onChange={(e) => setIsAvailable(e.target.checked)}
+                  />
+                  <span className="emi-toggle-switch">
+                    <span className="emi-toggle-slider"></span>
+                  </span>
+                  <span className="emi-toggle-label">Available for sale</span>
+                </label>
+              </div>
+
               <div className="eao-section">
                 <label className="eao-label">Apply to Categories</label>
                 <div className="eao-categories-list">
-                  {CATEGORIES.map(cat => (
-                    <label className="eao-checkbox-label" key={cat}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedCategories.includes(cat)}
-                        onChange={() => toggleCategory(cat)}
+                  {categories.map((cat) => (
+                    <label className="eao-checkbox-label" key={cat.id}>
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(cat.id)}
+                        onChange={() => toggleCategory(cat.id)}
                       />
-                      {cat}
+                      {cat.category_name}
                     </label>
                   ))}
                 </div>
@@ -245,9 +280,9 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
                 <label className="eao-label">Selling Price</label>
                 <div className="eao-currency-wrapper">
                   <span className="eao-currency-symbol">₱</span>
-                  <input 
-                    type="number" 
-                    className="eao-input" 
+                  <input
+                    type="number"
+                    className="eao-input"
                     placeholder="0.00"
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(e.target.value)}
@@ -282,24 +317,24 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
 
           <div className="eao-bottom-section">
             <div className="eao-section">
-              <label className="eao-label" style={{fontSize: '1rem'}}>Recipe / Ingredient Deductions</label>
+              <label className="eao-label" style={{ fontSize: '1rem' }}>Recipe / Ingredient Deductions</label>
               <p className="eao-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-              
+
               <div className="eao-ingredients-table">
-                <div className="eao-ingredient-row" style={{marginBottom: '-0.25rem'}}>
-                  <label className="eao-label" style={{fontSize: '0.8rem'}}>Ingredient</label>
-                  <label className="eao-label" style={{fontSize: '0.8rem'}}>Qty</label>
-                  <label className="eao-label" style={{fontSize: '0.8rem'}}>Unit</label>
-                  <label className="eao-label" style={{fontSize: '0.8rem'}}>Est. Cost</label>
+                <div className="eao-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
+                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Ingredient</label>
+                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Qty</label>
+                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Unit</label>
+                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Est. Cost</label>
                   <div></div>
                 </div>
                 {ingredients.map(ing => renderIngredientRow(ing))}
               </div>
 
-              <button 
-                className="menu-btn" 
+              <button
+                className="menu-btn"
                 style={{
-                  marginTop: '1rem', 
+                  marginTop: '1rem',
                   alignSelf: 'flex-start',
                   backgroundColor: '#ffffff',
                   border: '1px solid #D9C0AE',
@@ -316,16 +351,13 @@ const EditAddonModal = ({ isOpen, onClose, addon }) => {
         </div>
 
         {/* Footer */}
-        <div className="eao-modal-footer">
-          <button 
-            className="eao-btn-save" 
-            disabled={!isFormValid()}
-            onClick={() => {
-              console.log("Saving Edit Add-on...", { addonName, sellingPrice, selectedCategories, ingredients });
-              onClose();
-            }}
+        <div className="eao-modal-footer" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <button
+            className="eao-btn-save"
+            disabled={!isFormValid() || isSubmitting}
+            onClick={handleSaveEdit}
           >
-            Save Changes
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 

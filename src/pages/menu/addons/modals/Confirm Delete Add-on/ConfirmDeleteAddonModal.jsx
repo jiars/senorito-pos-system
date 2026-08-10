@@ -1,15 +1,35 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './confirmDeleteAddonModal.css';
 
-const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon }) => {
+import { archiveAddon } from '../../../../../services/menu/addonsService';
+import { formatCurrency } from '../../../../../utils/currencyFormatters';
+
+const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon, refetchAddons }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!isOpen || !addon) return null;
 
-  const handleDelete = () => {
-    console.log(`Deleting add-on: ${addon.name} (ID: ${addon.id})`);
+  const handleDelete = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    await archiveAddon(addon.id);
+    if (refetchAddons) {
+      await refetchAddons();
+    }
+
+    setIsSubmitting(false);
     onClose();
   };
 
-  const categoriesList = addon.applicableTo ? addon.applicableTo.split(',').map(c => c.trim()) : [];
+  const categoriesList = [];
+  if (addon.addon_categories) {
+    for (let i = 0; i < addon.addon_categories.length; i++) {
+      if (addon.addon_categories[i].menu_categories) {
+        categoriesList.push(addon.addon_categories[i].menu_categories.category_name);
+      }
+    }
+  }
 
   return (
     <div className="cda-modal-overlay">
@@ -20,7 +40,7 @@ const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon }) => {
             <i className="bi bi-trash3-fill"></i>
           </div>
           <h3>Confirm Delete</h3>
-          <span className="cda-modal-subtitle">{addon.name}</span>
+          <span className="cda-modal-subtitle">{addon.addon_name}</span>
           <button className="cda-modal-close" onClick={onClose} aria-label="Close">
             <i className="bi bi-x"></i>
           </button>
@@ -37,7 +57,7 @@ const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon }) => {
               </div>
               <div className="cda-stat-details">
                 <span className="cda-stat-label">POS Status</span>
-                <span className="cda-stat-value">{addon.posStatus || 'N/A'}</span>
+                <span className="cda-stat-value">{addon.pos_status || 'N/A'}</span>
               </div>
             </div>
             <div className="cda-stat-card">
@@ -46,7 +66,7 @@ const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon }) => {
               </div>
               <div className="cda-stat-details">
                 <span className="cda-stat-label">Price</span>
-                <span className="cda-stat-value">{addon.price || 'N/A'}</span>
+                <span className="cda-stat-value">{formatCurrency(addon.selling_price)}</span>
               </div>
             </div>
           </div>
@@ -78,12 +98,12 @@ const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon }) => {
 
         {/* Footer */}
         <div className="cda-modal-footer">
-          <button className="cda-btn-cancel" onClick={onClose}>
+          <button className="cda-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button className="cda-btn-confirm" onClick={handleDelete}>
+          <button className="cda-btn-confirm" onClick={handleDelete} disabled={isSubmitting}>
             <i className="bi bi-trash"></i>
-            Confirm
+            {isSubmitting ? 'Deleting...' : 'Confirm'}
           </button>
         </div>
       </div>

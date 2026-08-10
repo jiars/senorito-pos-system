@@ -1,22 +1,22 @@
 import { useState, useEffect } from 'react';
 
-import { fetchMenuItems } from '../services/menu/menuItemsService';
+import { fetchAddons } from '../services/menu/addonsService';
 import { fetchMenuCategories } from '../services/menu/menuCategoriesService';
 
-export const useMenu = () => {
-    const [menuItems, setMenuItems] = useState([]);
+export const useAddons = () => {
+    const [addons, setAddons] = useState([]);
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const loadMenu = async () => {
+    const loadAddons = async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const itemsData = await fetchMenuItems();
+            const addonsData = await fetchAddons();
             const categoriesData = await fetchMenuCategories();
 
-            setMenuItems(itemsData);
+            setAddons(addonsData);
             setCategories(categoriesData);
         } catch (err) {
             setError(err.message);
@@ -26,8 +26,8 @@ export const useMenu = () => {
     };
 
     useEffect(() => {
-        loadMenu();
+        loadAddons();
     }, []);
 
-    return { menuItems, categories, isLoading, error, refetchMenu: loadMenu };
+    return { addons, categories, isLoading, error, refetchAddons: loadAddons };
 };

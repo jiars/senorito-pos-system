@@ -1,35 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { fetchAllAuditLogs } from '../../../services/inventory/inventoryStockService';
 import './inventoryAuditLog.css';
 
-/* ═══════════════════════════════════════════════════
-   Mock Data
-═══════════════════════════════════════════════════ */
-const MOCK_LOGS = [
-  { id: 1, date: 'Mar 15, 11:14 AM', item: 'Cocoa Powder', action: 'Sale', source: 'POS', change: '-12 g', before: '4942.00', after: '4888.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 2, date: 'Mar 15, 11:14 AM', item: 'Milk', action: 'Sale', source: 'POS', change: '-200 ml', before: '60.00', after: '80.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 3, date: 'Mar 15, 11:14 AM', item: 'Sugar syrup', action: 'Sale', source: 'POS', change: '-15 ml', before: '300.00', after: '500.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 4, date: 'Mar 15, 11:14 AM', item: 'Ice', action: 'Sale', source: 'POS', change: '-120 g', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 5, date: 'Mar 15, 11:14 AM', item: '16oz cup', action: 'Sale', source: 'POS', change: '-1 pc', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 6, date: 'Mar 15, 11:14 AM', item: 'Straw', action: 'Sale', source: 'POS', change: '-1 pc', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Milky Choco', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 7, date: 'Mar 15, 11:14 AM', item: 'Coffee beans', action: 'Sale', source: 'POS', change: '-18 g', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Hot Americano', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 8, date: 'Mar 15, 11:14 AM', item: 'Water', action: 'Sale', source: 'POS', change: '-250 ml', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Hot Americano', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 9, date: 'Mar 15, 11:00 AM', item: 'Milk', action: 'Sale', source: 'POS', change: '-1 pc', before: '40.00', after: '140.00', batch: '#1', reason: 'Sold x1 Hot Americano', ref: 'SC-260302-01', by: 'Kimberly Legaspi' },
-  { id: 10, date: 'Mar 15, 10:00 AM', item: 'Cookie', action: 'Wastage', source: 'Inventory', change: '-10 pcs', before: '40.00', after: '140.00', batch: '#1', reason: 'Wasted batch', ref: '-', by: 'Lyanna Magtuloy' },
-  { id: 11, date: 'Mar 15, 9:00 AM', item: 'Sugar syrup', action: 'Batch Added', source: 'Purchase Order', change: '+2000 ml', before: '40.00', after: '140.00', batch: '#2', reason: 'Batch from purchase order', ref: 'PO-20260227-002', by: 'Lyanna Magtuloy' },
-];
-
 const InventoryAuditLogPage = () => {
+  const [logs, setLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [actionFilter, setActionFilter] = useState('All actions');
   const [sourceFilter, setSourceFilter] = useState('All sources');
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
+
+  useEffect(() => {
+    const loadLogs = async () => {
+      try {
+        setIsLoading(true);
+        const data = await fetchAllAuditLogs();
+        setLogs(data || []);
+      } catch (err) {
+        console.error("Failed to load audit logs", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadLogs();
+  }, []);
+
   const getActionChipClass = (action) => {
     switch (action) {
-      case 'Sale': return 'audit-chip--teal';
+      case 'POS Sale': return 'audit-chip--teal';
+      case 'Manual Adjustment': return 'audit-chip--teal';
       case 'Wastage': return 'audit-chip--red';
-      case 'Batch Added': return 'audit-chip--green';
+      case 'Purchase': return 'audit-chip--green';
       default: return 'audit-chip--teal';
     }
   };
@@ -37,17 +43,65 @@ const InventoryAuditLogPage = () => {
   const getSourceChipClass = (source) => {
     switch (source) {
       case 'POS': return 'audit-chip--teal';
-      case 'Inventory': return 'audit-chip--green';
-      case 'Purchase Order': return 'audit-chip--yellow';
+      case 'Stock Log Modal': return 'audit-chip--yellow';
+      case 'Purchase Order': return 'audit-chip--green';
       default: return 'audit-chip--teal';
     }
   };
 
   const getChangeClass = (change) => {
-    if (change.startsWith('+')) return 'audit-change-positive';
-    if (change.startsWith('-')) return 'audit-change-negative';
+    if (change > 0) return 'audit-change-positive';
+    if (change < 0) return 'audit-change-negative';
     return '';
   };
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      let matches = true;
+
+      // 1. Search (Item name only, starts with)
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const itemName = log.inventory_items?.item_name?.toLowerCase() || '';
+        if (!itemName.startsWith(term)) {
+          matches = false;
+        }
+      }
+
+      // 2. Dates
+      if (fromDate) {
+        const logDate = new Date(log.created_at);
+        const from = new Date(fromDate);
+        from.setHours(0, 0, 0, 0);
+        if (logDate < from) matches = false;
+      }
+      if (toDate) {
+        const logDate = new Date(log.created_at);
+        const to = new Date(toDate);
+        to.setHours(23, 59, 59, 999);
+        if (logDate > to) matches = false;
+      }
+
+      // 3. Action
+      if (actionFilter !== 'All actions' && log.action !== actionFilter) {
+        matches = false;
+      }
+
+      // 4. Source
+      if (sourceFilter !== 'All sources' && log.source !== sourceFilter) {
+        matches = false;
+      }
+
+      return matches;
+    });
+  }, [logs, searchTerm, fromDate, toDate, actionFilter, sourceFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, fromDate, toDate, actionFilter, sourceFilter]);
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
+  const paginatedLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="audit-page">
@@ -66,14 +120,14 @@ const InventoryAuditLogPage = () => {
 
       {/* ─── Main Panel (Filter Bar + Table) ─── */}
       <div className="audit-panel">
-        
+
         {/* ─── Filter Bar ─── */}
         <div className="audit-filter-bar">
           <div className="audit-search">
             <i className="bi bi-search"></i>
-            <input 
-              type="text" 
-              placeholder="Search item, reason, source..." 
+            <input
+              type="text"
+              placeholder="Search item, reason, source..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -81,9 +135,9 @@ const InventoryAuditLogPage = () => {
 
           <div className="audit-date-group">
             <span className="audit-date-label">From</span>
-            <input 
-              type="date" 
-              className="audit-filter-date" 
+            <input
+              type="date"
+              className="audit-filter-date"
               title="From Date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
@@ -92,38 +146,45 @@ const InventoryAuditLogPage = () => {
 
           <div className="audit-date-group">
             <span className="audit-date-label">To</span>
-            <input 
-              type="date" 
-              className="audit-filter-date" 
+            <input
+              type="date"
+              className="audit-filter-date"
               title="To Date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
             />
           </div>
 
-          <select 
+          <select
             className="audit-select"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
           >
             <option>All actions</option>
-            <option>Sale</option>
+            <option>POS Sale</option>
+            <option>Manual Adjustment</option>
             <option>Wastage</option>
-            <option>Batch Added</option>
+            <option>Purchase</option>
           </select>
-          
-          <select 
+
+          <select
             className="audit-select"
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
           >
             <option>All sources</option>
             <option>POS</option>
-            <option>Inventory</option>
+            <option>Stock Log Modal</option>
             <option>Purchase Order</option>
           </select>
-          
-          <button className="audit-reset-btn">Reset</button>
+
+          <button className="audit-reset-btn" onClick={() => {
+            setSearchTerm('');
+            setFromDate('');
+            setToDate('');
+            setActionFilter('All actions');
+            setSourceFilter('All sources');
+          }}>Reset</button>
         </div>
 
         <div className="audit-table-wrapper">
@@ -144,42 +205,80 @@ const InventoryAuditLogPage = () => {
               </tr>
             </thead>
             <tbody>
-              {MOCK_LOGS.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.date}</td>
-                  <td style={{ maxWidth: '80px', whiteSpace: 'normal' }}>{log.item}</td>
-                  <td>
-                    <span className={`audit-chip ${getActionChipClass(log.action)}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`audit-chip ${getSourceChipClass(log.source)}`}>
-                      {log.source}
-                    </span>
-                  </td>
-                  <td className={getChangeClass(log.change)}>{log.change}</td>
-                  <td>{log.before}</td>
-                  <td>{log.after}</td>
-                  <td style={{ fontWeight: 600 }}>{log.batch}</td>
-                  <td className="audit-reason-col">{log.reason}</td>
-                  <td>{log.ref}</td>
-                  <td style={{ maxWidth: '80px', whiteSpace: 'normal' }}>{log.by}</td>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>Loading audit logs...</td>
                 </tr>
-              ))}
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="11" style={{ textAlign: 'center', padding: '40px', color: '#666' }}>No audit logs found.</td>
+                </tr>
+              ) : (
+                paginatedLogs.map((log) => {
+                  const logDate = new Date(log.created_at);
+                  const formattedDate = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                  const formattedTime = logDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                  const unit = log.inventory_items?.base_unit || '';
+                  const changeStr = log.quantity_change > 0 ? `+${log.quantity_change} ${unit}` : `${log.quantity_change} ${unit}`;
+                  const batchNum = log.inventory_batches?.batch_number ? log.inventory_batches.batch_number : '-';
+                  const byName = log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : 'System';
+
+                  return (
+                    <tr key={log.id}>
+                      <td style={{ minWidth: '130px' }}>
+                        <div style={{ fontWeight: 500 }}>{formattedDate}</div>
+                        <div style={{ color: '#6b7280', fontSize: '11px' }}>{formattedTime}</div>
+                      </td>
+                      <td style={{ minWidth: '110px', maxWidth: '160px', whiteSpace: 'normal', fontWeight: 500 }}>
+                        {log.inventory_items?.item_name || 'Unknown Item'}
+                      </td>
+                      <td style={{ width: '100px' }}>
+                        <span className={`audit-chip ${getActionChipClass(log.action)}`}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td style={{ width: '120px' }}>
+                        <span className={`audit-chip ${getSourceChipClass(log.source)}`}>
+                          {log.source}
+                        </span>
+                      </td>
+                      <td className={getChangeClass(log.quantity_change)}>{changeStr}</td>
+                      <td>{log.stock_before}</td>
+                      <td>{log.stock_after}</td>
+                      <td style={{ fontWeight: 600, width: '80px' }}>{batchNum}</td>
+                      <td className="audit-reason-col">{log.reason_reference || '-'}</td>
+                      <td style={{ minWidth: '90px' }}>{log.id.slice(0, 8)}</td>
+                      <td style={{ minWidth: '100px', maxWidth: '140px', whiteSpace: 'normal' }}>{byName}</td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        
-        {/* Pagination placeholder matching order history style */}
-        <div className="audit-pagination">
-          <span>Page 1 of 15</span>
-          <div className="audit-pagination-btns">
-            <button className="audit-page-btn"><i className="bi bi-chevron-left"></i></button>
-            <button className="audit-page-btn active">1</button>
-            <button className="audit-page-btn"><i className="bi bi-chevron-right"></i></button>
+
+        {totalPages > 0 && (
+          <div className="audit-pagination">
+            <span>Page {currentPage} of {totalPages}</span>
+            <div className="audit-pagination-btns">
+              <button
+                className="audit-page-btn"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <button className="audit-page-btn active">{currentPage}</button>
+              <button
+                className="audit-page-btn"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <i className="bi bi-chevron-right"></i>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

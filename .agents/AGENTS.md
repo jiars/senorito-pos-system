@@ -6,3 +6,5 @@
 4. **No AI-Robotic Bloat**: Keep the code natural, clean, and simple, as if a CS college student or junior developer wrote it cleanly for a project.
 5. **No Whole-File Dumps in Chat**: Never send complete code files in chat responses. Only provide the exact lines, snippets, or diffs that need to be added, changed, or removed to save tokens and make changes easy to trace.
 6. **Separation of Concerns (Utils & Helpers)**: Always place data formatters, string manipulators, date helpers, and reusable calculation functions inside the `src/utils/` directory as separate `.js` files. Keep React components clean and focused purely on rendering UI.
+
+7. **Component Based Architecture (CBA)**: All main pages must be strictly broken down into smaller, readable components (e.g., Header, Table, Summary Cards) stored in a components/ folder inside the page's directory. Keep the main page file extremely clean, handling only state mapping and modal popups.

@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
+
+import { useAuth } from '../../../../hooks/useAuth';
+import { addInventoryItem } from '../../../../services/inventory/inventoryItemsService';
+import { formatCurrency } from '../../../../utils/currencyFormatters';
+
 import './addInventoryItemModal.css';
 
-const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
+const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories = [], units = [], refetchInventory }) => {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [itemName, setItemName] = useState('');
   const [unit, setUnit] = useState('');
   const [category, setCategory] = useState('');
@@ -151,12 +159,12 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
     const baseCost = getBaseUnitCost();
     let baseText = "Requires conversion setup";
     if (baseCost !== null) {
-      baseText = `₱${baseCost.toFixed(2)} / ${unit}`;
+      baseText = `${formatCurrency(baseCost)} / ${unit}`;
     }
 
     return (
       <>
-        Computed cost per unit: ₱{costPerPurchaseUnit.toFixed(2)} / {purchaseUnit}<br />
+        Computed cost per unit: {formatCurrency(costPerPurchaseUnit)} / {purchaseUnit}<br />
         Per base unit: {baseText}
       </>
     );
@@ -175,11 +183,62 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
         <>
           Computed cost per unit:<br />
           1 {conv.unit}/ {eq}{unit}<br />
-          Per base unit: ₱{costPerConv.toFixed(2)}/ {conv.unit}
+          Per base unit: {formatCurrency(costPerConv)}/ {conv.unit}
         </>
       );
     }
     return "Enter purchase details to calculate conversion cost.";
+  };
+
+  const handleSubmit = async () => {
+    if (!isFormValid || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const computedCostPerUnit = parseFloat((parseFloat(totalCost) / parseFloat(qtyPurchased)).toFixed(2));
+
+      const itemData = {
+        item_name: itemName.trim(),
+        category_id: category,
+        base_unit: unit,
+        minimum_level: parseFloat(minLevel),
+        supplier: supplier.trim() || null,
+        cost_per_unit: computedCostPerUnit,
+        current_stock: parseFloat(qtyPurchased),
+        track_expiry: trackExpiry
+      };
+
+      const purchaseData = {
+        quantity_purchased: parseFloat(qtyPurchased),
+        purchase_unit: purchaseUnit,
+        total_cost: parseFloat(totalCost),
+        cost_per_unit: computedCostPerUnit,
+        supplier: supplier.trim() || null,
+        expiration_date: trackExpiry ? expiryDate : null
+      };
+
+
+      const validConversions = conversions.filter(c => c.unit !== '' && c.equivalent !== '');
+      const conversionsData = validConversions.map(c => ({
+        converted_unit: c.unit,
+        equivalent_base_amount: parseFloat(c.equivalent)
+      }));
+
+      await addInventoryItem({
+        itemData,
+        purchaseData,
+        conversionsData,
+        userId: user.id
+      });
+
+      if (refetchInventory) await refetchInventory();
+      onClose();
+    } catch (error) {
+      console.error("Error adding item:", error);
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -227,16 +286,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
                   }}
                   onBlur={() => handleInteraction('unit')}
                 >
-                  <option value="" disabled>Select unit</option>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="L">L</option>
-                  <option value="pcs">pcs</option>
-                  <option value="pack">pack</option>
-                  <option value="bottle">bottle</option>
-                  <option value="tbsp">tbsp</option>
-                  <option value="cup">cup</option>
+                  <option value="" disabled>Select base unit</option>
+                  {units.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+
                 </select>
                 {touched.unit && unit === '' && (
                   <span className="inventory-form-error">Unit is required.</span>
@@ -254,9 +308,9 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
                   onBlur={() => handleInteraction('category')}
                 >
                   <option value="" disabled>Select category</option>
-                  <option value="Ingredient">Ingredient</option>
-                  <option value="Packaging">Packaging</option>
-                  <option value="Supply">Supply</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.category_name}</option>
+                  ))}
                 </select>
                 {touched.category && category === '' && (
                   <span className="inventory-form-error">Category is required.</span>
@@ -300,14 +354,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
                   onBlur={() => handleInteraction('purchaseUnit')}
                 >
                   <option value="" disabled>Select purchase unit</option>
-                  <option value="g">g</option>
-                  <option value="kg">kg</option>
-                  <option value="ml">ml</option>
-                  <option value="L">L</option>
-                  <option value="pcs">pcs</option>
-                  <option value="pack">pack</option>
-                  <option value="bottle">bottle</option>
+                  {units.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
                 </select>
+
                 {touched.purchaseUnit && purchaseUnit === '' && (
                   <span className="inventory-form-error">Purchase unit required.</span>
                 )}
@@ -389,13 +440,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
                       onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
                     >
                       <option value="" disabled>Select converted unit</option>
-                      <option value="tbsp">tbsp</option>
-                      <option value="cup">cup</option>
-                      <option value="tsp">tsp</option>
-                      <option value="ml">ml</option>
-                      <option value="g">g</option>
-                      <option value="pcs">pcs</option>
+                      {units.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
                     </select>
+
                     {showError && isConvUnitEmpty && (
                       <span className="inventory-form-error">Unit required.</span>
                     )}
@@ -500,10 +549,10 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [] }) => {
           <button className="inventory-modal-btn-cancel" onClick={onClose}>Cancel</button>
           <button
             className="inventory-modal-btn-save"
-            onClick={onClose}
-            disabled={!isFormValid}
+            onClick={handleSubmit}
+            disabled={!isFormValid || isSubmitting}
           >
-            Add Item
+            {isSubmitting ? 'Saving...' : 'Add Item'}
           </button>
         </div>
       </div>

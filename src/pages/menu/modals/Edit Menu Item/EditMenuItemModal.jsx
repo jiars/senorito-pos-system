@@ -1,27 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import './editMenuItemModal.css';
+import { fetchMenuCategories } from '../../../../services/menu/menuCategoriesService';
+import { updateMenuItem } from '../../../../services/menu/menuItemsService';
+import { addMenuItemPrices, deleteMenuItemPrices } from '../../../../services/menu/menuPricesService';
+import { addMenuRecipes, deleteMenuRecipes } from '../../../../services/menu/menuRecipesService';
+import { useInventory } from '../../../../hooks/useInventory';
 
-/* ─── Placeholder Data ─── */
-const CATEGORIES = [
-  'Frappuccino', 'Non-coffee', 'Pastry', 'Hot Coffee', 'Rice Meal', 'Iced Coffee'
-];
-
-const UNITS = ['g', 'ml', 'pc', 'pump', 'cup'];
-
-const INGREDIENTS = [
-  { id: 'i1', label: 'Chocolate chips (g) - ₱0.35/g', cost: 0.35, defaultUnit: 'g' },
-  { id: 'i2', label: 'Milk (ml) - ₱0.50/ml', cost: 0.50, defaultUnit: 'ml' },
-  { id: 'i3', label: 'Frappe base (ml) - ₱0.12/ml', cost: 0.12, defaultUnit: 'ml' },
-  { id: 'i4', label: 'Chocolate sauce (pump) - ₱1.00/pump', cost: 1.00, defaultUnit: 'pump' },
-  { id: 'i5', label: 'Ice (g) - ₱0.01/g', cost: 0.01, defaultUnit: 'g' },
-  { id: 'i6', label: '22oz cup (pcs) - ₱3.50/pc', cost: 3.50, defaultUnit: 'pc' },
-  { id: 'i7', label: 'Straw (pcs) - ₱0.20/pc', cost: 0.20, defaultUnit: 'pc' },
-  { id: 'i8', label: '16oz cup (pcs) - ₱2.50/pc', cost: 2.50, defaultUnit: 'pc' }
-];
-
-const EditMenuItemModal = ({ isOpen, onClose, item }) => {
+const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
+  const { inventoryItems } = useInventory();
   /* ─── State ─── */
-  const [pricingMode, setPricingMode] = useState('single'); // 'single' or 'variants'
+  const [categories, setCategories] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const [pricingMode, setPricingMode] = useState('single');
 
   const [baseInfo, setBaseInfo] = useState({
     name: '',
@@ -52,53 +44,71 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
   /* ─── Populate State on Open ─── */
   useEffect(() => {
     if (isOpen) {
+      setErrorMessage('');
+      setIsSubmitting(false);
+
+      const loadCategories = async () => {
+        const cats = await fetchMenuCategories();
+        setCategories(cats);
+      };
+      loadCategories();
+
       if (item) {
-        // Pre-fill fields based on selected item
         setBaseInfo({
-          name: item.name || '',
-          category: item.category || '',
-          isAvailable: item.posStatus === 'Available',
-          image: null // Can be populated with item.imageURL if it comes from backend
+          name: item.item_name || '',
+          category: item.category_id || '',
+          isAvailable: item.pos_status === 'Available',
+          image: null
         });
 
-        // Determine if it's single price or variants (dummy logic based on price string)
-        if (item.price && item.price.includes('-')) {
+        if (item.pricing_type === 'Variants' || (item.prices && item.prices.length > 1) || (item.prices && item.prices[0] && item.prices[0].variant_name !== 'Regular')) {
           setPricingMode('variants');
-          // Dummy variant data
-          setVariants([
-            {
-              id: Date.now(),
-              name: '16oz',
-              isAvailable: true,
-              sellingPrice: '139.00',
-              ingredients: [
-                { id: Date.now() + 1, ingredientId: 'i1', qty: '10', unit: 'g' },
-                { id: Date.now() + 2, ingredientId: 'i2', qty: '100', unit: 'ml' }
-              ]
-            },
-            {
-              id: Date.now() + 100,
-              name: '22oz',
-              isAvailable: true,
-              sellingPrice: '159.00',
-              ingredients: [
-                { id: Date.now() + 101, ingredientId: 'i1', qty: '15', unit: 'g' },
-                { id: Date.now() + 102, ingredientId: 'i2', qty: '150', unit: 'ml' }
-              ]
-            }
-          ]);
+          if (item.prices && item.prices.length > 0) {
+            setVariants(item.prices.map((p, idx) => {
+              const variantRecipes = (item.recipes || []).filter(r => r.menu_item_price_id === p.id);
+              let initialIngredients = [{ id: Date.now() + 10 + idx, ingredientId: '', qty: '', unit: '' }];
+              if (variantRecipes.length > 0) {
+                initialIngredients = variantRecipes.map((r, rIdx) => ({
+                  id: Date.now() + 100 + idx + rIdx,
+                  ingredientId: r.inventory_item_id,
+                  qty: r.quantity.toString(),
+                  unit: '' // Unit is rendered dynamically
+                }));
+              }
+
+              return {
+                id: p.id || Date.now() + idx,
+                name: p.variant_name || '',
+                isAvailable: true,
+                sellingPrice: p.selling_price ? p.selling_price.toString() : '',
+                ingredients: initialIngredients
+              };
+            }));
+          } else {
+            setVariants([{
+              id: Date.now(), name: '', isAvailable: true, sellingPrice: '',
+              ingredients: [{ id: Date.now() + 1, ingredientId: '', qty: '', unit: '' }]
+            }]);
+          }
         } else {
           setPricingMode('single');
+          const singleRecipes = item.recipes || [];
+          let initialIngredients = [{ id: Date.now(), ingredientId: '', qty: '', unit: '' }];
+          if (singleRecipes.length > 0) {
+            initialIngredients = singleRecipes.map((r, idx) => ({
+              id: Date.now() + 200 + idx,
+              ingredientId: r.inventory_item_id,
+              qty: r.quantity.toString(),
+              unit: '' // Unit is rendered dynamically
+            }));
+          }
+
           setSingleRecipe({
-            sellingPrice: item.price ? item.price.replace('₱', '').trim() : '0',
-            ingredients: [
-              { id: Date.now(), ingredientId: 'i2', qty: '100', unit: 'ml' },
-              { id: Date.now() + 1, ingredientId: 'i6', qty: '1', unit: 'pc' }
-            ]
+            sellingPrice: (item.prices && item.prices[0]) ? item.prices[0].selling_price.toString() : '0',
+            ingredients: initialIngredients
           });
         }
       } else {
-        // Fallback to empty if no item
         setPricingMode('single');
         setBaseInfo({ name: '', category: '', isAvailable: false, image: null });
         setSingleRecipe({
@@ -119,11 +129,11 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
   const calculateEstCost = (ingredients) => {
     return ingredients.reduce((total, ing) => {
       if (!ing.ingredientId || !ing.qty) return total;
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+      const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
-      
+
       const parsedQty = parseFloat(ing.qty) || 0;
-      return total + (parsedQty * ref.cost);
+      return total + (parsedQty * ref.cost_per_unit);
     }, 0);
   };
 
@@ -139,29 +149,14 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
   };
 
   /* ─── Validation Helpers ─── */
-  const isBaseInfoValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
-
-  const areIngredientsValid = (ingredients) => {
-    if (ingredients.length === 0) return true;
-    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '');
-  };
-
   const isFormValid = () => {
-    if (!isBaseInfoValid) return false;
+    const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
+    if (!isBaseValid) return false;
 
     if (pricingMode === 'single') {
-      const sp = parseFloat(singleRecipe.sellingPrice);
-      if (isNaN(sp) || sp <= 0) return false;
-      return areIngredientsValid(singleRecipe.ingredients);
+      return singleRecipe.sellingPrice !== '';
     } else {
-      if (variants.length === 0) return false;
-      return variants.every(v => {
-        const sp = parseFloat(v.sellingPrice);
-        const nameValid = v.name.trim() !== '';
-        const spValid = !isNaN(sp) && sp > 0;
-        const ingValid = areIngredientsValid(v.ingredients);
-        return nameValid && spValid && ingValid;
-      });
+      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '');
     }
   };
 
@@ -185,8 +180,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
       if (ing.id !== id) return ing;
       const updated = { ...ing, [field]: value };
       if (field === 'ingredientId') {
-        const ref = INGREDIENTS.find(i => i.id === value);
-        if (ref) updated.unit = ref.defaultUnit;
+        const ref = inventoryItems.find(i => i.id === value);
+        if (ref) updated.unit = ref.base_unit;
       }
       return updated;
     });
@@ -242,8 +237,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
         if (ing.id !== iid) return ing;
         const updated = { ...ing, [field]: value };
         if (field === 'ingredientId') {
-          const ref = INGREDIENTS.find(i => i.id === value);
-          if (ref) updated.unit = ref.defaultUnit;
+          const ref = inventoryItems.find(i => i.id === value);
+          if (ref) updated.unit = ref.base_unit;
         }
         return updated;
       });
@@ -254,31 +249,38 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
   /* ─── Shared Render: Ingredient Row ─── */
   const renderIngredientRow = (ing, onUpdate, onRemove) => {
     let rowCost = 0;
-    if (ing.ingredientId && ing.qty) {
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+    let dynamicUnit = '-';
+
+    if (ing.ingredientId) {
+      const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (ref) {
-        rowCost = (parseFloat(ing.qty) || 0) * ref.cost;
+        dynamicUnit = ref.base_unit;
+        if (ing.qty) {
+          rowCost = (parseFloat(ing.qty) || 0) * ref.cost_per_unit;
+        }
       }
     }
 
     return (
       <div className="emi-ingredient-row" key={ing.id}>
         <div className="emi-section">
-          <select 
-            className="emi-select" 
-            value={ing.ingredientId} 
+          <select
+            className="emi-select"
+            value={ing.ingredientId}
             onChange={(e) => onUpdate('ingredientId', e.target.value)}
           >
             <option value="">Select ingredient</option>
-            {INGREDIENTS.map(i => (
-              <option key={i.id} value={i.id}>{i.label}</option>
+            {inventoryItems.map(i => (
+              <option key={i.id} value={i.id}>
+                {i.item_name} ({i.base_unit}) - ₱{i.cost_per_unit}/{i.base_unit}
+              </option>
             ))}
           </select>
         </div>
         <div className="emi-section">
-          <input 
-            type="number" 
-            className="emi-input" 
+          <input
+            type="number"
+            className="emi-input"
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => onUpdate('qty', e.target.value)}
@@ -286,26 +288,22 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
           />
         </div>
         <div className="emi-section">
-          <select 
-            className="emi-select"
-            value={ing.unit}
-            onChange={(e) => onUpdate('unit', e.target.value)}
-          >
-            <option value="">-</option>
-            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
+          {/* Plain Text Unit based on selection! */}
+          <div className="emi-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
+            {dynamicUnit}
+          </div>
         </div>
         <div className="emi-section emi-currency-wrapper">
           <span className="emi-currency-symbol">₱</span>
-          <input 
-            type="text" 
-            className="emi-input" 
-            readOnly 
-            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'} 
+          <input
+            type="text"
+            className="emi-input"
+            readOnly
+            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'}
           />
         </div>
-        <button 
-          className="emi-btn-remove-ing" 
+        <button
+          className="emi-btn-remove-ing"
           onClick={onRemove}
           title="Remove ingredient"
         >
@@ -315,10 +313,125 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
     );
   };
 
+  /* ─── Save Edited Item to Database ─── */
+  const handleSaveEdit = async () => {
+    if (!item || isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      // 1. Calculate overall item cost, profit, and margin
+      let estCost = 0;
+      let profit = 0;
+      let margin = 0;
+
+      if (pricingMode === 'single') {
+        estCost = calculateEstCost(singleRecipe.ingredients);
+        profit = calculateProfit(singleRecipe.sellingPrice, estCost);
+        margin = calculateMargin(profit, singleRecipe.sellingPrice);
+      } else {
+        if (variants.length > 0) {
+          estCost = calculateEstCost(variants[0].ingredients);
+          profit = calculateProfit(variants[0].sellingPrice, estCost);
+          margin = calculateMargin(profit, variants[0].sellingPrice);
+        }
+      }
+
+      // 2. Update base item in menu_items table
+      await updateMenuItem(item.id, {
+        item_name: baseInfo.name.trim(),
+        category_id: baseInfo.category,
+        recipe_status: item.recipe_status || 'Complete',
+        pos_status: baseInfo.isAvailable ? 'Available' : 'Unavailable',
+        pricing_type: pricingMode === 'single' ? 'Fixed' : 'Variants',
+        estimated_cost: estCost,
+        profit: profit,
+        margin: margin
+      });
+
+      // 3. Re-save variant prices in menu_item_prices table
+      await deleteMenuItemPrices(item.id);
+
+      let pricesArray = [];
+      if (pricingMode === 'single') {
+        pricesArray.push({
+          menu_item_id: item.id,
+          variant_name: 'Regular',
+          selling_price: parseFloat(singleRecipe.sellingPrice) || 0
+        });
+      } else {
+        for (let i = 0; i < variants.length; i++) {
+          const v = variants[i];
+          pricesArray.push({
+            menu_item_id: item.id,
+            variant_name: v.name.trim(),
+            selling_price: parseFloat(v.sellingPrice) || 0
+          });
+        }
+      }
+
+      const savedPrices = await addMenuItemPrices(pricesArray);
+
+      // 4. Update Recipes
+      await deleteMenuRecipes(item.id);
+
+      let recipesArray = [];
+
+      if (pricingMode === 'single') {
+        const variantId = savedPrices[0].id;
+        singleRecipe.ingredients.forEach(ing => {
+          if (ing.ingredientId && ing.qty) {
+            const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+            recipesArray.push({
+              menu_item_id: item.id,
+              menu_item_price_id: variantId,
+              inventory_item_id: ing.ingredientId,
+              quantity: parseFloat(ing.qty),
+              estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+            });
+          }
+        });
+      } else {
+        variants.forEach(v => {
+          const matchedPrice = savedPrices.find(p => p.variant_name === v.name.trim());
+          if (matchedPrice) {
+            v.ingredients.forEach(ing => {
+              if (ing.ingredientId && ing.qty) {
+                const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+                recipesArray.push({
+                  menu_item_id: item.id,
+                  menu_item_price_id: matchedPrice.id,
+                  inventory_item_id: ing.ingredientId,
+                  quantity: parseFloat(ing.qty),
+                  estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+                });
+              }
+            });
+          }
+        });
+      }
+
+      if (recipesArray.length > 0) {
+        await addMenuRecipes(recipesArray);
+      }
+
+      // 5. Refresh menu list and close modal
+      if (refetchMenu) {
+        await refetchMenu();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to update menu item:', error);
+      setErrorMessage(error.message || 'Error updating item in database.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="emi-modal-overlay">
       <div className="emi-modal-content">
-        
+
         {/* Header */}
         <div className="emi-modal-header">
           <h3>Edit Menu Item</h3>
@@ -329,21 +442,21 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
 
         {/* Body */}
         <div className="emi-modal-body">
-          
+
           {/* Base Info with Image Upload */}
           <div className="emi-flex-row">
             <div className="emi-image-upload-container">
               <label className="emi-label">Item Image</label>
               <div className="emi-image-upload-box">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="emi-image-input" 
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="emi-image-input"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setBaseInfo({...baseInfo, image: e.target.files[0]});
+                      setBaseInfo({ ...baseInfo, image: e.target.files[0] });
                     }
-                  }} 
+                  }}
                 />
                 {baseInfo.image ? (
                   <img src={URL.createObjectURL(baseInfo.image)} alt="Preview" className="emi-image-preview" />
@@ -357,25 +470,25 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
             </div>
 
             <div className="emi-flex-fields">
-              <div className="emi-section" style={{marginBottom: 0}}>
+              <div className="emi-section" style={{ marginBottom: 0 }}>
                 <label className="emi-label">Item Name</label>
-                <input 
-                  type="text" 
-                  className="emi-input" 
+                <input
+                  type="text"
+                  className="emi-input"
                   placeholder="Enter menu item name"
                   value={baseInfo.name}
-                  onChange={(e) => setBaseInfo({...baseInfo, name: e.target.value})}
+                  onChange={(e) => setBaseInfo({ ...baseInfo, name: e.target.value })}
                 />
               </div>
-              <div className="emi-section" style={{marginBottom: 0}}>
+              <div className="emi-section" style={{ marginBottom: 0 }}>
                 <label className="emi-label">Category</label>
-                <select 
+                <select
                   className="emi-select"
                   value={baseInfo.category}
-                  onChange={(e) => setBaseInfo({...baseInfo, category: e.target.value})}
+                  onChange={(e) => setBaseInfo({ ...baseInfo, category: e.target.value })}
                 >
                   <option value="">Select category</option>
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
               </div>
             </div>
@@ -383,11 +496,11 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
 
           <div className="emi-row">
             <label className="emi-toggle-container">
-              <input 
-                type="checkbox" 
-                style={{display:'none'}}
+              <input
+                type="checkbox"
+                style={{ display: 'none' }}
                 checked={baseInfo.isAvailable}
-                onChange={(e) => setBaseInfo({...baseInfo, isAvailable: e.target.checked})}
+                onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
               />
               <span className="emi-toggle-switch">
                 <span className="emi-toggle-slider"></span>
@@ -397,15 +510,15 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
           </div>
 
           <div className="emi-row emi-pricing-mode">
-            <label className="emi-label" style={{marginRight: '1rem'}}>Pricing</label>
+            <label className="emi-label" style={{ marginRight: '1rem' }}>Pricing</label>
             <div className="emi-segmented-control">
-              <button 
+              <button
                 className={`emi-segment-btn ${pricingMode === 'single' ? 'active' : ''}`}
                 onClick={() => setPricingMode('single')}
               >
                 Single Price
               </button>
-              <button 
+              <button
                 className={`emi-segment-btn ${pricingMode === 'variants' ? 'active' : ''}`}
                 onClick={() => setPricingMode('variants')}
               >
@@ -427,12 +540,12 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                     <label className="emi-label">Selling Price</label>
                     <div className="emi-currency-wrapper">
                       <span className="emi-currency-symbol">₱</span>
-                      <input 
-                        type="number" 
-                        className="emi-input" 
+                      <input
+                        type="number"
+                        className="emi-input"
                         placeholder="0.00"
                         value={singleRecipe.sellingPrice}
-                        onChange={(e) => setSingleRecipe({...singleRecipe, sellingPrice: e.target.value})}
+                        onChange={(e) => setSingleRecipe({ ...singleRecipe, sellingPrice: e.target.value })}
                         min="0" step="any"
                       />
                     </div>
@@ -462,9 +575,9 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                 <div className="emi-section">
                   <label className="emi-label">Recipe / Ingredient Deductions</label>
                   <p className="emi-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-                  
+
                   <div className="emi-ingredients-table">
-                    <div className="emi-ingredient-row" style={{marginBottom: '-0.25rem'}}>
+                    <div className="emi-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
                       <label className="emi-label">Ingredient</label>
                       <label className="emi-label">Qty</label>
                       <label className="ami-label">Unit</label>
@@ -499,34 +612,34 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                     <div className="emi-variant-header">
                       <div className="emi-section">
                         <label className="emi-label">Size/ Variant Name</label>
-                        <input 
-                          type="text" 
-                          className="emi-input" 
+                        <input
+                          type="text"
+                          className="emi-input"
                           placeholder="e.g. 16oz"
                           value={v.name}
                           onChange={(e) => updateVariant(v.id, 'name', e.target.value)}
                         />
                       </div>
-                      <div className="emi-section" style={{alignSelf: 'center', marginTop: '1.25rem'}}>
+                      <div className="emi-section" style={{ alignSelf: 'center', marginTop: '1.25rem' }}>
                         <label className="emi-toggle-container">
-                          <input 
-                            type="checkbox" 
-                            style={{display:'none'}}
+                          <input
+                            type="checkbox"
+                            style={{ display: 'none' }}
                             checked={v.isAvailable}
                             onChange={(e) => updateVariant(v.id, 'isAvailable', e.target.checked)}
                           />
                           <span className="emi-toggle-switch">
                             <span className="emi-toggle-slider"></span>
                           </span>
-                          <span className="emi-toggle-label" style={{fontSize: '0.75rem'}}>Available for sale</span>
+                          <span className="emi-toggle-label" style={{ fontSize: '0.75rem' }}>Available for sale</span>
                         </label>
                       </div>
-                      <button 
-                        className="emi-btn-remove-variant" 
+                      <button
+                        className="emi-btn-remove-variant"
                         onClick={() => removeVariant(v.id)}
                         disabled={variants.length === 1}
                         title={variants.length === 1 ? "At least one variant required" : "Remove variant"}
-                        style={{opacity: variants.length === 1 ? 0.5 : 1}}
+                        style={{ opacity: variants.length === 1 ? 0.5 : 1 }}
                       >
                         <i className="bi bi-trash"></i>
                       </button>
@@ -537,9 +650,9 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                         <label className="emi-label">Selling Price</label>
                         <div className="emi-currency-wrapper">
                           <span className="emi-currency-symbol">₱</span>
-                          <input 
-                            type="number" 
-                            className="emi-input" 
+                          <input
+                            type="number"
+                            className="emi-input"
                             placeholder="0.00"
                             value={v.sellingPrice}
                             onChange={(e) => updateVariant(v.id, 'sellingPrice', e.target.value)}
@@ -570,9 +683,9 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                     <div className="emi-section">
                       <label className="emi-label">Recipe / Ingredient Deductions</label>
                       <p className="emi-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-                      
+
                       <div className="emi-ingredients-table">
-                        <div className="emi-ingredient-row" style={{marginBottom: '-0.25rem'}}>
+                        <div className="emi-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
                           <label className="emi-label">Ingredient</label>
                           <label className="emi-label">Qty</label>
                           <label className="emi-label">Unit</label>
@@ -593,7 +706,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
                   </div>
                 );
               })}
-              
+
               <button className="emi-btn-add-variant" onClick={addVariant}>
                 Add Variant/Size
               </button>
@@ -603,19 +716,22 @@ const EditMenuItemModal = ({ isOpen, onClose, item }) => {
         </div>
 
         {/* Footer */}
+        {errorMessage && (
+          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
+            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
+            {errorMessage}
+          </div>
+        )}
         <div className="emi-modal-footer">
-          <button className="emi-btn-cancel" onClick={onClose}>
+          <button className="emi-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button 
-            className="emi-btn-save" 
-            disabled={!isFormValid()}
-            onClick={() => {
-              console.log("Saving Edited Item...", { baseInfo, pricingMode, singleRecipe, variants });
-              onClose();
-            }}
+          <button
+            className="emi-btn-save"
+            disabled={!isFormValid() || isSubmitting}
+            onClick={handleSaveEdit}
           >
-            Save Menu Item
+            {isSubmitting ? 'Saving...' : 'Save Menu Item'}
           </button>
         </div>
 

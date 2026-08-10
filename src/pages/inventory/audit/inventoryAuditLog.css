@@ -199,7 +199,7 @@
 
 .audit-reason-col {
   text-align: left !important;
-  max-width: 150px;
+  width: 80px;
   white-space: normal;
 }
 
