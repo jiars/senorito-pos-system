@@ -11,6 +11,7 @@ function App() {
       <BrowserRouter>
         <AppRoutes />
         <SpeedInsights />
+        <Analytics />
       </BrowserRouter>
     </AuthProvider>
   );
