@@ -1,12 +1,19 @@
 import { supabase } from '../supabaseClient';
+import { formatDecimal } from '../../utils/numberFormatters';
 
 export const addMenuRecipes = async (recipesArray) => {
     try {
         if (!recipesArray || recipesArray.length === 0) return [];
 
+        const formattedRecipes = recipesArray.map(recipe => ({
+            ...recipe,
+            quantity: formatDecimal(recipe.quantity),
+            estimated_cost: formatDecimal(recipe.estimated_cost)
+        }));
+
         const response = await supabase
             .from('menu_recipes')
-            .insert(recipesArray)
+            .insert(formattedRecipes)
             .select();
 
         if (response.error !== null) {

@@ -2,18 +2,9 @@ import React, { useState } from 'react';
 import ViewOrderDetails from './View Order Details/ViewOrderDetails';
 import './ordersPage.css';
 
-/* ═══════════════════════════════════════════════════
-   Placeholder Data
-═══════════════════════════════════════════════════ */
-const dummyOrders = [
-  { id: 'SC-260315-01', date: '2026-03-15 11:14:02', cashier: 'Jane Velarde Mayorga', total: 258.00, paymentMethod: 'Cash', source: 'In-Store' },
-  { id: 'SC-260314-20', date: '2026-03-14 18:13:50', cashier: 'Kimberly Legaspi', total: 350.00, paymentMethod: 'External', source: 'Foodpanda' },
-  { id: 'SC-260314-19', date: '2026-03-14 17:45:08', cashier: 'Kimberly Legaspi', total: 870.00, paymentMethod: 'External', source: 'Grab' },
-  { id: 'SC-260314-18', date: '2026-03-14 17:12:01', cashier: 'Kimberly Legaspi', total: 159.00, paymentMethod: 'GCash', source: 'In-Store' },
-  { id: 'SC-260314-17', date: '2026-03-14 16:30:30', cashier: 'Kimberly Legaspi', total: 320.00, paymentMethod: 'Cash', source: 'In-Store' },
-  { id: 'SC-260314-16', date: '2026-03-14 16:14:05', cashier: 'Kimberly Legaspi', total: 1050.00, paymentMethod: 'Cash', source: 'In-Store' },
-  { id: 'SC-260314-15', date: '2026-03-14 16:03:08', cashier: 'Kimberly Legaspi', total: 780.00, paymentMethod: 'External', source: 'Grab' },
-];
+import { fetchOrderHistory, fetchOrderDetails } from '../../services/pos/ordersService';
+
+// We no longer use dummyOrders, we fetch live data from Supabase.
 
 const OrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -22,6 +13,28 @@ const OrdersPage = () => {
   const [paymentMethod, setPaymentMethod] = useState('All');
   const [orderSource, setOrderSource] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  React.useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchOrderHistory();
+      setOrders(data);
+    } catch (error) {
+      console.error("Failed to load orders:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -40,30 +53,56 @@ const OrdersPage = () => {
     }
   };
 
-  const handleViewOrder = (id) => {
-    const order = dummyOrders.find(o => o.id === id);
-    if (order) {
-
-      const detailedOrder = {
-        id: order.id,
-        date: new Date(order.date),
-        cashier: order.cashier,
-        orderSource: order.source,
-        paymentMethod: order.paymentMethod,
-        discountType: 'None',
-        subtotal: order.total,
-        discountAmount: 0,
-        total: order.total,
-        amountPaid: order.total,
-        change: 0,
-        items: [
-          { name: 'Spanish Latte', variant: 'Medium', qty: 2, price: 120, addOns: [{ name: 'Oat Milk', qty: 2 }] },
-          { name: 'Matcha', variant: 'Regular', qty: 1, price: 110 }
-        ]
-      };
-      setSelectedOrder(detailedOrder);
-    }
+  const handleViewOrder = (order) => {
+    // Pass the base order details to the modal. 
+    // Step 3 will handle fetching the actual items inside the modal.
+    setSelectedOrder({
+      id: order.id,
+      order_number: order.order_number,
+      date: new Date(order.order_datetime),
+      cashier: order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Admin / System',
+      orderSource: order.order_source,
+      paymentMethod: order.payment_method,
+      discountType: order.discount_type || 'None',
+      subtotal: order.subtotal,
+      discountAmount: order.discount_amount || 0,
+      total: order.total,
+      amountPaid: order.amount_paid || 0,
+      change: order.change_amount || 0,
+      items: [] // Will be populated in Step 3
+    });
   };
+
+  // Filter Logic
+  const filteredOrders = orders.filter(order => {
+    // Text search
+    const searchString = `${order.order_number} ${order.cashier?.first_name} ${order.cashier?.last_name} ${order.order_source} ${order.payment_method}`.toLowerCase();
+    if (searchTerm && !searchString.includes(searchTerm.toLowerCase())) return false;
+
+    // Date filtering
+    if (fromDate) {
+      const orderDate = new Date(order.order_datetime).toISOString().split('T')[0];
+      if (orderDate < fromDate) return false;
+    }
+    if (toDate) {
+      const orderDate = new Date(order.order_datetime).toISOString().split('T')[0];
+      if (orderDate > toDate) return false;
+    }
+
+    // Dropdowns
+    if (paymentMethod !== 'All' && order.payment_method !== paymentMethod) return false;
+    if (orderSource !== 'All' && order.order_source !== orderSource) return false;
+
+    return true;
+  });
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, fromDate, toDate, paymentMethod, orderSource]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage) || 1;
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="orders-page">
@@ -153,34 +192,82 @@ const OrdersPage = () => {
               </tr>
             </thead>
             <tbody>
-              {dummyOrders.map((order) => (
-                <tr key={order.id}>
-                  <td><strong>{order.id}</strong></td>
-                  <td>{order.date}</td>
-                  <td>{order.cashier}</td>
-                  <td>₱{order.total.toFixed(2)}</td>
-                  <td>{order.paymentMethod}</td>
-                  <td>
-                    <span className={`orders-chip ${getSourceClass(order.source)}`}>
-                      {order.source}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="orders-actions" style={{ justifyContent: 'center' }}>
-                      <button
-                        className="orders-action-btn orders-action-btn--view"
-                        title="View Order"
-                        onClick={() => handleViewOrder(order.id)}
-                      >
-                        <i className="bi bi-card-list"></i>
-                      </button>
-                    </div>
+              {isLoading ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                    <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}></i>
+                    Loading Orders...
                   </td>
                 </tr>
-              ))}
+              ) : paginatedOrders.length === 0 ? (
+                <tr>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                    No orders found matching your criteria.
+                  </td>
+                </tr>
+              ) : (
+                paginatedOrders.map((order) => {
+                  const cashierName = order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Admin / System';
+                  const formattedDate = new Date(order.order_datetime).toLocaleString('en-US', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  });
+
+                  return (
+                    <tr key={order.id}>
+                      <td><strong>{order.order_number}</strong></td>
+                      <td>{formattedDate}</td>
+                      <td>{cashierName}</td>
+                      <td>₱{Number(order.total).toFixed(2)}</td>
+                      <td>{order.payment_method}</td>
+                      <td>
+                        <span className={`orders-chip ${getSourceClass(order.order_source)}`}>
+                          {order.order_source}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="orders-actions" style={{ justifyContent: 'center' }}>
+                          <button
+                            className="orders-action-btn orders-action-btn--view"
+                            title="View Order"
+                            onClick={() => handleViewOrder(order)}
+                          >
+                            <i className="bi bi-card-list"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="orders-pagination">
+            <span>Page {currentPage} of {totalPages}</span>
+            <div className="orders-pagination-btns" style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="orders-page-btn"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <button className="orders-page-btn active" style={{ backgroundColor: '#E9ECEF', fontWeight: 'bold' }}>
+                {currentPage}
+              </button>
+              <button
+                className="orders-page-btn"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <i className="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <ViewOrderDetails

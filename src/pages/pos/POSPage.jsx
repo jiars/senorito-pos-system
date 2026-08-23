@@ -7,58 +7,23 @@ import CartSidebar from './components/CartSidebar';
 import CustomizeDrinkModal from './CustomizeDrinkModal/CustomizeDrinkModal';
 import ReceiptModal from './ReceiptModal/ReceiptModal';
 
+// We will populate posProducts dynamically from the database!
+
 import imgDefault from '../../assets/images/default_menu_picture.jpg';
-
-const menuData = [
-  { id: 1, name: 'Chocolate Chip Frappe', category: 'Frappuccino', price: '₱159.00' },
-  { id: 2, name: 'Matcha Blend', category: 'Non-coffee', price: '₱159.00' },
-  { id: 3, name: 'Brownies (2 pcs)', category: 'Pastry', price: '₱70.00' },
-  { id: 4, name: 'Chocolate Chip Cookie (1 pc)', category: 'Pastry', price: '₱60.00' },
-  { id: 5, name: 'Creamy Oreo', category: 'Frappuccino', price: '₱129.00 - ₱149.00' },
-  { id: 6, name: 'Hot Americano (12oz)', category: 'Hot Coffee', price: '₱129.00' },
-  { id: 7, name: 'Hot Cafe Latte (12oz)', category: 'Hot Coffee', price: '₱149.00' },
-  { id: 8, name: 'Hot Spanish Latte (12oz)', category: 'Hot Coffee', price: '₱149.00' },
-  { id: 9, name: 'Hot White Mocha (12oz)', category: 'Hot Coffee', price: '₱149.00' },
-  { id: 10, name: 'Hungarian Morning', category: 'Rice Meal', price: '₱159.00' },
-  { id: 11, name: 'Iced Americano', category: 'Iced Coffee', price: '₱109.00 - ₱129.00' },
-  { id: 12, name: 'Iced Cafe Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00' },
-  { id: 13, name: 'Iced Mocha Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00' },
-  { id: 14, name: 'Iced Spanish Latte', category: 'Iced Coffee', price: '₱129.00 - ₱149.00' },
-  { id: 15, name: 'Milky Choco', category: 'Non-coffee', price: '₱129.00 - ₱149.00' },
-  { id: 16, name: 'Oreo Frappe (22oz)', category: 'Frappuccino', price: '₱159.00' },
-  { id: 17, name: 'Tocino Classic', category: 'Rice Meal', price: '₱159.00' }
-];
-
-// Transform the menu data into POS readable format
-const posProducts = menuData.map(item => {
-  const isVariant = item.price.includes('-');
-  const basePriceStr = isVariant ? item.price.split('-')[0] : item.price;
-  const basePrice = parseFloat(basePriceStr.replace('₱', '').trim()) || 0;
-
-  let variants = [];
-  if (isVariant) {
-    const priceParts = item.price.split('-').map(p => parseFloat(p.replace('₱', '').trim()));
-    variants = [
-      { name: '16 oz', price: priceParts[0] || basePrice },
-      { name: '22 oz', price: priceParts[1] || basePrice }
-    ];
-  }
-
-  return {
-    id: `p-${item.id}`,
-    name: item.name,
-    category: item.category,
-    price: item.price,
-    basePrice,
-    imageURL: imgDefault,
-    variants
-  };
-});
+import { fetchAvailableMenuForPOS, processCheckout } from '../../services/pos/ordersService';
+import { fetchAddons } from '../../services/menu/addonsService';
+import { AuthContext } from '../../context/AuthContext';
 
 const POSPage = () => {
+  const { user, profile } = React.useContext(AuthContext);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [posProducts, setPosProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const [globalAddons, setGlobalAddons] = useState([]);
 
   // Cart State
   const [cartItems, setCartItems] = useState([]);
@@ -75,39 +40,125 @@ const POSPage = () => {
 
   const totalQty = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
+  // Fetch Live Menu Data from Supabase
+  React.useEffect(() => {
+    const loadMenu = async () => {
+      try {
+        setIsLoading(true);
+        const [data, addonsData] = await Promise.all([
+          fetchAvailableMenuForPOS(),
+          fetchAddons()
+        ]);
+        
+        setGlobalAddons(addonsData);
+        // Transform Supabase data into the shape POSPage expects
+        const formattedProducts = data.map(item => {
+          let basePrice = 0;
+          let displayPrice = '₱0.00';
+          let variants = [];
+          let defaultPriceId = null;
+
+          if (item.pricing_type === 'Fixed') {
+            const regularPriceObj = item.prices.find(p => p.variant_name === 'Regular') || item.prices[0];
+            basePrice = regularPriceObj?.selling_price || 0;
+            displayPrice = `₱${basePrice.toFixed(2)}`;
+            defaultPriceId = regularPriceObj?.id || null;
+          } else {
+            // Sort variants by price (lowest to highest) for display
+            const sortedPrices = [...item.prices].sort((a, b) => a.selling_price - b.selling_price);
+            if (sortedPrices.length > 0) {
+              basePrice = sortedPrices[0].selling_price;
+              const minPrice = sortedPrices[0].selling_price;
+              const maxPrice = sortedPrices[sortedPrices.length - 1].selling_price;
+              
+              if (minPrice === maxPrice) {
+                 displayPrice = `₱${minPrice.toFixed(2)}`;
+              } else {
+                 displayPrice = `₱${minPrice.toFixed(2)} - ₱${maxPrice.toFixed(2)}`;
+              }
+              
+              variants = sortedPrices.map(p => ({
+                id: p.id,
+                name: p.variant_name,
+                price: p.selling_price
+              }));
+            }
+          }
+
+          // Stock validation (Hard Blocking)
+          let hasStock = true;
+          if (item.recipes && item.recipes.length > 0) {
+            if (item.pricing_type === 'Fixed') {
+              const relevantRecipes = item.recipes.filter(r => r.menu_item_price_id === defaultPriceId || r.menu_item_price_id === null);
+              for (const recipe of relevantRecipes) {
+                const required = Number(recipe.quantity) || 0;
+                const available = recipe.inventory_items?.current_stock || 0;
+                if (available < required) {
+                  hasStock = false;
+                  break;
+                }
+              }
+            } else {
+              hasStock = false; // assume false, prove true
+              for (const variant of variants) {
+                const variantRecipes = item.recipes.filter(r => r.menu_item_price_id === variant.id || r.menu_item_price_id === null);
+                let variantHasStock = true;
+                for (const recipe of variantRecipes) {
+                  const required = Number(recipe.quantity) || 0;
+                  const available = recipe.inventory_items?.current_stock || 0;
+                  if (available < required) {
+                    variantHasStock = false;
+                    break;
+                  }
+                }
+                if (variantHasStock) {
+                  hasStock = true;
+                  break;
+                }
+              }
+              if (variants.length === 0) hasStock = true;
+            }
+          }
+
+          return {
+            id: `p-${item.id}`,
+            name: item.item_name,
+            category: item.category?.category_name || 'Uncategorized',
+            categoryId: item.category_id,
+            price: displayPrice,
+            basePrice,
+            defaultPriceId,
+            imageURL: item.image_url || imgDefault,
+            variants,
+            rawRecipes: item.recipes || [],
+            isAvailable: item.pos_status === 'Available' && !item.archived && hasStock
+          };
+        });
+
+        // Sort: Alphabetical, but Unavailable items always at the very end
+        formattedProducts.sort((a, b) => {
+          if (a.isAvailable && !b.isAvailable) return -1;
+          if (!a.isAvailable && b.isAvailable) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        setPosProducts(formattedProducts);
+      } catch (error) {
+        console.error('Failed to load menu for POS:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMenu();
+  }, []);
+
   // Cart Actions
   const handleAddToCart = (product) => {
-    if (product.variants && product.variants.length > 0) {
-      // Open modal for items with variants
-      setCustomizingProduct(product);
-    } else {
-      // Add directly for items without variants
-      setCartItems(prev => {
-        const existingIdx = prev.findIndex(item => 
-          item.productId === product.id && 
-          item.variant === 'Regular' && 
-          item.addOns.length === 0
-        );
-
-        if (existingIdx >= 0) {
-          const updated = [...prev];
-          updated[existingIdx].qty += 1;
-          return updated;
-        }
-
-        const cartId = `${product.id}-${Date.now()}`;
-        const newItem = {
-          cartId,
-          productId: product.id,
-          name: product.name,
-          variant: 'Regular',
-          price: product.basePrice,
-          qty: 1,
-          addOns: []
-        };
-        return [...prev, newItem];
-      });
-    }
+    if (!product.isAvailable) return;
+    
+    // ALWAYS open the customization modal so they can add add-ons or adjust quantity
+    setCustomizingProduct(product);
   };
 
   const handleModalAddToCart = (customizedData) => {
@@ -125,7 +176,10 @@ const POSPage = () => {
 
       if (existingIdx >= 0) {
         const updated = [...prev];
-        updated[existingIdx].qty += customizedData.drinkQty;
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          qty: updated[existingIdx].qty + customizedData.drinkQty
+        };
         return updated;
       }
 
@@ -133,11 +187,16 @@ const POSPage = () => {
       const newItem = {
         cartId,
         productId: customizedData.id,
+        priceId: customizedData.selectedVariantId || null,
         name: customizedData.name,
         variant: customizedData.selectedVariant,
         price: customizedData.totalPrice, // Base + Add-ons price
+        basePrice: customizedData.basePrice || customizedData.totalPrice,
         qty: customizedData.drinkQty,
-        addOns: customizedData.selectedAddOns
+        addOns: customizedData.selectedAddOns,
+        recipeIngredients: customizedData.rawRecipes?.filter(r => 
+          r.menu_item_price_id === customizedData.selectedVariantId || r.menu_item_price_id === null
+        ) || []
       };
       return [...prev, newItem];
     });
@@ -159,21 +218,38 @@ const POSPage = () => {
     setAmountPaid('');
   };
 
-  const handleProcessOrder = ({ total, subtotal, discountAmount, change }) => {
-    const orderDetails = {
-      transactionId: `SC-${Date.now().toString().slice(-6)}`,
-      cartItems: [...cartItems],
-      orderSource,
-      paymentMethod,
-      discountType,
-      subtotal,
-      discountAmount,
-      total,
-      amountPaid: parseFloat(amountPaid) || 0,
-      change,
-      date: new Date()
-    };
-    setProcessedOrder(orderDetails);
+  const handleProcessOrder = async ({ total, subtotal, discountAmount, change }) => {
+    setIsProcessingOrder(true);
+    try {
+      const transactionId = `SC-${Date.now().toString().slice(-6)}`;
+      
+      const orderDetails = {
+        transactionId,
+        cashier_id: user?.id || null,
+        cashier_name: profile ? `${profile.first_name} ${profile.last_name}` : 'Cashier',
+        cartItems: [...cartItems],
+        orderSource,
+        paymentMethod,
+        discountType,
+        subtotal,
+        discountAmount,
+        total,
+        amountPaid: (paymentMethod === 'GCash' || paymentMethod === 'External') ? total : (parseFloat(amountPaid) || 0),
+        change,
+        date: new Date()
+      };
+
+      // Call the backend service to insert the order and deduct inventory
+      const result = await processCheckout(orderDetails);
+
+      // Show receipt modal only if successful (use the real DB-generated order number)
+      setProcessedOrder({ ...orderDetails, transactionId: result.order_number });
+    } catch (error) {
+      console.error('Failed to process order:', error);
+      alert(`Checkout failed: ${error.message}`);
+    } finally {
+      setIsProcessingOrder(false);
+    }
   };
 
   const handleCloseReceipt = () => {
@@ -184,6 +260,19 @@ const POSPage = () => {
 
   return (
     <div className="pos-container">
+      {/* Checkout Processing Overlay */}
+      {isProcessingOrder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          backgroundColor: 'rgba(255,255,255,0.8)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', color: '#B87A4F'
+        }}>
+          <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', fontSize: '3rem' }}></i>
+          <p style={{ marginTop: '1rem', fontWeight: 600, fontSize: '1.2rem' }}>Processing Order...</p>
+        </div>
+      )}
+
       <div className="pos-main-wrapper">
 
         {/* Left Side: Products */}
@@ -206,16 +295,27 @@ const POSPage = () => {
           />
 
           <div className="pos-product-grid">
-            {posProducts
-              .filter(p => activeCategory === 'All' || p.category === activeCategory)
-              .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map(product => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAdd={handleAddToCart}
-                />
-              ))}
+            {isLoading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', width: '100%', color: '#666' }}>
+                <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: '0.5rem' }}></i> 
+                Loading live menu...
+              </div>
+            ) : posProducts.filter(p => activeCategory === 'All' || p.category === activeCategory).length === 0 ? (
+               <div style={{ padding: '2rem', textAlign: 'center', width: '100%', color: '#666' }}>
+                  No available items found.
+               </div>
+            ) : (
+              posProducts
+                .filter(p => activeCategory === 'All' || p.category === activeCategory)
+                .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAdd={handleAddToCart}
+                  />
+                ))
+            )}
           </div>
 
         </div>
@@ -258,6 +358,7 @@ const POSPage = () => {
       {customizingProduct && (
         <CustomizeDrinkModal 
           product={customizingProduct} 
+          allAddons={globalAddons}
           onClose={() => setCustomizingProduct(null)} 
           onAddToCart={handleModalAddToCart} 
         />

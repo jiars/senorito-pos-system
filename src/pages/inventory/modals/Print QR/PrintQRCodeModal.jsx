@@ -87,29 +87,29 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
     <div className="qr-modal-overlay">
       <div className="qr-modal-content">
         <div className="qr-modal-header hide-on-print">
-          <div>
-            <h3>Print QR Codes</h3>
-            <div className="qr-mode-toggle">
-              <button
-                className={`qr-mode-btn ${mode === 'item' ? 'active' : ''}`}
-                onClick={() => setMode('item')}
-              >
-                <i className="bi bi-box-seam"></i> Shelf Tags (Items)
-              </button>
-              <button
-                className={`qr-mode-btn ${mode === 'batch' ? 'active' : ''}`}
-                onClick={() => setMode('batch')}
-              >
-                <i className="bi bi-boxes"></i> Box Stickers (Batches)
-              </button>
-            </div>
-          </div>
+          <h3>Print QR Codes</h3>
           <button className="qr-modal-close" onClick={onClose} title="Close">
-            <i className="bi bi-x"></i>
+            <i className="bi bi-x-lg"></i>
           </button>
         </div>
 
         <div className="qr-modal-body">
+          {/* Mode Tabs */}
+          <div className="qr-mode-tabs hide-on-print">
+            <button
+              className={`qr-mode-tab-btn ${mode === 'item' ? 'active' : ''}`}
+              onClick={() => setMode('item')}
+            >
+              <i className="bi bi-box-seam"></i> Shelf Tags (Items)
+            </button>
+            <button
+              className={`qr-mode-tab-btn ${mode === 'batch' ? 'active' : ''}`}
+              onClick={() => setMode('batch')}
+            >
+              <i className="bi bi-boxes"></i> Box Stickers (Batches)
+            </button>
+          </div>
+
           {/* Select All Checkbox - Hide on Print */}
           <div className="qr-select-all hide-on-print">
             <Checkbox
@@ -140,7 +140,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
                   </div>
 
                   <div className="qr-code-wrapper">
-                    <QRCodeSVG value={qrPayload} size={110} level="M" />
+                    <QRCodeSVG value={qrPayload} size={80} level="M" />
                   </div>
 
                   <div className="qr-card-details">
@@ -173,7 +173,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
                   </div>
 
                   <div className="qr-code-wrapper">
-                    <QRCodeSVG value={qrPayload} size={110} level="M" />
+                    <QRCodeSVG value={qrPayload} size={80} level="M" />
                   </div>
 
                   <div className="qr-card-details">

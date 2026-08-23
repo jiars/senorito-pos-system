@@ -152,6 +152,14 @@
   color: #495057;
 }
 
+.order-details-main-row-with-addon td {
+  padding-bottom: 0.15rem;
+}
+
+.order-details-addon-row td {
+  padding-top: 0;
+}
+
 .order-details-item-name {
   color: #2C1810;
   margin: 0;
@@ -162,7 +170,7 @@
 
 .order-details-item-addon {
   font-size: 0.7rem;
-  color: #6C757D;
+  color: #9C6C55;
   margin: 0.15rem 0 0 0;
   word-wrap: break-word;
   overflow-wrap: break-word;

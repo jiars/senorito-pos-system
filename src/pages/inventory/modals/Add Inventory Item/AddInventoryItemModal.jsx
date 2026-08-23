@@ -15,6 +15,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
   const [category, setCategory] = useState('');
   const [qtyPurchased, setQtyPurchased] = useState('');
   const [purchaseUnit, setPurchaseUnit] = useState('');
+  const [purchaseMultiplier, setPurchaseMultiplier] = useState('1'); // Default to 1
   const [totalCost, setTotalCost] = useState('');
   const [minLevel, setMinLevel] = useState('');
   const [supplier, setSupplier] = useState('');
@@ -38,6 +39,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
       setCategory('');
       setQtyPurchased('');
       setPurchaseUnit('');
+      setPurchaseMultiplier('1');
       setTotalCost('');
       setMinLevel('');
       setSupplier('');
@@ -139,15 +141,19 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
     conversionsValid &&
     isExpiryValid;
 
-  // ─── Helpers for Computed Costs ───
-  const getBaseUnitCost = () => {
-    if (!isQtyValid || !isCostValid || !purchaseUnit || !unit) return null;
+  const parsedMultiplier = parseFloat(purchaseMultiplier);
+  const isMultiplierValid = purchaseMultiplier !== '' && !isNaN(parsedMultiplier) && parsedMultiplier > 0;
 
+  // ─── Helpers for Computed Costs ───
+  const getBaseQuantity = () => {
+    if (!isQtyValid || !isMultiplierValid) return parsedQty;
+    return parsedQty * parsedMultiplier;
+  };
+
+  const getBaseUnitCost = () => {
+    if (!isQtyValid || !isCostValid || !isMultiplierValid) return null;
     const costPerPurchaseUnit = parsedCost / parsedQty;
-    if (purchaseUnit === 'kg' && unit === 'g') return costPerPurchaseUnit / 1000;
-    if (purchaseUnit === 'L' && unit === 'ml') return costPerPurchaseUnit / 1000;
-    if (purchaseUnit === unit) return costPerPurchaseUnit;
-    return null;
+    return costPerPurchaseUnit / parsedMultiplier;
   };
 
   const renderPurchaseHelper = () => {
@@ -195,7 +201,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
     setIsSubmitting(true);
 
     try {
-      const computedCostPerUnit = parseFloat((parseFloat(totalCost) / parseFloat(qtyPurchased)).toFixed(2));
+      const computedCostPerUnit = parseFloat((parseFloat(totalCost) / getBaseQuantity()).toFixed(2));
 
       const itemData = {
         item_name: itemName.trim(),
@@ -204,7 +210,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
         minimum_level: parseFloat(minLevel),
         supplier: supplier.trim() || null,
         cost_per_unit: computedCostPerUnit,
-        current_stock: parseFloat(qtyPurchased),
+        current_stock: getBaseQuantity(),
         track_expiry: trackExpiry
       };
 
@@ -344,21 +350,17 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
               </div>
               <div className="inventory-form-group">
                 <label className="inventory-form-label">Purchase Unit</label>
-                <select
-                  className={`inventory-form-select ${touched.purchaseUnit && purchaseUnit === '' ? 'inventory-form-select--error' : ''}`}
+                <input
+                  type="text"
+                  className={`inventory-form-input ${touched.purchaseUnit && purchaseUnit === '' ? 'inventory-form-input--error' : ''}`}
+                  placeholder="e.g. Box, Sack, kg"
                   value={purchaseUnit}
                   onChange={(e) => {
                     setPurchaseUnit(e.target.value);
                     handleInteraction('purchaseUnit');
                   }}
                   onBlur={() => handleInteraction('purchaseUnit')}
-                >
-                  <option value="" disabled>Select purchase unit</option>
-                  {units.map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-
+                />
                 {touched.purchaseUnit && purchaseUnit === '' && (
                   <span className="inventory-form-error">Purchase unit required.</span>
                 )}
@@ -383,6 +385,29 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                 )}
               </div>
             </div>
+
+            {/* Purchase Multiplier Input */}
+            {purchaseUnit && unit && purchaseUnit !== unit && (
+              <div style={{ marginTop: '0.5rem', backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ flex: 1, fontSize: '0.85rem', color: '#6c757d' }}>
+                  <strong>Purchase Conversion:</strong> How many {unit} are in 1 {purchaseUnit}?
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: '#2C1810', fontWeight: 'bold' }}>
+                  <span>1 {purchaseUnit} = </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    className={`inventory-form-input ${!isMultiplierValid ? 'inventory-form-input--error' : ''}`}
+                    style={{ width: '80px', padding: '4px 8px', textAlign: 'center' }}
+                    value={purchaseMultiplier}
+                    onChange={(e) => setPurchaseMultiplier(e.target.value)}
+                  />
+                  <span>{unit}</span>
+                </div>
+              </div>
+            )}
+
             <div className="inventory-form-helper">
               {renderPurchaseHelper()}
             </div>
@@ -423,57 +448,62 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
           <div className="inventory-modal-section">
             <h4 className="inventory-modal-section-title">Recipe Conversion Unit</h4>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
+              <label className="inventory-form-label" style={{ marginBottom: 0 }}>Converted Unit</label>
+              <label className="inventory-form-label" style={{ marginBottom: 0 }}>
+                Equivalent Amount in {unit || "base unit"}
+              </label>
+              <div style={{ width: '32px' }}></div>
+            </div>
+
             {conversions.map((conv) => {
               const eq = parseFloat(conv.equivalent);
               const isConvUnitEmpty = conv.unit === '';
               const isEqInvalid = isNaN(eq) || eq <= 0;
               const hasInput = !isConvUnitEmpty || conv.equivalent !== '';
               const showError = hasInput && (isConvUnitEmpty || isEqInvalid);
+              
+              let helperText = null;
+              if (conv.equivalent && !isNaN(eq) && eq > 0) {
+                 const baseCost = getBaseUnitCost();
+                 if (baseCost !== null && baseCost > 0) {
+                    const convCost = (baseCost * eq).toFixed(2);
+                    helperText = <span style={{fontSize: '11px', color: '#666', marginTop: '4px'}}>Cost: ₱{convCost} / {conv.unit || 'unit'}</span>;
+                 }
+              }
 
               return (
-                <div className="inventory-conversion-row" key={conv.id}>
-                  <div className="inventory-form-group">
-                    <label className="inventory-form-label">Converted Unit</label>
-                    <select
-                      className={`inventory-form-select ${showError && isConvUnitEmpty ? 'inventory-form-select--error' : ''}`}
+                <div key={conv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div className="inventory-form-group" style={{ marginBottom: 0 }}>
+                    <input
+                      type="text"
+                      className={`inventory-form-input ${showError && isConvUnitEmpty ? 'inventory-form-input--error' : ''}`}
+                      placeholder="e.g. shot, tbsp"
                       value={conv.unit}
                       onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
-                    >
-                      <option value="" disabled>Select converted unit</option>
-                      {units.map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-
+                    />
                     {showError && isConvUnitEmpty && (
-                      <span className="inventory-form-error">Unit required.</span>
+                      <span className="inventory-form-error">Required.</span>
                     )}
                   </div>
-                  <div className="inventory-form-group">
-                    <label className="inventory-form-label">
-                      Equivalent Amount
-                      <span className="inventory-form-label-helper">
-                        Amount in {unit || "base unit"}
-                      </span>
-                    </label>
+                  <div className="inventory-form-group" style={{ marginBottom: 0 }}>
                     <input
                       type="number"
                       min="0"
                       step="any"
                       className={`inventory-form-input ${showError && isEqInvalid ? 'inventory-form-input--error' : ''}`}
-                      placeholder="Enter equivalent amount"
+                      placeholder="Enter amount"
                       value={conv.equivalent}
                       onChange={(e) => handleConversionChange(conv.id, 'equivalent', e.target.value)}
                     />
+                    {helperText}
                     {showError && isEqInvalid && (
                       <span className="inventory-form-error">Must be &gt; 0.</span>
                     )}
                   </div>
-                  <div className="inventory-form-helper inventory-form-helper--align-bottom">
-                    {renderConversionHelper(conv)}
-                  </div>
                   <button
                     className="inventory-remove-conv-btn"
+                    style={{ marginTop: '0', padding: '0.6rem' }}
                     onClick={() => handleRemoveConversion(conv.id)}
                     title="Remove conversion"
                     disabled={conversions.length <= 1}

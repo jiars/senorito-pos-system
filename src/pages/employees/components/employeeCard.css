@@ -1,0 +1,119 @@
+.employee-card {
+  background-color: #ffffff;
+  border: 1px solid #E9ECEF;
+  border-radius: 12px;
+  padding: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.employee-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.employee-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px dashed #E9ECEF;
+  padding-bottom: 1rem;
+}
+
+.employee-info-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 0.25rem;
+}
+
+.employee-info-top h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #2C1810;
+  text-align: center;
+}
+
+.role-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  border-radius: 20px;
+  display: inline-block;
+  margin-top: 0.25rem;
+  background-color: #f5ebe5;
+  color: #7A4B35;
+  border: 1px solid #d9c0ae;
+}
+
+.btn-edit-employee {
+  background: transparent;
+  border: 1px solid #D9C0AE;
+  color: #495057;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: absolute;
+  right: 1.125rem;
+  font-size: 0.8125rem;
+}
+
+.employee-card {
+  position: relative; /* For absolute positioning of edit button */
+}
+
+.btn-edit-employee:hover {
+  background-color: #F5EBE5;
+  color: #2C1810;
+  border-color: #7A4B35;
+}
+
+.employee-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.employee-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #2C1810;
+}
+
+.detail-value {
+  color: #495057;
+  font-weight: 500;
+}
+
+.status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.625rem;
+  border-radius: 20px;
+}
+
+.status-active {
+  background-color: #4CAF50;
+  color: #ffffff;
+}
+
+.status-inactive {
+  background-color: #C62828;
+  color: #ffffff;
+}

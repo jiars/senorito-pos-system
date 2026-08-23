@@ -43,6 +43,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Sales Report', path: '/reports/sales', icon: 'bi-graph-up-arrow' },
     { name: 'Expense Tracking', path: '/expenses', icon: 'bi-wallet2' },
     { name: 'Menu Management', path: '/menu', icon: 'bi-journal-richtext' },
+    { name: 'Employee Management', path: '/employees', icon: 'bi-people' },
   ];
 
   let userRoleKey = formatRoleKey(role);

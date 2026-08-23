@@ -3,5 +3,12 @@
 export const formatCurrency = (amount) => {
   if (amount === undefined || amount === null || isNaN(amount))
     return 'N/A';
-  return `₱${Number(amount).toFixed(2)}`;
+
+  // Convert to number, then format with commas and 2 decimal places (e.g., 1,000.00)
+  const formattedNumber = Number(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+  return `₱${formattedNumber}`;
 };

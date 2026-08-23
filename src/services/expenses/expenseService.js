@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { formatDecimal } from '../../utils/numberFormatters';
 
 // --- EXPENSES ---
 export const fetchExpenses = async () => {
@@ -14,16 +15,22 @@ export const fetchExpenses = async () => {
                 last_name
             )
         `)
-        .order('expense_date', { ascending: false });
+        .order('expense_date', { ascending: false })
+        .order('created_at', { ascending: false });
 
     if (error) throw new Error(error.message);
     return data;
 };
 
 export const addExpense = async (expenseData) => {
+    const formattedData = {
+        ...expenseData,
+        amount: formatDecimal(expenseData.amount)
+    };
+
     const { data, error } = await supabase
         .from('expenses')
-        .insert([expenseData])
+        .insert([formattedData])
         .select()
         .single();
 
@@ -32,9 +39,14 @@ export const addExpense = async (expenseData) => {
 };
 
 export const updateExpense = async (id, expenseData) => {
+    const formattedData = {
+        ...expenseData,
+        amount: expenseData.amount !== undefined ? formatDecimal(expenseData.amount) : expenseData.amount
+    };
+
     const { data, error } = await supabase
         .from('expenses')
-        .update(expenseData)
+        .update(formattedData)
         .eq('id', id)
         .select()
         .single();

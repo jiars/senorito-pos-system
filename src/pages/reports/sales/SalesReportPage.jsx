@@ -1,71 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './salesReport.css';
-
-/* ═══════════════════════════════════════════════════
-   Placeholder Data
-═══════════════════════════════════════════════════ */
-
-const summaryCards = [
-  { id: 'orders', icon: 'bi-cup-hot-fill', value: '42', label: 'Total Orders', color: 'brown' },
-  { id: 'gross', icon: 'bi-bag-check-fill', value: '₱10,033.00', label: 'Gross Sales', color: 'green' },
-  { id: 'net', icon: 'bi-cash-stack', value: '₱9,038.00', label: 'Net Sales', color: 'gray' },
-  { id: 'avg', icon: 'bi-receipt', value: '₱238.00', label: 'Average Order Value', color: 'yellow' },
-  { id: 'vat', icon: 'bi-bank', value: '₱301.14', label: 'Est. Total VAT/Tax', color: 'blue' },
-  { id: 'wastage', icon: 'bi-exclamation-triangle-fill', value: '₱1,240.00', label: 'Total Wastage Cost', color: 'red' },
-];
-
-const topSellingItems = [
-  { rank: 1, category: 'Frappuccino', name: 'Chocolate Chip Frappe', revenue: 2095.00, sold: 15 },
-  { rank: 2, category: 'Pastry', name: 'Chocolate Chip Cookie', revenue: 240.00, sold: 12 },
-  { rank: 3, category: 'Non-Coffee', name: 'Toasted Almond', revenue: 354.00, sold: 5 },
-  { rank: 4, category: 'Iced Coffee', name: 'Iced Americano', revenue: 204.00, sold: 5 },
-  { rank: 5, category: 'Hot Coffee', name: 'Hot Cafe Latte', revenue: 153.00, sold: 5 },
-  { rank: 6, category: 'Non-Coffee', name: 'Tangerine Morning', revenue: 200.00, sold: 4 },
-];
-
-const detailedProfitability = [
-  { item: 'Chocolate Chip Frappe', category: 'Frappuccino', price: '₱139.00', cost: '₱111.00', profit: '₱28.00', margin: '20.1%', qty: 15, revenue: '₱2,085.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Toasted Almond', category: 'Non-Coffee', price: '₱70.00', cost: '₱43.20', profit: '₱26.80', margin: '38.2%', qty: 5, revenue: '₱350.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Hot Cafe Latte', category: 'Hot Coffee', price: '₱130.00', cost: '₱94.00', profit: '₱36.00', margin: '27.7%', qty: 5, revenue: '₱650.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Chocolate Chip Cookie', category: 'Pastry', price: '₱20.00', cost: '₱10.00', profit: '₱10.00', margin: '50.0%', qty: 12, revenue: '₱240.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Iced Americano', category: 'Iced Coffee', price: '₱40.00', cost: '₱9.20', profit: '₱30.80', margin: '77.0%', qty: 5, revenue: '₱200.00', quad: 'Promote More', cls: 'row-potential', badge: 'promote' },
-  { item: 'Iced Spanish Latte', category: 'Iced Coffee', price: '₱119.00', cost: '₱85.00', profit: '₱34.00', margin: '28.5%', qty: 3, revenue: '₱357.00', quad: 'Improve Pricing', cls: 'row-cashcow', badge: 'pricing' },
-  { item: 'Hot Americano', category: 'Hot Coffee', price: '₱95.00', cost: '₱15.00', profit: '₱80.00', margin: '84.2%', qty: 8, revenue: '₱760.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Hot White Mocha', category: 'Hot Coffee', price: '₱130.00', cost: '₱72.00', profit: '₱58.00', margin: '44.6%', qty: 6, revenue: '₱780.00', quad: 'Top Performer', cls: 'row-star', badge: 'star' },
-  { item: 'Milky Cheese (12oz)', category: 'Non-Coffee', price: '₱55.00', cost: '₱35.00', profit: '₱20.00', margin: '36.3%', qty: 2, revenue: '₱110.00', quad: 'Review or Remove', cls: 'row-dog', badge: 'remove' },
-  { item: 'Espresso Shot', category: 'Hot Coffee', price: '₱60.00', cost: '₱8.00', profit: '₱52.00', margin: '86.6%', qty: 1, revenue: '₱60.00', quad: 'Promote More', cls: 'row-potential', badge: 'promote' },
-];
-
-const salesByCategory = [
-  { cat: 'Frappuccino', units: 23, rev: '₱3,403.00', pct: 33.9 },
-  { cat: 'Hot Coffee', units: 15, rev: '₱2,130.00', pct: 21.2 },
-  { cat: 'Iced Coffee', units: 11, rev: '₱1,087.00', pct: 10.8 },
-  { cat: 'Non-Coffee', units: 10, rev: '₱1,200.00', pct: 12.0 },
-  { cat: 'Pastry', units: 12, rev: '₱240.00', pct: 2.4 },
-];
+import { 
+  fetchSalesSummary, 
+  fetchSalesAnalytics, 
+  fetchDetailedProfitability, 
+  fetchOrderTrends 
+} from '../../../services/reports/salesReportService';
 
 const categoryColors = ['#2E7D32', '#EF6C00', '#0277BD', '#7B1FA2', '#00695C'];
-
-const sourceData = [
-  { label: 'In-Store', value: 10033, pct: 100, color: '#42A5F5' },
-  { label: 'Grab', value: 0, pct: 0, color: '#4CAF50' },
-  { label: 'FoodPanda', value: 0, pct: 0, color: '#5D4037' },
-];
-
-const hourlyData = [
-  { time: '9AM', orders: 2 },
-  { time: '10AM', orders: 3 },
-  { time: '11AM', orders: 5 },
-  { time: '12PM', orders: 6 },
-  { time: '1PM', orders: 4 },
-  { time: '2PM', orders: 5 },
-  { time: '3PM', orders: 4 },
-  { time: '4PM', orders: 6 },
-  { time: '5PM', orders: 3 },
-  { time: '6PM', orders: 2 },
-  { time: '7PM', orders: 1 },
-  { time: '8PM', orders: 1 },
-];
 
 /* ═══════════════════════════════════════════════════
    SVG Chart Helpers
@@ -106,7 +48,9 @@ const DonutChart = ({ data, total }) => {
       </svg>
       <div className="donut-center-text">
         <span className="donut-center-value">
-          {hovered !== null ? `${segments[hovered].pct}%` : `₱${total.toLocaleString()}`}
+          {hovered !== null 
+            ? `${segments[hovered].pct.toFixed(2)}%` 
+            : `₱${Number(total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
         </span>
         <span className="donut-center-label">
           {hovered !== null ? segments[hovered].label : 'Total'}
@@ -128,7 +72,7 @@ const PieChart = ({ data, colors }) => {
     const dashArray = (d.pct / totalPct) * circumference;
     const dashOffset = -offset;
     offset += dashArray;
-    return { ...d, dashArray, dashOffset, color: colors[idx] };
+    return { ...d, dashArray, dashOffset, color: colors[idx % colors.length] };
   });
 
   return (
@@ -156,7 +100,7 @@ const PieChart = ({ data, colors }) => {
             {segments[hovered].cat}
           </span>
           <span className="donut-center-label">
-            {segments[hovered].rev} ({segments[hovered].pct.toFixed(1)}%)
+            ₱{segments[hovered].rev.toFixed(2)} ({segments[hovered].pct.toFixed(2)}%)
           </span>
         </div>
       )}
@@ -189,10 +133,157 @@ const QuadBadge = ({ quad, badge }) => {
 const SalesReportPage = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [summaryData, setSummaryData] = useState({
+    totalOrders: 0,
+    grossSales: 0,
+    netSales: 0,
+    avgOrderValue: 0,
+    totalWastageCost: 0
+  });
+  const [topSellingItems, setTopSellingItems] = useState([]);
+  const [categorySales, setCategorySales] = useState([]);
+  const [sourceData, setSourceData] = useState([]);
+  const [hourlyData, setHourlyData] = useState([]);
+  const [detailedProfitability, setDetailedProfitability] = useState([]);
+  const [datePreset, setDatePreset] = useState('All Time');
+  const [filterSource, setFilterSource] = useState('All Order Sources');
+  const [filterCategory, setFilterCategory] = useState('All Categories');
+  const [profitabilitySort, setProfitabilitySort] = useState('Highest Revenue');
+  const [heatmapActive, setHeatmapActive] = useState(null);
 
-  const maxOrders = Math.max(...hourlyData.map((d) => d.orders));
-  const peakHour = hourlyData.reduce((prev, curr) => (curr.orders > prev.orders ? curr : prev));
-  const totalOrders = hourlyData.reduce((sum, d) => sum + d.orders, 0);
+  // Quadrant Counts
+  const [quadCounts, setQuadCounts] = useState({
+    'Top Performer': 0,
+    'Promote More': 0,
+    'Improve Pricing': 0,
+    'Review or Remove': 0,
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleDatePresetChange = (preset) => {
+    setDatePreset(preset);
+    if (preset === 'All Time' || preset === 'Custom') {
+      if (preset === 'All Time') {
+        setFromDate('');
+        setToDate('');
+      }
+      return;
+    }
+
+    const today = new Date();
+    let start = '';
+    let end = '';
+
+    const formatDate = (d) => {
+      const offset = d.getTimezoneOffset();
+      d = new Date(d.getTime() - (offset*60*1000));
+      return d.toISOString().split('T')[0];
+    };
+
+    if (preset === 'Today') {
+      start = formatDate(today);
+      end = formatDate(today);
+    } else if (preset === 'This Week') {
+      const first = today.getDate() - today.getDay(); 
+      const firstDay = new Date(today.setDate(first));
+      const lastDay = new Date(today.setDate(first + 6));
+      start = formatDate(firstDay);
+      end = formatDate(lastDay);
+    } else if (preset === 'This Month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      start = formatDate(firstDay);
+      end = formatDate(lastDay);
+    } else if (preset === 'Last Month') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+      start = formatDate(firstDay);
+      end = formatDate(lastDay);
+    } else if (preset === 'This Year') {
+      const firstDay = new Date(today.getFullYear(), 0, 1);
+      const lastDay = new Date(today.getFullYear(), 11, 31);
+      start = formatDate(firstDay);
+      end = formatDate(lastDay);
+    }
+
+    setFromDate(start);
+    setToDate(end);
+  };
+
+  useEffect(() => {
+    const loadReportData = async () => {
+      try {
+        setIsLoading(true);
+        const [summary, analytics, trends, profitability] = await Promise.all([
+          fetchSalesSummary(fromDate, toDate, filterSource, filterCategory),
+          fetchSalesAnalytics(fromDate, toDate, filterSource, filterCategory),
+          fetchOrderTrends(fromDate, toDate, filterSource, filterCategory),
+          fetchDetailedProfitability(fromDate, toDate, filterSource, filterCategory)
+        ]);
+        
+        setSummaryData(summary);
+        setTopSellingItems(analytics.topSelling.slice(0, 6)); // Display top 6
+        setCategorySales(analytics.categorySales);
+        setSourceData(trends.sourceData);
+        setHourlyData(trends.hourlyData);
+        setDetailedProfitability(profitability);
+
+        // Update Quadrant Counts
+        const counts = { 'Top Performer': 0, 'Promote More': 0, 'Improve Pricing': 0, 'Review or Remove': 0 };
+        profitability.forEach(d => {
+          if (counts[d.quad] !== undefined) counts[d.quad]++;
+        });
+        setQuadCounts(counts);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadReportData();
+  }, [fromDate, toDate, filterSource, filterCategory]);
+
+  const summaryCards = [
+    { id: 'orders', icon: 'bi-cup-hot-fill', value: summaryData.totalOrders.toString(), label: 'Total Orders', color: 'brown' },
+    { id: 'gross', icon: 'bi-bag-check-fill', value: `₱${summaryData.grossSales.toFixed(2)}`, label: 'Gross Sales', color: 'green' },
+    { id: 'net', icon: 'bi-cash-stack', value: `₱${summaryData.netSales.toFixed(2)}`, label: 'Net Sales', color: 'gray' },
+    { id: 'avg', icon: 'bi-receipt', value: `₱${summaryData.avgOrderValue.toFixed(2)}`, label: 'Average Order Value', color: 'yellow' },
+    { id: 'wastage', icon: 'bi-exclamation-triangle-fill', value: `₱${summaryData.totalWastageCost.toFixed(2)}`, label: 'Total Wastage Cost', color: 'red' },
+  ];
+
+  const safeHourlyData = hourlyData.length > 0 ? hourlyData : [{ time: 'N/A', orders: 0 }];
+  const maxOrders = Math.max(...safeHourlyData.map((d) => d.orders));
+  const peakHour = safeHourlyData.reduce((prev, curr) => (curr.orders > prev.orders ? curr : prev));
+  const totalOrders = safeHourlyData.reduce((sum, d) => sum + d.orders, 0);
+
+  // Dynamic Y-Axis for Hourly Chart
+  const generateYAxis = (max) => {
+    if (max <= 0) return [4, 3, 2, 1, 0];
+    const steps = 4;
+    const stepSize = Math.ceil(max / steps) || 1;
+    const maxVal = stepSize * steps;
+    const arr = [];
+    for (let i = maxVal; i >= 0; i -= stepSize) {
+      arr.push(i);
+    }
+    return arr;
+  };
+  const yAxisLabels = generateYAxis(maxOrders);
+
+  // Heatmap Calculations
+  const maxQty = Math.max(...detailedProfitability.map(d => d.qty), 1);
+  const maxRev = Math.max(...detailedProfitability.map(d => d.revenue), 1);
+
+  const getQuadColorClass = (quad) => {
+    switch (quad) {
+      case 'Top Performer': return 'b-green';
+      case 'Promote More': return 'b-blue';
+      case 'Improve Pricing': return 'b-yellow';
+      case 'Review or Remove': return 'b-red';
+      default: return 'b-green';
+    }
+  };
 
   return (
     <div className="sales-page">
@@ -214,22 +305,24 @@ const SalesReportPage = () => {
 
       {/* ───── Filter Bar ───── */}
       <div className="sales-filter-bar">
-        <select className="sales-filter-select" defaultValue="Today">
+        <select className="sales-filter-select" value={datePreset} onChange={(e) => handleDatePresetChange(e.target.value)}>
+          <option value="All Time">All Time</option>
           <option value="Today">Today</option>
           <option value="This Week">This Week</option>
           <option value="This Month">This Month</option>
           <option value="Last Month">Last Month</option>
           <option value="This Year">This Year</option>
+          <option value="Custom">Custom Range</option>
         </select>
 
-        <select className="sales-filter-select">
+        <select className="sales-filter-select" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
           <option>All Order Sources</option>
           <option>In-Store</option>
           <option>Grab</option>
           <option>FoodPanda</option>
         </select>
 
-        <select className="sales-filter-select">
+        <select className="sales-filter-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
           <option>All Categories</option>
           <option>Hot Coffee</option>
           <option>Iced Coffee</option>
@@ -244,7 +337,10 @@ const SalesReportPage = () => {
             type="date"
             className="sales-filter-date"
             value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setDatePreset('Custom');
+            }}
           />
         </div>
 
@@ -254,17 +350,23 @@ const SalesReportPage = () => {
             type="date"
             className="sales-filter-date"
             value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setDatePreset('Custom');
+            }}
           />
         </div>
 
-        <select className="sales-filter-select" defaultValue="pct3">
-          <option value="pct3">Percentage Tax (3%)</option>
-          <option value="income8">Income Tax (8%)</option>
-          <option value="none">No Tax Computation</option>
-        </select>
-
-        <button className="sales-reset-btn">Reset</button>
+        <button 
+          className="sales-reset-btn"
+          onClick={() => {
+            handleDatePresetChange('All Time');
+            setFilterSource('All Order Sources');
+            setFilterCategory('All Categories');
+          }}
+        >
+          Reset
+        </button>
       </div>
 
       {/* ───── Summary Cards ───── */}
@@ -297,21 +399,15 @@ const SalesReportPage = () => {
           </div>
           <div className="sales-panel-body">
             <div className="sales-chart-wrapper">
-              <DonutChart data={sourceData} total={10033} />
+              <DonutChart data={sourceData} total={summaryData.netSales} />
             </div>
             <div className="source-boxes">
-              <div className="source-box s-instore">
-                <span className="s-val">₱10,033.00</span>
-                <span className="s-label">In-Store</span>
-              </div>
-              <div className="source-box s-grab">
-                <span className="s-val">₱0.00</span>
-                <span className="s-label">Grab</span>
-              </div>
-              <div className="source-box s-foodpanda">
-                <span className="s-val">₱0.00</span>
-                <span className="s-label">FoodPanda</span>
-              </div>
+              {sourceData.map(source => (
+                <div key={source.label} className={`source-box s-${source.label.toLowerCase().replace('-', '')}`}>
+                  <span className="s-val">₱{source.value.toFixed(2)}</span>
+                  <span className="s-label">{source.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -356,19 +452,63 @@ const SalesReportPage = () => {
             </h3>
           </div>
           <div className="sales-panel-body">
-            <div className="scatter-plot-container">
-              {/* Stars — high margin, high volume */}
-              <div className="scatter-bubble b-green" style={{ bottom: '75%', left: '70%', width: '32px', height: '32px' }} title="Choc Chip Frappe (15 sold, 20.1%)"></div>
-              <div className="scatter-bubble b-green" style={{ bottom: '65%', left: '45%', width: '20px', height: '20px' }} title="Toasted Almond (5 sold, 38.2%)"></div>
-              <div className="scatter-bubble b-green" style={{ bottom: '55%', left: '42%', width: '20px', height: '20px' }} title="Hot Cafe Latte (5 sold, 27.7%)"></div>
-              <div className="scatter-bubble b-green" style={{ bottom: '78%', left: '60%', width: '26px', height: '26px' }} title="Choc Chip Cookie (12 sold, 50%)"></div>
-              {/* Promote More — high margin, low volume */}
-              <div className="scatter-bubble b-blue" style={{ bottom: '88%', left: '25%', width: '18px', height: '18px' }} title="Iced Americano (5 sold, 77%)"></div>
-              <div className="scatter-bubble b-blue" style={{ bottom: '92%', left: '10%', width: '12px', height: '12px' }} title="Espresso Shot (1 sold, 86.6%)"></div>
-              {/* Improve Pricing — low margin, high volume */}
-              <div className="scatter-bubble b-yellow" style={{ bottom: '30%', left: '28%', width: '16px', height: '16px' }} title="Iced Spanish Latte (3 sold, 28.5%)"></div>
-              {/* Review or Remove — low margin, low volume */}
-              <div className="scatter-bubble b-red" style={{ bottom: '35%', left: '15%', width: '14px', height: '14px' }} title="Milky Cheese (2 sold, 36.3%)"></div>
+            <div 
+              className="scatter-plot-container"
+              onClick={() => setHeatmapActive(null)}
+            >
+              {detailedProfitability.map((item, idx) => {
+                const bottomPct = Math.min(Math.max(item.margin, 5), 95); // clamp 5-95%
+                const leftPct = (item.qty / maxQty) * 90; // scale 0-90%
+                const sizePx = 12 + (item.revenue / maxRev) * 24; // scale 12px to 36px
+                const colorClass = getQuadColorClass(item.quad);
+                return (
+                  <div
+                    key={idx}
+                    className={`scatter-bubble ${colorClass}`}
+                    style={{ 
+                      bottom: `${bottomPct}%`, 
+                      left: `${leftPct}%`, 
+                      width: `${sizePx}px`, 
+                      height: `${sizePx}px`,
+                      zIndex: heatmapActive === idx ? 5 : 1,
+                      border: heatmapActive === idx ? '2px solid #2C1810' : 'none'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHeatmapActive(heatmapActive === idx ? null : idx);
+                    }}
+                  ></div>
+                );
+              })}
+
+              {heatmapActive !== null && detailedProfitability[heatmapActive] && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: `calc(${Math.min(Math.max(detailedProfitability[heatmapActive].margin, 5), 95)}% + ${(12 + (detailedProfitability[heatmapActive].revenue / maxRev) * 24)/2 + 8}px)`,
+                  left: `${(detailedProfitability[heatmapActive].qty / maxQty) * 90}%`,
+                  transform: 'translateX(-50%)',
+                  background: '#E8F5E9',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  border: '1px solid #A5D6A7',
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3A1A0A' }}>
+                    {detailedProfitability[heatmapActive].item}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '2px' }}>
+                    ₱{detailedProfitability[heatmapActive].revenue.toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                    ({detailedProfitability[heatmapActive].margin.toFixed(2)}%)
+                  </div>
+                </div>
+              )}
+
               <span className="scatter-axis-label" style={{ bottom: '-22px', left: '50%', transform: 'translateX(-50%)' }}>Sales Volume (Qty) →</span>
               <span className="scatter-axis-label" style={{ top: '50%', left: '-35px', transform: 'translateY(-50%) rotate(-90deg)' }}>← Margin %</span>
             </div>
@@ -392,25 +532,25 @@ const SalesReportPage = () => {
             <div className="quadrant-grid">
               <div className="quadrant-item q-star">
                 <i className="bi bi-star-fill q-icon"></i>
-                <span className="q-number">6</span>
+                <span className="q-number">{quadCounts['Top Performer']}</span>
                 <span className="q-label">Top Performer</span>
                 <span className="q-sublabel">High Profit · High Sales</span>
               </div>
               <div className="quadrant-item q-potential">
                 <i className="bi bi-megaphone-fill q-icon"></i>
-                <span className="q-number">2</span>
+                <span className="q-number">{quadCounts['Promote More']}</span>
                 <span className="q-label">Promote More</span>
                 <span className="q-sublabel">High Profit · Low Sales</span>
               </div>
               <div className="quadrant-item q-cashcow">
                 <i className="bi bi-tag-fill q-icon"></i>
-                <span className="q-number">6</span>
+                <span className="q-number">{quadCounts['Improve Pricing']}</span>
                 <span className="q-label">Improve Pricing</span>
                 <span className="q-sublabel">Low Profit · High Sales</span>
               </div>
               <div className="quadrant-item q-dog">
                 <i className="bi bi-x-circle-fill q-icon"></i>
-                <span className="q-number">2</span>
+                <span className="q-number">{quadCounts['Review or Remove']}</span>
                 <span className="q-label">Review or Remove</span>
                 <span className="q-sublabel">Low Profit · Low Sales</span>
               </div>
@@ -425,11 +565,11 @@ const SalesReportPage = () => {
       <div className="sales-table-container">
         <div className="sales-table-header">
           <h3 className="sales-table-header-title">Detailed Profitability Table</h3>
-          <select className="sales-filter-select">
-            <option>Sort by: Highest Revenue</option>
-            <option>Sort by: Highest Profit</option>
-            <option>Sort by: Highest Margin</option>
-            <option>Sort by: Highest Unit Sold</option>
+          <select className="sales-filter-select" value={profitabilitySort} onChange={(e) => setProfitabilitySort(e.target.value)}>
+            <option>Highest Revenue</option>
+            <option>Highest Profit</option>
+            <option>Highest Margin</option>
+            <option>Highest Unit Sold</option>
           </select>
         </div>
         <div className="sales-table-wrapper">
@@ -448,19 +588,38 @@ const SalesReportPage = () => {
               </tr>
             </thead>
             <tbody>
-              {detailedProfitability.map((row, idx) => (
-                <tr key={idx} className={row.cls}>
-                  <td style={{ fontWeight: 600 }}>{row.item}</td>
-                  <td>{row.category}</td>
-                  <td>{row.price}</td>
-                  <td>{row.cost}</td>
-                  <td>{row.profit}</td>
-                  <td>{row.margin}</td>
-                  <td>{row.qty}</td>
-                  <td style={{ fontWeight: 600 }}>{row.revenue}</td>
-                  <td><QuadBadge quad={row.quad} badge={row.badge} /></td>
+              {detailedProfitability.length === 0 ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: '#6C757D' }}>
+                    No profitability data available.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                [...detailedProfitability]
+                  .sort((a, b) => {
+                    if (profitabilitySort === 'Highest Profit') return b.profitPerItem - a.profitPerItem;
+                    if (profitabilitySort === 'Highest Margin') return b.margin - a.margin;
+                    if (profitabilitySort === 'Highest Unit Sold') return b.qty - a.qty;
+                    return b.revenue - a.revenue;
+                  })
+                  .map((row, idx) => (
+                  <tr key={idx} className={row.cls}>
+                    <td style={{ fontWeight: 600 }}>{row.item}</td>
+                    <td>{row.category}</td>
+                    <td>₱{row.price.toFixed(2)}</td>
+                    <td>₱{row.cost.toFixed(2)}</td>
+                    <td><strong>₱{row.profitPerItem.toFixed(2)}</strong></td>
+                    <td>
+                      <span className="sales-margin-chip">{row.margin.toFixed(1)}%</span>
+                    </td>
+                    <td>{row.qty}</td>
+                    <td>₱{row.revenue.toFixed(2)}</td>
+                    <td>
+                      <QuadBadge quad={row.quad} badge={row.badge} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -479,12 +638,12 @@ const SalesReportPage = () => {
           </div>
           <div className="sales-panel-body">
             <div className="sales-chart-wrapper">
-              <PieChart data={salesByCategory} colors={categoryColors} />
+              <PieChart data={categorySales} colors={categoryColors} />
             </div>
             <div className="sales-chart-legend">
-              {salesByCategory.map((cat, idx) => (
+              {categorySales.map((cat, idx) => (
                 <span key={idx} className="sales-legend-item">
-                  <span className="sales-legend-dot" style={{ background: categoryColors[idx] }}></span>
+                  <span className="sales-legend-dot" style={{ background: categoryColors[idx % categoryColors.length] }}></span>
                   {cat.cat}
                 </span>
               ))}
@@ -506,16 +665,31 @@ const SalesReportPage = () => {
                   <th>Category</th>
                   <th>Units</th>
                   <th>Revenue</th>
+                  <th>Contribution</th>
                 </tr>
               </thead>
               <tbody>
-                {salesByCategory.map((row, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{row.cat}</td>
-                    <td>{row.units}</td>
-                    <td>{row.rev}</td>
+                {categorySales.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#6C757D' }}>
+                      No category data available.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  categorySales.map((row, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: 600 }}>{row.cat}</td>
+                      <td>{row.units}</td>
+                      <td>₱{row.rev.toFixed(2)}</td>
+                      <td>
+                        <div className="sales-progress-bar">
+                          <div className="sales-progress-fill" style={{ width: `${row.pct}%`, backgroundColor: categoryColors[idx % categoryColors.length] }}></div>
+                          <span className="sales-progress-text">{row.pct.toFixed(1)}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -534,7 +708,7 @@ const SalesReportPage = () => {
         </div>
         <div className="sales-chart-area">
           <div className="sales-chart-yaxis">
-            {[7, 6, 5, 4, 3, 2, 1, 0].map((val) => (
+            {yAxisLabels.map((val) => (
               <span key={val} className="sales-chart-ylabel">{val}</span>
             ))}
           </div>
@@ -544,7 +718,7 @@ const SalesReportPage = () => {
                 <div className="sales-chart-bar-wrapper">
                   <div
                     className="sales-chart-bar"
-                    style={{ height: `${(d.orders / maxOrders) * 100}%` }}
+                    style={{ height: `${maxOrders > 0 ? (d.orders / maxOrders) * 100 : 0}%` }}
                   >
                     <span className="sales-chart-bar-tooltip">
                       {d.orders} orders
@@ -561,9 +735,17 @@ const SalesReportPage = () => {
             <i className="bi bi-lightbulb-fill"></i>
           </div>
           <p className="sales-insight-text">
-            <strong>Peak hours are {peakHour.time}</strong> with {peakHour.orders} orders. 
-            A total of <strong>{totalOrders} orders</strong> were recorded across the day. 
-            Consider adding extra staff during peak hours (12PM & 4PM) to reduce wait times and increase throughput.
+            {totalOrders === 0 ? (
+              <span>No orders recorded in this period. Wait for more data to see hourly trends.</span>
+            ) : (
+              <span>
+                <strong>Peak hours are {peakHour.time}</strong> with {peakHour.orders} orders. 
+                A total of <strong>{totalOrders} orders</strong> were recorded across this period. 
+                {peakHour.orders >= 5 
+                  ? ` Consider adding extra staff around ${peakHour.time} to reduce wait times and increase throughput.` 
+                  : ' Order volume is currently manageable with existing staff levels.'}
+              </span>
+            )}
           </p>
         </div>
       </div>

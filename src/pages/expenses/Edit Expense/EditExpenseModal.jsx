@@ -12,12 +12,9 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
     payment_method: '',
     receipt_reference: ''
   });
-  
-  const [fileName, setFileName] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && expenseData) {
@@ -30,7 +27,6 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
         payment_method: expenseData.payment_method || '',
         receipt_reference: expenseData.receipt_reference || ''
       });
-      setFileName(expenseData.receipt_file || '');
       setError(null);
     }
   }, [isOpen, expenseData]);
@@ -42,22 +38,10 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    } else {
-      setFileName('');
-    }
-  };
-
-  const handleChooseFile = () => {
-    fileInputRef.current.click();
-  };
-
   const handleSubmit = async () => {
     try {
       setError(null);
-      
+
       if (!formData.category_id || !formData.expense_date || !formData.description || !formData.amount || !formData.payment_method) {
         throw new Error("Please fill in all required fields.");
       }
@@ -77,7 +61,7 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
         receipt_reference: formData.receipt_reference || null,
         expense_date: formData.expense_date
       });
-      
+
       await refetch();
       onClose();
     } catch (err) {
@@ -98,13 +82,12 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
         </div>
 
         <div className="expense-modal-body">
-          {error && <div style={{ color: 'red', marginBottom: '1rem', fontSize: '0.875rem' }}>{error}</div>}
 
           <div className="expense-form-grid expense-form-grid--2">
             <div className="expense-form-group">
               <label className="expense-form-label">Category *</label>
-              <select 
-                className="expense-form-select" 
+              <select
+                className="expense-form-select"
                 name="category_id"
                 value={formData.category_id}
                 onChange={handleChange}
@@ -118,9 +101,9 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
             </div>
             <div className="expense-form-group">
               <label className="expense-form-label">Date *</label>
-              <input 
-                type="date" 
-                className="expense-form-input" 
+              <input
+                type="date"
+                className="expense-form-input"
                 name="expense_date"
                 value={formData.expense_date}
                 onChange={handleChange}
@@ -131,10 +114,10 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
 
           <div className="expense-form-group">
             <label className="expense-form-label">Description *</label>
-            <input 
-              type="text" 
-              className="expense-form-input" 
-              placeholder="e.g. Monthly Rent" 
+            <input
+              type="text"
+              className="expense-form-input"
+              placeholder="e.g. Monthly Rent"
               name="description"
               value={formData.description}
               onChange={handleChange}
@@ -147,10 +130,10 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
               <label className="expense-form-label">Amount *</label>
               <div className="expense-amount-wrapper">
                 <span className="expense-amount-symbol">₱</span>
-                <input 
-                  type="number" 
-                  placeholder="0.00" 
-                  step="0.01" 
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  step="0.01"
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
@@ -160,10 +143,10 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
             </div>
             <div className="expense-form-group">
               <label className="expense-form-label">Vendor/Supplier</label>
-              <input 
-                type="text" 
-                className="expense-form-input" 
-                placeholder="Optional" 
+              <input
+                type="text"
+                className="expense-form-input"
+                placeholder="Optional"
                 name="vendor"
                 value={formData.vendor}
                 onChange={handleChange}
@@ -174,7 +157,7 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
 
           <div className="expense-form-group">
             <label className="expense-form-label">Payment Method *</label>
-            <select 
+            <select
               className="expense-form-select"
               name="payment_method"
               value={formData.payment_method}
@@ -191,9 +174,9 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
 
           <div className="expense-form-group">
             <label className="expense-form-label">Receipt Reference</label>
-            <input 
-              type="text" 
-              className="expense-form-input" 
+            <input
+              type="text"
+              className="expense-form-input"
               placeholder="Receipt # or URL"
               name="receipt_reference"
               value={formData.receipt_reference}
@@ -202,16 +185,7 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
             />
           </div>
 
-          <div className="expense-form-group">
-            <label className="expense-form-label">Receipt File</label>
-            <div className="expense-file-wrapper">
-              <div className={`expense-file-btn ${isSubmitting ? 'disabled': ''}`} onClick={!isSubmitting ? handleChooseFile : undefined}>Choose File</div>
-              <div className="expense-file-name" style={{ color: fileName ? '#2C1810' : '#adb5bd' }}>
-                {fileName || 'No file chosen'}
-              </div>
-              <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} disabled={isSubmitting} style={{display: 'none'}} />
-            </div>
-          </div>
+          {error && <div style={{ color: '#dc3545', marginTop: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
         </div>
 
         <div className="expense-modal-footer">

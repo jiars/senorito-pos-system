@@ -32,8 +32,18 @@ const InventoryValuationReport = () => {
 
     const baseItems = rawItems.map(dbItem => {
       const stock = Number(dbItem.current_stock) || 0;
-      const cost = Number(dbItem.cost_per_unit) || 0;
-      const val = stock * cost;
+      
+      let val = 0;
+      if (dbItem.inventory_batches && dbItem.inventory_batches.length > 0) {
+        dbItem.inventory_batches.forEach(batch => {
+          val += (Number(batch.quantity) || 0) * (Number(batch.unit_cost) || Number(dbItem.cost_per_unit) || 0);
+        });
+      } else {
+        const fallbackCost = Number(dbItem.cost_per_unit) || 0;
+        val = stock * fallbackCost;
+      }
+      
+      const cost = stock > 0 ? (val / stock) : (Number(dbItem.cost_per_unit) || 0);
       total += val;
 
       const catName = dbItem.inventory_categories?.category_name || 'Uncategorized';
@@ -88,8 +98,8 @@ const InventoryValuationReport = () => {
   const filteredTotal = filteredItems.reduce((sum, item) => sum + item.value, 0);
 
   // SVG Chart Calculation
-  const radius = 60;
-  const strokeWidth = 30;
+  const radius = 80;
+  const strokeWidth = 40;
   const circumference = 2 * Math.PI * radius;
   let offset = 0;
 
@@ -175,13 +185,13 @@ const InventoryValuationReport = () => {
             <i className="bi bi-pie-chart"></i> Value By Category
           </div>
           <div className="val-panel-body val-chart-container">
-            <div style={{ position: 'relative' }}>
-              <svg className="val-donut-svg" viewBox="0 0 160 160">
+            <div style={{ position: 'relative', width: '240px', height: '240px' }}>
+              <svg className="val-donut-svg" viewBox="0 0 200 200">
                 {chartSegments.map((seg, idx) => (
                   <circle
                     key={idx}
                     className="val-donut-segment"
-                    cx="80" cy="80" r={radius}
+                    cx="100" cy="100" r={radius}
                     fill="none"
                     stroke={seg.color}
                     strokeWidth={strokeWidth}
@@ -193,10 +203,30 @@ const InventoryValuationReport = () => {
                   />
                 ))}
               </svg>
+              {hoveredSegment !== null && (
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                  display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+                  pointerEvents: 'none', textAlign: 'center'
+                }}>
+                  <span style={{ fontSize: '0.85rem', color: '#6c757d', fontWeight: 600, maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {categorySummary[hoveredSegment].category}
+                  </span>
+                  <span style={{ fontSize: '1.5rem', color: '#2C1810', fontWeight: 700 }}>
+                    {categorySummary[hoveredSegment].pct}%
+                  </span>
+                </div>
+              )}
             </div>
             <div className="val-legend">
               {categorySummary.map((cat, i) => (
-                <div className="val-legend-item" key={cat.category}>
+                <div 
+                  className="val-legend-item" 
+                  key={cat.category}
+                  onMouseEnter={() => setHoveredSegment(i)}
+                  onMouseLeave={() => setHoveredSegment(null)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="val-legend-color" style={{ backgroundColor: colors[cat.category] || ['#D4A373', '#FAEDCD', '#E9EDC9'][i % 3] }}></div>
                   <span>{cat.category}</span>
                 </div>

@@ -55,9 +55,7 @@ export const addMenuItem = async (itemData) => {
                 recipe_status: itemData.recipe_status,
                 pos_status: itemData.pos_status,
                 pricing_type: itemData.pricing_type,
-                estimated_cost: itemData.estimated_cost,
-                profit: itemData.profit,
-                margin: itemData.margin,
+                image_url: itemData.image_url,
                 archived: false
             }])
             .select();
@@ -89,9 +87,7 @@ export const updateMenuItem = async (itemId, itemData) => {
                 recipe_status: itemData.recipe_status,
                 pos_status: itemData.pos_status,
                 pricing_type: itemData.pricing_type,
-                estimated_cost: itemData.estimated_cost,
-                profit: itemData.profit,
-                margin: itemData.margin,
+                image_url: itemData.image_url,
                 archived: itemData.archived
             })
             .eq('id', itemId);

@@ -9,6 +9,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
   const [cost, setCost] = useState('');
   const [reorderLevel, setReorderLevel] = useState('');
   const [supplier, setSupplier] = useState('');
+  const [conversions, setConversions] = useState([]);
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,11 +24,35 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
       setCost(item.cost_per_unit ? item.cost_per_unit.toString() : '');
       setReorderLevel(item.minimum_level !== undefined ? item.minimum_level.toString() : '');
       setSupplier(item.supplier || '');
+      
+      // Initialize conversions
+      if (item.inventory_conversion_units && item.inventory_conversion_units.length > 0) {
+        setConversions(item.inventory_conversion_units.map(c => ({
+          id: c.id,
+          unit: c.converted_unit,
+          equivalent: c.equivalent_base_amount.toString()
+        })));
+      } else {
+        setConversions([]);
+      }
+
       setErrors({});
       setApiError('');
       setIsSubmitting(false);
     }
   }, [isOpen, item]);
+
+  const handleAddConversion = () => {
+    setConversions([...conversions, { id: Date.now().toString(), unit: '', equivalent: '' }]);
+  };
+
+  const handleRemoveConversion = (id) => {
+    setConversions(conversions.filter(c => c.id !== id));
+  };
+
+  const handleConversionChange = (id, field, value) => {
+    setConversions(conversions.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
 
   // Real-time validation
   useEffect(() => {
@@ -72,7 +97,15 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
 
   if (!isOpen || !item) return null;
 
-  const isFormValid = Object.keys(errors).length === 0 && name.trim() !== '' && unit !== '' && category !== '' && cost !== '' && reorderLevel !== '';
+  let conversionsValid = true;
+  conversions.forEach(c => {
+    const eq = parseFloat(c.equivalent);
+    if (c.unit.trim() === '' || isNaN(eq) || eq <= 0) {
+      conversionsValid = false;
+    }
+  });
+
+  const isFormValid = Object.keys(errors).length === 0 && name.trim() !== '' && unit !== '' && category !== '' && cost !== '' && reorderLevel !== '' && conversionsValid;
 
   const handleSave = async () => {
     if (!isFormValid || isSubmitting) return;
@@ -90,7 +123,13 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
         supplier: supplier.trim()
       };
 
-      await updateInventoryItem(item.id, updatePayload);
+      const conversionsData = conversions.map(c => ({
+        id: c.id,
+        converted_unit: c.unit.trim(),
+        equivalent_base_amount: parseFloat(c.equivalent)
+      }));
+
+      await updateInventoryItem(item.id, updatePayload, conversionsData);
 
       if (refetchInventory) {
         await refetchInventory();
@@ -185,8 +224,15 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
                 placeholder="0.00"
                 min="0.01"
                 step="0.01"
+                disabled={item?.inventory_batches?.length > 0}
+                title={item?.inventory_batches?.length > 0 ? "Cost is automatically calculated based on your active batches (FIFO)" : ""}
               />
-              {errors.cost && <p className="edit-modal-error-msg">{errors.cost}</p>}
+              {item?.inventory_batches?.length > 0 && (
+                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                  Managed automatically by batches.
+                </small>
+              )}
+              {errors.cost && !item?.inventory_batches?.length > 0 && <p className="edit-modal-error-msg">{errors.cost}</p>}
             </div>
 
             {/* Reorder Level */}
@@ -214,6 +260,69 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
                 placeholder="Optional"
               />
             </div>
+          </div>
+
+          <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #e9ecef' }} />
+
+          <div className="edit-modal-section">
+            <h4 style={{ fontSize: '0.95rem', color: '#2C1810', marginBottom: '1rem' }}>Recipe Conversion Units</h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
+              <label className="edit-modal-label" style={{ marginBottom: 0 }}>Converted Unit</label>
+              <label className="edit-modal-label" style={{ marginBottom: 0 }}>
+                Equivalent Amount in {unit || 'base unit'}
+              </label>
+              <div style={{ width: '32px' }}></div>
+            </div>
+
+            {conversions.map((conv) => {
+              const eq = parseFloat(conv.equivalent);
+              const isConvUnitEmpty = conv.unit.trim() === '';
+              const isEqInvalid = isNaN(eq) || eq <= 0;
+              const hasInput = !isConvUnitEmpty || conv.equivalent !== '';
+              const showError = hasInput && (isConvUnitEmpty || isEqInvalid);
+
+              return (
+                <div key={conv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div className="edit-modal-group" style={{ marginBottom: 0 }}>
+                    <input
+                      type="text"
+                      className={`edit-modal-input ${showError && isConvUnitEmpty ? 'is-invalid' : ''}`}
+                      placeholder="e.g. shot, tbsp"
+                      value={conv.unit}
+                      onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
+                    />
+                    {showError && isConvUnitEmpty && <p className="edit-modal-error-msg">Required.</p>}
+                  </div>
+                  <div className="edit-modal-group" style={{ marginBottom: 0 }}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      className={`edit-modal-input ${showError && isEqInvalid ? 'is-invalid' : ''}`}
+                      placeholder="Enter amount"
+                      value={conv.equivalent}
+                      onChange={(e) => handleConversionChange(conv.id, 'equivalent', e.target.value)}
+                    />
+                    {showError && isEqInvalid && <p className="edit-modal-error-msg">Must be &gt; 0.</p>}
+                  </div>
+                  <button
+                    style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', marginTop: '0', padding: '0.6rem' }}
+                    onClick={() => handleRemoveConversion(conv.id)}
+                    title="Remove"
+                  >
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </div>
+              );
+            })}
+
+            <button
+              onClick={handleAddConversion}
+              style={{ background: 'none', border: '1px dashed #ced4da', borderRadius: '6px', color: '#2C1810', padding: '0.5rem 1rem', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+            >
+              <i className="bi bi-plus"></i> Add conversion unit
+            </button>
           </div>
         </div>
 

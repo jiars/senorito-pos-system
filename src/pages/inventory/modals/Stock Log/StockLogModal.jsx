@@ -295,7 +295,10 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
                   value={selectedBatchId}
                   onChange={(e) => setSelectedBatchId(e.target.value)}
                 >
-                  {batches.map(b => (
+                  {[...batches].sort((a, b) => {
+                    if ((a.quantity > 0 && b.quantity > 0) || (a.quantity <= 0 && b.quantity <= 0)) return 0;
+                    return a.quantity > 0 ? -1 : 1;
+                  }).map(b => (
                     <option key={b.id} value={b.id}>
                       {b.batch_number} ({b.quantity} left) {b.expiration_date ? `- Expires: ${b.expiration_date}` : ''}
                     </option>
@@ -366,6 +369,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
                   )}
                 </div>
               </div>
+
               <hr className="stocklog-divider" />
             </>
           )}
@@ -430,6 +434,13 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
               />
             </div>
           </div>
+
+          {actionType === 'restock' && (
+            <div style={{ marginTop: '1.25rem', padding: '0.75rem', backgroundColor: '#FAFAFA', border: '1px solid #E9ECEF', borderRadius: '8px', fontSize: '0.8rem', color: '#495057', display: 'flex', gap: '0.5rem', alignItems: 'start' }}>
+              <i className="bi bi-info-circle-fill" style={{ color: '#7A4B35', marginTop: '0.1rem' }}></i>
+              <span>Recording a restock here will automatically be logged as an Inventory Purchase expense. The updated cost per unit will take effect once the new batch is utilized.</span>
+            </div>
+          )}
         </div>
 
         <div className="stocklog-modal-footer">

@@ -1,25 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './manageExpenseCategoriesModal.css';
+import { addExpenseCategory, updateExpenseCategory, deleteExpenseCategory } from '../../../services/expenses/expenseService';
 
-const ManageExpenseCategoriesModal = ({ isOpen, onClose }) => {
-  // Placeholder data
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Rent', usedByCount: 1 },
-    { id: 2, name: 'Inventory Purchase', usedByCount: 1 },
-    { id: 3, name: 'Utilities', usedByCount: 0 },
-    { id: 4, name: 'Salaries', usedByCount: 0 }
-  ]);
-
+const ManageExpenseCategoriesModal = ({ isOpen, onClose, categories, expenses = [], refetch }) => {
   const [newCategory, setNewCategory] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Reset internal states when modal opens/closes
-  React.useEffect(() => {
+  // Reset inputs when modal opens or closes
+  useEffect(() => {
     if (isOpen) {
       setNewCategory('');
       setEditingId(null);
       setEditName('');
+      setIsSubmitting(false);
+      setError(null);
     }
   }, [isOpen]);
 
@@ -29,82 +26,89 @@ const ManageExpenseCategoriesModal = ({ isOpen, onClose }) => {
   const checkDuplicate = (name, excludeId = null) => {
     const trimmed = name.trim().toLowerCase();
     return categories.some(
-      (cat) => cat.id !== excludeId && cat.name.toLowerCase() === trimmed
+      (cat) => cat.id !== excludeId && cat.category_name.toLowerCase() === trimmed
     );
   };
 
-  // Add validation
   const isNewEmpty = newCategory.trim() === '';
   const isNewDuplicate = !isNewEmpty && checkDuplicate(newCategory);
-  const isAddDisabled = isNewEmpty || isNewDuplicate;
+  const isAddDisabled = isNewEmpty || isNewDuplicate || isSubmitting;
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     if (isAddDisabled) return;
-    const newCat = {
-      id: Date.now(),
-      name: newCategory.trim(),
-      usedByCount: 0
-    };
-    setCategories([...categories, newCat]);
-    setNewCategory(''); // Reset input after adding
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await addExpenseCategory(newCategory.trim());
+      await refetch();
+      setNewCategory('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Edit validation
   const isEditEmpty = editName.trim() === '';
   const isEditDuplicate = !isEditEmpty && checkDuplicate(editName, editingId);
-  const isSaveDisabled = isEditEmpty || isEditDuplicate;
+  const isSaveDisabled = isEditEmpty || isEditDuplicate || isSubmitting;
 
-  const startEdit = (cat) => {
-    setEditingId(cat.id);
-    setEditName(cat.name);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditName('');
-  };
-
-  const saveEdit = (id) => {
+  const handleSaveEdit = async (id) => {
     if (isSaveDisabled) return;
-    setCategories(
-      categories.map((cat) =>
-        cat.id === id ? { ...cat, name: editName.trim() } : cat
-      )
-    );
-    setEditingId(null);
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await updateExpenseCategory(id, editName.trim());
+      await refetch();
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const deleteCategory = (id) => {
-    setCategories(categories.filter((cat) => cat.id !== id));
+  const handleDeleteCategory = async (id) => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      await deleteExpenseCategory(id);
+      await refetch();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="mc-modal-overlay">
-      <div className="mc-modal-content">
-        <div className="mc-modal-header">
+    <div className="ec-modal-overlay">
+      <div className="ec-modal-content">
+        <div className="ec-modal-header">
           <h3>Manage Expense Categories</h3>
-          <button className="mc-modal-close" onClick={onClose} title="Close">
+          <button className="ec-modal-close" onClick={onClose} title="Close" disabled={isSubmitting}>
             <i className="bi bi-x"></i>
           </button>
         </div>
 
-        <div className="mc-modal-body">
+        <div className="ec-modal-body">
+          {error && <div style={{ color: '#C62828', fontSize: '0.875rem' }}>{error}</div>}
+
           {/* Add Category Row */}
-          <div className="mc-add-row">
-            <div className="mc-input-wrapper">
+          <div className="ec-add-row">
+            <div className="ec-input-wrapper">
               <input
                 type="text"
-                className={`mc-input ${isNewDuplicate ? 'mc-input--error' : ''}`}
+                className={`ec-input ${isNewDuplicate ? 'ec-input--error' : ''}`}
                 placeholder="New Category Name"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
+                disabled={isSubmitting}
               />
-              {isNewDuplicate && (
-                <span className="mc-error-text">Category already exists.</span>
-              )}
+              {isNewDuplicate && <span className="ec-error-text">Category already exists</span>}
             </div>
             <button
-              className="mc-btn-add"
+              className="ec-btn-add"
               disabled={isAddDisabled}
               onClick={handleAddCategory}
             >
@@ -112,44 +116,43 @@ const ManageExpenseCategoriesModal = ({ isOpen, onClose }) => {
             </button>
           </div>
 
-          <div className="mc-separator"></div>
+          <div className="ec-separator"></div>
 
-          {/* Category List */}
-          <div className="mc-list">
+          {/* Categories List */}
+          <div className="ec-list">
             {categories.map((cat) => {
               const isEditing = editingId === cat.id;
+              const usedByCount = expenses.filter((e) => e.category_id === cat.id).length;
 
               return (
-                <div className="mc-list-item" key={cat.id}>
+                <div className="ec-list-item" key={cat.id}>
                   {isEditing ? (
                     <>
-                      <div className="mc-edit-container">
+                      <div className="ec-edit-container">
                         <input
                           type="text"
-                          className={`mc-edit-input ${isEditDuplicate ? 'mc-edit-input--error' : ''}`}
+                          className={`ec-edit-input ${isEditDuplicate ? 'ec-edit-input--error' : ''}`}
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
                           autoFocus
+                          disabled={isSubmitting}
                         />
-                        {isEditDuplicate && (
-                          <span className="mc-error-text" style={{ fontSize: '0.65rem' }}>
-                            Category already exists.
-                          </span>
-                        )}
+                        {isEditDuplicate && <span className="ec-error-text">Category already exists</span>}
                       </div>
-                      <div className="mc-list-item-actions">
+                      <div className="ec-list-item-actions">
                         <button
-                          className="mc-action-btn mc-action-btn--save"
+                          className="ec-action-btn ec-action-btn--save"
                           disabled={isSaveDisabled}
-                          onClick={() => saveEdit(cat.id)}
+                          onClick={() => handleSaveEdit(cat.id)}
                           title="Save"
                         >
                           <i className="bi bi-check-lg"></i>
                         </button>
                         <button
-                          className="mc-action-btn mc-action-btn--edit"
-                          onClick={cancelEdit}
+                          className="ec-action-btn ec-action-btn--edit"
+                          onClick={() => setEditingId(null)}
                           title="Cancel"
+                          disabled={isSubmitting}
                         >
                           <i className="bi bi-x-lg"></i>
                         </button>
@@ -157,20 +160,26 @@ const ManageExpenseCategoriesModal = ({ isOpen, onClose }) => {
                     </>
                   ) : (
                     <>
-                      <span className="mc-list-item-name">{cat.name}</span>
-                      <div className="mc-list-item-actions">
+                      <span className="ec-list-item-name">
+                        {cat.category_name} {usedByCount > 0 && <small style={{ color: '#6c757d' }}>({usedByCount} expenses)</small>}
+                      </span>
+                      <div className="ec-list-item-actions">
                         <button
-                          className="mc-action-btn mc-action-btn--edit"
-                          onClick={() => startEdit(cat)}
+                          className="ec-action-btn ec-action-btn--edit"
+                          onClick={() => {
+                            setEditingId(cat.id);
+                            setEditName(cat.category_name);
+                          }}
                           title="Edit"
+                          disabled={isSubmitting}
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
                         <button
-                          className="mc-action-btn mc-action-btn--delete"
-                          disabled={cat.usedByCount > 0}
-                          title={cat.usedByCount > 0 ? "Cannot delete category while expenses are using it." : "Delete"}
-                          onClick={() => deleteCategory(cat.id)}
+                          className="ec-action-btn ec-action-btn--delete"
+                          disabled={usedByCount > 0 || isSubmitting}
+                          title={usedByCount > 0 ? "Cannot delete category while expenses are using it." : "Delete"}
+                          onClick={() => handleDeleteCategory(cat.id)}
                         >
                           <i className="bi bi-trash"></i>
                         </button>
@@ -180,6 +189,12 @@ const ManageExpenseCategoriesModal = ({ isOpen, onClose }) => {
                 </div>
               );
             })}
+
+            {categories.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '1rem', color: '#6C757D', fontSize: '0.875rem' }}>
+                No categories found.
+              </div>
+            )}
           </div>
         </div>
       </div>

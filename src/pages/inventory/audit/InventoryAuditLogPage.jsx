@@ -13,7 +13,7 @@ const InventoryAuditLogPage = () => {
   const [sourceFilter, setSourceFilter] = useState('All sources');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
+  const itemsPerPage = 12;
 
   useEffect(() => {
     const loadLogs = async () => {
@@ -247,7 +247,7 @@ const InventoryAuditLogPage = () => {
                       <td>{log.stock_after}</td>
                       <td style={{ fontWeight: 600, width: '80px' }}>{batchNum}</td>
                       <td className="audit-reason-col">{log.reason_reference || '-'}</td>
-                      <td style={{ minWidth: '90px' }}>{log.id.slice(0, 8)}</td>
+                      <td style={{ minWidth: '90px', fontWeight: 500, color: '#555' }}>{log.log_number || '-'}</td>
                       <td style={{ minWidth: '100px', maxWidth: '140px', whiteSpace: 'normal' }}>{byName}</td>
                     </tr>
                   );

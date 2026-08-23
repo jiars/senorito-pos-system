@@ -7,6 +7,7 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
   const {
     transactionId,
     cartItems,
+    cashier_name,
     orderSource,
     paymentMethod,
     discountType,
@@ -56,7 +57,7 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
               <strong>Time</strong> <span>{formattedTime}</span>
             </div>
             <div className="pos-receipt-detail-row">
-              <strong>Cashier</strong> <span>Jane Velarde Mayorga</span>
+              <strong>Cashier</strong> <span>{cashier_name || 'Cashier'}</span>
             </div>
             <div className="pos-receipt-detail-row">
               <strong>Order Source</strong> <span>{orderSource}</span>
@@ -79,21 +80,30 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
             </thead>
             <tbody>
               {cartItems.map((item) => (
-                <tr key={item.cartId}>
-                  <td>
-                    <p className="pos-receipt-item-name">
-                      {item.name} {item.variant !== 'Regular' ? `(${item.variant})` : ''}
-                    </p>
-                    {item.addOns && item.addOns.length > 0 && (
-                      <p className="pos-receipt-item-addon">
-                        {item.addOns.map(ao => `${ao.qty}x ${ao.name}`).join(', ')}
+                <React.Fragment key={item.cartId}>
+                  <tr className={item.addOns && item.addOns.length > 0 ? "pos-receipt-main-row-with-addon" : ""}>
+                    <td>
+                      <p className="pos-receipt-item-name">
+                        {item.name} {item.variant !== 'Regular' ? `(${item.variant})` : ''}
                       </p>
-                    )}
-                  </td>
-                  <td>{item.qty}</td>
-                  <td>₱{item.price.toFixed(2)}</td>
-                  <td>₱{(item.price * item.qty).toFixed(2)}</td>
-                </tr>
+                    </td>
+                    <td>{item.qty}</td>
+                    <td>₱{(item.basePrice || item.price).toFixed(2)}</td>
+                    <td>₱{((item.basePrice || item.price) * item.qty).toFixed(2)}</td>
+                  </tr>
+                  {item.addOns && item.addOns.length > 0 && item.addOns.map((ao, idx) => (
+                    <tr key={`${item.cartId}-ao-${idx}`} className="pos-receipt-addon-row">
+                      <td>
+                        <p className="pos-receipt-item-addon">
+                          {ao.qty * item.qty}x {ao.name}
+                        </p>
+                      </td>
+                      <td></td>
+                      <td>₱{Number(ao.price).toFixed(2)}</td>
+                      <td>₱{(Number(ao.price) * ao.qty * item.qty).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

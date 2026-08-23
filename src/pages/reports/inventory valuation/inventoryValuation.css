@@ -154,7 +154,7 @@
 /* ─── Top Section Grid ─── */
 .val-top-grid {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: 1.5rem;
 }
 
@@ -187,14 +187,16 @@
 /* ─── Chart ─── */
 .val-chart-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 1rem 0;
+  padding: 2rem 0;
+  gap: 1.5rem;
 }
 
 .val-donut-svg {
-  width: 180px;
-  height: 180px;
+  width: 240px;
+  height: 240px;
   transform: rotate(-90deg);
   border-radius: 50%;
 }
@@ -210,9 +212,11 @@
 
 .val-legend {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-left: 1rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-left: 0;
 }
 
 .val-legend-item {

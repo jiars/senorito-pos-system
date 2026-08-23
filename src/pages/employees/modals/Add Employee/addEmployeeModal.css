@@ -1,0 +1,261 @@
+.employee-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.employee-modal-content {
+  background-color: #ffffff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  animation: employeeModalSlideIn 0.3s ease-out;
+}
+
+@keyframes employeeModalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.employee-modal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  position: relative;
+}
+
+.employee-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #2C1810;
+}
+
+.employee-modal-close {
+  position: absolute;
+  right: 1.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #6C757D;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.employee-modal-close:hover {
+  color: #dc3545;
+}
+
+.employee-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Info Box */
+.employee-role-info-box {
+  background-color: #FAFAFA;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.employee-role-info-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2C1810;
+  margin-bottom: 0.5rem;
+}
+
+.employee-role-info-text {
+  font-size: 0.8125rem;
+  color: #495057;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.employee-role-info-text i {
+  color: #7A4B35;
+}
+
+.employee-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.employee-form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.employee-form-row-2col .employee-form-group {
+  margin-bottom: 0;
+}
+
+.employee-form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.employee-form-input,
+.employee-form-select {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #D9C0AE;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: 'Inter', sans-serif;
+  color: #2C1810;
+  background-color: #ffffff;
+  outline: none;
+  transition: border-color 0.2s;
+  height: 42px;
+  box-sizing: border-box;
+}
+
+.employee-form-input:focus,
+.employee-form-select:focus {
+  border-color: #7A4B35;
+}
+
+.employee-form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%236c757d' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.employee-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.employee-password-wrapper input {
+  padding-right: 2.5rem;
+  height: 42px;
+}
+
+.employee-password-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.employee-password-toggle:hover {
+  color: #2C1810;
+}
+
+.employee-form-hint {
+  font-size: 0.7rem;
+  color: #6c757d;
+  font-style: italic;
+  margin-top: 0.25rem;
+}
+
+.employee-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #E9ECEF;
+  background-color: #ffffff;
+  border-radius: 0 0 12px 12px;
+}
+
+.employee-modal-btn-cancel {
+  background-color: #E2E2E2;
+  color: #495057;
+  border: none;
+  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.employee-modal-btn-cancel:hover {
+  background-color: #d6d6d6;
+}
+
+.employee-modal-btn-save {
+  background-color: #7A4B35;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.employee-modal-btn-save:hover {
+  background-color: #5A2D15;
+}
+
+.employee-modal-btn-save:disabled {
+  background-color: #a88b7d;
+  cursor: not-allowed;
+}
+
+.employee-password-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.25rem;
+  padding: 0 0.5rem;
+  background-color: transparent;
+  border: none;
+}
+
+.employee-password-rules div {
+  font-size: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: color 0.3s ease;
+}
+
+.rule-passed {
+  color: #198754;
+}
+
+.rule-failed {
+  color: #6c757d;
+}

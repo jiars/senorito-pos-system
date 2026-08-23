@@ -168,48 +168,6 @@
   color: #adb5bd;
 }
 
-.expense-file-wrapper {
-  display: flex;
-  align-items: center;
-  border: 1px solid #D9C0AE;
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: #FAFAFA;
-  height: 42px;
-  box-sizing: border-box;
-}
-
-.expense-file-btn {
-  padding: 0 1rem;
-  background-color: #FAFAFA;
-  border-right: 1px solid #D9C0AE;
-  font-weight: 600;
-  color: #495057;
-  font-size: 0.875rem;
-  cursor: pointer;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-.expense-file-wrapper input[type="file"] {
-  display: none;
-}
-
-.expense-file-name {
-  padding: 0 0.875rem;
-  color: #adb5bd;
-  font-size: 0.875rem;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
 .expense-modal-footer {
   display: flex;
   justify-content: flex-end;

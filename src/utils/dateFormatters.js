@@ -11,3 +11,15 @@ export const formatDate = (dateString) => {
   }
   return 'Unknown Date';
 };
+
+export const formatTime = (dateString) => {
+  if (dateString) {
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  }
+  return '';
+};

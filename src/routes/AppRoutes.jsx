@@ -23,6 +23,7 @@ import OrdersPage from '../pages/orders/OrdersPage';
 import POSPage from '../pages/pos/POSPage';
 import SalesReportPage from '../pages/reports/sales/SalesReportPage';
 import UserProfilePage from '../pages/profile/UserProfilePage';
+import EmployeeManagementPage from '../pages/employees/EmployeeManagementPage';
 
 import ProtectedRoute from './ProtectedRoute';
 import PublicOnlyRoute from './PublicOnlyRoute';
@@ -158,6 +159,18 @@ const AppRoutes = () => {
           <ProtectedRoute>
             <MainLayout>
               <UserProfilePage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ── Protected Employee Management Page ── */}
+      <Route
+        path="/employees"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <EmployeeManagementPage />
             </MainLayout>
           </ProtectedRoute>
         }

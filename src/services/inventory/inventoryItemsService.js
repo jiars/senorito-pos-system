@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { formatDecimal } from '../../utils/numberFormatters';
 
 export const fetchInventoryItems = async () => {
   const { data, error } = await supabase
@@ -11,7 +12,13 @@ export const fetchInventoryItems = async () => {
       ),
       inventory_batches (
         expiration_date,
-        quantity
+        quantity,
+        unit_cost
+      ),
+      inventory_conversion_units (
+        id,
+        converted_unit,
+        equivalent_base_amount
       ),
       inventory_audit_logs (
         created_at,
@@ -36,6 +43,11 @@ export const fetchArchivedInventoryItems = async () => {
         id,
         category_name
       ),
+      inventory_conversion_units (
+        id,
+        converted_unit,
+        equivalent_base_amount
+      ),
       profiles:archived_by (
         first_name,
         last_name
@@ -59,6 +71,23 @@ export const fetchUnits = async () => {
 
 
 export const addInventoryItem = async ({ itemData, purchaseData, conversionsData, userId }) => {
+  // Format numeric values
+  if (itemData) {
+    itemData.current_stock = formatDecimal(itemData.current_stock);
+    itemData.cost_per_unit = formatDecimal(itemData.cost_per_unit);
+  }
+  if (purchaseData) {
+    purchaseData.quantity_purchased = formatDecimal(purchaseData.quantity_purchased);
+    purchaseData.total_cost = formatDecimal(purchaseData.total_cost);
+    purchaseData.cost_per_unit = formatDecimal(purchaseData.cost_per_unit);
+  }
+  if (conversionsData) {
+    conversionsData = conversionsData.map(c => ({
+      ...c,
+      equivalent_base_amount: formatDecimal(c.equivalent_base_amount)
+    }));
+  }
+
   // 1. Create the Item
   const { data: newItem, error: itemError } = await supabase
     .from('inventory_items')
@@ -69,76 +98,93 @@ export const addInventoryItem = async ({ itemData, purchaseData, conversionsData
   if (itemError) throw new Error(`Item Error: ${itemError.message}`);
   const itemId = newItem.id;
 
-  // 2. Create the first Batch automatically
-  const batchNumber = `BATCH-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.floor(Math.random() * 1000)}`;
+  try {
+    // 2. Create the first Batch automatically
+    const batchNumber = `BATCH-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.floor(Math.random() * 1000)}`;
 
-  const { data: batchData, error: batchError } = await supabase
-    .from('inventory_batches')
-    .insert([{
-      inventory_item_id: itemId,
-      batch_number: batchNumber,
-      quantity: purchaseData.quantity_purchased,
-      expiration_date: purchaseData.expiration_date || null,
-      source: purchaseData.supplier || 'Initial Stock'
-    }])
-    .select()
-    .single();
+    const { data: batchData, error: batchError } = await supabase
+      .from('inventory_batches')
+      .insert([{
+        inventory_item_id: itemId,
+        batch_number: batchNumber,
+        quantity: itemData.current_stock,
+        expiration_date: purchaseData.expiration_date || null,
+        source: purchaseData.supplier || 'Initial Stock',
+        unit_cost: purchaseData.cost_per_unit
+      }])
+      .select()
+      .single();
 
-  if (batchError) throw new Error(`Batch Error: ${batchError.message}`);
-  const newBatchId = batchData.id;
+    if (batchError) throw new Error(`Batch Error: ${batchError.message}`);
+    const newBatchId = batchData.id;
 
-  // 3. Record the Purchase using the new Batch ID
-  const { error: purchaseError } = await supabase
-    .from('inventory_purchase_history')
-    .insert([{
-      inventory_item_id: itemId,
-      batch_id: newBatchId, // Link it to the batch!
-      quantity_purchased: purchaseData.quantity_purchased,
-      purchase_unit: purchaseData.purchase_unit,
-      total_cost: purchaseData.total_cost,
-      cost_per_unit: purchaseData.cost_per_unit,
-      supplier: purchaseData.supplier || 'Initial Stock',
-      created_by: userId
-    }]);
+    // 3. Record the Purchase using the new Batch ID
+    const { error: purchaseError } = await supabase
+      .from('inventory_purchase_history')
+      .insert([{
+        inventory_item_id: itemId,
+        batch_id: newBatchId, // Link it to the batch!
+        quantity_purchased: purchaseData.quantity_purchased,
+        purchase_unit: purchaseData.purchase_unit,
+        total_cost: purchaseData.total_cost,
+        cost_per_unit: purchaseData.cost_per_unit,
+        supplier: purchaseData.supplier || 'Initial Stock',
+        created_by: userId
+      }]);
 
-  if (purchaseError) throw new Error(`Purchase Error: ${purchaseError.message}`);
+    if (purchaseError) throw new Error(`Purchase Error: ${purchaseError.message}`);
 
-  // 4. Record Unit Conversions (if any)
-  if (conversionsData && conversionsData.length > 0) {
-    const conversionsToInsert = conversionsData.map(conv => ({
-      inventory_item_id: itemId,
-      converted_unit: conv.converted_unit,
-      equivalent_base_amount: conv.equivalent_base_amount
-    }));
+    // 4. Record Unit Conversions (if any)
+    if (conversionsData && conversionsData.length > 0) {
+      const conversionsToInsert = conversionsData.map(conv => ({
+        inventory_item_id: itemId,
+        converted_unit: conv.converted_unit,
+        equivalent_base_amount: conv.equivalent_base_amount
+      }));
 
-    const { error: convError } = await supabase
-      .from('inventory_conversion_units')
-      .insert(conversionsToInsert);
+      const { error: convError } = await supabase
+        .from('inventory_conversion_units')
+        .insert(conversionsToInsert);
 
-    if (convError) throw new Error(`Conversion Error: ${convError.message}`);
+      if (convError) throw new Error(`Conversion Error: ${convError.message}`);
+    }
+
+    // 5. Record Audit Log
+    const { error: auditError } = await supabase
+      .from('inventory_audit_logs')
+      .insert([{
+        inventory_item_id: itemId,
+        batch_id: newBatchId, // Link it to the batch!
+        action: 'Purchase',
+        source: 'Add Item Modal',
+        quantity_change: itemData.current_stock,
+        stock_before: 0,
+        stock_after: itemData.current_stock,
+        reason_reference: 'Initial Stock Creation',
+        performed_by: userId
+      }]);
+
+    if (auditError) throw new Error(`Audit Error: ${auditError.message}`);
+  } catch (err) {
+    // ROLLBACK: Delete the inserted item if any subsequent step fails
+    await supabase.from('inventory_items').delete().eq('id', itemId);
+    throw err;
   }
-
-  // 5. Record Audit Log
-  const { error: auditError } = await supabase
-    .from('inventory_audit_logs')
-    .insert([{
-      inventory_item_id: itemId,
-      batch_id: newBatchId, // Link it to the batch!
-      action: 'Purchase',
-      source: 'Add Item Modal',
-      quantity_change: purchaseData.quantity_purchased,
-      stock_before: 0,
-      stock_after: purchaseData.quantity_purchased,
-      reason_reference: 'Initial Stock Creation',
-      performed_by: userId
-    }]);
-
-  if (auditError) throw new Error(`Audit Error: ${auditError.message}`);
 
   return newItem;
 };
 
-export const updateInventoryItem = async (id, itemPayload) => {
+export const updateInventoryItem = async (id, itemPayload, conversionsData = null) => {
+  if (itemPayload.current_stock !== undefined) itemPayload.current_stock = formatDecimal(itemPayload.current_stock);
+  if (itemPayload.cost_per_unit !== undefined) itemPayload.cost_per_unit = formatDecimal(itemPayload.cost_per_unit);
+
+  if (conversionsData !== null) {
+    conversionsData = conversionsData.map(c => ({
+      ...c,
+      equivalent_base_amount: formatDecimal(c.equivalent_base_amount)
+    }));
+  }
+
   const { data, error } = await supabase
     .from('inventory_items')
     .update(itemPayload)
@@ -149,6 +195,51 @@ export const updateInventoryItem = async (id, itemPayload) => {
   if (error) {
     throw new Error(error.message);
   }
+
+  if (conversionsData !== null) {
+    // Fetch existing
+    const { data: existingConversions } = await supabase
+      .from('inventory_conversion_units')
+      .select('id')
+      .eq('inventory_item_id', id);
+
+    const existingIds = (existingConversions || []).map(c => c.id);
+    const newIds = conversionsData.filter(c => typeof c.id === 'string' && c.id.includes('-')).map(c => c.id);
+
+    // Delete removed conversions
+    const idsToDelete = existingIds.filter(eid => !newIds.includes(eid));
+    if (idsToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('inventory_conversion_units')
+        .delete()
+        .in('id', idsToDelete);
+      if (deleteError) console.error("Error deleting conversions:", deleteError);
+    }
+
+    // Upsert remaining/new
+    if (conversionsData.length > 0) {
+      const upsertPayload = conversionsData.map(c => {
+        const payload = {
+          inventory_item_id: id,
+          converted_unit: c.converted_unit,
+          equivalent_base_amount: c.equivalent_base_amount
+        };
+        if (typeof c.id === 'string' && c.id.includes('-')) {
+          payload.id = c.id;
+        }
+        return payload;
+      });
+
+      const { error: upsertError } = await supabase
+        .from('inventory_conversion_units')
+        .upsert(upsertPayload);
+
+      if (upsertError) {
+        console.error('Failed to upsert conversions:', upsertError);
+      }
+    }
+  }
+
   return data;
 };
 

@@ -58,7 +58,7 @@ const CartSidebar = ({
           <i className="bi bi-x-lg"></i>
         </button>
         <h2>Current Order</h2>
-        <div className="pos-cart-transaction">Transaction #SC-{Date.now().toString().slice(-6)}</div>
+        <div className="pos-cart-transaction">Pending Order</div>
         {cartItems.length > 0 && (
           <button className="pos-cart-clear" onClick={onClearCart} title="Clear Cart">
             <i className="bi bi-trash"></i>
@@ -81,7 +81,7 @@ const CartSidebar = ({
                 <p className="pos-cart-item-meta">{item.variant || 'Regular'} • ₱{item.price.toFixed(2)}</p>
                 {item.addOns && item.addOns.length > 0 && (
                   <div className="pos-cart-item-addons" style={{ fontSize: '0.6rem', color: '#9C6C55', marginTop: '0.1rem' }}>
-                    {item.addOns.map(ao => `${ao.qty}x ${ao.name}`).join(', ')}
+                    {item.addOns.map(ao => `${ao.qty * item.qty}x ${ao.name}`).join(', ')}
                   </div>
                 )}
               </div>

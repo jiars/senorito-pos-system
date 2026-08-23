@@ -1,10 +1,19 @@
 import { supabase } from '../supabaseClient';
+import { formatDecimal } from '../../utils/numberFormatters';
 
 export const addMenuItemPrices = async (pricesArray) => {
     try {
+        const formattedPrices = pricesArray.map(priceObj => ({
+            ...priceObj,
+            selling_price: formatDecimal(priceObj.selling_price),
+            estimated_cost: formatDecimal(priceObj.estimated_cost),
+            profit: formatDecimal(priceObj.profit),
+            margin: formatDecimal(priceObj.margin)
+        }));
+
         const response = await supabase
             .from('menu_item_prices')
-            .insert(pricesArray)
+            .insert(formattedPrices)
             .select();
 
         if (response.error !== null) {

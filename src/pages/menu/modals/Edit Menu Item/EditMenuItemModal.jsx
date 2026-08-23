@@ -5,6 +5,7 @@ import { updateMenuItem } from '../../../../services/menu/menuItemsService';
 import { addMenuItemPrices, deleteMenuItemPrices } from '../../../../services/menu/menuPricesService';
 import { addMenuRecipes, deleteMenuRecipes } from '../../../../services/menu/menuRecipesService';
 import { useInventory } from '../../../../hooks/useInventory';
+import { uploadMenuImage } from '../../../../utils/imageUploadHelper';
 
 const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   const { inventoryItems } = useInventory();
@@ -72,7 +73,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                   id: Date.now() + 100 + idx + rIdx,
                   ingredientId: r.inventory_item_id,
                   qty: r.quantity.toString(),
-                  unit: '' // Unit is rendered dynamically
+                  unit: r.unit || ''
                 }));
               }
 
@@ -99,7 +100,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               id: Date.now() + 200 + idx,
               ingredientId: r.inventory_item_id,
               qty: r.quantity.toString(),
-              unit: '' // Unit is rendered dynamically
+              unit: r.unit || ''
             }));
           }
 
@@ -132,8 +133,15 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
       const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
 
+      let equivalent = 1;
+      if (ing.unit && ing.unit !== ref.base_unit) {
+        const conv = ref.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+        if (conv) equivalent = Number(conv.equivalent_base_amount);
+      }
+
       const parsedQty = parseFloat(ing.qty) || 0;
-      return total + (parsedQty * ref.cost_per_unit);
+      const baseQty = parsedQty * equivalent;
+      return total + (baseQty * ref.cost_per_unit);
     }, 0);
   };
 
@@ -249,14 +257,26 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   /* ─── Shared Render: Ingredient Row ─── */
   const renderIngredientRow = (ing, onUpdate, onRemove) => {
     let rowCost = 0;
-    let dynamicUnit = '-';
+    let availableUnits = [];
+    let selectedUnitData = null;
 
     if (ing.ingredientId) {
       const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (ref) {
-        dynamicUnit = ref.base_unit;
+        // Collect available units
+        availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
+        if (ref.inventory_conversion_units) {
+          ref.inventory_conversion_units.forEach(cu => {
+            availableUnits.push({ unit: cu.converted_unit, equivalent: Number(cu.equivalent_base_amount), label: cu.converted_unit });
+          });
+        }
+        
+        // Find selected unit for calculation
+        selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
+
         if (ing.qty) {
-          rowCost = (parseFloat(ing.qty) || 0) * ref.cost_per_unit;
+          const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
+          rowCost = baseQty * ref.cost_per_unit;
         }
       }
     }
@@ -272,7 +292,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
             <option value="">Select ingredient</option>
             {inventoryItems.map(i => (
               <option key={i.id} value={i.id}>
-                {i.item_name} ({i.base_unit}) - ₱{i.cost_per_unit}/{i.base_unit}
+                {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
               </option>
             ))}
           </select>
@@ -288,10 +308,21 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
           />
         </div>
         <div className="emi-section">
-          {/* Plain Text Unit based on selection! */}
-          <div className="emi-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
-            {dynamicUnit}
-          </div>
+          {availableUnits.length > 0 ? (
+            <select
+              className="emi-select"
+              value={ing.unit}
+              onChange={(e) => onUpdate('unit', e.target.value)}
+            >
+              {availableUnits.map(u => (
+                <option key={u.unit} value={u.unit}>{u.label}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="emi-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
+              -
+            </div>
+          )}
         </div>
         <div className="emi-section emi-currency-wrapper">
           <span className="emi-currency-symbol">₱</span>
@@ -320,21 +351,12 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     setErrorMessage('');
 
     try {
-      // 1. Calculate overall item cost, profit, and margin
-      let estCost = 0;
-      let profit = 0;
-      let margin = 0;
-
-      if (pricingMode === 'single') {
-        estCost = calculateEstCost(singleRecipe.ingredients);
-        profit = calculateProfit(singleRecipe.sellingPrice, estCost);
-        margin = calculateMargin(profit, singleRecipe.sellingPrice);
-      } else {
-        if (variants.length > 0) {
-          estCost = calculateEstCost(variants[0].ingredients);
-          profit = calculateProfit(variants[0].sellingPrice, estCost);
-          margin = calculateMargin(profit, variants[0].sellingPrice);
-        }
+      // 1. Upload new image if exists, else keep old
+      let finalImageUrl = item.image_url;
+      if (baseInfo.image) {
+        const selectedCat = categories.find(c => c.id === baseInfo.category);
+        const categoryName = selectedCat ? selectedCat.category_name : 'Uncategorized';
+        finalImageUrl = await uploadMenuImage(baseInfo.image, baseInfo.name, categoryName);
       }
 
       // 2. Update base item in menu_items table
@@ -344,9 +366,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
         recipe_status: item.recipe_status || 'Complete',
         pos_status: baseInfo.isAvailable ? 'Available' : 'Unavailable',
         pricing_type: pricingMode === 'single' ? 'Fixed' : 'Variants',
-        estimated_cost: estCost,
-        profit: profit,
-        margin: margin
+        image_url: finalImageUrl
       });
 
       // 3. Re-save variant prices in menu_item_prices table
@@ -354,18 +374,34 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
 
       let pricesArray = [];
       if (pricingMode === 'single') {
+        const estCost = calculateEstCost(singleRecipe.ingredients);
+        const profit = calculateProfit(singleRecipe.sellingPrice, estCost);
+        const margin = calculateMargin(profit, singleRecipe.sellingPrice);
+
         pricesArray.push({
           menu_item_id: item.id,
           variant_name: 'Regular',
-          selling_price: parseFloat(singleRecipe.sellingPrice) || 0
+          selling_price: parseFloat(singleRecipe.sellingPrice) || 0,
+          estimated_cost: estCost,
+          profit: profit,
+          margin: margin,
+          item_code: `${item.item_code}-R`
         });
       } else {
         for (let i = 0; i < variants.length; i++) {
           const v = variants[i];
+          const vEstCost = calculateEstCost(v.ingredients);
+          const vProfit = calculateProfit(v.sellingPrice, vEstCost);
+          const vMargin = calculateMargin(vProfit, v.sellingPrice);
+
           pricesArray.push({
             menu_item_id: item.id,
             variant_name: v.name.trim(),
-            selling_price: parseFloat(v.sellingPrice) || 0
+            selling_price: parseFloat(v.sellingPrice) || 0,
+            estimated_cost: vEstCost,
+            profit: vProfit,
+            margin: vMargin,
+            item_code: `${item.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`
           });
         }
       }
@@ -382,12 +418,20 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
         singleRecipe.ingredients.forEach(ing => {
           if (ing.ingredientId && ing.qty) {
             const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+            let equivalent = 1;
+            if (ing.unit && ing.unit !== ref?.base_unit) {
+              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+              if (conv) equivalent = Number(conv.equivalent_base_amount);
+            }
+            const baseQty = parseFloat(ing.qty) * equivalent;
+
             recipesArray.push({
               menu_item_id: item.id,
               menu_item_price_id: variantId,
               inventory_item_id: ing.ingredientId,
               quantity: parseFloat(ing.qty),
-              estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+              unit: ing.unit || ref?.base_unit,
+              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
             });
           }
         });
@@ -398,12 +442,20 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
             v.ingredients.forEach(ing => {
               if (ing.ingredientId && ing.qty) {
                 const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+                let equivalent = 1;
+                if (ing.unit && ing.unit !== ref?.base_unit) {
+                  const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+                  if (conv) equivalent = Number(conv.equivalent_base_amount);
+                }
+                const baseQty = parseFloat(ing.qty) * equivalent;
+
                 recipesArray.push({
                   menu_item_id: item.id,
                   menu_item_price_id: matchedPrice.id,
                   inventory_item_id: ing.ingredientId,
                   quantity: parseFloat(ing.qty),
-                  estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+                  unit: ing.unit || ref?.base_unit,
+                  estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
                 });
               }
             });
@@ -460,12 +512,14 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                 />
                 {baseInfo.image ? (
                   <img src={URL.createObjectURL(baseInfo.image)} alt="Preview" className="emi-image-preview" />
-                ) : (
-                  <div className="emi-image-placeholder">
-                    <i className="bi bi-camera"></i>
-                    <span>Upload</span>
-                  </div>
-                )}
+                ) : item?.image_url ? (
+                  <img src={item.image_url} alt="Current" className="emi-image-preview" />
+                ) : null}
+                
+                <div className={`emi-image-placeholder ${(baseInfo.image || item?.image_url) ? 'has-image' : ''}`}>
+                  <i className="bi bi-camera"></i>
+                  <span>{(baseInfo.image || item?.image_url) ? 'Change Image' : 'Upload'}</span>
+                </div>
               </div>
             </div>
 
@@ -491,22 +545,21 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
               </div>
+              <div className="emi-section" style={{ marginBottom: 0, marginTop: '0.5rem' }}>
+                <label className="emi-toggle-container">
+                  <input
+                    type="checkbox"
+                    style={{ display: 'none' }}
+                    checked={baseInfo.isAvailable}
+                    onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
+                  />
+                  <span className="emi-toggle-switch">
+                    <span className="emi-toggle-slider"></span>
+                  </span>
+                  <span className="emi-toggle-label">Available for sale</span>
+                </label>
+              </div>
             </div>
-          </div>
-
-          <div className="emi-row">
-            <label className="emi-toggle-container">
-              <input
-                type="checkbox"
-                style={{ display: 'none' }}
-                checked={baseInfo.isAvailable}
-                onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
-              />
-              <span className="emi-toggle-switch">
-                <span className="emi-toggle-slider"></span>
-              </span>
-              <span className="emi-toggle-label">Available for sale</span>
-            </label>
           </div>
 
           <div className="emi-row emi-pricing-mode">

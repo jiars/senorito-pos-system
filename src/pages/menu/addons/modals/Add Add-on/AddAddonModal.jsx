@@ -3,18 +3,7 @@ import './addAddonModal.css';
 
 import { addAddon } from '../../../../../services/menu/addonsService';
 
-const UNITS = ['g', 'ml', 'pc', 'pump', 'cup'];
-
-const INGREDIENTS = [
-  { id: 'i1', label: 'Chocolate chips (g) - ₱0.35/g', cost: 0.35, defaultUnit: 'g' },
-  { id: 'i2', label: 'Milk (ml) - ₱0.50/ml', cost: 0.50, defaultUnit: 'ml' },
-  { id: 'i3', label: 'Frappe base (ml) - ₱0.12/ml', cost: 0.12, defaultUnit: 'ml' },
-  { id: 'i4', label: 'Chocolate sauce (pump) - ₱1.00/pump', cost: 1.00, defaultUnit: 'pump' },
-  { id: 'i5', label: 'Ice (g) - ₱0.01/g', cost: 0.01, defaultUnit: 'g' },
-  { id: 'i6', label: '22oz cup (pcs) - ₱3.50/pc', cost: 3.50, defaultUnit: 'pc' },
-  { id: 'i7', label: 'Straw (pcs) - ₱0.20/pc', cost: 0.20, defaultUnit: 'pc' },
-  { id: 'i8', label: '16oz cup (pcs) - ₱2.50/pc', cost: 2.50, defaultUnit: 'pc' }
-];
+import { fetchInventoryItems } from '../../../../../services/inventory/inventoryItemsService';
 
 const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   const [addonName, setAddonName] = useState('');
@@ -26,6 +15,19 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbIngredients, setDbIngredients] = useState([]);
+
+  React.useEffect(() => {
+    const loadInventory = async () => {
+      try {
+        const items = await fetchInventoryItems();
+        setDbIngredients(items || []);
+      } catch (error) {
+        console.error("Failed to load inventory items:", error);
+      }
+    };
+    if (isOpen) loadInventory();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -33,11 +35,18 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   const calculateEstCost = () => {
     return ingredients.reduce((total, ing) => {
       if (!ing.ingredientId || !ing.qty) return total;
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+      const ref = dbIngredients.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
 
+      let equivalent = 1;
+      if (ing.unit && ing.unit !== ref.base_unit) {
+        const conv = ref.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+        if (conv) equivalent = Number(conv.equivalent_base_amount);
+      }
+
       const parsedQty = parseFloat(ing.qty) || 0;
-      return total + (parsedQty * ref.cost);
+      const baseQty = parsedQty * equivalent;
+      return total + (baseQty * ref.cost_per_unit);
     }, 0);
   };
 
@@ -94,7 +103,27 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
       archived: false
     };
 
-    await addAddon(addonPayload, selectedCategories);
+    const recipePayload = ingredients
+      .filter(ing => ing.ingredientId && ing.qty)
+      .map(ing => {
+        const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+        
+        let equivalent = 1;
+        if (ing.unit && ing.unit !== ref?.base_unit) {
+          const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+          if (conv) equivalent = Number(conv.equivalent_base_amount);
+        }
+        const baseQty = parseFloat(ing.qty) * equivalent;
+
+        return {
+          inventory_item_id: ing.ingredientId,
+          quantity: parseFloat(ing.qty),
+          unit: ing.unit || ref?.base_unit,
+          estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
+        };
+      });
+
+    await addAddon(addonPayload, selectedCategories, recipePayload);
 
     if (refetchAddons) {
       await refetchAddons();
@@ -126,8 +155,8 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
       if (ing.id !== id) return ing;
       const updated = { ...ing, [field]: value };
       if (field === 'ingredientId') {
-        const ref = INGREDIENTS.find(i => i.id === value);
-        if (ref) updated.unit = ref.defaultUnit;
+        const ref = dbIngredients.find(i => i.id === value);
+        if (ref) updated.unit = ref.base_unit;
       }
       return updated;
     }));
@@ -136,10 +165,27 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   /* ─── Renderers ─── */
   const renderIngredientRow = (ing) => {
     let rowCost = 0;
-    if (ing.ingredientId && ing.qty) {
-      const ref = INGREDIENTS.find(i => i.id === ing.ingredientId);
+    let availableUnits = [];
+    let selectedUnitData = null;
+
+    if (ing.ingredientId) {
+      const ref = dbIngredients.find(i => i.id === ing.ingredientId);
       if (ref) {
-        rowCost = (parseFloat(ing.qty) || 0) * ref.cost;
+        // Collect available units
+        availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
+        if (ref.inventory_conversion_units) {
+          ref.inventory_conversion_units.forEach(cu => {
+            availableUnits.push({ unit: cu.converted_unit, equivalent: Number(cu.equivalent_base_amount), label: cu.converted_unit });
+          });
+        }
+        
+        // Find selected unit for calculation
+        selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
+
+        if (ing.qty) {
+          const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
+          rowCost = baseQty * ref.cost_per_unit;
+        }
       }
     }
 
@@ -152,8 +198,10 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
             onChange={(e) => updateIngredient(ing.id, 'ingredientId', e.target.value)}
           >
             <option value="">Select ingredient</option>
-            {INGREDIENTS.map(i => (
-              <option key={i.id} value={i.id}>{i.label}</option>
+            {dbIngredients.map(i => (
+              <option key={i.id} value={i.id}>
+                {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
+              </option>
             ))}
           </select>
         </div>
@@ -163,19 +211,38 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
             className="aao-input"
             placeholder="Qty"
             value={ing.qty}
-            onChange={(e) => updateIngredient(ing.id, 'qty', e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '' || parseFloat(val) >= 0) {
+                updateIngredient(ing.id, 'qty', val);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === '-' || e.key === 'e') e.preventDefault();
+            }}
             min="0" step="any"
           />
         </div>
         <div>
-          <select
-            className="aao-select"
-            value={ing.unit}
-            onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
-          >
-            <option value="">-</option>
-            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
+          {availableUnits.length > 0 ? (
+            <select
+              className="aao-select"
+              value={ing.unit}
+              onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
+            >
+              {availableUnits.map(u => (
+                <option key={u.unit} value={u.unit}>{u.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              className="aao-input"
+              readOnly
+              value="-"
+              style={{ backgroundColor: '#f5f5f5', color: '#666' }}
+            />
+          )}
         </div>
         <div className="aao-currency-wrapper">
           <span className="aao-currency-symbol">₱</span>
@@ -255,7 +322,15 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
                     className="aao-input"
                     placeholder="0.00"
                     value={sellingPrice}
-                    onChange={(e) => setSellingPrice(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || parseFloat(val) >= 0) {
+                        setSellingPrice(val);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === 'e') e.preventDefault();
+                    }}
                     min="0" step="any"
                   />
                 </div>

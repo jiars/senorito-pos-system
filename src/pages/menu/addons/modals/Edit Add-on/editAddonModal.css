@@ -39,7 +39,7 @@
   background-color: #ffffff;
   border-radius: 12px;
   width: 100%;
-  max-width: 600px;
+  max-width: 750px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -189,11 +189,10 @@
 
 /* Categories Checkbox List */
 .eao-categories-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
   margin-top: 0.5rem;
-  padding-left: 1rem;
 }
 
 .eao-checkbox-label {
@@ -234,9 +233,9 @@
 
 .eao-ingredient-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 32px;
+  grid-template-columns: 1.8fr 0.6fr 0.6fr 0.7fr auto;
   gap: 0.5rem;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .eao-select {

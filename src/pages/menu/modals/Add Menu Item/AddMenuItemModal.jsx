@@ -5,6 +5,7 @@ import { addMenuItem } from '../../../../services/menu/menuItemsService';
 import { addMenuItemPrices } from '../../../../services/menu/menuPricesService';
 import { addMenuRecipes } from '../../../../services/menu/menuRecipesService';
 import { useInventory } from '../../../../hooks/useInventory';
+import { uploadMenuImage } from '../../../../utils/imageUploadHelper';
 
 const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   const { inventoryItems } = useInventory();
@@ -75,8 +76,15 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
       const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (!ref) return total;
 
+      let equivalent = 1;
+      if (ing.unit && ing.unit !== ref.base_unit) {
+        const conv = ref.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+        if (conv) equivalent = Number(conv.equivalent_base_amount);
+      }
+
       const parsedQty = parseFloat(ing.qty) || 0;
-      return total + (parsedQty * ref.cost_per_unit);
+      const baseQty = parsedQty * equivalent;
+      return total + (baseQty * ref.cost_per_unit);
     }, 0);
   };
 
@@ -192,14 +200,26 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   /* ─── Shared Render: Ingredient Row ─── */
   const renderIngredientRow = (ing, onUpdate, onRemove) => {
     let rowCost = 0;
-    let dynamicUnit = '-';
+    let availableUnits = [];
+    let selectedUnitData = null;
 
     if (ing.ingredientId) {
       const ref = inventoryItems.find(i => i.id === ing.ingredientId);
       if (ref) {
-        dynamicUnit = ref.base_unit;
+        // Collect available units
+        availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
+        if (ref.inventory_conversion_units) {
+          ref.inventory_conversion_units.forEach(cu => {
+            availableUnits.push({ unit: cu.converted_unit, equivalent: Number(cu.equivalent_base_amount), label: cu.converted_unit });
+          });
+        }
+        
+        // Find selected unit for calculation
+        selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
+
         if (ing.qty) {
-          rowCost = (parseFloat(ing.qty) || 0) * ref.cost_per_unit;
+          const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
+          rowCost = baseQty * ref.cost_per_unit;
         }
       }
     }
@@ -215,7 +235,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
             <option value="">Select ingredient</option>
             {inventoryItems.map(i => (
               <option key={i.id} value={i.id}>
-                {i.item_name} ({i.base_unit}) - ₱{i.cost_per_unit}/{i.base_unit}
+                {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
               </option>
             ))}
           </select>
@@ -231,10 +251,21 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
           />
         </div>
         <div className="ami-section">
-          {/* Plain Text Unit based on selection! */}
-          <div className="ami-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
-            {dynamicUnit}
-          </div>
+          {availableUnits.length > 0 ? (
+            <select
+              className="ami-select"
+              value={ing.unit}
+              onChange={(e) => onUpdate('unit', e.target.value)}
+            >
+              {availableUnits.map(u => (
+                <option key={u.unit} value={u.unit}>{u.label}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="ami-input" style={{ backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center' }}>
+              -
+            </div>
+          )}
         </div>
         <div className="ami-section ami-currency-wrapper">
           <span className="ami-currency-symbol">₱</span>
@@ -263,21 +294,12 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
     setErrorMessage('');
 
     try {
-      // 1. Calculate overall item cost, profit, and margin
-      let estCost = 0;
-      let profit = 0;
-      let margin = 0;
-
-      if (pricingMode === 'single') {
-        estCost = calculateEstCost(singleRecipe.ingredients);
-        profit = calculateProfit(singleRecipe.sellingPrice, estCost);
-        margin = calculateMargin(profit, singleRecipe.sellingPrice);
-      } else {
-        if (variants.length > 0) {
-          estCost = calculateEstCost(variants[0].ingredients);
-          profit = calculateProfit(variants[0].sellingPrice, estCost);
-          margin = calculateMargin(profit, variants[0].sellingPrice);
-        }
+      // 1. Upload image if exists
+      let uploadedImageUrl = null;
+      if (baseInfo.image) {
+        const selectedCat = categories.find(c => c.id === baseInfo.category);
+        const categoryName = selectedCat ? selectedCat.category_name : 'Uncategorized';
+        uploadedImageUrl = await uploadMenuImage(baseInfo.image, baseInfo.name, categoryName);
       }
 
       // 2. Save base item into menu_items table
@@ -287,26 +309,40 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
         recipe_status: 'Complete',
         pos_status: baseInfo.isAvailable ? 'Available' : 'Unavailable',
         pricing_type: pricingMode === 'single' ? 'Fixed' : 'Variants',
-        estimated_cost: estCost,
-        profit: profit,
-        margin: margin
+        image_url: uploadedImageUrl
       });
 
       // 3. Save variant prices into menu_item_prices table
       let pricesArray = [];
       if (pricingMode === 'single') {
+        const estCost = calculateEstCost(singleRecipe.ingredients);
+        const profit = calculateProfit(singleRecipe.sellingPrice, estCost);
+        const margin = calculateMargin(profit, singleRecipe.sellingPrice);
+
         pricesArray.push({
           menu_item_id: createdItem.id,
           variant_name: 'Regular',
-          selling_price: parseFloat(singleRecipe.sellingPrice) || 0
+          selling_price: parseFloat(singleRecipe.sellingPrice) || 0,
+          estimated_cost: estCost,
+          profit: profit,
+          margin: margin,
+          item_code: `${createdItem.item_code}-R`
         });
       } else {
         for (let i = 0; i < variants.length; i++) {
           const v = variants[i];
+          const vEstCost = calculateEstCost(v.ingredients);
+          const vProfit = calculateProfit(v.sellingPrice, vEstCost);
+          const vMargin = calculateMargin(vProfit, v.sellingPrice);
+
           pricesArray.push({
             menu_item_id: createdItem.id,
             variant_name: v.name.trim(),
-            selling_price: parseFloat(v.sellingPrice) || 0
+            selling_price: parseFloat(v.sellingPrice) || 0,
+            estimated_cost: vEstCost,
+            profit: vProfit,
+            margin: vMargin,
+            item_code: `${createdItem.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`
           });
         }
       }
@@ -321,12 +357,20 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
         singleRecipe.ingredients.forEach(ing => {
           if (ing.ingredientId && ing.qty) {
             const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+            let equivalent = 1;
+            if (ing.unit && ing.unit !== ref?.base_unit) {
+              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+              if (conv) equivalent = Number(conv.equivalent_base_amount);
+            }
+            const baseQty = parseFloat(ing.qty) * equivalent;
+            
             recipesArray.push({
               menu_item_id: createdItem.id,
               menu_item_price_id: variantId,
               inventory_item_id: ing.ingredientId,
               quantity: parseFloat(ing.qty),
-              estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+              unit: ing.unit || ref?.base_unit,
+              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
             });
           }
         });
@@ -337,12 +381,20 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
             v.ingredients.forEach(ing => {
               if (ing.ingredientId && ing.qty) {
                 const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+                let equivalent = 1;
+                if (ing.unit && ing.unit !== ref?.base_unit) {
+                  const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+                  if (conv) equivalent = Number(conv.equivalent_base_amount);
+                }
+                const baseQty = parseFloat(ing.qty) * equivalent;
+
                 recipesArray.push({
                   menu_item_id: createdItem.id,
                   menu_item_price_id: matchedPrice.id,
                   inventory_item_id: ing.ingredientId,
                   quantity: parseFloat(ing.qty),
-                  estimated_cost: parseFloat(ing.qty) * (ref ? ref.cost_per_unit : 0)
+                  unit: ing.unit || ref?.base_unit,
+                  estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
                 });
               }
             });
@@ -397,14 +449,13 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                     }
                   }}
                 />
-                {baseInfo.image ? (
+                {baseInfo.image && (
                   <img src={URL.createObjectURL(baseInfo.image)} alt="Preview" className="ami-image-preview" />
-                ) : (
-                  <div className="ami-image-placeholder">
-                    <i className="bi bi-camera"></i>
-                    <span>Upload</span>
-                  </div>
                 )}
+                <div className={`ami-image-placeholder ${baseInfo.image ? 'has-image' : ''}`}>
+                  <i className="bi bi-camera"></i>
+                  <span>{baseInfo.image ? 'Change Image' : 'Upload'}</span>
+                </div>
               </div>
             </div>
 
@@ -430,22 +481,21 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                   {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
               </div>
+              <div className="ami-section" style={{ marginBottom: 0, marginTop: '0.5rem' }}>
+                <label className="ami-toggle-container">
+                  <input
+                    type="checkbox"
+                    style={{ display: 'none' }}
+                    checked={baseInfo.isAvailable}
+                    onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
+                  />
+                  <span className="ami-toggle-switch">
+                    <span className="ami-toggle-slider"></span>
+                  </span>
+                  <span className="ami-toggle-label">Available for sale</span>
+                </label>
+              </div>
             </div>
-          </div>
-
-          <div className="ami-row">
-            <label className="ami-toggle-container">
-              <input
-                type="checkbox"
-                style={{ display: 'none' }}
-                checked={baseInfo.isAvailable}
-                onChange={(e) => setBaseInfo({ ...baseInfo, isAvailable: e.target.checked })}
-              />
-              <span className="ami-toggle-switch">
-                <span className="ami-toggle-slider"></span>
-              </span>
-              <span className="ami-toggle-label">Available for sale</span>
-            </label>
           </div>
 
           <div className="ami-row ami-pricing-mode">

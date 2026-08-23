@@ -16,7 +16,7 @@
   background-color: #ffffff;
   border-radius: 12px;
   width: 100%;
-  max-width: 800px;
+  max-width: 600px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -46,12 +46,15 @@
   right: 1.5rem;
   background: transparent;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   color: #6C757D;
   cursor: pointer;
   line-height: 1;
   transition: color 0.2s;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .qr-modal-close:hover {
@@ -82,14 +85,14 @@
 
 .qr-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
 }
 
 .qr-card {
   border: 1px solid #D9C0AE;
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: 8px;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -105,8 +108,8 @@
 
 .qr-card-checkbox {
   position: absolute;
-  top: 1rem;
-  left: 1rem;
+  top: 0.5rem;
+  left: 0.5rem;
   cursor: pointer;
 }
 
@@ -127,10 +130,11 @@
 }
 
 .qr-card-title {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: #2C1810;
   margin: 0;
+  line-height: 1.2;
 }
 
 .qr-card-unit {
@@ -146,7 +150,7 @@
 }
 
 .qr-card-expiry {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #6C757D;
   margin: 0;
   margin-top: 0.25rem;
@@ -182,7 +186,7 @@
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 0.5rem 1.25rem;
+  padding: 0.625rem 1.25rem;
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -199,22 +203,20 @@
   cursor: not-allowed;
 }
 
-/* ─── Mode Toggle UI ─── */
-.qr-mode-toggle {
+/* ─── Mode Tabs UI ─── */
+.qr-mode-tabs {
   display: flex;
-  background-color: #F5EBE5;
-  border-radius: 8px;
-  padding: 0.25rem;
-  margin-top: 0.5rem;
-  width: max-content;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid #E9ECEF;
+  justify-content: center;
 }
 
-.qr-mode-btn {
+.qr-mode-tab-btn {
   background: transparent;
   border: none;
-  border-radius: 6px;
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #6C757D;
   cursor: pointer;
@@ -222,16 +224,22 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
+  position: relative;
+  margin-bottom: -2px; /* Pull down to overlap border */
+  border-bottom: 2px solid transparent;
 }
 
-.qr-mode-btn i {
-  font-size: 0.875rem;
+.qr-mode-tab-btn i {
+  font-size: 1rem;
 }
 
-.qr-mode-btn.active {
-  background-color: #ffffff;
+.qr-mode-tab-btn:hover {
   color: #7A4B35;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.qr-mode-tab-btn.active {
+  color: #7A4B35;
+  border-bottom-color: #7A4B35;
 }
 
 .qr-select-all {
@@ -243,7 +251,7 @@
 }
 
 .qr-code-wrapper {
-  margin: 1rem 0;
+  margin: 0.75rem 0;
   display: flex;
   justify-content: center;
 }
@@ -257,14 +265,11 @@
 }
 
 .qr-card-subtitle {
-  font-size: 0.75rem;
-  color: #7A4B35;
-  font-weight: 600;
-  background: #F5EBE5;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  margin: 0.25rem auto;
-  width: max-content;
+  font-size: 0.65rem;
+  color: #6C757D;
+  font-weight: 500;
+  padding: 0.15rem 0;
+  margin: 0.15rem auto;
 }
 
 

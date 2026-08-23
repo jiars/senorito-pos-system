@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { formatDecimal } from '../../utils/numberFormatters';
 
 // ─── 1. Fetch All Active Add-ons (with their linked categories) ───
 export const fetchAddons = async () => {
@@ -11,6 +12,22 @@ export const fetchAddons = async () => {
                     menu_category_id,
                     menu_categories (
                         category_name
+                    )
+                ),
+                addon_recipes (
+                    id,
+                    inventory_item_id,
+                    quantity,
+                    unit,
+                    estimated_cost,
+                    inventory_items (
+                        item_name,
+                        base_unit,
+                        current_stock,
+                        inventory_conversion_units(
+                            converted_unit,
+                            equivalent_base_amount
+                        )
                     )
                 )
             `)
@@ -27,11 +44,19 @@ export const fetchAddons = async () => {
     }
 };
 
-export const addAddon = async (addonData, categoryIds) => {
+export const addAddon = async (addonData, categoryIds, recipes) => {
     try {
+        const formattedAddonData = {
+            ...addonData,
+            selling_price: formatDecimal(addonData.selling_price),
+            estimated_cost: formatDecimal(addonData.estimated_cost),
+            profit: formatDecimal(addonData.profit),
+            margin: formatDecimal(addonData.margin)
+        };
+
         const response = await supabase
             .from('addons')
-            .insert([addonData])
+            .insert([formattedAddonData])
             .select();
 
         if (response.error !== null) {
@@ -57,6 +82,25 @@ export const addAddon = async (addonData, categoryIds) => {
             }
         }
 
+        // Insert recipes
+        if (recipes && recipes.length > 0) {
+            const recipeLinks = recipes.map(recipe => ({
+                addon_id: newAddon.id,
+                inventory_item_id: recipe.inventory_item_id,
+                quantity: formatDecimal(recipe.quantity),
+                unit: recipe.unit,
+                estimated_cost: formatDecimal(recipe.estimated_cost)
+            }));
+
+            const recipeResponse = await supabase
+                .from('addon_recipes')
+                .insert(recipeLinks);
+
+            if (recipeResponse.error !== null) {
+                throw recipeResponse.error;
+            }
+        }
+
         return newAddon;
     } catch (error) {
         console.error('Error adding addon:', error.message);
@@ -64,7 +108,7 @@ export const addAddon = async (addonData, categoryIds) => {
     }
 };
 
-export const updateAddon = async (addonId, addonData, categoryIds) => {
+export const updateAddon = async (addonId, addonData, categoryIds, recipes) => {
     try {
         if (addonData.pos_status === 'Available') {
             addonData.archived = false;
@@ -73,9 +117,17 @@ export const updateAddon = async (addonId, addonData, categoryIds) => {
             }
         }
 
+        const formattedAddonData = {
+            ...addonData,
+            selling_price: addonData.selling_price !== undefined ? formatDecimal(addonData.selling_price) : addonData.selling_price,
+            estimated_cost: addonData.estimated_cost !== undefined ? formatDecimal(addonData.estimated_cost) : addonData.estimated_cost,
+            profit: addonData.profit !== undefined ? formatDecimal(addonData.profit) : addonData.profit,
+            margin: addonData.margin !== undefined ? formatDecimal(addonData.margin) : addonData.margin
+        };
+
         const response = await supabase
             .from('addons')
-            .update(addonData)
+            .update(formattedAddonData)
             .eq('id', addonId)
             .select();
 
@@ -107,6 +159,38 @@ export const updateAddon = async (addonId, addonData, categoryIds) => {
 
                 if (insertResponse.error !== null) {
                     throw insertResponse.error;
+                }
+            }
+        }
+
+        // Update recipes if provided
+        if (recipes !== undefined && recipes !== null) {
+            // Delete old recipes
+            const deleteRecipeResponse = await supabase
+                .from('addon_recipes')
+                .delete()
+                .eq('addon_id', addonId);
+
+            if (deleteRecipeResponse.error !== null) {
+                throw deleteRecipeResponse.error;
+            }
+
+            // Insert new recipes
+            if (recipes.length > 0) {
+                const recipeLinks = recipes.map(recipe => ({
+                    addon_id: addonId,
+                    inventory_item_id: recipe.inventory_item_id,
+                    quantity: formatDecimal(recipe.quantity),
+                    unit: recipe.unit,
+                    estimated_cost: formatDecimal(recipe.estimated_cost)
+                }));
+
+                const recipeInsertResponse = await supabase
+                    .from('addon_recipes')
+                    .insert(recipeLinks);
+
+                if (recipeInsertResponse.error !== null) {
+                    throw recipeInsertResponse.error;
                 }
             }
         }

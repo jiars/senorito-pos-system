@@ -9,6 +9,8 @@ export const ROLE_ROUTES = {
         "/reports/sales",
         "/expenses",
         "/menu",
+        "/menu/addons",
+        "/employees",
         "/profile"
     ],
 
