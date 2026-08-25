@@ -12,6 +12,7 @@ import ReceiptModal from './ReceiptModal/ReceiptModal';
 import imgDefault from '../../assets/images/default_menu_picture.jpg';
 import { fetchAvailableMenuForPOS, processCheckout } from '../../services/pos/ordersService';
 import { fetchAddons } from '../../services/menu/addonsService';
+import { fetchMenuCategories } from '../../services/menu/menuCategoriesService';
 import { AuthContext } from '../../context/AuthContext';
 
 const POSPage = () => {
@@ -19,6 +20,7 @@ const POSPage = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [categories, setCategories] = useState(['All']);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [posProducts, setPosProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,10 +47,14 @@ const POSPage = () => {
     const loadMenu = async () => {
       try {
         setIsLoading(true);
-        const [data, addonsData] = await Promise.all([
+        const [data, addonsData, categoriesData] = await Promise.all([
           fetchAvailableMenuForPOS(),
-          fetchAddons()
+          fetchAddons(),
+          fetchMenuCategories()
         ]);
+        
+        const categoryNames = ['All', ...categoriesData.map(c => c.category_name)];
+        setCategories(categoryNames);
         
         setGlobalAddons(addonsData);
         // Transform Supabase data into the shape POSPage expects
@@ -290,6 +296,7 @@ const POSPage = () => {
           </div>
 
           <CategoryScroller
+            categories={categories}
             activeCategory={activeCategory}
             onSelectCategory={setActiveCategory}
           />
