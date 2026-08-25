@@ -11,9 +11,13 @@ export const fetchInventoryItems = async () => {
         category_name
       ),
       inventory_batches (
+        id,
+        batch_number,
         expiration_date,
         quantity,
-        unit_cost
+        unit_cost,
+        source,
+        created_at
       ),
       inventory_conversion_units (
         id,

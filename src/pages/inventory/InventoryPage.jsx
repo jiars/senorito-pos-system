@@ -109,6 +109,8 @@ const InventoryPage = () => {
         toggleItem={toggleItem}
         setSelectedLogItem={setSelectedLogItem}
         setIsLogModalOpen={setIsLogModalOpen}
+        setSelectedBatchesItem={setSelectedBatchesItem}
+        setIsBatchesModalOpen={setIsBatchesModalOpen}
         setSelectedHistoryItem={setSelectedHistoryItem}
         setIsHistoryModalOpen={setIsHistoryModalOpen}
         setSelectedEditItem={setSelectedEditItem}
