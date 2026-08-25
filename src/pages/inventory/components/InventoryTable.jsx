@@ -11,6 +11,8 @@ const InventoryTable = ({
     toggleItem,
     setSelectedLogItem,
     setIsLogModalOpen,
+    setSelectedBatchesItem,
+    setIsBatchesModalOpen,
     setSelectedHistoryItem,
     setIsHistoryModalOpen,
     setSelectedEditItem,
@@ -230,6 +232,16 @@ const InventoryTable = ({
                                                     }}
                                                 >
                                                     <i className="bi bi-card-list"></i>
+                                                </button>
+                                                <button
+                                                    className="inventory-action-btn inventory-action-btn--batches"
+                                                    title="Active Batches"
+                                                    onClick={() => {
+                                                        setSelectedBatchesItem(item);
+                                                        setIsBatchesModalOpen(true);
+                                                    }}
+                                                >
+                                                    <i className="bi bi-layers"></i>
                                                 </button>
                                                 <button
                                                     className="inventory-action-btn inventory-action-btn--history"
