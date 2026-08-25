@@ -51,6 +51,25 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
     }
   }, [isOpen]);
 
+  const getStandardMultiplier = (base, purchase) => {
+    if (!base || !purchase) return null;
+    const b = base.toLowerCase();
+    const p = purchase.toLowerCase();
+    
+    if (b === p || p === b + 's' || p === b + 'es') return '1';
+    if (b === 'ml' && (p === 'l' || p === 'liter' || p === 'liters')) return '1000';
+    if (b === 'g' && (p === 'kg' || p === 'kilo' || p === 'kilos' || p === 'kilogram')) return '1000';
+    
+    return null;
+  };
+
+  React.useEffect(() => {
+    const std = getStandardMultiplier(unit, purchaseUnit);
+    if (std) {
+      setPurchaseMultiplier(std);
+    }
+  }, [unit, purchaseUnit]);
+
   if (!isOpen) return null;
 
   // Real-time interaction handler
@@ -293,7 +312,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   onBlur={() => handleInteraction('unit')}
                 >
                   <option value="" disabled>Select base unit</option>
-                  {units.map((u) => (
+                  {units.filter(u => u.toLowerCase() !== 'kg' && u.toLowerCase() !== 'bottle').map((u) => (
                     <option key={u} value={u}>{u}</option>
                   ))}
 
@@ -387,7 +406,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
             </div>
 
             {/* Purchase Multiplier Input */}
-            {purchaseUnit && unit && purchaseUnit !== unit && (
+            {purchaseUnit && unit && !getStandardMultiplier(unit, purchaseUnit) && (
               <div style={{ marginTop: '0.5rem', backgroundColor: '#f8f9fa', padding: '12px', borderRadius: '6px', border: '1px solid #e9ecef', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{ flex: 1, fontSize: '0.85rem', color: '#6c757d' }}>
                   <strong>Purchase Conversion:</strong> How many {unit} are in 1 {purchaseUnit}?
