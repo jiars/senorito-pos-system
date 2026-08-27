@@ -86,7 +86,8 @@ const POSPage = () => {
               variants = sortedPrices.map(p => ({
                 id: p.id,
                 name: p.variant_name,
-                price: p.selling_price
+                price: p.selling_price,
+                isAvailable: p.pos_status !== 'Unavailable'
               }));
             }
           }
@@ -107,6 +108,8 @@ const POSPage = () => {
             } else {
               hasStock = false; // assume false, prove true
               for (const variant of variants) {
+                if (!variant.isAvailable) continue; // Skip unavailable variants
+
                 const variantRecipes = item.recipes.filter(r => r.menu_item_price_id === variant.id || r.menu_item_price_id === null);
                 let variantHasStock = true;
                 for (const recipe of variantRecipes) {

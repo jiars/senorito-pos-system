@@ -26,4 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Database Backups
+*.sql
+
 .agents
+supabase

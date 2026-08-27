@@ -72,13 +72,16 @@
 .qr-modal-body::-webkit-scrollbar {
   width: 6px;
 }
+
 .qr-modal-body::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .qr-modal-body::-webkit-scrollbar-thumb {
   background: #D9C0AE;
   border-radius: 10px;
 }
+
 .qr-modal-body::-webkit-scrollbar-thumb:hover {
   background: #7A4B35;
 }
@@ -133,27 +136,21 @@
   font-size: 0.875rem;
   font-weight: 700;
   color: #2C1810;
-  margin: 0;
+  margin: 0 0 0.25rem 0;
   line-height: 1.2;
 }
 
-.qr-card-unit {
-  font-size: 0.875rem;
-  color: #495057;
+.qr-card-primary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #333;
   margin: 0;
 }
 
-.qr-card-batch {
-  font-size: 0.875rem;
-  color: #495057;
-  margin: 0;
-}
-
-.qr-card-expiry {
+.qr-card-secondary {
   font-size: 0.65rem;
-  color: #6C757D;
+  color: #6c757d;
   margin: 0;
-  margin-top: 0.25rem;
 }
 
 .qr-modal-footer {
@@ -203,51 +200,23 @@
   cursor: not-allowed;
 }
 
-/* ─── Mode Tabs UI ─── */
-.qr-mode-tabs {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 2px solid #E9ECEF;
-  justify-content: center;
-}
-
-.qr-mode-tab-btn {
-  background: transparent;
-  border: none;
-  padding: 0.5rem 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #6C757D;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.qr-section-header {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  position: relative;
-  margin-bottom: -2px; /* Pull down to overlap border */
-  border-bottom: 2px solid transparent;
+  justify-content: space-between;
+  margin-bottom: 1rem;
 }
 
-.qr-mode-tab-btn i {
-  font-size: 1rem;
-}
-
-.qr-mode-tab-btn:hover {
-  color: #7A4B35;
-}
-
-.qr-mode-tab-btn.active {
-  color: #7A4B35;
-  border-bottom-color: #7A4B35;
+.qr-divider {
+  height: 2px;
+  background-color: #E9ECEF;
+  margin: 2rem 0;
+  border-radius: 2px;
 }
 
 .qr-select-all {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px dashed #E9ECEF;
 }
 
 .qr-code-wrapper {
@@ -280,15 +249,15 @@
     max-height: 100vh;
     border-radius: 0;
   }
-  
+
   .qr-card-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .qr-modal-footer {
     flex-direction: column;
   }
-  
+
   .qr-modal-btn-cancel,
   .qr-modal-btn-print {
     width: 100%;
@@ -296,135 +265,137 @@
 }
 
 /* ═══════════════════════════════════════════════════
-   THERMAL STICKER PRINT LAYOUT (e.g., 50mm x 40mm)
+   PRINT LAYOUT (Standard A4 / Letter Paper)
 ═══════════════════════════════════════════════════ */
+.print-only-layout {
+  display: none;
+}
+
 @media print {
   @page {
-    /* Typical thermal sticker size. Adjust if needed (e.g., 2in 1in) */
-    size: 50mm 40mm;
-    margin: 0;
+    size: auto;
+    margin: 15mm;
+  }
+
+  /* To allow multiple pages, we MUST NOT restrict height to 100% or use absolute positioning */
+  body,
+  html,
+  #root {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    position: static !important;
+    overflow: visible !important;
+    display: block !important;
   }
 
   body * {
     visibility: hidden;
   }
-  
-  body, html {
-    background-color: #ffffff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
 
-  #root, .layout-container, .layout-content-wrapper, .layout-content, .inventory-page {
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .layout-sidebar, .layout-topbar, .layout-header, .inventory-page-header, .inventory-summary-cards, .inventory-panel {
+  /* Hide the root app structure completely from taking up space, EXCEPT the modal itself */
+  .layout-sidebar,
+  .layout-topbar,
+  .layout-header {
     display: none !important;
   }
 
-  .qr-modal-overlay, .qr-modal-overlay * {
-    visibility: visible;
-  }
-
-  .hide-on-print {
+  .inventory-page>*:not(.qr-modal-overlay) {
     display: none !important;
   }
 
   .qr-modal-overlay {
-    display: block !important;
     position: static !important;
+    /* CRITICAL: static flow allows multi-page printing */
     width: 100%;
     height: auto !important;
-    background: none !important;
+    background: transparent !important;
     backdrop-filter: none !important;
-    padding: 0;
-    margin: 0;
-  }
-
-  .qr-modal-content {
-    display: block !important;
-    position: static !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0;
-    margin: 0;
-  }
-
-  .qr-modal-body {
-    padding: 0;
+    padding: 0 !important;
+    margin: 0 !important;
     overflow: visible !important;
   }
 
-  /* Thermal stickers are printed one per "page", so we break after each card */
-  .qr-card-grid {
-    display: block !important;
-    width: 100%;
-  }
-
-  .qr-card {
-    display: flex !important;
+  .qr-modal-content {
+    position: static !important;
     border: none !important;
-    border-radius: 0 !important;
-    padding: 2mm !important;
-    background-color: #ffffff !important;
     box-shadow: none !important;
-    width: 100% !important;
-    height: 100vh !important; /* Forces it to fill the thermal sticker */
-    box-sizing: border-box !important;
-    
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2mm;
-    
-    /* One sticker per physical page */
-    page-break-after: always;
-    break-after: page;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    /* CRITICAL: Removes the 90vh max-height limit */
+    display: block !important;
+    overflow: visible !important;
   }
 
-  .qr-card:not(.qr-card--selected) {
+  .qr-modal-header,
+  .qr-modal-body,
+  .qr-modal-footer {
     display: none !important;
   }
 
-  .qr-code-wrapper {
-    margin: 0 !important;
+  .print-only-layout,
+  .print-only-layout * {
+    visibility: visible;
   }
 
-  /* Shrink QR code to fit on small stickers beside text */
-  .qr-code-wrapper svg {
-    width: 25mm !important;
-    height: 25mm !important;
+  .print-only-layout {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 4mm;
+    width: 100%;
+    align-items: flex-start;
+    align-content: flex-start;
   }
 
-  .qr-card-details {
-    text-align: left !important;
-    align-items: flex-start !important;
-    width: auto !important;
+  .print-qr-card {
+    border: 1px solid #D9C0AE;
+    border-radius: 8px;
+    padding: 3mm;
+    /* Fixed physical size so they never stretch or shrink */
+    width: 42mm;
+    height: 60mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    text-align: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    font-family: 'Inter', sans-serif;
+    background: white;
+    box-sizing: border-box;
   }
 
-  .qr-card-title, .qr-card-unit, .qr-card-batch, .qr-card-expiry {
-    color: #000000 !important;
-    line-height: 1.1 !important;
+  .print-qr-card svg {
+    margin-bottom: 12px;
   }
 
-  .qr-card-title {
-    font-size: 8pt !important;
-    font-weight: bold !important;
-    margin-bottom: 2mm !important;
-    max-width: 20mm;
-    word-wrap: break-word;
+  .print-qr-details h4 {
+    margin: 0 0 5px 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #000;
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  .qr-card-batch, .qr-card-expiry, .qr-card-subtitle {
-    font-size: 6pt !important;
-    margin-bottom: 1mm !important;
-    background: none !important;
-    padding: 0 !important;
+  .print-qr-details .qr-print-primary {
+    margin: 0 0 2px 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .print-qr-details .qr-print-secondary {
+    margin: 0;
+    font-size: 9px;
+    color: #666;
   }
 }

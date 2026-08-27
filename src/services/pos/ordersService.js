@@ -23,7 +23,7 @@ export const fetchAvailableMenuForPOS = async () => {
       pricing_type,
       image_url,
       category:menu_categories(category_name),
-      prices:menu_item_prices(id, variant_name, selling_price),
+      prices:menu_item_prices(id, variant_name, selling_price, pos_status),
       recipes:menu_recipes(id, inventory_item_id, menu_item_price_id, quantity, unit, inventory_items(current_stock, base_unit, inventory_conversion_units(converted_unit, equivalent_base_amount)))
     `);
 

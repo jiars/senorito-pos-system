@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { fetchAllAuditLogs } from '../../../services/inventory/inventoryStockService';
 import './inventoryAuditLog.css';
 
@@ -100,6 +101,90 @@ const InventoryAuditLogPage = () => {
     setCurrentPage(1);
   }, [searchTerm, fromDate, toDate, actionFilter, sourceFilter]);
 
+  const handleExportExcel = () => {
+    if (filteredLogs.length === 0) {
+      alert("No logs to export based on current filters.");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    // Helper to format a single log row
+    const formatLog = (log) => {
+      const logDate = new Date(log.created_at);
+      const formattedDate = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const formattedTime = logDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      
+      const unit = log.inventory_items?.base_unit || '';
+      const changeStr = log.quantity_change > 0 ? `+${log.quantity_change}` : `${log.quantity_change}`;
+      const batchNum = log.inventory_batches?.batch_number ? log.inventory_batches.batch_number : '-';
+      const byName = log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : 'System';
+
+      return {
+        "Date & Time": `${formattedDate} ${formattedTime}`,
+        "Item": log.inventory_items?.item_name || 'Unknown Item',
+        "Action": log.action,
+        "Source": log.source,
+        "Change": changeStr,
+        "Before": log.stock_before,
+        "After": log.stock_after,
+        "Unit": unit,
+        "Batch Number": batchNum,
+        "Reason / Remarks": log.reason_reference || '-',
+        "Reference": log.log_number || '-',
+        "Processed By": byName
+      };
+    };
+
+    // ==========================================
+    // 1. Create "All Logs" Sheet
+    // ==========================================
+    const allData = filteredLogs.map(formatLog);
+    const allSheet = XLSX.utils.json_to_sheet(allData);
+    
+    // Auto-size columns
+    const wscols = [
+      { wch: 22 }, // Date & Time
+      { wch: 30 }, // Item
+      { wch: 18 }, // Action
+      { wch: 15 }, // Source
+      { wch: 10 }, // Change
+      { wch: 10 }, // Before
+      { wch: 10 }, // After
+      { wch: 10 }, // Unit
+      { wch: 15 }, // Batch Number
+      { wch: 25 }, // Reason
+      { wch: 15 }, // Reference
+      { wch: 20 }  // Processed By
+    ];
+    allSheet['!cols'] = wscols;
+    XLSX.utils.book_append_sheet(workbook, allSheet, "All Logs");
+
+    // ==========================================
+    // 2. Create Dynamic Action Sheets
+    // ==========================================
+    // Find all unique actions currently in the filtered list
+    const uniqueActions = [...new Set(filteredLogs.map(log => log.action))];
+    
+    uniqueActions.forEach(action => {
+      const actionLogs = filteredLogs.filter(log => log.action === action);
+      const actionData = actionLogs.map(formatLog);
+      
+      const actionSheet = XLSX.utils.json_to_sheet(actionData);
+      actionSheet['!cols'] = wscols;
+
+      // Ensure safe sheet name (max 31 chars, no illegal chars)
+      const safeSheetName = action.replace(/[*/:?[\]\\]/g, '').substring(0, 31);
+      XLSX.utils.book_append_sheet(workbook, actionSheet, safeSheetName || "Other");
+    });
+
+    // ==========================================
+    // 3. Trigger Download
+    // ==========================================
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Inventory_Audit_Log_${dateStr}.xlsx`);
+  };
+
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
   const paginatedLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -112,8 +197,8 @@ const InventoryAuditLogPage = () => {
           <p>Track all inventory changes and adjustments over time.</p>
         </div>
         <div className="audit-actions">
-          <button className="audit-btn audit-btn-outline">
-            <i className="bi bi-download"></i> Export CSV
+          <button className="audit-btn audit-btn-outline" onClick={handleExportExcel}>
+            <i className="bi bi-database-down"></i> Export Data
           </button>
         </div>
       </div>

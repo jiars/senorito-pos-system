@@ -138,7 +138,6 @@ const ManageAddonsPage = () => {
                 <th>Name</th>
                 <th>Price</th>
                 <th>Applicable To</th>
-                <th>Recipe Status</th>
                 <th>POS Status</th>
                 <th>Actions</th>
               </tr>
@@ -167,7 +166,6 @@ const ManageAddonsPage = () => {
                       </td>
                       <td>{formatCurrency(item.selling_price)}</td>
                       <td>{categoryNames || 'None'}</td>
-                      <td>{item.recipe_status}</td>
                       <td>
                         <span className={`menu-chip ${item.pos_status === 'Available' ? 'menu-chip--available' : 'menu-chip--unavailable'}`}>
                           {item.pos_status}

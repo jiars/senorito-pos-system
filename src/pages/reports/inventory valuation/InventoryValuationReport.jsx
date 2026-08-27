@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import './inventoryValuation.css';
 import { fetchInventoryItems } from '../../../services/inventory/inventoryItemsService';
 
@@ -32,7 +33,7 @@ const InventoryValuationReport = () => {
 
     const baseItems = rawItems.map(dbItem => {
       const stock = Number(dbItem.current_stock) || 0;
-      
+
       let val = 0;
       if (dbItem.inventory_batches && dbItem.inventory_batches.length > 0) {
         dbItem.inventory_batches.forEach(batch => {
@@ -42,7 +43,7 @@ const InventoryValuationReport = () => {
         const fallbackCost = Number(dbItem.cost_per_unit) || 0;
         val = stock * fallbackCost;
       }
-      
+
       const cost = stock > 0 ? (val / stock) : (Number(dbItem.cost_per_unit) || 0);
       total += val;
 
@@ -81,10 +82,18 @@ const InventoryValuationReport = () => {
     };
   }, [rawItems]);
 
-  const filteredItems = useMemo(() => {
-    let result = processedItems.filter(item => {
-      if (searchTerm && !item.item.toLowerCase().startsWith(searchTerm.toLowerCase())) return false;
+  // Filter ONLY by category (Used for the Summary Table and Chart)
+  const categoryFilteredItems = useMemo(() => {
+    return processedItems.filter(item => {
       if (category !== 'All Categories' && item.category !== category) return false;
+      return true;
+    });
+  }, [processedItems, category]);
+
+  // Filter by category AND search term AND sorting (Used for the Main Table and Export)
+  const filteredItems = useMemo(() => {
+    let result = categoryFilteredItems.filter(item => {
+      if (searchTerm && !item.item.toLowerCase().startsWith(searchTerm.toLowerCase())) return false;
       return true;
     });
 
@@ -93,9 +102,127 @@ const InventoryValuationReport = () => {
     else if (sort === 'Sort: A-Z') result.sort((a, b) => a.item.localeCompare(b.item));
 
     return result;
-  }, [processedItems, searchTerm, category, sort]);
+  }, [categoryFilteredItems, searchTerm, sort]);
 
   const filteredTotal = filteredItems.reduce((sum, item) => sum + item.value, 0);
+
+  const filteredCategorySummary = useMemo(() => {
+    const cats = {};
+    categoryFilteredItems.forEach(item => {
+      if (!cats[item.category]) cats[item.category] = 0;
+      cats[item.category] += item.value;
+    });
+
+    return Object.keys(cats).map(catName => ({
+      category: catName,
+      value: cats[catName],
+      // MUST base percentage on the absolute totalValuation, not the filtered sum
+      pct: totalValuation > 0 ? ((cats[catName] / totalValuation) * 100).toFixed(1) : '0.0'
+    })).sort((a, b) => b.value - a.value);
+  }, [categoryFilteredItems, totalValuation]);
+
+  const handleExportExcel = () => {
+    const workbook = XLSX.utils.book_new();
+
+    // ==========================================
+    // 1. Create "All Items" Sheet
+    // ==========================================
+    const allData = filteredItems.map(item => ({
+      "Item": item.item,
+      "Category": item.category,
+      "Stock": item.stock,
+      "Unit": item.unit,
+      "Cost/Unit (₱)": item.cost,
+      "Total Value (₱)": item.value,
+      "% Of Total": `${item.pct}%`
+    }));
+
+    // Add Grand Total row with accurate percentage
+    const exportTotalPct = totalValuation > 0 ? ((filteredTotal / totalValuation) * 100).toFixed(1) : '0.0';
+    allData.push({
+      "Item": "FILTERED TOTAL",
+      "Category": "",
+      "Stock": "",
+      "Unit": "",
+      "Cost/Unit (₱)": "",
+      "Total Value (₱)": filteredTotal,
+      "% Of Total": `${exportTotalPct}%`
+    });
+
+    const allSheet = XLSX.utils.json_to_sheet(allData);
+
+    // Auto-size columns for All Items sheet
+    allSheet['!cols'] = [
+      { wch: 30 }, // Item
+      { wch: 20 }, // Category
+      { wch: 10 }, // Stock
+      { wch: 10 }, // Unit
+      { wch: 15 }, // Cost/Unit
+      { wch: 20 }, // Total Value
+      { wch: 15 }  // % Of Total
+    ];
+
+    XLSX.utils.book_append_sheet(workbook, allSheet, "All Items");
+
+    // ==========================================
+    // 2. Create Category Sheets
+    // ==========================================
+    // Only generate tabs for categories that actually exist in the current filtered data
+    const uniqueCategories = [...new Set(filteredItems.map(item => item.category))];
+    
+    uniqueCategories.forEach(categoryName => {
+      const catItems = filteredItems.filter(item => item.category === categoryName);
+
+      let catTotal = 0;
+      const catData = catItems.map(item => {
+        catTotal += item.value;
+        return {
+          "Item": item.item,
+          "Stock": item.stock,
+          "Unit": item.unit,
+          "Cost/Unit (₱)": item.cost,
+          "Total Value (₱)": item.value,
+          "% Of Total (of Whole Inv)": `${item.pct}%`
+        };
+      });
+
+      // Add subtotal row at the bottom of the category
+      catData.push({
+        "Item": `TOTAL ${categoryName.toUpperCase()}`,
+        "Stock": "",
+        "Unit": "",
+        "Cost/Unit (₱)": "",
+        "Total Value (₱)": catTotal,
+        "% Of Total (of Whole Inv)": ""
+      });
+
+      const catSheet = XLSX.utils.json_to_sheet(catData);
+
+      // Auto-size columns for category sheet
+      catSheet['!cols'] = [
+        { wch: 30 }, // Item
+        { wch: 10 }, // Stock
+        { wch: 10 }, // Unit
+        { wch: 15 }, // Cost/Unit
+        { wch: 20 }, // Total Value
+        { wch: 25 }  // % Of Total
+      ];
+
+      // Excel sheet names must not exceed 31 chars and cannot contain */:?[\]
+      const safeSheetName = categoryName
+        .replace(/[*/:?[\]\\]/g, '') // Remove illegal chars
+        .substring(0, 31);          // Truncate to 31 chars max
+
+      // Append to workbook
+      XLSX.utils.book_append_sheet(workbook, catSheet, safeSheetName || "Uncategorized");
+    });
+
+    // ==========================================
+    // 3. Trigger Download
+    // ==========================================
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Inventory_Valuation_${dateStr}.xlsx`);
+  };
 
   // SVG Chart Calculation
   const radius = 80;
@@ -108,8 +235,8 @@ const InventoryValuationReport = () => {
     'Packaging': '#A07156'
   };
 
-  const chartSegments = categorySummary.map((d, i) => {
-    // Use exact proportion to prevent rounding gaps, and fallback to 0 if totalValuation is 0
+  const chartSegments = filteredCategorySummary.map((d, i) => {
+    // Use exact proportion against totalValuation
     const proportion = totalValuation > 0 ? (d.value / totalValuation) : 0;
     const dashArray = proportion * circumference;
     const gap = circumference - dashArray;
@@ -136,10 +263,10 @@ const InventoryValuationReport = () => {
           <p>Current as of {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
         </div>
         <div className="val-actions">
-          <button className="val-btn val-btn-outline">
-            <i className="bi bi-download"></i> Export CSV
+          <button className="val-btn val-btn-outline" onClick={handleExportExcel}>
+            <i className="bi bi-database-down"></i> Export Data
           </button>
-          <button className="val-btn val-btn-primary">
+          <button className="val-btn val-btn-primary" onClick={() => window.print()}>
             <i className="bi bi-printer"></i> Print
           </button>
         </div>
@@ -205,23 +332,23 @@ const InventoryValuationReport = () => {
               </svg>
               {hoveredSegment !== null && (
                 <div style={{
-                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                   display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
                   pointerEvents: 'none', textAlign: 'center'
                 }}>
                   <span style={{ fontSize: '0.85rem', color: '#6c757d', fontWeight: 600, maxWidth: '120px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {categorySummary[hoveredSegment].category}
+                    {filteredCategorySummary[hoveredSegment].category}
                   </span>
                   <span style={{ fontSize: '1.5rem', color: '#2C1810', fontWeight: 700 }}>
-                    {categorySummary[hoveredSegment].pct}%
+                    {filteredCategorySummary[hoveredSegment].pct}%
                   </span>
                 </div>
               )}
             </div>
             <div className="val-legend">
-              {categorySummary.map((cat, i) => (
-                <div 
-                  className="val-legend-item" 
+              {filteredCategorySummary.map((cat, i) => (
+                <div
+                  className="val-legend-item"
                   key={cat.category}
                   onMouseEnter={() => setHoveredSegment(i)}
                   onMouseLeave={() => setHoveredSegment(null)}
@@ -250,10 +377,10 @@ const InventoryValuationReport = () => {
                 </tr>
               </thead>
               <tbody>
-                {categorySummary.length === 0 ? (
+                {filteredCategorySummary.length === 0 ? (
                   <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>No data</td></tr>
                 ) : (
-                  categorySummary.map((cat, i) => (
+                  filteredCategorySummary.map((cat, i) => (
                     <tr key={i}>
                       <td>{cat.category}</td>
                       <td>₱{cat.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -361,6 +488,81 @@ const InventoryValuationReport = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* =========================================
+          HIDDEN PRINT-ONLY LAYOUT (Rule #8)
+          ========================================= */}
+      <div className="val-print-layout">
+        <div className="print-val-header">
+          <h2>Inventory Valuation Report</h2>
+          <p>As of {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
+          <p>Total Value: <strong>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ({filteredItems.length} items)</p>
+        </div>
+
+        {/* --- Category Summary --- */}
+        <div style={{ marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '12pt', marginBottom: '8px', color: '#000' }}>Category Summary</h3>
+          <table className="val-print-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th style={{ textAlign: 'right' }}>Value</th>
+                <th style={{ textAlign: 'right' }}>% Of Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCategorySummary.length === 0 ? (
+                <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px' }}>No data</td></tr>
+              ) : (
+                filteredCategorySummary.map((cat, i) => (
+                  <tr key={i}>
+                    <td>{cat.category}</td>
+                    <td style={{ textAlign: 'right' }}>₱{cat.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ textAlign: 'right' }}>{cat.pct}%</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* --- Main Table --- */}
+        <h3 style={{ fontSize: '12pt', marginBottom: '8px', color: '#000' }}>Detailed Items List</h3>
+        <table className="val-print-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Category</th>
+              <th>Stock</th>
+              <th>Unit</th>
+              <th>Cost/Unit</th>
+              <th style={{ textAlign: 'right' }}>Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.length === 0 ? (
+              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '40px' }}>No items found.</td></tr>
+            ) : (
+              <>
+                {filteredItems.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>{item.item}</td>
+                    <td>{item.category}</td>
+                    <td>{item.stock}</td>
+                    <td>{item.unit}</td>
+                    <td>₱{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ fontWeight: 600, textAlign: 'right' }}>₱{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+                <tr className="val-print-table-grand">
+                  <td colSpan="5" style={{ textAlign: 'right', fontWeight: 'bold' }}>TOTAL VALUE</td>
+                  <td style={{ textAlign: 'right', fontWeight: 'bold' }}>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
       </div>
 
     </div>

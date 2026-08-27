@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { useExpenses } from '../../hooks/useExpenses';
 import { formatCurrency } from '../../utils/currencyFormatters';
 import { formatDate } from '../../utils/dateFormatters';
@@ -256,6 +257,141 @@ const ExpenseTrackingPage = () => {
     return <div className="expense-page"><p>Loading expense data...</p></div>;
   }
 
+  const handleExportExcel = () => {
+    if (filteredExpenseRecords.length === 0) {
+      alert("No expenses to export based on current filters.");
+      return;
+    }
+
+    const workbook = XLSX.utils.book_new();
+
+    // ==========================================
+    // 1. Tab 1: Expense Records
+    // ==========================================
+    let mainExpensesTotal = 0;
+    const mainData = filteredMainExpenseRecords.map(record => {
+      mainExpensesTotal += Number(record.amount);
+      return {
+        "Date": formatDate(record.expense_date),
+        "Category": record.expense_categories?.category_name || 'Uncategorized',
+        "Description": record.description,
+        "Vendor/Supplier": record.vendor || '-',
+        "Amount (₱)": Number(record.amount),
+        "Recorded By": record.profiles ? `${record.profiles.first_name} ${record.profiles.last_name}` : 'Auto/Unknown'
+      };
+    });
+
+    mainData.push({
+      "Date": "TOTAL EXPENSES",
+      "Category": "",
+      "Description": "",
+      "Vendor/Supplier": "",
+      "Amount (₱)": mainExpensesTotal,
+      "Recorded By": ""
+    });
+
+    const mainSheet = XLSX.utils.json_to_sheet(mainData);
+    mainSheet['!cols'] = [
+      { wch: 15 }, // Date
+      { wch: 25 }, // Category
+      { wch: 40 }, // Description
+      { wch: 20 }, // Vendor
+      { wch: 15 }, // Amount
+      { wch: 20 }  // Recorded By
+    ];
+    XLSX.utils.book_append_sheet(workbook, mainSheet, "Expense Records");
+
+    // ==========================================
+    // 2. Tab 2: Wastage Records
+    // ==========================================
+    let wastageTotal = 0;
+    const wastageData = filteredWastageRecords.map(record => {
+      wastageTotal += Number(record.amount);
+      
+      let item = record.description;
+      let qty = '-';
+      let reason = '-';
+      let batch = '-';
+      
+      if (item.startsWith('Wastage: ')) {
+        const parts = item.replace('Wastage: ', '').split(' - ');
+        item = parts[0];
+        if (parts.length > 1) {
+          reason = parts.slice(1).join(' - ');
+          const batchMatch = reason.match(/\[Batch:\s*(.*?)\]/);
+          if (batchMatch) {
+            batch = batchMatch[1];
+            reason = reason.replace(batchMatch[0], '').trim();
+          }
+        }
+        const qtyMatch = item.match(/\[Qty:\s*(.*?)\]/);
+        if (qtyMatch) {
+          qty = qtyMatch[1];
+          item = item.replace(qtyMatch[0], '').trim();
+        }
+      }
+
+      return {
+        "Date": formatDate(record.expense_date),
+        "Item Wasted": item,
+        "Quantity": qty,
+        "Reason": reason,
+        "Batch #": batch,
+        "Est. Cost (₱)": Number(record.amount),
+        "Recorded By": record.profiles ? `${record.profiles.first_name} ${record.profiles.last_name}` : 'Auto/Unknown'
+      };
+    });
+
+    if (wastageData.length > 0) {
+      wastageData.push({
+        "Date": "TOTAL WASTAGE",
+        "Item Wasted": "",
+        "Quantity": "",
+        "Reason": "",
+        "Batch #": "",
+        "Est. Cost (₱)": wastageTotal,
+        "Recorded By": ""
+      });
+    }
+
+    const wastageSheet = XLSX.utils.json_to_sheet(wastageData.length > 0 ? wastageData : [{ "Message": "No wastage records for this filter." }]);
+    wastageSheet['!cols'] = [
+      { wch: 15 }, // Date
+      { wch: 30 }, // Item
+      { wch: 15 }, // Qty
+      { wch: 30 }, // Reason
+      { wch: 15 }, // Batch
+      { wch: 15 }, // Cost
+      { wch: 20 }  // Recorded By
+    ];
+    XLSX.utils.book_append_sheet(workbook, wastageSheet, "Wastage Records");
+
+    // ==========================================
+    // 3. Tab 3: Category Summary
+    // ==========================================
+    const catData = categoryBreakdown.map(cat => ({
+      "Category": cat.category,
+      "Total Amount (₱)": cat.amount,
+      "% Of Total": `${cat.pct}%`
+    }));
+
+    catData.push({
+      "Category": "OVERALL TOTAL",
+      "Total Amount (₱)": overallExpenses,
+      "% Of Total": "100.00%"
+    });
+
+    const catSheet = XLSX.utils.json_to_sheet(catData);
+    catSheet['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(workbook, catSheet, "Category Summary");
+
+    // ==========================================
+    // Trigger Download
+    // ==========================================
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Expense_Tracking_${dateStr}.xlsx`);
+  };
+
   return (
     <div className="expense-page">
       {/* ───── Page Header ───── */}
@@ -274,9 +410,9 @@ const ExpenseTrackingPage = () => {
             <i className="bi bi-tags"></i>
             Manage Categories
           </button>
-          <button className="expense-btn">
-            <i className="bi bi-download"></i>
-            Export CSV
+          <button className="expense-btn" onClick={handleExportExcel}>
+            <i className="bi bi-database-down"></i>
+            Export Data
           </button>
           <button
             className="expense-btn expense-btn--primary"

@@ -13,6 +13,7 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   const [ingredients, setIngredients] = useState([
     { id: Date.now(), ingredientId: '', qty: '', unit: '' }
   ]);
+  const [isAvailable, setIsAvailable] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbIngredients, setDbIngredients] = useState([]);
@@ -69,8 +70,8 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
 
   /* ─── Validation ─── */
   const areIngredientsValid = () => {
-    if (ingredients.length === 0) return true;
-    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '');
+    if (ingredients.length === 0) return false;
+    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
   };
 
   const isFormValid = () => {
@@ -92,50 +93,56 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
     if (isSubmitting || !isFormValid()) return;
     setIsSubmitting(true);
 
-    const addonPayload = {
-      addon_name: addonName.trim(),
-      selling_price: parseFloat(sellingPrice) || 0,
-      estimated_cost: estCost,
-      profit: profit,
-      margin: margin,
-      recipe_status: 'Complete',
-      pos_status: 'Available',
-      archived: false
-    };
+    try {
+      const addonPayload = {
+        addon_name: addonName.trim(),
+        selling_price: parseFloat(sellingPrice) || 0,
+        estimated_cost: estCost,
+        profit: profit,
+        margin: margin,
+        pos_status: isAvailable ? 'Available' : 'Unavailable',
+        archived: false
+      };
 
-    const recipePayload = ingredients
-      .filter(ing => ing.ingredientId && ing.qty)
-      .map(ing => {
-        const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-        
-        let equivalent = 1;
-        if (ing.unit && ing.unit !== ref?.base_unit) {
-          const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-          if (conv) equivalent = Number(conv.equivalent_base_amount);
-        }
-        const baseQty = parseFloat(ing.qty) * equivalent;
+      const recipePayload = ingredients
+        .filter(ing => ing.ingredientId && ing.qty)
+        .map(ing => {
+          const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+          
+          let equivalent = 1;
+          if (ing.unit && ing.unit !== ref?.base_unit) {
+            const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+            if (conv) equivalent = Number(conv.equivalent_base_amount);
+          }
+          const baseQty = parseFloat(ing.qty) * equivalent;
 
-        return {
-          inventory_item_id: ing.ingredientId,
-          quantity: parseFloat(ing.qty),
-          unit: ing.unit || ref?.base_unit,
-          estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-        };
-      });
+          return {
+            inventory_item_id: ing.ingredientId,
+            quantity: parseFloat(ing.qty),
+            unit: ing.unit || ref?.base_unit,
+            estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
+          };
+        });
 
-    await addAddon(addonPayload, selectedCategories, recipePayload);
+      await addAddon(addonPayload, selectedCategories, recipePayload);
 
-    if (refetchAddons) {
-      await refetchAddons();
+      if (refetchAddons) {
+        await refetchAddons();
+      }
+
+      // Reset form on success
+      setAddonName('');
+      setSellingPrice('');
+      setSelectedCategories([]);
+      setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
+      setIsAvailable(true);
+      onClose();
+    } catch (error) {
+      console.error('Failed to add addon:', error);
+      alert(error.message || 'An error occurred while adding the addon.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Reset form on success
-    setAddonName('');
-    setSellingPrice('');
-    setSelectedCategories([]);
-    setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
-    setIsSubmitting(false);
-    onClose();
   };
 
 
@@ -292,6 +299,22 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
                   value={addonName}
                   onChange={(e) => setAddonName(e.target.value)}
                 />
+              </div>
+
+              {/* Available Toggle */}
+              <div className="aao-section" style={{ marginTop: '0.75rem' }}>
+                <label className="aao-toggle-container">
+                  <input
+                    type="checkbox"
+                    style={{ display: 'none' }}
+                    checked={isAvailable}
+                    onChange={(e) => setIsAvailable(e.target.checked)}
+                  />
+                  <span className="aao-toggle-switch">
+                    <span className="aao-toggle-slider"></span>
+                  </span>
+                  <span className="aao-toggle-label">Available for sale</span>
+                </label>
               </div>
 
               <div className="aao-section">

@@ -42,15 +42,15 @@ const BatchesModal = ({ isOpen, onClose, item }) => {
 
     const diffTime = expiryDateOnly - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     const dateStr = expiryDate.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
     let status = 'Good';
     let daysLeftStr = `${diffDays}d`;
     if (diffDays < 0) {
-        status = 'Expired';
+      status = 'Expired';
     } else if (diffDays <= 30) {
-        status = 'Expiring Soon';
+      status = 'Expiring Soon';
     }
 
     return { status, daysLeft: daysLeftStr, expirationStr: dateStr };
@@ -95,8 +95,8 @@ const BatchesModal = ({ isOpen, onClose, item }) => {
               ) : (
                 activeBatches.map((batch) => {
                   const expiryData = getBatchExpiryData(batch, item.track_expiry);
-                  const receivedDate = batch.created_at 
-                    ? new Date(batch.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric' })
+                  const receivedDate = batch.created_at
+                    ? new Date(batch.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                     : '-';
 
                   return (

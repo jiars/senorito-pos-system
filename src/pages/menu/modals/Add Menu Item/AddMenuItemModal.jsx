@@ -104,10 +104,14 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
     const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
     if (!isBaseValid) return false;
 
+    const hasValidIngredients = (ingredients) => {
+      return ingredients.some(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
+    };
+
     if (pricingMode === 'single') {
-      return singleRecipe.sellingPrice !== '';
+      return singleRecipe.sellingPrice !== '' && hasValidIngredients(singleRecipe.ingredients);
     } else {
-      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '');
+      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '' && hasValidIngredients(v.ingredients));
     }
   };
 
@@ -326,7 +330,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
           estimated_cost: estCost,
           profit: profit,
           margin: margin,
-          item_code: `${createdItem.item_code}-R`
+          item_code: `${createdItem.item_code}-R`,
+          pos_status: 'Available'
         });
       } else {
         for (let i = 0; i < variants.length; i++) {
@@ -342,7 +347,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
             estimated_cost: vEstCost,
             profit: vProfit,
             margin: vMargin,
-            item_code: `${createdItem.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`
+            item_code: `${createdItem.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`,
+            pos_status: v.isAvailable ? 'Available' : 'Unavailable'
           });
         }
       }
