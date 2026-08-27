@@ -99,8 +99,8 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
 
   /* ─── Validation ─── */
   const areIngredientsValid = () => {
-    if (ingredients.length === 0) return true;
-    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '');
+    if (ingredients.length === 0) return false;
+    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
   };
 
   const isFormValid = () => {
@@ -122,43 +122,47 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
     if (!addon || isSubmitting || !isFormValid()) return;
     setIsSubmitting(true);
 
-    const addonPayload = {
-      addon_name: addonName.trim(),
-      selling_price: parseFloat(sellingPrice) || 0,
-      estimated_cost: estCost,
-      profit: profit,
-      margin: margin,
-      recipe_status: addon.recipe_status || 'Complete',
-      pos_status: isAvailable ? 'Available' : 'Unavailable',
-      archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
-    };
+    try {
+      const addonPayload = {
+        addon_name: addonName.trim(),
+        selling_price: parseFloat(sellingPrice) || 0,
+        estimated_cost: estCost,
+        profit: profit,
+        margin: margin,
+        pos_status: isAvailable ? 'Available' : 'Unavailable',
+        archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
+      };
 
-    const recipePayload = ingredients
-      .filter(ing => ing.ingredientId && ing.qty)
-      .map(ing => {
-        const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-        let equivalent = 1;
-        if (ing.unit && ing.unit !== ref?.base_unit) {
-          const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-          if (conv) equivalent = Number(conv.equivalent_base_amount);
-        }
-        const baseQty = parseFloat(ing.qty) * equivalent;
+      const recipePayload = ingredients
+        .filter(ing => ing.ingredientId && ing.qty)
+        .map(ing => {
+          const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+          let equivalent = 1;
+          if (ing.unit && ing.unit !== ref?.base_unit) {
+            const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+            if (conv) equivalent = Number(conv.equivalent_base_amount);
+          }
+          const baseQty = parseFloat(ing.qty) * equivalent;
 
-        return {
-          inventory_item_id: ing.ingredientId,
-          quantity: parseFloat(ing.qty),
-          unit: ing.unit || ref?.base_unit,
-          estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-        };
-      });
+          return {
+            inventory_item_id: ing.ingredientId,
+            quantity: parseFloat(ing.qty),
+            unit: ing.unit || ref?.base_unit,
+            estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
+          };
+        });
 
-    await updateAddon(addon.id, addonPayload, selectedCategories, recipePayload);
-    if (refetchAddons) {
-      await refetchAddons();
+      await updateAddon(addon.id, addonPayload, selectedCategories, recipePayload);
+      if (refetchAddons) {
+        await refetchAddons();
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to update addon:', error);
+      alert(error.message || 'An error occurred while saving the addon.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-    onClose();
   };
 
   const addIngredient = () => {
@@ -316,17 +320,17 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
 
               {/* Available Toggle */}
               <div className="eao-section" style={{ marginTop: '0.75rem' }}>
-                <label className="emi-toggle-container">
+                <label className="eao-toggle-container">
                   <input
                     type="checkbox"
                     style={{ display: 'none' }}
                     checked={isAvailable}
                     onChange={(e) => setIsAvailable(e.target.checked)}
                   />
-                  <span className="emi-toggle-switch">
-                    <span className="emi-toggle-slider"></span>
+                  <span className="eao-toggle-switch">
+                    <span className="eao-toggle-slider"></span>
                   </span>
-                  <span className="emi-toggle-label">Available for sale</span>
+                  <span className="eao-toggle-label">Available for sale</span>
                 </label>
               </div>
 

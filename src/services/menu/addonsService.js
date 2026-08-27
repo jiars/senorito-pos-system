@@ -112,9 +112,6 @@ export const updateAddon = async (addonId, addonData, categoryIds, recipes) => {
     try {
         if (addonData.pos_status === 'Available') {
             addonData.archived = false;
-            if (addonData.recipe_status === 'Archived') {
-                addonData.recipe_status = 'Complete';
-            }
         }
 
         const formattedAddonData = {
@@ -208,8 +205,7 @@ export const archiveAddon = async (addonId) => {
             .from('addons')
             .update({
                 archived: true,
-                pos_status: 'Unavailable',
-                recipe_status: 'Archived'
+                pos_status: 'Unavailable'
             })
             .eq('id', addonId);
 

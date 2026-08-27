@@ -7,28 +7,24 @@ import { supabase } from '../../../../services/supabaseClient';
 import './printQRCodeModal.css';
 
 const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
-  const [mode, setMode] = useState('item'); // 'item' or 'batch'
   const [selectedQRIds, setSelectedQRIds] = useState([]);
 
-  // For batch mode
+  // For batches
   const [batches, setBatches] = useState([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
 
-  // Sync internal checkbox state when modal opens or mode changes
+  // Sync internal checkbox state when modal opens
   useEffect(() => {
     if (isOpen) {
-      if (mode === 'item') {
-        setSelectedQRIds(selectedItems.map(item => item.id));
-      } else {
-        // We will select all batches by default once they load
-        setSelectedQRIds(batches.map(b => b.id));
-      }
+      // Auto-select items by default
+      const itemIds = selectedItems.map(item => item.id);
+      setSelectedQRIds(itemIds);
     }
-  }, [isOpen, selectedItems, mode, batches]);
+  }, [isOpen, selectedItems]);
 
-  // Fetch batches when switching to batch mode
+  // Fetch batches when modal opens
   useEffect(() => {
-    if (isOpen && mode === 'batch' && selectedItems.length > 0) {
+    if (isOpen && selectedItems.length > 0) {
       const fetchBatches = async () => {
         setIsLoadingBatches(true);
         try {
@@ -38,6 +34,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
             .select(`
               *,
               inventory_items (
+                item_code,
                 item_name,
                 base_unit
               )
@@ -56,7 +53,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
       };
       fetchBatches();
     }
-  }, [isOpen, mode, selectedItems]);
+  }, [isOpen, selectedItems]);
 
   if (!isOpen) return null;
 
@@ -68,12 +65,23 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
     );
   };
 
-  const toggleSelectAll = () => {
-    const targetList = mode === 'item' ? selectedItems : batches;
-    if (selectedQRIds.length === targetList.length && targetList.length > 0) {
-      setSelectedQRIds([]);
+  const toggleSelectAllItems = () => {
+    const itemIds = selectedItems.map(i => i.id);
+    const allSelected = itemIds.every(id => selectedQRIds.includes(id));
+    if (allSelected) {
+      setSelectedQRIds(prev => prev.filter(id => !itemIds.includes(id)));
     } else {
-      setSelectedQRIds(targetList.map(t => t.id));
+      setSelectedQRIds(prev => [...new Set([...prev, ...itemIds])]);
+    }
+  };
+
+  const toggleSelectAllBatches = () => {
+    const batchIds = batches.map(b => b.id);
+    const allSelected = batchIds.every(id => selectedQRIds.includes(id));
+    if (allSelected) {
+      setSelectedQRIds(prev => prev.filter(id => !batchIds.includes(id)));
+    } else {
+      setSelectedQRIds(prev => [...new Set([...prev, ...batchIds])]);
     }
   };
 
@@ -94,45 +102,28 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
         </div>
 
         <div className="qr-modal-body">
-          {/* Mode Tabs */}
-          <div className="qr-mode-tabs hide-on-print">
-            <button
-              className={`qr-mode-tab-btn ${mode === 'item' ? 'active' : ''}`}
-              onClick={() => setMode('item')}
-            >
-              <i className="bi bi-box-seam"></i> Shelf Tags (Items)
-            </button>
-            <button
-              className={`qr-mode-tab-btn ${mode === 'batch' ? 'active' : ''}`}
-              onClick={() => setMode('batch')}
-            >
-              <i className="bi bi-boxes"></i> Box Stickers (Batches)
-            </button>
+          {/* Shelf Tags Section */}
+          <div className="qr-section-header hide-on-print">
+            <h4 style={{ margin: 0, color: '#2C1810', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="bi bi-box-seam"></i> Shelf Tags
+            </h4>
+            <div className="qr-select-all">
+              <Checkbox
+                checked={selectedItems.length > 0 && selectedItems.every(i => selectedQRIds.includes(i.id))}
+                onChange={toggleSelectAllItems}
+              />
+              <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#6c757d' }}>Select All</span>
+            </div>
           </div>
 
-          {/* Select All Checkbox - Hide on Print */}
-          <div className="qr-select-all hide-on-print">
-            <Checkbox
-              checked={
-                mode === 'item'
-                  ? (selectedQRIds.length === selectedItems.length && selectedItems.length > 0)
-                  : (selectedQRIds.length === batches.length && batches.length > 0)
-              }
-              onChange={toggleSelectAll}
-            />
-            <span style={{ marginLeft: '8px', fontSize: '0.875rem', color: '#6c757d', fontWeight: '500' }}>
-              Select All {mode === 'item' ? 'Items' : 'Batches'}
-            </span>
-          </div>
-
-          <div className="qr-card-grid">
-            {mode === 'item' && selectedItems.map((item) => {
-              const qrPayload = JSON.stringify({ type: 'item', id: item.id });
+          <div className="qr-card-grid hide-on-print">
+            {selectedItems.map((item) => {
+              const qrPayload = `${window.location.origin}/inventory?action=view_item&id=${item.id}`;
               const isSelected = selectedQRIds.includes(item.id);
 
               return (
                 <div key={item.id} className={`qr-card ${isSelected ? 'qr-card--selected' : ''}`}>
-                  <div className="qr-card-checkbox hide-on-print">
+                  <div className="qr-card-checkbox">
                     <Checkbox
                       checked={isSelected}
                       onChange={() => toggleSelect(item.id)}
@@ -145,27 +136,49 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
 
                   <div className="qr-card-details">
                     <h4 className="qr-card-title">{item.item_name}</h4>
-                    <p className="qr-card-subtitle">Shelf Tag</p>
+                    <p className="qr-card-primary">{item.item_code}</p>
+                    <p className="qr-card-secondary">Shelf Tag</p>
                   </div>
                 </div>
               );
             })}
+          </div>
 
-            {mode === 'batch' && isLoadingBatches && (
+          {/* Divider */}
+          <div className="qr-divider hide-on-print"></div>
+
+          {/* Batches Section */}
+          <div className="qr-section-header hide-on-print">
+            <h4 style={{ margin: 0, color: '#2C1810', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="bi bi-boxes"></i> Box Stickers (Batches)
+            </h4>
+            {batches.length > 0 && (
+              <div className="qr-select-all">
+                <Checkbox
+                  checked={batches.length > 0 && batches.every(b => selectedQRIds.includes(b.id))}
+                  onChange={toggleSelectAllBatches}
+                />
+                <span style={{ marginLeft: '6px', fontSize: '0.85rem', color: '#6c757d' }}>Select All</span>
+              </div>
+            )}
+          </div>
+
+          <div className="qr-card-grid hide-on-print">
+            {isLoadingBatches && (
               <div className="qr-loading">Loading batches...</div>
             )}
 
-            {mode === 'batch' && !isLoadingBatches && batches.length === 0 && (
+            {!isLoadingBatches && batches.length === 0 && (
               <div className="qr-loading">No active batches found for the selected items.</div>
             )}
 
-            {mode === 'batch' && !isLoadingBatches && batches.map((batch) => {
-              const qrPayload = JSON.stringify({ type: 'batch', id: batch.id, item_id: batch.inventory_item_id });
+            {!isLoadingBatches && batches.map((batch) => {
+              const qrPayload = `${window.location.origin}/inventory?action=view_batch&id=${batch.id}&item_id=${batch.inventory_item_id}`;
               const isSelected = selectedQRIds.includes(batch.id);
 
               return (
                 <div key={batch.id} className={`qr-card ${isSelected ? 'qr-card--selected' : ''}`}>
-                  <div className="qr-card-checkbox hide-on-print">
+                  <div className="qr-card-checkbox">
                     <Checkbox
                       checked={isSelected}
                       onChange={() => toggleSelect(batch.id)}
@@ -178,8 +191,8 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
 
                   <div className="qr-card-details">
                     <h4 className="qr-card-title">{batch.inventory_items?.item_name}</h4>
-                    <p className="qr-card-batch">Batch: {batch.batch_number}</p>
-                    <p className="qr-card-expiry">EXP: {formatDate(batch.expiration_date)}</p>
+                    <p className="qr-card-primary">#{batch.batch_number || '-'}</p>
+                    <p className="qr-card-secondary">EXP: {formatDate(batch.expiration_date)}</p>
                   </div>
                 </div>
               );
@@ -199,6 +212,34 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
             <i className="bi bi-printer"></i> Print Selected
           </button>
         </div>
+
+        {/* =========================================
+            HIDDEN PRINT-ONLY LAYOUT (Rule #8)
+            ========================================= */}
+        <div className="print-only-layout">
+          {selectedItems.filter(i => selectedQRIds.includes(i.id)).map((item) => (
+            <div key={item.id} className="print-qr-card">
+              <QRCodeSVG value={`${window.location.origin}/inventory?action=view_item&id=${item.id}`} size={110} level="M" />
+              <div className="print-qr-details">
+                <h4>{item.item_name}</h4>
+                <p className="qr-print-primary">{item.item_code}</p>
+                <p className="qr-print-secondary">Shelf Tag</p>
+              </div>
+            </div>
+          ))}
+
+          {batches.filter(b => selectedQRIds.includes(b.id)).map((batch) => (
+            <div key={batch.id} className="print-qr-card">
+              <QRCodeSVG value={`${window.location.origin}/inventory?action=view_batch&id=${batch.id}&item_id=${batch.inventory_item_id}`} size={110} level="M" />
+              <div className="print-qr-details">
+                <h4>{batch.inventory_items?.item_name}</h4>
+                <p className="qr-print-primary">#{batch.batch_number || '-'}</p>
+                <p className="qr-print-secondary">EXP: {formatDate(batch.expiration_date)}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
       </div>
     </div>
   );

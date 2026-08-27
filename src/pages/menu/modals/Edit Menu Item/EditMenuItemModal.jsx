@@ -80,7 +80,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               return {
                 id: p.id || Date.now() + idx,
                 name: p.variant_name || '',
-                isAvailable: true,
+                isAvailable: p.pos_status !== 'Unavailable',
                 sellingPrice: p.selling_price ? p.selling_price.toString() : '',
                 ingredients: initialIngredients
               };
@@ -161,10 +161,14 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
     if (!isBaseValid) return false;
 
+    const hasValidIngredients = (ingredients) => {
+      return ingredients.some(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
+    };
+
     if (pricingMode === 'single') {
-      return singleRecipe.sellingPrice !== '';
+      return singleRecipe.sellingPrice !== '' && hasValidIngredients(singleRecipe.ingredients);
     } else {
-      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '');
+      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '' && hasValidIngredients(v.ingredients));
     }
   };
 
@@ -385,7 +389,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
           estimated_cost: estCost,
           profit: profit,
           margin: margin,
-          item_code: `${item.item_code}-R`
+          item_code: `${item.item_code}-R`,
+          pos_status: 'Available'
         });
       } else {
         for (let i = 0; i < variants.length; i++) {
@@ -401,7 +406,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
             estimated_cost: vEstCost,
             profit: vProfit,
             margin: vMargin,
-            item_code: `${item.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`
+            item_code: `${item.item_code}-${v.name.trim().substring(0, 3).toUpperCase()}`,
+            pos_status: v.isAvailable ? 'Available' : 'Unavailable'
           });
         }
       }

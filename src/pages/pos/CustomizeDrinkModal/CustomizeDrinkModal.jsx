@@ -11,25 +11,32 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
   const [addOns, setAddOns] = useState([]);
   useEffect(() => {
     if (product) {
-      setSelectedVariantIndex(0);
+      let firstAvailableIdx = 0;
+      if (product.variants && product.variants.length > 0) {
+        firstAvailableIdx = product.variants.findIndex(v => v.isAvailable);
+        if (firstAvailableIdx === -1) firstAvailableIdx = 0;
+      }
+      setSelectedVariantIndex(firstAvailableIdx);
       setDrinkQty(1);
 
       // Instantly filter active addons linked to this product's category
       const validAddons = allAddons.filter(ao =>
         !ao.archived &&
-        ao.pos_status === 'Available' &&
         ao.addon_categories &&
         ao.addon_categories.some(ac => ac.menu_category_id === product.categoryId)
       );
 
       setAddOns(validAddons.map(ao => {
-        let isAvailable = true;
-        if (ao.addon_recipes && ao.addon_recipes.length > 0) {
+        let isAvailable = ao.pos_status === 'Available';
+        let unavailableReason = ao.pos_status === 'Available' ? '' : '(Unavailable)';
+
+        if (isAvailable && ao.addon_recipes && ao.addon_recipes.length > 0) {
            for (const recipe of ao.addon_recipes) {
               const required = Number(recipe.quantity) || 0;
               const available = recipe.inventory_items?.current_stock || 0;
               if (available < required) {
                  isAvailable = false;
+                 unavailableReason = '(Out of Stock)';
                  break;
               }
            }
@@ -42,7 +49,8 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
           selected: false,
           qty: 1,
           recipes: ao.addon_recipes || [],
-          isAvailable
+          isAvailable,
+          unavailableReason
         };
       }));
     }
@@ -176,10 +184,13 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
                 {product.variants.map((v, idx) => (
                   <div
                     key={idx}
-                    className={`pos-customize-variant-btn ${selectedVariantIndex === idx ? 'active' : ''}`}
-                    onClick={() => setSelectedVariantIndex(idx)}
+                    className={`pos-customize-variant-btn ${selectedVariantIndex === idx ? 'active' : ''} ${!v.isAvailable ? 'disabled' : ''}`}
+                    style={!v.isAvailable ? { opacity: 0.5, pointerEvents: 'none' } : {}}
+                    onClick={() => {
+                      if (v.isAvailable) setSelectedVariantIndex(idx);
+                    }}
                   >
-                    <h3>{v.name}</h3>
+                    <h3>{v.name} {!v.isAvailable && <span style={{color: 'red', fontSize: '0.7rem'}}>(N/A)</span>}</h3>
                     <p>₱{v.price.toFixed(2)}</p>
                   </div>
                 ))}
@@ -225,7 +236,7 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
                     onChange={() => handleToggleAddOn(ao.id)}
                   />
                   <span className="pos-customize-addon-name">
-                    {ao.name} {!ao.isAvailable && <span style={{color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem'}}>(Out of Stock)</span>}
+                    {ao.name} {!ao.isAvailable && <span style={{color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem'}}>{ao.unavailableReason || '(N/A)'}</span>}
                   </span>
 
                   {ao.selected && (

@@ -395,9 +395,99 @@
   padding: 1rem 1.25rem;
 }
 
-/* Responsive */
-@media (max-width: 992px) {
-  .val-top-grid {
-    grid-template-columns: 1fr;
+/* =========================================
+   PRINT LAYOUT (Rule #8)
+   ========================================= */
+.val-print-layout {
+  display: none;
+}
+
+@media print {
+
+  /* Allow multi-page flow */
+  body,
+  html,
+  #root {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    position: static !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Override any global visibility: hidden from other components */
+  .val-print-layout,
+  .val-print-layout * {
+    visibility: visible !important;
+  }
+
+  /* Hide main app containers */
+  .layout-sidebar,
+  .layout-topbar,
+  .layout-header {
+    display: none !important;
+  }
+
+  /* Hide everything in val-page EXCEPT print layout */
+  .val-page>*:not(.val-print-layout) {
+    display: none !important;
+  }
+
+  /* Show the print layout in normal document flow */
+  .val-print-layout {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    height: auto !important;
+    padding: 0;
+  }
+
+  /* Header styles */
+  .print-val-header {
+    margin-bottom: 15px;
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+  }
+
+  .print-val-header h2 {
+    margin: 0 0 4px 0;
+    font-size: 15pt;
+    color: #000;
+  }
+
+  .print-val-header p {
+    margin: 0 0 4px 0;
+    font-size: 9pt;
+    color: #333;
+  }
+
+  /* Table styles */
+  .val-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    color: #000;
+  }
+
+  .val-print-table th,
+  .val-print-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: left;
+  }
+
+  .val-print-table th {
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-weight: bold;
+    border-bottom: 2px solid #000;
+  }
+
+  .val-print-table-grand td {
+    border-top: 2px solid #000;
+    font-size: 10pt;
   }
 }
