@@ -14,6 +14,9 @@ import { fetchAvailableMenuForPOS, processCheckout } from '../../services/pos/or
 import { fetchAddons } from '../../services/menu/addonsService';
 import { fetchMenuCategories } from '../../services/menu/menuCategoriesService';
 import { AuthContext } from '../../context/AuthContext';
+import { db } from '../../utils/offlineDB';
+import { generateOfflineTransactionId } from '../../utils/orderUtils';
+import { syncOfflineOrders } from '../../services/pos/syncService';
 
 const POSPage = () => {
   const { user, profile } = React.useContext(AuthContext);
@@ -25,6 +28,7 @@ const POSPage = () => {
   const [posProducts, setPosProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [globalAddons, setGlobalAddons] = useState([]);
 
   // Cart State
@@ -43,16 +47,43 @@ const POSPage = () => {
   const totalQty = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
   // Fetch Live Menu Data from Supabase
-  React.useEffect(() => {
-    const loadMenu = async () => {
+  const loadMenu = React.useCallback(async () => {
       try {
         setIsLoading(true);
-        const [data, addonsData, categoriesData] = await Promise.all([
-          fetchAvailableMenuForPOS(),
-          fetchAddons(),
-          fetchMenuCategories()
-        ]);
-        
+        let data, addonsData, categoriesData;
+
+        // Check if the device is online
+        if (navigator.onLine) {
+          // Fetch Live Data from Supabase
+          [data, addonsData, categoriesData] = await Promise.all([
+            fetchAvailableMenuForPOS(),
+            fetchAddons(),
+            fetchMenuCategories()
+          ]);
+
+          // Cache the fetched data into Dexie (Offline DB)
+          await db.menuItems.clear();
+          await db.addons.clear();
+          await db.categories.clear();
+
+          // Bulk add the new data
+          if (data.length > 0) await db.menuItems.bulkAdd(data);
+          if (addonsData.length > 0) await db.addons.bulkAdd(addonsData);
+          if (categoriesData.length > 0) await db.categories.bulkAdd(categoriesData);
+
+          console.log("Online: Menu data successfully cached to Dexie.");
+        } else {
+          // Fetch Data from Dexie (Offline DB)
+          console.log("Offline Mode: Loading menu from Dexie...");
+          data = await db.menuItems.toArray();
+          addonsData = await db.addons.toArray();
+          categoriesData = await db.categories.toArray();
+
+          if (data.length === 0) {
+            console.warn("No offline data found. Please connect to the internet first.");
+          }
+        }
+
         const categoryNames = ['All', ...categoriesData.map(c => c.category_name)];
         setCategories(categoryNames);
         
@@ -154,12 +185,44 @@ const POSPage = () => {
         setPosProducts(formattedProducts);
       } catch (error) {
         console.error('Failed to load menu for POS:', error);
+        alert('Error loading menu: ' + error.message);
       } finally {
         setIsLoading(false);
       }
+  }, []);
+
+  React.useEffect(() => {
+    loadMenu();
+  }, [loadMenu]);
+
+  // Background Auto-Sync Offline Orders
+  React.useEffect(() => {
+    const runSync = async () => {
+      if (navigator.onLine) {
+        setIsSyncing(true);
+        const result = await syncOfflineOrders();
+        if (result.synced > 0) {
+          console.log(`Successfully auto-synced ${result.synced} offline orders!`);
+          // Optionally refresh the menu if you want the stock to be ultra-accurate, 
+          // but stock is already deducted locally anyway.
+        }
+        setIsSyncing(false);
+      }
     };
 
-    loadMenu();
+    // 1. Run sync immediately in case they just opened the app with internet
+    runSync();
+
+    // 2. Listen for when internet comes back online
+    window.addEventListener('online', runSync);
+
+    // 3. Backup: check every 30 seconds
+    const syncInterval = setInterval(runSync, 30000);
+
+    return () => {
+      window.removeEventListener('online', runSync);
+      clearInterval(syncInterval);
+    };
   }, []);
 
   // Cart Actions
@@ -230,7 +293,14 @@ const POSPage = () => {
   const handleProcessOrder = async ({ total, subtotal, discountAmount, change }) => {
     setIsProcessingOrder(true);
     try {
-      const transactionId = `SC-${Date.now().toString().slice(-6)}`;
+      let transactionId = '';
+      if (!navigator.onLine) {
+        // Offline: Gamitin yung bago nating Utility function
+        transactionId = generateOfflineTransactionId();
+      } else {
+        // Online: Ang Supabase Database ang bahalang mag-generate ng ORD-YYMMDD-XXXX nito
+        transactionId = `SC-${Date.now().toString().slice(-6)}`;
+      }
       
       const orderDetails = {
         transactionId,
@@ -249,7 +319,56 @@ const POSPage = () => {
       };
 
       // Call the backend service to insert the order and deduct inventory
-      const result = await processCheckout(orderDetails);
+      let result;
+      if (navigator.onLine) {
+        result = await processCheckout(orderDetails);
+      } else {
+        // --- OFFLINE MODE: Save to Dexie ---
+        console.log("Offline Mode: Saving order to Dexie...");
+        
+        // 1. Calculate total stock deductions per inventory item first
+        const deductions = {}; 
+        for (const item of orderDetails.cartItems) {
+            if (item.recipeIngredients) {
+                for (const recipe of item.recipeIngredients) {
+                    const invId = recipe.inventory_item_id;
+                    const qty = (Number(recipe.quantity) || 0) * item.qty;
+                    if (!deductions[invId]) deductions[invId] = 0;
+                    deductions[invId] += qty;
+                }
+            }
+        }
+
+        // 2. Apply these deductions to ALL cached menu items in Dexie
+        // This ensures if two different menu items share the same ingredient (like Egg), BOTH will be disabled
+        const allMenuItems = await db.menuItems.toArray();
+        for (const menuItem of allMenuItems) {
+            let updated = false;
+            if (menuItem.recipes) {
+                for (const recipe of menuItem.recipes) {
+                    const invId = recipe.inventory_item_id;
+                    if (deductions[invId] && recipe.inventory_items) {
+                        recipe.inventory_items.current_stock -= deductions[invId];
+                        updated = true;
+                    }
+                }
+            }
+            if (updated) {
+                await db.menuItems.put(menuItem); // Save updated stock back to cache
+            }
+        }
+        
+        // 2. Save the order to Dexie
+        const offlinePayload = {
+            ...orderDetails,
+            status: 'pending_sync',
+            created_at: new Date().toISOString()
+        };
+        await db.offlineOrders.add(offlinePayload);
+        
+        // 3. Return a mock result for the receipt
+        result = { order_number: transactionId };
+      }
 
       // Show receipt modal only if successful (use the real DB-generated order number)
       setProcessedOrder({ ...orderDetails, transactionId: result.order_number });
@@ -265,10 +384,96 @@ const POSPage = () => {
     setProcessedOrder(null);
     handleClearCart();
     setIsCartOpen(false);
+    loadMenu(); // Refresh menu to update stock levels in the UI instantly
   };
+
+  // --- INDUSTRY STANDARD: Dynamic Cart Validation (Real-time Menu Disabling) ---
+  // Calculates real-time stock by subtracting what's already in the cart from the physical stock.
+  const displayProducts = React.useMemo(() => {
+    if (!posProducts || posProducts.length === 0) return [];
+
+    // 1. Calculate how much of each ingredient is currently sitting in the cart
+    const cartUsage = {}; // { inventory_item_id: totalQtyInCart }
+    for (const item of cartItems) {
+        if (item.recipeIngredients) {
+            for (const recipe of item.recipeIngredients) {
+                const invId = recipe.inventory_item_id;
+                const qty = (Number(recipe.quantity) || 0) * item.qty;
+                cartUsage[invId] = (cartUsage[invId] || 0) + qty;
+            }
+        }
+    }
+
+    // 2. Map over the products and dynamically disable them if the cart has exhausted their ingredients
+    return posProducts.map(product => {
+        let hasStock = true;
+        // Deep clone variants to avoid directly mutating the original state
+        const variants = product.variants.map(v => ({...v}));
+        
+        if (product.rawRecipes && product.rawRecipes.length > 0) {
+            if (variants.length === 0) { 
+                // Fixed Price Product
+                const relevantRecipes = product.rawRecipes.filter(r => r.menu_item_price_id === product.defaultPriceId || r.menu_item_price_id === null);
+                for (const recipe of relevantRecipes) {
+                    const required = Number(recipe.quantity) || 0;
+                    const physicalStock = recipe.inventory_items?.current_stock || 0;
+                    const usedInCart = cartUsage[recipe.inventory_item_id] || 0;
+                    
+                    if ((physicalStock - usedInCart) < required) {
+                        hasStock = false;
+                        break;
+                    }
+                }
+            } else {
+                // Variable Price Product
+                hasStock = false; // assume false, prove true
+                for (const variant of variants) {
+                    if (!variant.isAvailable) continue;
+                    
+                    const variantRecipes = product.rawRecipes.filter(r => r.menu_item_price_id === variant.id || r.menu_item_price_id === null);
+                    let variantHasStock = true;
+                    
+                    for (const recipe of variantRecipes) {
+                        const required = Number(recipe.quantity) || 0;
+                        const physicalStock = recipe.inventory_items?.current_stock || 0;
+                        const usedInCart = cartUsage[recipe.inventory_item_id] || 0;
+                        
+                        if ((physicalStock - usedInCart) < required) {
+                            variantHasStock = false;
+                            variant.isAvailable = false; // Disable this specific variant
+                            break;
+                        }
+                    }
+                    if (variantHasStock) hasStock = true;
+                }
+                if (variants.length === 0) hasStock = true;
+            }
+        }
+
+        return {
+            ...product,
+            variants,
+            isAvailable: product.isAvailable && hasStock
+        };
+    });
+  }, [posProducts, cartItems]);
 
   return (
     <div className="pos-container">
+      {/* Background Syncing Indicator */}
+      {isSyncing && (
+        <div style={{
+          position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#2e7d32', color: 'white', padding: '0.5rem 1rem', 
+          borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600,
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: '8px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+        }}>
+          <i className="bi bi-arrow-repeat" style={{ animation: 'spin 1s linear infinite' }}></i>
+          Syncing offline orders...
+        </div>
+      )}
+
       {/* Checkout Processing Overlay */}
       {isProcessingOrder && (
         <div style={{
@@ -310,12 +515,12 @@ const POSPage = () => {
                 <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', display: 'inline-block', marginRight: '0.5rem' }}></i> 
                 Loading live menu...
               </div>
-            ) : posProducts.filter(p => activeCategory === 'All' || p.category === activeCategory).length === 0 ? (
+            ) : displayProducts.filter(p => activeCategory === 'All' || p.category === activeCategory).length === 0 ? (
                <div style={{ padding: '2rem', textAlign: 'center', width: '100%', color: '#666' }}>
                   No available items found.
                </div>
             ) : (
-              posProducts
+              displayProducts
                 .filter(p => activeCategory === 'All' || p.category === activeCategory)
                 .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
                 .map(product => (

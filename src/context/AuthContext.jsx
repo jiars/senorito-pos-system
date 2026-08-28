@@ -11,34 +11,72 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         const checkActiveSession = async () => {
-            const response = await supabase.auth.getSession();
-            const session = response.data.session;
+            try {
+                // Prevent Supabase from hanging if there's no network adapter at all
+                if (!navigator.onLine) {
+                    throw new Error("Device is offline");
+                }
 
-            if (session !== null) {
-                const loggedInUser = session.user;
-                setUser(loggedInUser);
+                const { data, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                
+                const session = data?.session;
 
-                const userProfile = await getUserProfile(loggedInUser.id);
-                setProfile(userProfile);
+                if (session) {
+                    const loggedInUser = session.user;
+                    setUser(loggedInUser);
+
+                    const userProfile = await getUserProfile(loggedInUser.id);
+                    setProfile(userProfile);
+                    
+                    // -- INDUSTRY STANDARD: Cache the user for Offline Mode --
+                    localStorage.setItem('offline_user', JSON.stringify(loggedInUser));
+                    localStorage.setItem('offline_profile', JSON.stringify(userProfile));
+                } else {
+                    localStorage.removeItem('offline_user');
+                    localStorage.removeItem('offline_profile');
+                }
+            } catch (error) {
+                console.warn("Auth check failed (likely offline):", error.message);
+                // -- OFFLINE MODE: Load the cached user so POS knows who the cashier is --
+                const cachedUser = localStorage.getItem('offline_user');
+                const cachedProfile = localStorage.getItem('offline_profile');
+                if (cachedUser && cachedProfile) {
+                    console.log("Loading offline cached user...");
+                    setUser(JSON.parse(cachedUser));
+                    setProfile(JSON.parse(cachedProfile));
+                }
+            } finally {
+                setLoading(false);
             }
-
-            setLoading(false);
         };
 
         checkActiveSession();
 
         const listener = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session !== null) {
-                const loggedInUser = session.user;
-                setUser(loggedInUser);
+            try {
+                if (!navigator.onLine) return; // Skip online logic if offline
 
-                const userProfile = await getUserProfile(loggedInUser.id);
-                setProfile(userProfile);
-            } else {
-                setUser(null);
-                setProfile(null);
+                if (session) {
+                    const loggedInUser = session.user;
+                    setUser(loggedInUser);
+
+                    const userProfile = await getUserProfile(loggedInUser.id);
+                    setProfile(userProfile);
+                    
+                    localStorage.setItem('offline_user', JSON.stringify(loggedInUser));
+                    localStorage.setItem('offline_profile', JSON.stringify(userProfile));
+                } else {
+                    setUser(null);
+                    setProfile(null);
+                    localStorage.removeItem('offline_user');
+                    localStorage.removeItem('offline_profile');
+                }
+            } catch (error) {
+                console.warn("Auth state change failed:", error.message);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         });
 
         return () => {
