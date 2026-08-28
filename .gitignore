@@ -31,3 +31,4 @@ dist-ssr
 
 .agents
 supabase
+docs
