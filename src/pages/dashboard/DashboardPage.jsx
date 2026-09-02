@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import './dashboard.css';
-import { 
-  getTodayMetrics, 
-  getInventoryAlerts,
-  getWeeklySales,
-  getTopSellingItems,
-  getRecentOrders
-} from '../../services/dashboard/dashboardService';
+import { formatCurrency } from '../../utils/currencyFormatters'
+
+import { fetchDashboardSummary } from '../../services/dashboard/dashboardService';
 import { AuthContext } from '../../context/AuthContext';
 
-const ROWS_PER_PAGE = 5;
+import './dashboard.css';
 
 /* ═══════════════════════════════════════════════════
    Dashboard Page Component
@@ -40,40 +35,29 @@ const DashboardPage = () => {
   const [isLoadingBottom, setIsLoadingBottom] = useState(true);
 
   useEffect(() => {
-    const loadTopData = async () => {
+    const loadDashboard = async () => {
       try {
         setIsLoadingTop(true);
-        const [todayMetrics, inventoryAlerts] = await Promise.all([
-          getTodayMetrics(),
-          getInventoryAlerts()
-        ]);
-        setMetrics(todayMetrics);
-        setAlerts(inventoryAlerts);
+        setIsLoadingBottom(true);
+
+        // Exactly ONE network request!
+        const data = await fetchDashboardSummary();
+
+        setMetrics(data.metrics);
+        setAlerts(data.alerts);
+        setWeeklySalesData(data.weeklySales);
+        setTopSellingItems(data.topItems);
+        setRecentOrders(data.recentOrders);
+
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
         setIsLoadingTop(false);
-      }
-    };
-    const loadBottomData = async () => {
-      try {
-        setIsLoadingBottom(true);
-        const [salesData, topItems, ordersData] = await Promise.all([
-          getWeeklySales(),
-          getTopSellingItems(),
-          getRecentOrders()
-        ]);
-        setWeeklySalesData(salesData);
-        setTopSellingItems(topItems);
-        setRecentOrders(ordersData);
-      } catch (error) {
-        console.error("Failed to load dashboard charts:", error);
-      } finally {
         setIsLoadingBottom(false);
       }
     };
-    loadTopData();
-    loadBottomData();
+
+    loadDashboard();
   }, []);
 
   /* ─── Expiry chip counts ─── */
@@ -87,31 +71,6 @@ const DashboardPage = () => {
   const adjustedMax = step * 4;
   const yAxisLabels = [adjustedMax, step * 3, step * 2, step, 0];
 
-  /* ─── Pagination ─── */
-  const totalPages = Math.ceil(recentOrders.length / ROWS_PER_PAGE);
-  const paginatedOrders = recentOrders.slice(
-    (currentPage - 1) * ROWS_PER_PAGE,
-    currentPage * ROWS_PER_PAGE
-  );
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
-
-  /* ─── Pagination 3-Page Window Logic ─── */
-  const getPaginationGroup = () => {
-    if (totalPages <= 3) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    if (currentPage === 1) {
-      return [1, 2, 3];
-    }
-    if (currentPage === totalPages) {
-      return [totalPages - 2, totalPages - 1, totalPages];
-    }
-    return [currentPage - 1, currentPage, currentPage + 1];
-  };
-
   /* ─── Low stock bar width helper ─── */
   const stockPercent = (qty, min) => {
     if (min === 0) return 0;
@@ -124,7 +83,7 @@ const DashboardPage = () => {
     const dayOfWeek = today.getDay();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
-    
+
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
 
@@ -151,7 +110,7 @@ const DashboardPage = () => {
               <i className="bi bi-bag-check-fill"></i>
             </div>
             <p className="dashboard-summary-card-value">
-              {isLoadingTop ? '...' : `₱${metrics.totalSales.toFixed(2)}`}
+              {isLoadingTop ? '...' : formatCurrency(metrics.totalSales)}
             </p>
             <p className="dashboard-summary-card-label">Today's Sales ({isLoadingTop ? '0' : metrics.orderCount} orders)</p>
           </div>
@@ -161,7 +120,7 @@ const DashboardPage = () => {
               <i className="bi bi-cash-stack"></i>
             </div>
             <p className="dashboard-summary-card-value">
-              {isLoadingTop ? '...' : `₱${metrics.totalExpenses.toFixed(2)}`}
+              {isLoadingTop ? '...' : formatCurrency(metrics.totalExpenses)}
             </p>
             <p className="dashboard-summary-card-label">Today's Expenses</p>
           </div>
@@ -382,15 +341,15 @@ const DashboardPage = () => {
             <tbody>
               {isLoadingBottom ? (
                 <tr><td colSpan="6" style={{ textAlign: 'center', padding: '1rem' }}>Loading recent orders...</td></tr>
-              ) : paginatedOrders.length === 0 ? (
+              ) : recentOrders.length === 0 ? (
                 <tr><td colSpan="6" style={{ textAlign: 'center', padding: '1rem' }}>No recent orders found.</td></tr>
               ) : (
-                paginatedOrders.map((order) => (
+                recentOrders.map((order) => (
                   <tr key={order.orderNo}>
                     <td className="dashboard-orders-orderno">{order.orderNo}</td>
                     <td>{order.cashier}</td>
                     <td className="dashboard-orders-total">
-                      ₱{order.total.toFixed(2)}
+                      {formatCurrency(order.total)}
                     </td>
                     <td>{order.payment}</td>
                     <td>
@@ -404,43 +363,6 @@ const DashboardPage = () => {
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="dashboard-pagination">
-          <span className="dashboard-pagination-info">
-            Page {currentPage} of {totalPages}
-          </span>
-          <div className="dashboard-pagination-controls">
-            <button
-              className="dashboard-pagination-btn"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              aria-label="Previous page"
-            >
-              <i className="bi bi-chevron-left"></i>
-            </button>
-
-            {getPaginationGroup().map((page) => (
-              <button
-                key={page}
-                className={`dashboard-pagination-btn ${page === currentPage ? 'dashboard-pagination-btn--active' : ''
-                  }`}
-                onClick={() => goToPage(page)}
-              >
-                {page}
-              </button>
-            ))}
-
-            <button
-              className="dashboard-pagination-btn"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              aria-label="Next page"
-            >
-              <i className="bi bi-chevron-right"></i>
-            </button>
-          </div>
         </div>
       </div>
     </div>
