@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ViewOrderDetails.css';
 import { fetchOrderDetails } from '../../../services/pos/ordersService';
+import { printReceiptBluetooth } from '../../../services/hardware/bluetoothPrinterService';
 
 const ViewOrderDetails = ({ orderDetails, onClose }) => {
   const [items, setItems] = useState([]);
@@ -16,7 +17,7 @@ const ViewOrderDetails = ({ orderDetails, onClose }) => {
     try {
       setIsLoading(true);
       const data = await fetchOrderDetails(orderId);
-      
+
       // Transform data to match UI
       const formattedItems = data.map(item => {
         let addonSum = 0;
@@ -77,8 +78,12 @@ const ViewOrderDetails = ({ orderDetails, onClose }) => {
     hour: 'numeric', minute: '2-digit', hour12: true
   });
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      //await printReceiptBluetooth(orderDetails);
+    } catch (error) {
+      alert(error.message || "Failed to print via Bluetooth.");
+    }
   };
 
   return (
@@ -132,8 +137,8 @@ const ViewOrderDetails = ({ orderDetails, onClose }) => {
               {isLoading ? (
                 <tr>
                   <td colSpan="4" style={{ textAlign: 'center', padding: '1rem' }}>
-                     <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}></i>
-                     Loading Items...
+                    <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}></i>
+                    Loading Items...
                   </td>
                 </tr>
               ) : items.length === 0 ? (

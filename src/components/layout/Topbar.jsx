@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { formatFullName, formatInitials } from '../../utils/stringFormatters';
 
 import { useAuth } from '../../hooks/useAuth';
+import { connectBluetoothPrinter } from '../../services/hardware/bluetoothPrinterService';
 
 import './layout.css';
 
@@ -15,6 +16,20 @@ const Topbar = ({ toggleSidebar }) => {
 
   let fullName = formatFullName(profile.first_name, profile.last_name);
   let initials = formatInitials(profile.first_name, profile.last_name);
+
+  const [isPrinterConnected, setIsPrinterConnected] = useState(false);
+  const [printerName, setPrinterName] = useState('');
+
+  const handleConnectPrinter = async () => {
+    try {
+      const deviceName = await connectBluetoothPrinter();
+      setIsPrinterConnected(true);
+      setPrinterName(deviceName);
+      alert(`Successfully connected to: ${deviceName}`);
+    } catch (error) {
+      alert('Failed to connect printer. Make sure it is turned on and your browser supports Web Bluetooth.');
+    }
+  };
 
   return (
     <header className="layout-topbar">
@@ -29,6 +44,26 @@ const Topbar = ({ toggleSidebar }) => {
       </div>
 
       <div className="layout-topbar-right">
+        <button 
+          onClick={handleConnectPrinter}
+          style={{ 
+            marginRight: '15px', 
+            padding: '6px 12px', 
+            borderRadius: '6px', 
+            backgroundColor: isPrinterConnected ? '#28a745' : '#3A1A0A', 
+            color: 'white', 
+            border: 'none', 
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.85rem'
+          }}
+        >
+          <i className="bi bi-bluetooth"></i> 
+          {isPrinterConnected ? `Connected: ${printerName}` : 'Connect Printer'}
+        </button>
+
         <div
           className="layout-user-profile"
           onClick={() => window.location.href = '/profile'}
