@@ -37,7 +37,14 @@ const ManageAddonsPage = () => {
 
   /* ─── Filter Logic ─── */
   const filteredAddons = addons.filter((item) => {
-    const matchesSearch = item.addon_name.toLowerCase().startsWith(searchTerm.toLowerCase());
+    const search = searchTerm.toLowerCase();
+    const name = (item.addon_name || '').toLowerCase();
+    let categoryNamesString = '';
+    if (item.addon_categories) {
+      categoryNamesString = item.addon_categories.map(ac => ac.menu_categories ? ac.menu_categories.category_name.toLowerCase() : '').join(' ');
+    }
+
+    const matchesSearch = name.includes(search) || categoryNamesString.includes(search);
 
     // Simple check for categories without ternary or filter(Boolean) shortcuts
     let matchesCategory = false;
@@ -135,11 +142,11 @@ const ManageAddonsPage = () => {
           <table className="menu-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Applicable To</th>
-                <th>POS Status</th>
-                <th>Actions</th>
+                <th style={{ width: '25%', textAlign: 'left' }}>Name</th>
+                <th style={{ width: '15%', textAlign: 'left' }}>Price</th>
+                <th style={{ width: '35%', textAlign: 'left' }}>Applicable To</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>POS Status</th>
+                <th style={{ width: '15%', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -164,7 +171,7 @@ const ManageAddonsPage = () => {
                       <td>
                         <span className="menu-item-name">{item.addon_name}</span>
                       </td>
-                      <td>{formatCurrency(item.selling_price)}</td>
+                      <td><strong>{formatCurrency(item.selling_price)}</strong></td>
                       <td>{categoryNames || 'None'}</td>
                       <td>
                         <span className={`menu-chip ${item.pos_status === 'Available' ? 'menu-chip--available' : 'menu-chip--unavailable'}`}>

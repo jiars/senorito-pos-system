@@ -1027,3 +1027,380 @@
     flex-direction: column;
   }
 }
+
+/* =========================================
+   PRINT LAYOUT (Rule #8)
+   ========================================= */
+.sales-print-layout {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 4mm 0;
+  }
+
+  /* Allow multi-page flow only when on sales page */
+  body:has(.sales-page),
+  html:has(.sales-page),
+  body:has(.sales-page) #root {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    position: static !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Override any global visibility: hidden from other components */
+  .sales-print-layout,
+  .sales-print-layout * {
+    visibility: visible !important;
+  }
+
+  /* Hide main app containers (scoped) */
+  body:has(.sales-page) .layout-sidebar,
+  body:has(.sales-page) .layout-topbar,
+  body:has(.sales-page) .layout-header {
+    display: none !important;
+  }
+
+  /* Hide everything in sales-page EXCEPT print layout */
+  .sales-page>*:not(.sales-print-layout) {
+    display: none !important;
+  }
+
+  /* Show the print layout in normal document flow */
+  .sales-print-layout {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    height: auto !important;
+    padding: 0 5mm 40px 5mm;
+    /* Zero top padding (using @page margin), small side padding, bottom padding for footer */
+    box-sizing: border-box;
+    color: #2C1810;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .print-sales-header-container {
+    margin-bottom: 20px;
+  }
+
+  .print-sales-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 15px;
+  }
+
+  .print-sales-title-row h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #3A1A0A;
+  }
+
+  .print-sales-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 11px;
+    color: #6c757d;
+  }
+
+  .print-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3A1A0A;
+    margin-bottom: 2px;
+  }
+
+  .print-sales-filters-box {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    border: 1px solid #d9c0ae;
+    background-color: #ffffff;
+    font-size: 11px;
+    color: #495057;
+  }
+
+  .print-sales-summary-cards {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .print-card {
+    flex: 1;
+    padding: 15px 10px;
+    text-align: center;
+    color: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-card h3 {
+    margin: 0 0 5px 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .print-card p {
+    margin: 0;
+    font-size: 9px;
+    font-weight: 600;
+  }
+
+  .print-card--brown {
+    background-color: #4E2C1D !important;
+  }
+
+  .print-card--green {
+    background-color: #388E3C !important;
+  }
+
+  .print-card--gray {
+    background-color: #455A64 !important;
+  }
+
+  .print-card--yellow {
+    background-color: #F59E0B !important;
+  }
+
+  .print-card--red {
+    background-color: #E53935 !important;
+  }
+
+  .print-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3A1A0A;
+    margin: 0 0 10px 0;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #d9c0ae;
+    text-transform: uppercase;
+  }
+
+  .print-source-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .print-chart-wrapper {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 15px auto;
+  }
+
+  .print-source-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    font-size: 11px;
+  }
+
+  .print-source-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #d9c0ae;
+  }
+
+  .print-source-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+
+  .print-source-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-bottom: 20px;
+  }
+
+  .print-sales-table th {
+    background-color: #faf6f3 !important;
+    padding: 8px;
+    font-weight: 700;
+    border-bottom: 2px solid #d9c0ae;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-sales-table td {
+    padding: 8px;
+    border-bottom: 1px solid #f5ebe5;
+    vertical-align: middle;
+  }
+
+  .print-rank span {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    background-color: #4E2C1D !important;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+    display: block;
+    height: 15mm;
+    /* Forces a gap at the top of the new page */
+  }
+
+  .print-profit-cards {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .print-profit-card {
+    flex: 1;
+    padding: 15px 10px;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-profit-card.p-green {
+    background-color: #E8F5E9 !important;
+    border-color: #81C784 !important;
+    color: #2E7D32 !important;
+  }
+
+  .print-profit-card.p-blue {
+    background-color: #E3F2FD !important;
+    border-color: #64B5F6 !important;
+    color: #1565C0 !important;
+  }
+
+  .print-profit-card.p-yellow {
+    background-color: #FFF8E1 !important;
+    border-color: #FFD54F !important;
+    color: #F57F17 !important;
+  }
+
+  .print-profit-card.p-red {
+    background-color: #FFEBEE !important;
+    border-color: #E57373 !important;
+    color: #C62828 !important;
+  }
+
+  .print-profit-card .p-icon {
+    font-size: 20px;
+    margin-bottom: 5px;
+  }
+
+  .print-profit-card h3 {
+    margin: 0 0 5px 0;
+    font-size: 18px;
+    color: #000;
+  }
+
+  .print-profit-card .p-title {
+    margin: 0 0 2px 0;
+    font-weight: 700;
+    font-size: 11px;
+    color: #000;
+  }
+
+  .print-profit-card .p-sub {
+    margin: 0;
+    font-size: 9px;
+  }
+
+  .print-profit-table td {
+    padding: 6px;
+  }
+
+  .print-bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+  }
+
+  .print-hourly-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 120px;
+    border-bottom: 1px solid #d9c0ae;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    margin-top: 20px;
+  }
+
+  .print-hourly-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 25px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .p-bar-fill {
+    width: 100%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .p-bar-label {
+    font-size: 9px;
+    margin-top: 5px;
+    color: #6c757d;
+  }
+
+  .print-insight-box {
+    background-color: #F0F4EC !important;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: white;
+    text-align: center;
+    font-size: 9px;
+    color: #6c757d;
+    border-top: 1px solid #d9c0ae;
+    padding-top: 10px;
+    padding-bottom: 15px;
+    margin-top: 0;
+  }
+}

@@ -17,6 +17,10 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dbIngredients, setDbIngredients] = useState([]);
+  
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
 
   React.useEffect(() => {
     const loadInventory = async () => {
@@ -27,10 +31,18 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
         console.error("Failed to load inventory items:", error);
       }
     };
-    if (isOpen) loadInventory();
+    if (isOpen) {
+      setHasAttemptedSubmit(false);
+      setErrors({});
+      setErrorMessage('');
+      setAddonName('');
+      setSellingPrice('');
+      setSelectedCategories([]);
+      setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
+      setIsAvailable(true);
+      loadInventory();
+    }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   /* ─── Math Helpers ─── */
   const calculateEstCost = () => {
@@ -69,16 +81,28 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   const margin = calculateMargin();
 
   /* ─── Validation ─── */
-  const areIngredientsValid = () => {
-    if (ingredients.length === 0) return false;
-    return ingredients.every(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
-  };
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const newErrors = {};
 
-  const isFormValid = () => {
-    const sp = parseFloat(sellingPrice);
-    const spValid = !isNaN(sp) && sp > 0;
-    return addonName.trim() !== '' && spValid && selectedCategories.length > 0 && areIngredientsValid();
-  };
+    if (!addonName.trim()) newErrors.addonName = 'Add-on name is required.';
+    if (!sellingPrice) {
+      newErrors.sellingPrice = 'Price required.';
+    } else if (Number(sellingPrice) <= 0) {
+      newErrors.sellingPrice = 'Must be > 0.';
+    }
+    if (selectedCategories.length === 0) newErrors.categories = 'Select at least one category.';
+
+    ingredients.forEach(ing => {
+      if (!ing.ingredientId) newErrors[`ing_${ing.id}_id`] = 'Required.';
+      if (!ing.qty) newErrors[`ing_${ing.id}_qty`] = 'Required.';
+      if (!ing.unit) newErrors[`ing_${ing.id}_unit`] = 'Required.';
+    });
+
+    setErrors(newErrors);
+  }, [addonName, sellingPrice, selectedCategories, ingredients, isOpen]);
+
+  const isFormValid = Object.keys(errors).length === 0;
 
   /* ─── Handlers ─── */
   const toggleCategory = (catId) => {
@@ -90,8 +114,10 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   };
 
   const handleSaveAddon = async () => {
-    if (isSubmitting || !isFormValid()) return;
+    setHasAttemptedSubmit(true);
+    if (isSubmitting || !isFormValid) return;
     setIsSubmitting(true);
+    setErrorMessage('');
 
     try {
       const addonPayload = {
@@ -139,7 +165,7 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
       onClose();
     } catch (error) {
       console.error('Failed to add addon:', error);
-      alert(error.message || 'An error occurred while adding the addon.');
+      setErrorMessage(error.message || 'An error occurred while adding the addon.');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,6 +180,12 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   };
 
   const removeIngredient = (id) => {
+    if (ingredients.length <= 1) {
+      setErrorMessage('At least one ingredient is required.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
     setIngredients(ingredients.filter(ing => ing.id !== id));
   };
 
@@ -198,9 +230,9 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
 
     return (
       <div className="aao-ingredient-row" key={ing.id}>
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           <select
-            className="aao-select"
+            className={`aao-select ${hasAttemptedSubmit && errors[`ing_${ing.id}_id`] ? 'is-invalid' : ''}`}
             value={ing.ingredientId}
             onChange={(e) => updateIngredient(ing.id, 'ingredientId', e.target.value)}
           >
@@ -211,11 +243,12 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
               </option>
             ))}
           </select>
+          {hasAttemptedSubmit && errors[`ing_${ing.id}_id`] && <p className="aao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_id`]}</p>}
         </div>
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           <input
             type="number"
-            className="aao-input"
+            className={`aao-input ${hasAttemptedSubmit && errors[`ing_${ing.id}_qty`] ? 'is-invalid' : ''}`}
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => {
@@ -229,11 +262,12 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
             }}
             min="0" step="any"
           />
+          {hasAttemptedSubmit && errors[`ing_${ing.id}_qty`] && <p className="aao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_qty`]}</p>}
         </div>
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {availableUnits.length > 0 ? (
             <select
-              className="aao-select"
+              className={`aao-select ${hasAttemptedSubmit && errors[`ing_${ing.id}_unit`] ? 'is-invalid' : ''}`}
               value={ing.unit}
               onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
             >
@@ -250,6 +284,7 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
               style={{ backgroundColor: '#f5f5f5', color: '#666' }}
             />
           )}
+          {hasAttemptedSubmit && errors[`ing_${ing.id}_unit`] && <p className="aao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_unit`]}</p>}
         </div>
         <div className="aao-currency-wrapper">
           <span className="aao-currency-symbol">₱</span>
@@ -271,6 +306,8 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
     );
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="aao-modal-overlay">
       <div className="aao-modal-content">
@@ -291,14 +328,15 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
             {/* Left Column */}
             <div>
               <div className="aao-section">
-                <label className="aao-label">Add-on Name</label>
+                <label className="aao-label">Add-on Name *</label>
                 <input
                   type="text"
-                  className="aao-input"
+                  className={`aao-input ${hasAttemptedSubmit && errors.addonName ? 'is-invalid' : ''}`}
                   placeholder="e.g. Extra Shot"
                   value={addonName}
                   onChange={(e) => setAddonName(e.target.value)}
                 />
+                {hasAttemptedSubmit && errors.addonName && <p className="aao-error-text">{errors.addonName}</p>}
               </div>
 
               {/* Available Toggle */}
@@ -318,8 +356,8 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
               </div>
 
               <div className="aao-section">
-                <label className="aao-label">Apply to Categories</label>
-                <div className="aao-categories-list">
+                <label className="aao-label">Apply to Categories *</label>
+                <div className={`aao-categories-list ${hasAttemptedSubmit && errors.categories ? 'is-invalid-border' : ''}`} style={hasAttemptedSubmit && errors.categories ? { padding: '0.5rem', borderRadius: '6px' } : {}}>
                   {categories.map((cat) => (
                     <label className="aao-checkbox-label" key={cat.id}>
                       <input
@@ -331,14 +369,15 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
                     </label>
                   ))}
                 </div>
+                {hasAttemptedSubmit && errors.categories && <p className="aao-error-text">{errors.categories}</p>}
               </div>
             </div>
 
             {/* Right Column */}
             <div>
               <div className="aao-section">
-                <label className="aao-label">Selling Price</label>
-                <div className="aao-currency-wrapper">
+                <label className="aao-label">Selling Price *</label>
+                <div className={`aao-currency-wrapper ${hasAttemptedSubmit && errors.sellingPrice ? 'is-invalid-border' : ''}`}>
                   <span className="aao-currency-symbol">₱</span>
                   <input
                     type="number"
@@ -357,6 +396,7 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
                     min="0" step="any"
                   />
                 </div>
+                {hasAttemptedSubmit && errors.sellingPrice && <p className="aao-error-text">{errors.sellingPrice}</p>}
               </div>
 
               <div className="aao-section">
@@ -390,9 +430,9 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
 
               <div className="aao-ingredients-table">
                 <div className="aao-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Ingredient</label>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Qty</label>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Unit</label>
+                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Ingredient *</label>
+                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Qty *</label>
+                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Unit *</label>
                   <label className="aao-label" style={{ fontSize: '0.8rem' }}>Est. Cost</label>
                   <div></div>
                 </div>
@@ -419,10 +459,26 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
         </div>
 
         {/* Footer */}
-        <div className="aao-modal-footer" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+        {errorMessage && (
+          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
+            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
+            {errorMessage}
+          </div>
+        )}
+
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
+        <div className="aao-modal-footer">
+          <button className="aao-btn-cancel" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </button>
           <button
             className="aao-btn-save"
-            disabled={!isFormValid() || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleSaveAddon}
           >
             {isSubmitting ? 'Adding...' : 'Add Add-on'}

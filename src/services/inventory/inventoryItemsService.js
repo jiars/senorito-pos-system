@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { formatDecimal } from '../../utils/numberFormatters';
+import { logSystemActivity } from '../authService';
 
 export const fetchInventoryItems = async () => {
   const { data, error } = await supabase
@@ -175,6 +176,7 @@ export const addInventoryItem = async ({ itemData, purchaseData, conversionsData
     throw err;
   }
 
+  await logSystemActivity();
   return newItem;
 };
 
@@ -244,6 +246,7 @@ export const updateInventoryItem = async (id, itemPayload, conversionsData = nul
     }
   }
 
+  await logSystemActivity();
   return data;
 };
 
@@ -261,6 +264,7 @@ export const archiveInventoryItem = async (id, userId) => {
   if (error) {
     throw new Error(error.message);
   }
+  await logSystemActivity();
   return data;
 };
 
@@ -278,5 +282,6 @@ export const unarchiveInventoryItem = async (id) => {
   if (error) {
     throw new Error(error.message);
   }
+  await logSystemActivity();
   return data;
 };

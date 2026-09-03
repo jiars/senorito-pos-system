@@ -29,6 +29,7 @@ export const addMenuCategory = async (categoryName) => {
             throw response.error;
         }
 
+        await logSystemActivity();
         return response.data[0];
     } catch (error) {
         console.error('Error adding category:', error.message);
@@ -47,6 +48,7 @@ export const updateMenuCategory = async (categoryId, newName) => {
             throw response.error;
         }
 
+        await logSystemActivity();
         return true;
     } catch (error) {
         console.error('Error updating category:', error.message);
@@ -65,6 +67,7 @@ export const deleteMenuCategory = async (categoryId) => {
             throw response.error;
         }
 
+        await logSystemActivity();
         return true;
     } catch (error) {
         console.error('Error deleting category:', error.message);

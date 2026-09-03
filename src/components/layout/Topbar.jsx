@@ -31,7 +31,7 @@ const Topbar = ({ toggleSidebar }) => {
       <div className="layout-topbar-right">
         <div
           className="layout-user-profile"
-          onClick={() => navigate('/profile')}
+          onClick={() => window.location.href = '/profile'}
           style={{ cursor: 'pointer' }}
         >
           <div className="layout-user-avatar">

@@ -243,3 +243,129 @@
 .order-details-print-btn:hover {
   background-color: #5A2D15;
 }
+
+/* For printing - 58mm Thermal Receipt Layout */
+@media print {
+  @page {
+    /* Set paper size to exactly 58mm width, length is automatic */
+    size: 58mm auto;
+    margin: 0;
+  }
+
+  /* Hide everything on the screen EXCEPT the modal content */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Reset the entire body to not interfere with the tiny paper */
+  body, html, #root {
+    background-color: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .order-details-modal,
+  .order-details-modal * {
+    visibility: visible;
+  }
+
+  .order-details-overlay {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    height: auto !important;
+    background: white !important;
+    padding: 0 !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+  }
+
+  /* CRITICAL FIX: Hide all other layout elements so they don't take up invisible vertical space and create blank pages */
+  .layout-sidebar,
+  .layout-topbar,
+  .layout-page-heading,
+  .orders-filters,
+  .orders-table-container,
+  .orders-pagination {
+    display: none !important;
+  }
+
+  /* Remove padding/heights from containers so they collapse to 0 height */
+  .layout-container,
+  .layout-content-wrapper,
+  .layout-main,
+  .orders-page {
+    padding: 0 !important;
+    margin: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .order-details-modal {
+    position: relative !important;
+    left: 0;
+    top: 0;
+    /* Force exactly 58mm width for the actual printer */
+    width: 58mm !important; 
+    max-width: 58mm !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 2mm !important; /* Tiny margin so text doesn't touch the exact physical edge */
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    /* Change font to monospace to look like a real hardware receipt */
+    font-family: 'Courier New', Courier, monospace !important;
+    color: #000 !important;
+  }
+
+  .order-details-content-wrapper {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .order-details-header h2 {
+    font-size: 14px !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: bold;
+    color: #000 !important;
+  }
+
+  .order-details-header p,
+  .order-details-transaction,
+  .order-details-details,
+  .order-details-summary,
+  .order-details-grid,
+  .order-details-payment,
+  .order-details-thank-you {
+    font-size: 10px !important;
+    color: #000 !important;
+  }
+
+  .order-details-table {
+    font-size: 10px !important;
+  }
+
+  .order-details-table th,
+  .order-details-table td {
+    padding: 2px 0 !important;
+    color: #000 !important;
+  }
+
+  .order-details-divider {
+    border: none !important;
+    border-top: 1px dashed #000 !important;
+    margin: 6px 0 !important;
+  }
+
+  .order-details-footer,
+  .order-details-close {
+    display: none !important;
+  }
+}

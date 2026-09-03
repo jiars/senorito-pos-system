@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { logSystemActivity } from '../authService';
 
 export const fetchMenuItems = async () => {
     try {
@@ -64,6 +65,7 @@ export const addMenuItem = async (itemData) => {
             throw response.error;
         }
 
+        await logSystemActivity();
         return response.data[0];
     } catch (error) {
         console.error('Error adding menu item:', error.message);
@@ -96,6 +98,7 @@ export const updateMenuItem = async (itemId, itemData) => {
             throw response.error;
         }
 
+        await logSystemActivity();
         return true;
     } catch (error) {
         console.error('Error updating menu item:', error.message);

@@ -446,17 +446,17 @@ const InventoryValuationReport = () => {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table className="val-main-table">
+          <table className="val-main-table" style={{ tableLayout: 'fixed', minWidth: '900px' }}>
             <thead>
               <tr>
-                <th>Item</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Unit</th>
-                <th>Reorder</th>
-                <th>Cost/Unit</th>
-                <th>Total Value</th>
-                <th>% Of Total</th>
+                <th style={{ textAlign: 'left' }}>Item</th>
+                <th style={{ width: '130px', textAlign: 'left' }}>Category</th>
+                <th style={{ width: '80px', textAlign: 'center' }}>Stock</th>
+                <th style={{ width: '70px', textAlign: 'center' }}>Unit</th>
+                <th style={{ width: '90px', textAlign: 'center' }}>Reorder</th>
+                <th style={{ width: '120px', textAlign: 'center' }}>Cost/Unit</th>
+                <th style={{ width: '140px', textAlign: 'center' }}>Total Value</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>% Of Total</th>
               </tr>
             </thead>
             <tbody>
@@ -468,20 +468,20 @@ const InventoryValuationReport = () => {
                 <>
                   {filteredItems.map((item, idx) => (
                     <tr key={idx}>
-                      <td>{item.item}</td>
-                      <td>{item.category}</td>
-                      <td>{item.stock}</td>
-                      <td>{item.unit}</td>
-                      <td>{item.minimum}</td>
-                      <td>₱{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td style={{ fontWeight: 600 }}>₱{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td>{item.pct}%</td>
+                      <td style={{ textAlign: 'left' }}>{item.item}</td>
+                      <td style={{ textAlign: 'left' }}>{item.category}</td>
+                      <td style={{ textAlign: 'center' }}>{item.stock}</td>
+                      <td style={{ textAlign: 'center' }}>{item.unit}</td>
+                      <td style={{ textAlign: 'center' }}>{item.minimum}</td>
+                      <td style={{ textAlign: 'center' }}>₱{item.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>₱{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style={{ textAlign: 'center' }}>{item.pct}%</td>
                     </tr>
                   ))}
                   <tr className="val-main-table-grand">
-                    <td colSpan="6">FILTERED TOTAL</td>
-                    <td>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td>{filteredTotal > 0 ? ((filteredTotal / totalValuation) * 100).toFixed(1) : 0}%</td>
+                    <td colSpan="6" style={{ textAlign: 'right' }}>FILTERED TOTAL</td>
+                    <td style={{ textAlign: 'center' }}>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style={{ textAlign: 'center' }}>{filteredTotal > 0 ? ((filteredTotal / totalValuation) * 100).toFixed(1) : 0}%</td>
                   </tr>
                 </>
               )}
@@ -494,10 +494,22 @@ const InventoryValuationReport = () => {
           HIDDEN PRINT-ONLY LAYOUT (Rule #8)
           ========================================= */}
       <div className="val-print-layout">
-        <div className="print-val-header">
-          <h2>Inventory Valuation Report</h2>
-          <p>As of {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-          <p>Total Value: <strong>₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> ({filteredItems.length} items)</p>
+        <div className="print-val-header-container">
+          <div className="print-val-title-row">
+            <h2>Inventory Valuation Report</h2>
+            <div className="print-val-meta">
+              <span className="print-brand">SEÑORITO CAFÉ</span>
+              <span className="print-date">Generated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+              <span className="print-period">Total Items: {filteredItems.length}</span>
+            </div>
+          </div>
+          
+          <div className="print-val-filters-box">
+             <span><strong>Search:</strong> {searchTerm || 'None'}</span>
+             <span><strong>Category:</strong> {category}</span>
+             <span><strong>Total Value:</strong> ₱{filteredTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+             <span><strong>Sort By:</strong> {sort.replace('Sort: ', '')}</span>
+          </div>
         </div>
 
         {/* --- Category Summary --- */}
@@ -563,6 +575,10 @@ const InventoryValuationReport = () => {
             )}
           </tbody>
         </table>
+
+        <div className="print-footer">
+           Señorito Café — Point of Sale & Inventory Management System | Inventory Valuation Report | Generated {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+        </div>
       </div>
 
     </div>

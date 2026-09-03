@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { formatDecimal } from '../../utils/numberFormatters';
+import { logSystemActivity } from '../authService';
 
 export const addMenuItemPrices = async (pricesArray) => {
     try {
@@ -19,7 +20,7 @@ export const addMenuItemPrices = async (pricesArray) => {
         if (response.error !== null) {
             throw response.error;
         }
-
+        await logSystemActivity();
         return response.data;
     } catch (error) {
         console.error('Error adding menu item prices:', error.message);
@@ -37,7 +38,7 @@ export const deleteMenuItemPrices = async (menuItemId) => {
         if (response.error !== null) {
             throw response.error;
         }
-
+        await logSystemActivity();
         return true;
     } catch (error) {
         console.error('Error deleting menu item prices:', error.message);

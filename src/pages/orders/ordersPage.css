@@ -64,8 +64,7 @@
   box-shadow: 0 0 0 3px rgba(122, 75, 53, 0.1);
 }
 
-.orders-filter-select,
-.orders-filter-date {
+.orders-filter-select {
   padding: 0.625rem 2.5rem 0.625rem 1rem;
   border: 1px solid #d9c0ae;
   border-radius: 20px;
@@ -83,8 +82,16 @@
 }
 
 .orders-filter-date {
-  background-image: none;
-  padding-right: 1rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid #d9c0ae;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-family: 'Inter', sans-serif;
+  color: #2C1810;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  outline: none;
 }
 
 .orders-filter-select:focus,
@@ -143,6 +150,7 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 1100px;
+  table-layout: fixed;
 }
 
 .orders-table thead th {

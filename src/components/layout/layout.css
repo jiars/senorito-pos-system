@@ -67,6 +67,7 @@
   font-size: 1.2rem;
   font-style: italic;
   font-weight: 700;
+  color: var(--layout-sidebar-text);
 }
 
 .layout-sidebar-brand p {
@@ -300,7 +301,7 @@
 /* ═══════════════════════════════════════════════════
    Responsive 
 ═══════════════════════════════════════════════════ */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .layout-sidebar {
     transform: translateX(-100%);
   }

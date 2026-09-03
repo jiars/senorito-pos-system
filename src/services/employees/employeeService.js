@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { supabaseAdmin } from '../supabaseAdmin';
+import { logSystemActivity } from '../authService';
 
 export const fetchRoles = async () => {
   try {
@@ -75,6 +76,7 @@ export const createEmployee = async (employeeData) => {
       throw profileError;
     }
 
+    await logSystemActivity();
     return { success: true, userId: newUserId };
   } catch (error) {
     console.error('Error creating employee:', error.message);
@@ -117,11 +119,16 @@ export const updateEmployee = async (userId, employeeData) => {
       .update(profilePayload)
       .eq('id', userId);
 
-    if (profileError) {
-      console.error("Profile Update Error:", profileError);
-      throw profileError;
+    if (profileError) throw profileError;
+
+    // Step 3: Hard Ban Enforcement
+    if (employeeData.status === 'Deactivated') {
+      await supabaseAdmin.auth.admin.updateUserById(userId, { ban_duration: '87600h' });
+    } else {
+      await supabaseAdmin.auth.admin.updateUserById(userId, { ban_duration: 'none' });
     }
 
+    await logSystemActivity();
     return { success: true };
   } catch (error) {
     console.error('Error updating employee:', error.message);

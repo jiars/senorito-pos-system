@@ -24,9 +24,19 @@ export const AuthProvider = ({ children }) => {
 
                 if (session) {
                     const loggedInUser = session.user;
-                    setUser(loggedInUser);
-
                     const userProfile = await getUserProfile(loggedInUser.id);
+                    
+                    if (userProfile && userProfile.status === 'Deactivated') {
+                        await supabase.auth.signOut();
+                        localStorage.removeItem('offline_user');
+                        localStorage.removeItem('offline_profile');
+                        setUser(null);
+                        setProfile(null);
+                        setLoading(false);
+                        return;
+                    }
+
+                    setUser(loggedInUser);
                     setProfile(userProfile);
                     
                     // -- INDUSTRY STANDARD: Cache the user for Offline Mode --
@@ -59,9 +69,18 @@ export const AuthProvider = ({ children }) => {
 
                 if (session) {
                     const loggedInUser = session.user;
-                    setUser(loggedInUser);
-
                     const userProfile = await getUserProfile(loggedInUser.id);
+
+                    if (userProfile && userProfile.status === 'Deactivated') {
+                        await supabase.auth.signOut();
+                        setUser(null);
+                        setProfile(null);
+                        localStorage.removeItem('offline_user');
+                        localStorage.removeItem('offline_profile');
+                        return;
+                    }
+
+                    setUser(loggedInUser);
                     setProfile(userProfile);
                     
                     localStorage.setItem('offline_user', JSON.stringify(loggedInUser));
@@ -83,6 +102,7 @@ export const AuthProvider = ({ children }) => {
             listener.data.subscription.unsubscribe();
         };
     }, []);
+
     let userRole = null;
     if (profile !== null && profile.role !== null)
         userRole = profile.role.role_name;

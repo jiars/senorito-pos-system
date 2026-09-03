@@ -1,25 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { formatFullName, formatPhoneNumber } from '../../../utils/stringFormatters';
 import { formatDate } from '../../../utils/dateFormatters';
 
 const ProfileCard = ({ user, profile, role }) => {
-    const [avatarSrc, setAvatarSrc] = useState('https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=200&q=80');
-    const fileInputRef = useRef(null);
-
-    const handleAvatarClick = () => {
-        if (fileInputRef.current) {
-            fileInputRef.current.click();
-        }
-    };
-
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const imageUrl = URL.createObjectURL(file);
-            setAvatarSrc(imageUrl);
-        }
-    };
-
     let fullName = formatFullName(profile.first_name, profile.last_name);
     let userEmail = user.email;
     let username = profile.username;
@@ -29,25 +12,7 @@ const ProfileCard = ({ user, profile, role }) => {
     return (
         <div className="profile-card">
             <div className="profile-card-header">
-                <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                />
-                <div className="profile-avatar-wrapper" onClick={handleAvatarClick}>
-                    <img
-                        src={avatarSrc}
-                        alt="Profile Avatar"
-                        className="profile-avatar"
-                    />
-                    <div className="profile-avatar-overlay">
-                        <i className="bi bi-camera-fill"></i>
-                        <span>Change</span>
-                    </div>
-                </div>
-                <h2 className="profile-name">{fullName}</h2>
+                <h2 className="profile-name" style={{ color: 'white' }}>{fullName}</h2>
                 <p className="profile-username">@{username}</p>
                 <span className="profile-role-badge">{role}</span>
             </div>

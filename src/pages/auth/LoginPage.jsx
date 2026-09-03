@@ -28,7 +28,7 @@ const LoginPage = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error(error);
-      setErrorMsg('Invalid email or password. Please try again.');
+      setErrorMsg(error.message || 'Invalid email or password. Please try again.');
       setIsLoggingIn(false);
     }
   };

@@ -16,8 +16,11 @@ const MenuTable = ({
 
     const filteredMenuItems = menuItems.filter((item) => {
         if (searchTerm !== '') {
-            let name = item.item_name;
-            if (!name.toLowerCase().startsWith(searchTerm.toLowerCase())) {
+            const search = searchTerm.toLowerCase();
+            const name = (item.item_name || '').toLowerCase();
+            const categoryName = (item.category?.category_name || '').toLowerCase();
+            
+            if (!name.includes(search) && !categoryName.includes(search)) {
                 return false;
             }
         }
@@ -92,12 +95,12 @@ const MenuTable = ({
                 <table className="menu-table">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Category</th>
-                            <th>Price/Variants</th>
-                            <th>Recipe Status</th>
-                            <th>POS Status</th>
-                            <th>Actions</th>
+                            <th style={{ width: '25%', textAlign: 'left' }}>Name</th>
+                            <th style={{ width: '15%', textAlign: 'left' }}>Category</th>
+                            <th style={{ width: '20%', textAlign: 'left' }}>Price/Variants</th>
+                            <th style={{ width: '15%', textAlign: 'left' }}>Recipe Status</th>
+                            <th style={{ width: '10%', textAlign: 'center' }}>POS Status</th>
+                            <th style={{ width: '15%', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -121,7 +124,7 @@ const MenuTable = ({
                                             <div className="menu-price-stack">
                                                 {item.prices.map(p => (
                                                     <span key={p.id || p.variant_name} className="menu-price-variant">
-                                                        {formatCurrency(p.selling_price)} / {p.variant_name || 'regular'}
+                                                        <strong>{formatCurrency(p.selling_price)}</strong> / {p.variant_name || 'regular'}
                                                     </span>
                                                 ))}
                                             </div>

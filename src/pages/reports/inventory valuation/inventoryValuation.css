@@ -90,7 +90,7 @@
 /* ─── Summary Cards ─── */
 .val-summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.875rem;
 }
 
@@ -417,16 +417,33 @@
     display: block !important;
   }
 
+  @page {
+    margin: 4mm 0;
+  }
+
+  /* Allow multi-page flow only when on val page */
+  body:has(.val-page),
+  html:has(.val-page),
+  body:has(.val-page) #root {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    position: static !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
   /* Override any global visibility: hidden from other components */
-  .val-print-layout,
-  .val-print-layout * {
+  body:has(.val-page) .val-print-layout,
+  body:has(.val-page) .val-print-layout * {
     visibility: visible !important;
   }
 
   /* Hide main app containers */
-  .layout-sidebar,
-  .layout-topbar,
-  .layout-header {
+  body:has(.val-page) .layout-sidebar,
+  body:has(.val-page) .layout-topbar,
+  body:has(.val-page) .layout-header {
     display: none !important;
   }
 
@@ -441,26 +458,68 @@
     position: static !important;
     width: 100%;
     height: auto !important;
-    padding: 0;
+    padding: 0 5mm 40px 5mm;
+    box-sizing: border-box;
+    color: #2C1810;
+    font-family: 'Inter', sans-serif;
   }
 
-  /* Header styles */
-  .print-val-header {
+  .print-val-header-container {
+    margin-bottom: 20px;
+  }
+
+  .print-val-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
     margin-bottom: 15px;
-    border-bottom: 2px solid #000;
-    padding-bottom: 8px;
   }
 
-  .print-val-header h2 {
-    margin: 0 0 4px 0;
-    font-size: 15pt;
-    color: #000;
+  .print-val-title-row h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #3A1A0A;
   }
 
-  .print-val-header p {
-    margin: 0 0 4px 0;
-    font-size: 9pt;
-    color: #333;
+  .print-val-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 11px;
+    color: #6c757d;
+  }
+
+  .print-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3A1A0A;
+    margin-bottom: 2px;
+  }
+
+  .print-val-filters-box {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    border: 1px solid #d9c0ae;
+    background-color: #ffffff;
+    font-size: 11px;
+    color: #495057;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: white;
+    text-align: center;
+    font-size: 9px;
+    color: #6c757d;
+    border-top: 1px solid #d9c0ae;
+    padding-top: 10px;
+    padding-bottom: 15px;
+    margin-top: 0;
   }
 
   /* Table styles */
@@ -489,5 +548,48 @@
   .val-print-table-grand td {
     border-top: 2px solid #000;
     font-size: 10pt;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive — Tablet Landscape (≤ 1200px)
+═══════════════════════════════════════════════════ */
+@media (max-width: 1200px) {
+  .val-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive — Tablet Portrait (≤ 992px)
+═══════════════════════════════════════════════════ */
+@media (max-width: 992px) {
+  /* Cards will auto-fit naturally, no forced 1fr needed */
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive — Mobile (≤ 768px)
+═══════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .val-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .val-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .val-search,
+  .val-select,
+  .val-reset-btn {
+    width: 100%;
+  }
+
+  .val-table-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
   }
 }

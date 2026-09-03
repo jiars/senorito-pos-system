@@ -217,27 +217,44 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
             HIDDEN PRINT-ONLY LAYOUT (Rule #8)
             ========================================= */}
         <div className="print-only-layout">
-          {selectedItems.filter(i => selectedQRIds.includes(i.id)).map((item) => (
-            <div key={item.id} className="print-qr-card">
-              <QRCodeSVG value={`${window.location.origin}/inventory?action=view_item&id=${item.id}`} size={110} level="M" />
-              <div className="print-qr-details">
-                <h4>{item.item_name}</h4>
-                <p className="qr-print-primary">{item.item_code}</p>
-                <p className="qr-print-secondary">Shelf Tag</p>
+          <div className="print-qr-header-container">
+            <div className="print-qr-title-row">
+              <h2>Inventory QR Labels</h2>
+              <div className="print-qr-meta">
+                <span className="print-brand">SEÑORITO CAFÉ</span>
+                <span className="print-date">Generated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                <span className="print-period">Total Labels: {selectedQRIds.length}</span>
               </div>
             </div>
-          ))}
+          </div>
 
-          {batches.filter(b => selectedQRIds.includes(b.id)).map((batch) => (
-            <div key={batch.id} className="print-qr-card">
-              <QRCodeSVG value={`${window.location.origin}/inventory?action=view_batch&id=${batch.id}&item_id=${batch.inventory_item_id}`} size={110} level="M" />
-              <div className="print-qr-details">
-                <h4>{batch.inventory_items?.item_name}</h4>
-                <p className="qr-print-primary">#{batch.batch_number || '-'}</p>
-                <p className="qr-print-secondary">EXP: {formatDate(batch.expiration_date)}</p>
+          <div className="print-qr-grid-container">
+            {selectedItems.filter(i => selectedQRIds.includes(i.id)).map((item) => (
+              <div key={item.id} className="print-qr-card">
+                <QRCodeSVG value={`${window.location.origin}/inventory?action=view_item&id=${item.id}`} size={110} level="M" />
+                <div className="print-qr-details">
+                  <h4>{item.item_name}</h4>
+                  <p className="qr-print-primary">{item.item_code}</p>
+                  <p className="qr-print-secondary">Shelf Tag</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+
+            {batches.filter(b => selectedQRIds.includes(b.id)).map((batch) => (
+              <div key={batch.id} className="print-qr-card">
+                <QRCodeSVG value={`${window.location.origin}/inventory?action=view_batch&id=${batch.id}&item_id=${batch.inventory_item_id}`} size={110} level="M" />
+                <div className="print-qr-details">
+                  <h4>{batch.inventory_items?.item_name}</h4>
+                  <p className="qr-print-primary">#{batch.batch_number || '-'}</p>
+                  <p className="qr-print-secondary">EXP: {formatDate(batch.expiration_date)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="print-footer">
+             Señorito Café — Point of Sale & Inventory Management System | QR Labels | Generated {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </div>
         </div>
 
       </div>

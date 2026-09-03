@@ -21,7 +21,7 @@ const UserProfilePage = () => {
         <div className="profile-settings-col">
           <PersonalInfoPanel user={user} profile={profile} />
           <ChangePasswordPanel userEmail={user.email} />
-          <RecentActivityPanel />
+          <RecentActivityPanel user={user} profile={profile} role={role} />
         </div>
 
       </div>

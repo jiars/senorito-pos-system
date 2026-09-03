@@ -420,6 +420,57 @@
   margin-left: 0.5rem;
 }
 
+/* ─── Action Buttons ─── */
+.expense-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: nowrap;
+}
+
+.expense-action-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #e9e1db;
+  background-color: #ffffff;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8125rem;
+}
+
+.expense-action-btn:hover {
+  background-color: #FFF8F3;
+  color: #2C1810;
+  border-color: #d9c0ae;
+}
+
+.expense-action-btn--edit {
+  color: #6c757d;
+  border-color: #ced4da;
+}
+
+.expense-action-btn--edit:hover {
+  color: #495057;
+  border-color: #495057;
+  background-color: #f8f9fa;
+}
+
+.expense-action-btn--delete {
+  color: #C62828;
+  border-color: #ef9a9a;
+}
+
+.expense-action-btn--delete:hover {
+  color: #8E1600;
+  border-color: #8E1600;
+  background-color: #ffebee;
+}
+
 /* ─── Tables ─── */
 .expense-table-container {
   background-color: #ffffff;
@@ -575,4 +626,30 @@
   border: 1px solid #d9c0ae;
   color: #2C1810;
   font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive Header & Main Buttons
+═══════════════════════════════════════════════════ */
+@media (max-width: 992px) {
+  .expense-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expense-header-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .expense-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .expense-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }

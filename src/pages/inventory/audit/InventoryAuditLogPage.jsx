@@ -273,20 +273,20 @@ const InventoryAuditLogPage = () => {
         </div>
 
         <div className="audit-table-wrapper">
-          <table className="audit-main-table">
+          <table className="audit-main-table" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
             <thead>
               <tr>
-                <th>Date & Time</th>
-                <th>Item</th>
-                <th>Action</th>
-                <th>Source</th>
-                <th>Change</th>
-                <th>Before</th>
-                <th>After</th>
-                <th>Batch</th>
-                <th>Reason</th>
-                <th>Reference</th>
-                <th>By</th>
+                <th style={{ width: '110px', textAlign: 'left' }}>Date & Time</th>
+                <th style={{ width: '140px', textAlign: 'left' }}>Item</th>
+                <th style={{ width: '130px', textAlign: 'left' }}>Action</th>
+                <th style={{ width: '120px', textAlign: 'left' }}>Source</th>
+                <th style={{ width: '80px', textAlign: 'center' }}>Change</th>
+                <th style={{ width: '70px', textAlign: 'center' }}>Before</th>
+                <th style={{ width: '70px', textAlign: 'center' }}>After</th>
+                <th style={{ width: '90px', textAlign: 'center' }}>Batch</th>
+                <th style={{ width: '160px', textAlign: 'left' }}>Reason</th>
+                <th style={{ width: '90px', textAlign: 'left' }}>Ref #</th>
+                <th style={{ width: '100px', textAlign: 'left' }}>By</th>
               </tr>
             </thead>
             <tbody>
@@ -310,30 +310,30 @@ const InventoryAuditLogPage = () => {
 
                   return (
                     <tr key={log.id}>
-                      <td style={{ minWidth: '130px' }}>
+                      <td style={{ textAlign: 'left' }}>
                         <div style={{ fontWeight: 500 }}>{formattedDate}</div>
                         <div style={{ color: '#6b7280', fontSize: '11px' }}>{formattedTime}</div>
                       </td>
-                      <td style={{ minWidth: '110px', maxWidth: '160px', whiteSpace: 'normal', fontWeight: 500 }}>
+                      <td style={{ whiteSpace: 'normal', fontWeight: 500, textAlign: 'left' }}>
                         {log.inventory_items?.item_name || 'Unknown Item'}
                       </td>
-                      <td style={{ width: '100px' }}>
+                      <td style={{ textAlign: 'left' }}>
                         <span className={`audit-chip ${getActionChipClass(log.action)}`}>
                           {log.action}
                         </span>
                       </td>
-                      <td style={{ width: '120px' }}>
+                      <td style={{ textAlign: 'left' }}>
                         <span className={`audit-chip ${getSourceChipClass(log.source)}`}>
                           {log.source}
                         </span>
                       </td>
-                      <td className={getChangeClass(log.quantity_change)}>{changeStr}</td>
-                      <td>{log.stock_before}</td>
-                      <td>{log.stock_after}</td>
-                      <td style={{ fontWeight: 600, width: '80px' }}>{batchNum}</td>
-                      <td className="audit-reason-col">{log.reason_reference || '-'}</td>
-                      <td style={{ minWidth: '90px', fontWeight: 500, color: '#555' }}>{log.log_number || '-'}</td>
-                      <td style={{ minWidth: '100px', maxWidth: '140px', whiteSpace: 'normal' }}>{byName}</td>
+                      <td className={getChangeClass(log.quantity_change)} style={{ textAlign: 'center' }}>{changeStr}</td>
+                      <td style={{ textAlign: 'center' }}>{log.stock_before}</td>
+                      <td style={{ textAlign: 'center' }}>{log.stock_after}</td>
+                      <td style={{ fontWeight: 600, textAlign: 'center', fontSize: '0.75rem' }}>{batchNum}</td>
+                      <td className="audit-reason-col" style={{ textAlign: 'left', whiteSpace: 'normal' }}>{log.reason_reference || '-'}</td>
+                      <td style={{ fontWeight: 500, color: '#555', textAlign: 'left' }}>{log.log_number || '-'}</td>
+                      <td style={{ textAlign: 'left' }}>{byName}</td>
                     </tr>
                   );
                 })

@@ -21,6 +21,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
   const [isCustomReason, setIsCustomReason] = useState(false);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -35,6 +36,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
       setSelectedBatchId('');
       setLiveStock(null);
       setErrors({});
+      setHasAttemptedSubmit(false);
 
       if (item) {
         fetchItemBatches(item.id)
@@ -102,9 +104,18 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
       }
     }
 
-    if (actionType === 'restock' && isExpiryTracked) {
-      if (!expirationDate) {
-        newErrors.expirationDate = 'Expiration date is required for expiry-tracked items.';
+    if (actionType === 'restock') {
+      if (totalCost === '') {
+        newErrors.totalCost = 'Total cost is required.';
+      }
+      if (isExpiryTracked && !expirationDate) {
+        newErrors.expirationDate = 'Expiration date is required for tracked items.';
+      }
+    }
+
+    if (actionType === 'wastage' || actionType === 'correct') {
+      if (!selectedBatchId) {
+        newErrors.selectedBatchId = 'Please select a batch.';
       }
     }
 
@@ -115,13 +126,14 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
     }
 
     setErrors(newErrors);
-  }, [quantity, expirationDate, reason, isCustomReason, actionType, isOpen, isExpiryTracked, currentStock]);
+  }, [quantity, totalCost, reason, isCustomReason, actionType, isOpen, currentStock, selectedBatchId, isExpiryTracked, expirationDate]);
 
   if (!isOpen || !item) return null;
 
   const isFormValid = Object.keys(errors).length === 0;
 
   const handleSave = async () => {
+    setHasAttemptedSubmit(true);
     if (!isFormValid || isSubmitting) return;
     setIsSubmitting(true);
 
@@ -289,9 +301,9 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           {(actionType === 'wastage' || actionType === 'correct') && (
             <>
               <div className="stocklog-section">
-                <label className="stocklog-label">Select Batch</label>
+                <label className="stocklog-label">Select Batch *</label>
                 <select
-                  className="stocklog-select"
+                  className={`stocklog-select ${hasAttemptedSubmit && errors.selectedBatchId ? 'is-invalid' : ''}`}
                   value={selectedBatchId}
                   onChange={(e) => setSelectedBatchId(e.target.value)}
                 >
@@ -307,6 +319,9 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
                     <option value="" disabled>No batches available</option>
                   )}
                 </select>
+                {hasAttemptedSubmit && errors.selectedBatchId && (
+                  <p className="stocklog-error-msg">{errors.selectedBatchId}</p>
+                )}
                 <div className="stocklog-subtext">
                   If the deduction exceeds this batch's stock, the remaining amount will automatically be deducted from the next oldest batch.
                 </div>
@@ -318,16 +333,16 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           {/* Quantity & Preview */}
           <div className="stocklog-section-row">
             <div className="stocklog-section">
-              <label className="stocklog-label">{getQuantityLabel()}</label>
+              <label className="stocklog-label">{getQuantityLabel()} *</label>
               <input
                 type="number"
-                className={`stocklog-input ${(quantity !== '' && errors.quantity) ? 'is-invalid' : ''}`}
+                className={`stocklog-input ${hasAttemptedSubmit && errors.quantity ? 'is-invalid' : ''}`}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 placeholder="0"
                 min="0"
               />
-              {(quantity !== '' && errors.quantity) && (
+              {hasAttemptedSubmit && errors.quantity && (
                 <p className="stocklog-error-msg">{errors.quantity}</p>
               )}
             </div>
@@ -344,27 +359,32 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
             <>
               <div className="stocklog-section-row">
                 <div className="stocklog-section">
-                  <label className="stocklog-label">Total Cost (Amount Paid)</label>
+                  <label className="stocklog-label">Total Cost (Amount Paid) *</label>
                   <input
                     type="number"
-                    className="stocklog-input"
+                    className={`stocklog-input ${hasAttemptedSubmit && errors.totalCost ? 'is-invalid' : ''}`}
                     value={totalCost}
                     onChange={(e) => setTotalCost(e.target.value)}
                     placeholder="₱ 0.00"
                     min="0"
                   />
+                  {hasAttemptedSubmit && errors.totalCost && (
+                    <p className="stocklog-error-msg">{errors.totalCost}</p>
+                  )}
                 </div>
 
-                {/* Always show expiration date on restock, but only error if required */}
+                {/* Expiration date on restock, required if isExpiryTracked */}
                 <div className="stocklog-section">
-                  <label className="stocklog-label">Expiration Date (Optional)</label>
+                  <label className="stocklog-label">
+                    Expiration Date {isExpiryTracked ? '*' : '(Optional)'}
+                  </label>
                   <input
                     type="date"
-                    className={`stocklog-input ${(expirationDate !== '' && errors.expirationDate) ? 'is-invalid' : ''}`}
+                    className={`stocklog-input ${hasAttemptedSubmit && errors.expirationDate ? 'is-invalid' : ''}`}
                     value={expirationDate}
                     onChange={(e) => setExpirationDate(e.target.value)}
                   />
-                  {(errors.expirationDate) && (
+                  {hasAttemptedSubmit && errors.expirationDate && (
                     <p className="stocklog-error-msg">{errors.expirationDate}</p>
                   )}
                 </div>
@@ -377,12 +397,12 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           {/* Reason & Notes */}
           <div className="stocklog-section-row">
             <div className="stocklog-section">
-              <label className="stocklog-label">Reason</label>
+              <label className="stocklog-label">Reason *</label>
               {isCustomReason ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    className={`stocklog-input ${(errors.reason) ? 'is-invalid' : ''}`}
+                    className={`stocklog-input ${hasAttemptedSubmit && errors.reason ? 'is-invalid' : ''}`}
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Others (please specify)"
@@ -402,7 +422,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
                 </div>
               ) : (
                 <select
-                  className={`stocklog-select ${(reason !== '' && errors.reason) ? 'is-invalid' : ''}`}
+                  className={`stocklog-select ${hasAttemptedSubmit && errors.reason ? 'is-invalid' : ''}`}
                   value={reason}
                   onChange={(e) => {
                     if (e.target.value === 'Others') {
@@ -417,7 +437,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
                   {renderReasonOptions()}
                 </select>
               )}
-              {(reason !== '' && errors.reason) && (
+              {hasAttemptedSubmit && errors.reason && (
                 <p className="stocklog-error-msg">{errors.reason}</p>
               )}
             </div>
@@ -443,6 +463,12 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           )}
         </div>
 
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
         <div className="stocklog-modal-footer">
           <button className="stocklog-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
@@ -450,7 +476,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           <button
             className="stocklog-btn-save"
             onClick={handleSave}
-            disabled={!isFormValid || isSubmitting}
+            disabled={isSubmitting}
           >
             {isSubmitting ? 'Saving...' : 'Save Log'}
           </button>

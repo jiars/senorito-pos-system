@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loginUser, updateUserPassword } from '../services/authService';
+import { loginUser, updateUserPassword, logoutUser } from '../services/authService';
 
 export const usePasswordChange = (userEmail) => {
     const [currentPasswordInput, setCurrentPasswordInput] = useState('');
@@ -50,6 +50,11 @@ export const usePasswordChange = (userEmail) => {
             setCurrentPasswordInput('');
             setNewPasswordInput('');
             setConfirmPasswordInput('');
+            
+            setTimeout(async () => {
+                await logoutUser();
+                window.location.href = '/login';
+            }, 1500);
         } catch (error) {
             triggerTimedMessage('error', 'Your current password is incorrect!');
         }

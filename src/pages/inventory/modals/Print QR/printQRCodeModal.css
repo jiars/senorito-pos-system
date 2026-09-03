@@ -295,6 +295,10 @@
   }
 
   /* Hide the root app structure completely from taking up space, EXCEPT the modal itself */
+  @page {
+    margin: 4mm 0;
+  }
+
   .layout-sidebar,
   .layout-topbar,
   .layout-header {
@@ -343,12 +347,71 @@
   }
 
   .print-only-layout {
+    display: block !important;
+    position: static !important;
+    width: 100%;
+    height: auto !important;
+    padding: 0 5mm 40px 5mm;
+    box-sizing: border-box;
+    color: #2C1810;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .print-qr-grid-container {
     display: flex !important;
     flex-wrap: wrap;
     gap: 4mm;
     width: 100%;
     align-items: flex-start;
     align-content: flex-start;
+  }
+
+  .print-qr-header-container {
+    margin-bottom: 20px;
+  }
+
+  .print-qr-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 15px;
+  }
+
+  .print-qr-title-row h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #3A1A0A;
+  }
+
+  .print-qr-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 11px;
+    color: #6c757d;
+  }
+
+  .print-brand {
+    font-size: 14px;
+    font-weight: 700;
+    color: #3A1A0A;
+    margin-bottom: 2px;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: white;
+    text-align: center;
+    font-size: 9px;
+    color: #6c757d;
+    border-top: 1px solid #d9c0ae;
+    padding-top: 10px;
+    padding-bottom: 15px;
+    margin-top: 0;
   }
 
   .print-qr-card {

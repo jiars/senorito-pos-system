@@ -67,7 +67,7 @@ const InventoryTable = ({
 
     // 3. Logic para i-filter yung items based sa pinili sa dropdown/search
     const filteredItems = inventoryItems.filter((item) => {
-        const matchesSearch = item.item_name.toLowerCase().startsWith(searchQuery.toLowerCase());
+        const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.toLowerCase());
 
         const categoryName = item.inventory_categories?.category_name || '';
         const matchesCategory = categoryFilter === 'All Categories' || categoryName === categoryFilter;
@@ -156,14 +156,14 @@ const InventoryTable = ({
                                 />
                             </th>
                             <th style={{ textAlign: 'left' }}>Name</th>
-                            <th style={{ textAlign: 'left' }}>Category</th>
-                            <th style={{ textAlign: 'center' }}>Qty</th>
-                            <th style={{ textAlign: 'center' }}>Unit</th>
-                            <th style={{ textAlign: 'center' }}>Min Level</th>
-                            <th style={{ textAlign: 'center' }}>Status</th>
-                            <th style={{ textAlign: 'center' }}>Expiry Status</th>
-                            <th style={{ textAlign: 'center' }}>Last Updated</th>
-                            <th style={{ textAlign: 'center' }}>Actions</th>
+                            <th style={{ width: '150px', textAlign: 'left' }}>Category</th>
+                            <th style={{ width: '70px', textAlign: 'center' }}>Qty</th>
+                            <th style={{ width: '70px', textAlign: 'center' }}>Unit</th>
+                            <th style={{ width: '90px', textAlign: 'center' }}>Min Level</th>
+                            <th style={{ width: '110px', textAlign: 'center' }}>Status</th>
+                            <th style={{ width: '120px', textAlign: 'center' }}>Expiry Status</th>
+                            <th style={{ width: '140px', textAlign: 'center' }}>Last Updated</th>
+                            <th style={{ width: '160px', textAlign: 'center' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>

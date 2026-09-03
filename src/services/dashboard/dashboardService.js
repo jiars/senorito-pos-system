@@ -24,12 +24,15 @@ export const getTodayMetrics = async () => {
   const totalSales = orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
   const orderCount = orders.length;
 
-  // 2. Fetch today's expenses
-  // expense_date might be date only or timestamp
+  // Fix timezone issue: toISOString() converts to UTC (yesterday for +8:00)
+  // We need the local date string (YYYY-MM-DD)
+  const today = new Date();
+  const localTodayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
   const { data: expenses, error: expensesError } = await supabase
     .from('expenses')
     .select('amount')
-    .gte('expense_date', start.split('T')[0]); 
+    .eq('expense_date', localTodayStr); 
     
   if (expensesError) throw expensesError;
 
@@ -188,7 +191,7 @@ export const getTopSellingItems = async () => {
     aggregated[name].price += Number(item.subtotal) || 0;
   });
 
-  const sorted = Object.values(aggregated).sort((a, b) => b.sold - a.sold).slice(0, 6); // Top 6
+  const sorted = Object.values(aggregated).sort((a, b) => b.sold - a.sold).slice(0, 5); // Top 5
   
   return sorted.map((item, index) => ({
     rank: index + 1,
@@ -218,7 +221,7 @@ export const getRecentOrders = async () => {
   
   return data.map(order => ({
     orderNo: order.order_number,
-    cashier: order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Admin / System',
+    cashier: order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Owner / System',
     total: Number(order.total) || 0,
     payment: order.payment_method,
     status: order.status || 'Completed',

@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { formatDecimal } from '../../utils/numberFormatters';
+import { logSystemActivity } from '../authService';
 
 // --- EXPENSES ---
 export const fetchExpenses = async () => {
@@ -35,6 +36,7 @@ export const addExpense = async (expenseData) => {
         .single();
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return data;
 };
 
@@ -52,6 +54,7 @@ export const updateExpense = async (id, expenseData) => {
         .single();
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return data;
 };
 
@@ -62,6 +65,7 @@ export const deleteExpense = async (id) => {
         .eq('id', id);
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return true;
 };
 
@@ -84,6 +88,7 @@ export const addExpenseCategory = async (category_name) => {
         .single();
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return data;
 };
 
@@ -96,6 +101,7 @@ export const updateExpenseCategory = async (id, category_name) => {
         .single();
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return data;
 };
 
@@ -106,6 +112,7 @@ export const deleteExpenseCategory = async (id) => {
         .eq('id', id);
 
     if (error) throw new Error(error.message);
+    await logSystemActivity();
     return true;
 };
 

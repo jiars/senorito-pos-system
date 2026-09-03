@@ -20,16 +20,14 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
   const [minLevel, setMinLevel] = useState('');
   const [supplier, setSupplier] = useState('');
 
-  const [conversions, setConversions] = useState([
-    { id: 1, unit: '', equivalent: '' }
-  ]);
+  const [conversions, setConversions] = useState([]);
 
   const [trackExpiry, setTrackExpiry] = useState(false);
   const [expiryDate, setExpiryDate] = useState('');
   const [note, setNote] = useState('');
 
-  // Track touched fields for validation
-  const [touched, setTouched] = useState({});
+  // Track if user attempted to submit
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Reset form when modal opens
   React.useEffect(() => {
@@ -43,11 +41,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
       setTotalCost('');
       setMinLevel('');
       setSupplier('');
-      setConversions([{ id: 1, unit: '', equivalent: '' }]);
+      setConversions([]);
       setTrackExpiry(false);
       setExpiryDate('');
       setNote('');
-      setTouched({});
+      setHasAttemptedSubmit(false);
     }
   }, [isOpen]);
 
@@ -72,11 +70,9 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
 
   if (!isOpen) return null;
 
-  // Real-time interaction handler
+  // Real-time interaction handler (no longer used for validation display but kept for structure)
   const handleInteraction = (field) => {
-    if (!touched[field]) {
-      setTouched((prev) => ({ ...prev, [field]: true }));
-    }
+    // We now use hasAttemptedSubmit for showing errors instead of touched
   };
 
   const handleExpiryToggle = (e) => {
@@ -92,10 +88,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
   };
 
   const handleRemoveConversion = (id) => {
-    // Only allow removing if more than 1 row exists
-    if (conversions.length > 1) {
-      setConversions(conversions.filter(c => c.id !== id));
-    }
+    setConversions(conversions.filter(c => c.id !== id));
   };
 
   const handleConversionChange = (id, field, value) => {
@@ -216,6 +209,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
   };
 
   const handleSubmit = async () => {
+    setHasAttemptedSubmit(true);
     if (!isFormValid || isSubmitting) return;
     setIsSubmitting(true);
 
@@ -281,10 +275,10 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
           <div className="inventory-modal-section">
             <div className="inventory-form-grid inventory-form-grid--3">
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Item Name</label>
+                <label className="inventory-form-label">Item Name *</label>
                 <input
                   type="text"
-                  className={`inventory-form-input ${touched.itemName && (isNameEmpty || isDuplicateName) ? 'inventory-form-input--error' : ''}`}
+                  className={`inventory-form-input ${hasAttemptedSubmit && (isNameEmpty || isDuplicateName) ? 'inventory-form-input--error' : ''}`}
                   placeholder="Enter item name"
                   value={itemName}
                   onChange={(e) => {
@@ -293,17 +287,17 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   }}
                   onBlur={() => handleInteraction('itemName')}
                 />
-                {touched.itemName && isNameEmpty && (
+                {hasAttemptedSubmit && isNameEmpty && (
                   <span className="inventory-form-error">Item name is required.</span>
                 )}
-                {touched.itemName && !isNameEmpty && isDuplicateName && (
+                {hasAttemptedSubmit && !isNameEmpty && isDuplicateName && (
                   <span className="inventory-form-error">This item already exists.</span>
                 )}
               </div>
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Base Unit</label>
+                <label className="inventory-form-label">Base Unit *</label>
                 <select
-                  className={`inventory-form-select ${touched.unit && unit === '' ? 'inventory-form-select--error' : ''}`}
+                  className={`inventory-form-select ${hasAttemptedSubmit && unit === '' ? 'inventory-form-select--error' : ''}`}
                   value={unit}
                   onChange={(e) => {
                     setUnit(e.target.value);
@@ -317,14 +311,14 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   ))}
 
                 </select>
-                {touched.unit && unit === '' && (
+                {hasAttemptedSubmit && unit === '' && (
                   <span className="inventory-form-error">Unit is required.</span>
                 )}
               </div>
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Category</label>
+                <label className="inventory-form-label">Category *</label>
                 <select
-                  className={`inventory-form-select ${touched.category && category === '' ? 'inventory-form-select--error' : ''}`}
+                  className={`inventory-form-select ${hasAttemptedSubmit && category === '' ? 'inventory-form-select--error' : ''}`}
                   value={category}
                   onChange={(e) => {
                     setCategory(e.target.value);
@@ -337,7 +331,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                     <option key={cat.id} value={cat.id}>{cat.category_name}</option>
                   ))}
                 </select>
-                {touched.category && category === '' && (
+                {hasAttemptedSubmit && category === '' && (
                   <span className="inventory-form-error">Category is required.</span>
                 )}
               </div>
@@ -349,12 +343,12 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
             <h4 className="inventory-modal-section-title">Initial Purchase</h4>
             <div className="inventory-form-grid inventory-form-grid--3">
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Qty Purchased</label>
+                <label className="inventory-form-label">Qty Purchased *</label>
                 <input
                   type="number"
                   min="0"
                   step="any"
-                  className={`inventory-form-input ${touched.qtyPurchased && !isQtyValid ? 'inventory-form-input--error' : ''}`}
+                  className={`inventory-form-input ${hasAttemptedSubmit && !isQtyValid ? 'inventory-form-input--error' : ''}`}
                   placeholder="Enter quantity"
                   value={qtyPurchased}
                   onChange={(e) => {
@@ -363,15 +357,15 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   }}
                   onBlur={() => handleInteraction('qtyPurchased')}
                 />
-                {touched.qtyPurchased && !isQtyValid && (
+                {hasAttemptedSubmit && !isQtyValid && (
                   <span className="inventory-form-error">Must be greater than 0.</span>
                 )}
               </div>
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Purchase Unit</label>
+                <label className="inventory-form-label">Purchase Unit *</label>
                 <input
                   type="text"
-                  className={`inventory-form-input ${touched.purchaseUnit && purchaseUnit === '' ? 'inventory-form-input--error' : ''}`}
+                  className={`inventory-form-input ${hasAttemptedSubmit && purchaseUnit === '' ? 'inventory-form-input--error' : ''}`}
                   placeholder="e.g. Box, Sack, kg"
                   value={purchaseUnit}
                   onChange={(e) => {
@@ -380,17 +374,17 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   }}
                   onBlur={() => handleInteraction('purchaseUnit')}
                 />
-                {touched.purchaseUnit && purchaseUnit === '' && (
+                {hasAttemptedSubmit && purchaseUnit === '' && (
                   <span className="inventory-form-error">Purchase unit required.</span>
                 )}
               </div>
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Total Cost (₱)</label>
+                <label className="inventory-form-label">Total Cost (₱) *</label>
                 <input
                   type="number"
                   min="0"
                   step="any"
-                  className={`inventory-form-input ${touched.totalCost && !isCostValid ? 'inventory-form-input--error' : ''}`}
+                  className={`inventory-form-input ${hasAttemptedSubmit && !isCostValid ? 'inventory-form-input--error' : ''}`}
                   placeholder="Enter total cost"
                   value={totalCost}
                   onChange={(e) => {
@@ -399,7 +393,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   }}
                   onBlur={() => handleInteraction('totalCost')}
                 />
-                {touched.totalCost && !isCostValid && (
+                {hasAttemptedSubmit && !isCostValid && (
                   <span className="inventory-form-error">Must be greater than 0.</span>
                 )}
               </div>
@@ -432,12 +426,12 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
             </div>
             <div className="inventory-form-grid inventory-form-grid--2" style={{ marginTop: '0.5rem' }}>
               <div className="inventory-form-group">
-                <label className="inventory-form-label">Minimum Level ({unit || 'unit'})</label>
+                <label className="inventory-form-label">Minimum Level ({unit || 'unit'}) *</label>
                 <input
                   type="number"
                   min="0"
                   step="any"
-                  className={`inventory-form-input ${touched.minLevel && !isMinValid ? 'inventory-form-input--error' : ''}`}
+                  className={`inventory-form-input ${hasAttemptedSubmit && !isMinValid ? 'inventory-form-input--error' : ''}`}
                   placeholder="Enter minimum stock level"
                   value={minLevel}
                   onChange={(e) => {
@@ -446,7 +440,7 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   }}
                   onBlur={() => handleInteraction('minLevel')}
                 />
-                {touched.minLevel && !isMinValid && (
+                {hasAttemptedSubmit && !isMinValid && (
                   <span className="inventory-form-error">Must be 0 or greater.</span>
                 )}
               </div>
@@ -467,20 +461,24 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
           <div className="inventory-modal-section">
             <h4 className="inventory-modal-section-title">Recipe Conversion Unit</h4>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
-              <label className="inventory-form-label" style={{ marginBottom: 0 }}>Converted Unit</label>
-              <label className="inventory-form-label" style={{ marginBottom: 0 }}>
-                Equivalent Amount in {unit || "base unit"}
-              </label>
-              <div style={{ width: '32px' }}></div>
-            </div>
+            {conversions.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
+                <label className="inventory-form-label" style={{ marginBottom: 0 }}>Converted Unit *</label>
+                <label className="inventory-form-label" style={{ marginBottom: 0 }}>
+                  Equivalent Amount in {unit || "base unit"} *
+                </label>
+                <div style={{ width: '32px' }}></div>
+              </div>
+            )}
 
             {conversions.map((conv) => {
               const eq = parseFloat(conv.equivalent);
               const isConvUnitEmpty = conv.unit === '';
               const isEqInvalid = isNaN(eq) || eq <= 0;
               const hasInput = !isConvUnitEmpty || conv.equivalent !== '';
-              const showError = hasInput && (isConvUnitEmpty || isEqInvalid);
+              const showError = hasAttemptedSubmit && hasInput && (isConvUnitEmpty || isEqInvalid);
+              // Also show error if they attempted submit and fields are empty
+              const showEmptyError = hasAttemptedSubmit && (isConvUnitEmpty || isEqInvalid);
               
               let helperText = null;
               if (conv.equivalent && !isNaN(eq) && eq > 0) {
@@ -496,12 +494,12 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                   <div className="inventory-form-group" style={{ marginBottom: 0 }}>
                     <input
                       type="text"
-                      className={`inventory-form-input ${showError && isConvUnitEmpty ? 'inventory-form-input--error' : ''}`}
+                      className={`inventory-form-input ${showEmptyError && isConvUnitEmpty ? 'inventory-form-input--error' : ''}`}
                       placeholder="e.g. shot, tbsp"
                       value={conv.unit}
                       onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
                     />
-                    {showError && isConvUnitEmpty && (
+                    {showEmptyError && isConvUnitEmpty && (
                       <span className="inventory-form-error">Required.</span>
                     )}
                   </div>
@@ -510,13 +508,13 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                       type="number"
                       min="0"
                       step="any"
-                      className={`inventory-form-input ${showError && isEqInvalid ? 'inventory-form-input--error' : ''}`}
+                      className={`inventory-form-input ${showEmptyError && isEqInvalid ? 'inventory-form-input--error' : ''}`}
                       placeholder="Enter amount"
                       value={conv.equivalent}
                       onChange={(e) => handleConversionChange(conv.id, 'equivalent', e.target.value)}
                     />
                     {helperText}
-                    {showError && isEqInvalid && (
+                    {showEmptyError && isEqInvalid && (
                       <span className="inventory-form-error">Must be &gt; 0.</span>
                     )}
                   </div>
@@ -525,7 +523,6 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                     style={{ marginTop: '0', padding: '0.6rem' }}
                     onClick={() => handleRemoveConversion(conv.id)}
                     title="Remove conversion"
-                    disabled={conversions.length <= 1}
                   >
                     <i className="bi bi-trash"></i>
                   </button>
@@ -558,11 +555,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
 
             {trackExpiry && (
               <div className="inventory-form-group" style={{ marginTop: '0.5rem' }}>
-                <label className="inventory-form-label">Expiration Date</label>
+                <label className="inventory-form-label">Expiration Date *</label>
                 <div className="inventory-date-input-wrapper">
                   <input
                     type="date"
-                    className={`inventory-form-input ${touched.expiryDate && (!isExpiryValid) ? 'inventory-form-input--error' : ''}`}
+                    className={`inventory-form-input ${hasAttemptedSubmit && (!isExpiryValid) ? 'inventory-form-input--error' : ''}`}
                     value={expiryDate}
                     onChange={(e) => {
                       setExpiryDate(e.target.value);
@@ -570,10 +567,10 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
                     }}
                     onBlur={() => handleInteraction('expiryDate')}
                   />
-                  {touched.expiryDate && isExpiryEmpty && (
+                  {hasAttemptedSubmit && isExpiryEmpty && (
                     <span className="inventory-form-error">Expiration date is required.</span>
                   )}
-                  {touched.expiryDate && !isExpiryEmpty && !hasValidFutureDate && (
+                  {hasAttemptedSubmit && !isExpiryEmpty && !hasValidFutureDate && (
                     <span className="inventory-form-error">Enter a valid future expiration date.</span>
                   )}
                 </div>
@@ -594,12 +591,18 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
 
         </div>
 
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
         <div className="inventory-modal-footer">
           <button className="inventory-modal-btn-cancel" onClick={onClose}>Cancel</button>
           <button
             className="inventory-modal-btn-save"
             onClick={handleSubmit}
-            disabled={!isFormValid || isSubmitting}
+            disabled={isSubmitting}
           >
             {isSubmitting ? 'Saving...' : 'Add Item'}
           </button>

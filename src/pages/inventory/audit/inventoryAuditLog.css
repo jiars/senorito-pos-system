@@ -213,7 +213,9 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: #ffffff;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .audit-chip--teal {
@@ -268,4 +270,42 @@
   border: 1px solid #d9c0ae;
   color: #2C1810;
   font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive — Tablet Portrait & Mobile (≤ 1024px)
+═══════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .audit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .audit-filter-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .audit-search,
+  .audit-reset-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .audit-date-group,
+  .audit-select {
+    width: 100%;
+  }
+
+  .audit-date-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .audit-date-group input {
+    width: 100%;
+  }
 }

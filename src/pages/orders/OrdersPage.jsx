@@ -3,6 +3,7 @@ import ViewOrderDetails from './View Order Details/ViewOrderDetails';
 import './ordersPage.css';
 
 import { fetchOrderHistory, fetchOrderDetails } from '../../services/pos/ordersService';
+import { formatCurrency } from '../../utils/currencyFormatters';
 
 // We no longer use dummyOrders, we fetch live data from Supabase.
 
@@ -60,7 +61,7 @@ const OrdersPage = () => {
       id: order.id,
       order_number: order.order_number,
       date: new Date(order.order_datetime),
-      cashier: order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Admin / System',
+      cashier: order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Owner / System',
       orderSource: order.order_source,
       paymentMethod: order.payment_method,
       discountType: order.discount_type || 'None',
@@ -76,7 +77,10 @@ const OrdersPage = () => {
   // Filter Logic
   const filteredOrders = orders.filter(order => {
     // Text search
-    const searchString = `${order.order_number} ${order.cashier?.first_name} ${order.cashier?.last_name} ${order.order_source} ${order.payment_method}`.toLowerCase();
+    const formattedDateForSearch = new Date(order.order_datetime).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    const searchString = `${order.order_number} ${order.cashier?.first_name} ${order.cashier?.last_name} ${order.order_source} ${order.payment_method} ${formattedDateForSearch} ${formatCurrency(order.total)}`.toLowerCase();
     if (searchTerm && !searchString.includes(searchTerm.toLowerCase())) return false;
 
     // Date filtering
@@ -207,7 +211,7 @@ const OrdersPage = () => {
                 </tr>
               ) : (
                 paginatedOrders.map((order) => {
-                  const cashierName = order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Admin / System';
+                  const cashierName = order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Owner / System';
                   const formattedDate = new Date(order.order_datetime).toLocaleString('en-US', {
                     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                   });
@@ -217,7 +221,7 @@ const OrdersPage = () => {
                       <td><strong>{order.order_number}</strong></td>
                       <td>{formattedDate}</td>
                       <td>{cashierName}</td>
-                      <td>₱{Number(order.total).toFixed(2)}</td>
+                      <td><strong>{formatCurrency(order.total)}</strong></td>
                       <td>{order.payment_method}</td>
                       <td>
                         <span className={`orders-chip ${getSourceClass(order.order_source)}`}>

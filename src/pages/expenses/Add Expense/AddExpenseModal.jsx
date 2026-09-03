@@ -30,6 +30,8 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
   const [batches, setBatches] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   // Check if selected category is Inventory Purchase or Wastage
   const selectedCategoryName = categories.find(c => c.id === formData.category_id)?.category_name;
@@ -53,6 +55,8 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
 
       // Clear error when opening
       setError(null);
+      setErrors({});
+      setHasAttemptedSubmit(false);
     }
   }, [isOpen]);
 
@@ -95,6 +99,58 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
     }
   }, [isInventoryWastage, formData.selected_batch_id, formData.quantity_to_deduct, batches, selectedInventoryItem]);
 
+  // Validation hook
+  useEffect(() => {
+    if (!isOpen) return;
+    const newErrors = {};
+
+    if (!formData.category_id) newErrors.category_id = 'Category is required.';
+    if (!formData.expense_date) newErrors.expense_date = 'Date is required.';
+    if (!formData.description.trim()) newErrors.description = 'Description is required.';
+    
+    if (!isInventoryWastage) {
+      if (!formData.amount) {
+        newErrors.amount = 'Amount is required.';
+      } else if (Number(formData.amount) <= 0) {
+        newErrors.amount = 'Amount must be > 0.';
+      }
+      if (!formData.payment_method) {
+        newErrors.payment_method = 'Payment method is required.';
+      }
+    }
+
+    if (isInventoryWastage || isInventoryPurchase) {
+      if (!formData.inventory_item_id) newErrors.inventory_item_id = 'Inventory item is required.';
+    }
+
+    if (isInventoryPurchase) {
+      if (!formData.quantity_to_add || Number(formData.quantity_to_add) <= 0) {
+        newErrors.quantity_to_add = 'Quantity must be > 0.';
+      }
+      if (selectedInventoryItem?.track_expiry && !formData.expiration_date) {
+        newErrors.expiration_date = 'Expiration date is required.';
+      }
+    }
+
+    if (isInventoryWastage) {
+      if (!formData.selected_batch_id) newErrors.selected_batch_id = 'Batch is required.';
+      const qtyToDeduct = Number(formData.quantity_to_deduct);
+      if (!formData.quantity_to_deduct || qtyToDeduct <= 0) {
+        newErrors.quantity_to_deduct = 'Quantity must be > 0.';
+      } else {
+        const selectedBatch = batches.find(b => b.id === formData.selected_batch_id);
+        if (selectedBatch && qtyToDeduct > Number(selectedBatch.quantity)) {
+          newErrors.quantity_to_deduct = `Exceeds batch stock (${selectedBatch.quantity}).`;
+        }
+      }
+      if (formData.wastage_reason === 'Other' && !formData.other_wastage_reason.trim()) {
+        newErrors.other_wastage_reason = 'Reason is required.';
+      }
+    }
+
+    setErrors(newErrors);
+  }, [formData, isInventoryWastage, isInventoryPurchase, isOpen, batches, selectedInventoryItem]);
+
   if (!isOpen) return null;
 
   const handleChange = (e) => {
@@ -102,53 +158,14 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const isFormValid = Object.keys(errors).length === 0;
+
   const handleSubmit = async () => {
+    setHasAttemptedSubmit(true);
+    if (!isFormValid || isSubmitting) return;
+
     try {
       setError(null);
-
-      // Base Validation
-      if (!formData.category_id || !formData.expense_date || !formData.description || !formData.amount || (!isInventoryWastage && !formData.payment_method)) {
-        throw new Error("Please fill in all required fields.");
-      }
-
-      if (Number(formData.amount) <= 0) {
-        throw new Error("Amount must be greater than 0.");
-      }
-
-      // Inventory Purchase Validation
-      if (isInventoryPurchase) {
-        if (!formData.inventory_item_id) {
-          throw new Error("Please select an inventory item.");
-        }
-        if (!formData.quantity_to_add || Number(formData.quantity_to_add) <= 0) {
-          throw new Error("Quantity to add must be greater than 0.");
-        }
-        if (selectedInventoryItem?.track_expiry && !formData.expiration_date) {
-          throw new Error("Expiration date is required for this item.");
-        }
-      }
-
-      // Inventory Wastage Validation
-      if (isInventoryWastage) {
-        if (!formData.inventory_item_id) {
-          throw new Error("Please select an inventory item.");
-        }
-        if (!formData.selected_batch_id) {
-          throw new Error("Please select a batch.");
-        }
-        const qtyToDeduct = Number(formData.quantity_to_deduct);
-        if (!formData.quantity_to_deduct || qtyToDeduct <= 0) {
-          throw new Error("Quantity to waste must be greater than 0.");
-        }
-        const selectedBatch = batches.find(b => b.id === formData.selected_batch_id);
-        if (selectedBatch && qtyToDeduct > Number(selectedBatch.quantity)) {
-          throw new Error(`Cannot waste more than current batch stock (${selectedBatch.quantity}).`);
-        }
-        if (formData.wastage_reason === 'Other' && !formData.other_wastage_reason.trim()) {
-          throw new Error("Please specify the wastage reason.");
-        }
-      }
-
       setIsSubmitting(true);
 
       if (isInventoryPurchase) {
@@ -263,7 +280,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
             <div className="expense-form-group">
               <label className="expense-form-label">Category *</label>
               <select
-                className="expense-form-select"
+                className={`expense-form-select ${hasAttemptedSubmit && errors.category_id ? 'is-invalid' : ''}`}
                 name="category_id"
                 value={formData.category_id}
                 onChange={handleChange}
@@ -274,17 +291,19 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                   <option key={cat.id} value={cat.id}>{cat.category_name}</option>
                 ))}
               </select>
+              {hasAttemptedSubmit && errors.category_id && <p className="expense-modal-error-msg">{errors.category_id}</p>}
             </div>
             <div className="expense-form-group">
               <label className="expense-form-label">Date *</label>
               <input
                 type="date"
-                className="expense-form-input"
+                className={`expense-form-input ${hasAttemptedSubmit && errors.expense_date ? 'is-invalid' : ''}`}
                 name="expense_date"
                 value={formData.expense_date}
                 onChange={handleChange}
                 disabled={isSubmitting}
               />
+              {hasAttemptedSubmit && errors.expense_date && <p className="expense-modal-error-msg">{errors.expense_date}</p>}
             </div>
           </div>
 
@@ -292,13 +311,14 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
             <label className="expense-form-label">Description *</label>
             <input
               type="text"
-              className="expense-form-input"
+              className={`expense-form-input ${hasAttemptedSubmit && errors.description ? 'is-invalid' : ''}`}
               placeholder="e.g. Monthly Rent"
               name="description"
               value={formData.description}
               onChange={handleChange}
               disabled={isSubmitting}
             />
+            {hasAttemptedSubmit && errors.description && <p className="expense-modal-error-msg">{errors.description}</p>}
           </div>
 
           <div className="expense-form-grid expense-form-grid--2">
@@ -312,12 +332,14 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                     placeholder="0.00"
                     step="0.01"
                     name="amount"
+                    className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
                     value={formData.amount}
                     onChange={handleChange}
                     disabled={isSubmitting || isInventoryWastage}
                     title={isInventoryWastage ? "Amount is automatically calculated from batch cost" : ""}
                   />
                 </div>
+                {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
                 {isInventoryWastage && (
                   <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
                     Auto-calculated from batch cost
@@ -345,7 +367,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
               <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
                 <label className="expense-form-label">Inventory Item *</label>
                 <select
-                  className="expense-form-select"
+                  className={`expense-form-select ${hasAttemptedSubmit && errors.inventory_item_id ? 'is-invalid' : ''}`}
                   name="inventory_item_id"
                   value={formData.inventory_item_id}
                   onChange={handleChange}
@@ -358,6 +380,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                     <option key={item.id} value={item.id}>{item.item_name}</option>
                   ))}
                 </select>
+                {hasAttemptedSubmit && errors.inventory_item_id && <p className="expense-modal-error-msg">{errors.inventory_item_id}</p>}
                 {selectedInventoryItem && (
                   <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '0.35rem' }}>
                     Current stock: <strong style={{ color: '#2C1810' }}>{selectedInventoryItem.current_stock} {selectedInventoryItem.base_unit}</strong>
@@ -371,7 +394,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                   <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
                     <label className="expense-form-label">Select Batch *</label>
                     <select
-                      className="expense-form-select"
+                      className={`expense-form-select ${hasAttemptedSubmit && errors.selected_batch_id ? 'is-invalid' : ''}`}
                       name="selected_batch_id"
                       value={formData.selected_batch_id}
                       onChange={handleChange}
@@ -386,6 +409,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                         <option value="" disabled>No batches available</option>
                       )}
                     </select>
+                    {hasAttemptedSubmit && errors.selected_batch_id && <p className="expense-modal-error-msg">{errors.selected_batch_id}</p>}
                   </div>
 
                   <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
@@ -393,7 +417,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                       <label className="expense-form-label">Quantity to Remove *</label>
                       <input
                         type="number"
-                        className="expense-form-input"
+                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_deduct ? 'is-invalid' : ''}`}
                         name="quantity_to_deduct"
                         value={formData.quantity_to_deduct}
                         onChange={handleChange}
@@ -402,6 +426,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                         min="0.01"
                         step="0.01"
                       />
+                      {hasAttemptedSubmit && errors.quantity_to_deduct && <p className="expense-modal-error-msg">{errors.quantity_to_deduct}</p>}
                     </div>
                     <div className="expense-form-group">
                       <label className="expense-form-label">New Stock (preview)</label>
@@ -439,13 +464,14 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                       </label>
                       <input
                         type="text"
-                        className="expense-form-input"
+                        className={`expense-form-input ${hasAttemptedSubmit && errors.other_wastage_reason ? 'is-invalid' : ''}`}
                         name={formData.wastage_reason === 'Other' ? "other_wastage_reason" : "description"}
                         value={formData.wastage_reason === 'Other' ? formData.other_wastage_reason : formData.description}
                         onChange={handleChange}
                         disabled={isSubmitting}
                         placeholder={formData.wastage_reason === 'Other' ? "Specify reason..." : "Enter details..."}
                       />
+                      {hasAttemptedSubmit && errors.other_wastage_reason && <p className="expense-modal-error-msg">{errors.other_wastage_reason}</p>}
                     </div>
                   </div>
                 </>
@@ -457,7 +483,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                       <label className="expense-form-label">Quantity to Add *</label>
                       <input
                         type="number"
-                        className="expense-form-input"
+                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_add ? 'is-invalid' : ''}`}
                         name="quantity_to_add"
                         value={formData.quantity_to_add}
                         onChange={handleChange}
@@ -466,6 +492,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                         min="1"
                         step="0.01"
                       />
+                      {hasAttemptedSubmit && errors.quantity_to_add && <p className="expense-modal-error-msg">{errors.quantity_to_add}</p>}
                     </div>
                     <div className="expense-form-group">
                       <label className="expense-form-label">New Stock (preview)</label>
@@ -489,11 +516,13 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                           placeholder="0.00"
                           step="0.01"
                           name="amount"
+                          className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
                           value={formData.amount}
                           onChange={handleChange}
                           disabled={isSubmitting}
                         />
                       </div>
+                      {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
                     </div>
                     <div className="expense-form-group">
                       <label className="expense-form-label">New Cost per Unit</label>
@@ -512,19 +541,22 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                   <div className="expense-form-grid expense-form-grid--2">
                     <div className="expense-form-group">
                       <label className="expense-form-label">
-                        Expiration Date {selectedInventoryItem?.track_expiry && '*'}
+                        Expiration Date {selectedInventoryItem?.track_expiry ? '*' : '(Optional)'}
                       </label>
                       <input
                         type="date"
-                        className="expense-form-input"
+                        className={`expense-form-input ${hasAttemptedSubmit && errors.expiration_date ? 'is-invalid' : ''}`}
                         name="expiration_date"
                         value={formData.expiration_date}
                         onChange={handleChange}
                         disabled={isSubmitting}
                       />
-                      <small style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                        {selectedInventoryItem?.track_expiry ? 'Required for expiry-tracked items' : 'Optional'}
-                      </small>
+                      {hasAttemptedSubmit && errors.expiration_date && <p className="expense-modal-error-msg">{errors.expiration_date}</p>}
+                      {!errors.expiration_date && (
+                        <small style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '0.25rem' }}>
+                          {selectedInventoryItem?.track_expiry ? 'Required for expiry-tracked items' : 'Optional'}
+                        </small>
+                      )}
                     </div>
                   </div>
 
@@ -542,7 +574,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
               <div className="expense-form-group">
                 <label className="expense-form-label">Payment Method *</label>
                 <select
-                  className="expense-form-select"
+                  className={`expense-form-select ${hasAttemptedSubmit && errors.payment_method ? 'is-invalid' : ''}`}
                   name="payment_method"
                   value={formData.payment_method}
                   onChange={handleChange}
@@ -554,6 +586,7 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Credit Card">Credit Card</option>
                 </select>
+                {hasAttemptedSubmit && errors.payment_method && <p className="expense-modal-error-msg">{errors.payment_method}</p>}
               </div>
 
               <div className="expense-form-group">
@@ -573,6 +606,12 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
 
           {error && <div style={{ color: '#dc3545', marginTop: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
         </div>
+
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
 
         <div className="expense-modal-footer">
           <button className="expense-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>

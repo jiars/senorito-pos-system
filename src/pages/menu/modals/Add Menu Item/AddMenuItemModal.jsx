@@ -13,6 +13,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const [pricingMode, setPricingMode] = useState('single'); // 'single' or 'variants'
 
@@ -48,6 +50,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
     if (isOpen) {
       setErrorMessage('');
       setIsSubmitting(false);
+      setHasAttemptedSubmit(false);
+      setErrors({});
       setPricingMode('single');
       setBaseInfo({ name: '', category: '', description: '', isAvailable: false, image: null });
       setSingleRecipe({
@@ -66,8 +70,6 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
       loadCategories();
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   /* ─── Math Helpers ─── */
   const calculateEstCost = (ingredients) => {
@@ -100,20 +102,49 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   };
 
   /* ─── Validation Helpers ─── */
-  const isFormValid = () => {
-    const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
-    if (!isBaseValid) return false;
+  useEffect(() => {
+    if (!isOpen) return;
+    const newErrors = {};
 
-    const hasValidIngredients = (ingredients) => {
-      return ingredients.some(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
-    };
+    if (!baseInfo.image) newErrors.image = 'Image is required.';
+    if (!baseInfo.name.trim()) newErrors.name = 'Item name is required.';
+    if (!baseInfo.category) newErrors.category = 'Category is required.';
 
     if (pricingMode === 'single') {
-      return singleRecipe.sellingPrice !== '' && hasValidIngredients(singleRecipe.ingredients);
+      if (!singleRecipe.sellingPrice) {
+        newErrors.sellingPrice = 'Selling price is required.';
+      } else if (Number(singleRecipe.sellingPrice) <= 0) {
+        newErrors.sellingPrice = 'Price must be > 0.';
+      }
+      
+      singleRecipe.ingredients.forEach(ing => {
+        if (!ing.ingredientId) newErrors[`single_ing_${ing.id}_id`] = 'Required.';
+        if (!ing.qty) newErrors[`single_ing_${ing.id}_qty`] = 'Required.';
+        if (!ing.unit) newErrors[`single_ing_${ing.id}_unit`] = 'Required.';
+      });
     } else {
-      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '' && hasValidIngredients(v.ingredients));
+      variants.forEach(v => {
+        if (!v.name.trim()) newErrors[`variant_${v.id}_name`] = 'Variant name required.';
+        if (!v.sellingPrice) {
+          newErrors[`variant_${v.id}_price`] = 'Price required.';
+        } else if (Number(v.sellingPrice) <= 0) {
+          newErrors[`variant_${v.id}_price`] = 'Must be > 0.';
+        }
+        
+        v.ingredients.forEach(ing => {
+          if (!ing.ingredientId) newErrors[`var_${v.id}_ing_${ing.id}_id`] = 'Required.';
+          if (!ing.qty) newErrors[`var_${v.id}_ing_${ing.id}_qty`] = 'Required.';
+          if (!ing.unit) newErrors[`var_${v.id}_ing_${ing.id}_unit`] = 'Required.';
+        });
+      });
     }
-  };
+
+    setErrors(newErrors);
+  }, [baseInfo, pricingMode, singleRecipe, variants, isOpen]);
+
+  const isFormValid = Object.keys(errors).length === 0;
+
+  if (!isOpen) return null;
 
   /* ─── Handlers: Single Recipe ─── */
   const addSingleIngredient = () => {
@@ -124,6 +155,12 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   };
 
   const removeSingleIngredient = (id) => {
+    if (singleRecipe.ingredients.length <= 1) {
+      setErrorMessage('At least one ingredient is required.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
     setSingleRecipe({
       ...singleRecipe,
       ingredients: singleRecipe.ingredients.filter(ing => ing.id !== id)
@@ -158,6 +195,12 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   };
 
   const removeVariant = (vid) => {
+    if (variants.length <= 1) {
+      setErrorMessage('At least one variant/size is required.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
     setVariants(variants.filter(v => v.id !== vid));
   };
 
@@ -176,6 +219,14 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   };
 
   const removeVariantIngredient = (vid, iid) => {
+    const variant = variants.find(v => v.id === vid);
+    if (variant && variant.ingredients.length <= 1) {
+      setErrorMessage('At least one ingredient is required per variant.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
+    
     setVariants(variants.map(v => {
       if (v.id !== vid) return v;
       return {
@@ -202,7 +253,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
   };
 
   /* ─── Shared Render: Ingredient Row ─── */
-  const renderIngredientRow = (ing, onUpdate, onRemove) => {
+  const renderIngredientRow = (ing, onUpdate, onRemove, idPrefix) => {
     let rowCost = 0;
     let availableUnits = [];
     let selectedUnitData = null;
@@ -232,7 +283,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
       <div className="ami-ingredient-row" key={ing.id}>
         <div className="ami-section">
           <select
-            className="ami-select"
+            className={`ami-select ${hasAttemptedSubmit && errors[idPrefix + '_id'] ? 'is-invalid' : ''}`}
             value={ing.ingredientId}
             onChange={(e) => onUpdate('ingredientId', e.target.value)}
           >
@@ -243,21 +294,23 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
               </option>
             ))}
           </select>
+          {hasAttemptedSubmit && errors[idPrefix + '_id'] && <p className="ami-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_id']}</p>}
         </div>
         <div className="ami-section">
           <input
             type="number"
-            className="ami-input"
+            className={`ami-input ${hasAttemptedSubmit && errors[idPrefix + '_qty'] ? 'is-invalid' : ''}`}
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => onUpdate('qty', e.target.value)}
             min="0" step="any"
           />
+          {hasAttemptedSubmit && errors[idPrefix + '_qty'] && <p className="ami-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_qty']}</p>}
         </div>
         <div className="ami-section">
           {availableUnits.length > 0 ? (
             <select
-              className="ami-select"
+              className={`ami-select ${hasAttemptedSubmit && errors[idPrefix + '_unit'] ? 'is-invalid' : ''}`}
               value={ing.unit}
               onChange={(e) => onUpdate('unit', e.target.value)}
             >
@@ -270,6 +323,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
               -
             </div>
           )}
+          {hasAttemptedSubmit && errors[idPrefix + '_unit'] && <p className="ami-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_unit']}</p>}
         </div>
         <div className="ami-section ami-currency-wrapper">
           <span className="ami-currency-symbol">₱</span>
@@ -291,9 +345,10 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
     );
   };
 
-  /* ─── Save Menu Item to Database ─── */
   const handleSaveItem = async () => {
-    if (isSubmitting) return;
+    setHasAttemptedSubmit(true);
+    if (!isFormValid || isSubmitting) return;
+
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -443,8 +498,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
           {/* Base Info with Image Upload */}
           <div className="ami-flex-row">
             <div className="ami-image-upload-container">
-              <label className="ami-label">Item Image</label>
-              <div className="ami-image-upload-box">
+              <label className="ami-label">Item Image *</label>
+              <div className={`ami-image-upload-box ${hasAttemptedSubmit && errors.image ? 'is-invalid-border' : ''}`}>
                 <input
                   type="file"
                   accept="image/*"
@@ -463,29 +518,32 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                   <span>{baseInfo.image ? 'Change Image' : 'Upload'}</span>
                 </div>
               </div>
+              {hasAttemptedSubmit && errors.image && <p className="ami-error-text" style={{ marginTop: '0.25rem' }}>{errors.image}</p>}
             </div>
 
             <div className="ami-flex-fields">
               <div className="ami-section" style={{ marginBottom: 0 }}>
-                <label className="ami-label">Item Name</label>
+                <label className="ami-label">Item Name *</label>
                 <input
                   type="text"
-                  className="ami-input"
+                  className={`ami-input ${hasAttemptedSubmit && errors.name ? 'is-invalid' : ''}`}
                   placeholder="Enter menu item name"
                   value={baseInfo.name}
                   onChange={(e) => setBaseInfo({ ...baseInfo, name: e.target.value })}
                 />
+                {hasAttemptedSubmit && errors.name && <p className="ami-error-text">{errors.name}</p>}
               </div>
               <div className="ami-section" style={{ marginBottom: 0 }}>
-                <label className="ami-label">Category</label>
+                <label className="ami-label">Category *</label>
                 <select
-                  className="ami-select"
+                  className={`ami-select ${hasAttemptedSubmit && errors.category ? 'is-invalid' : ''}`}
                   value={baseInfo.category}
                   onChange={(e) => setBaseInfo({ ...baseInfo, category: e.target.value })}
                 >
                   <option value="">Select category</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
+                {hasAttemptedSubmit && errors.category && <p className="ami-error-text">{errors.category}</p>}
               </div>
               <div className="ami-section" style={{ marginBottom: 0, marginTop: '0.5rem' }}>
                 <label className="ami-toggle-container">
@@ -532,8 +590,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
               <>
                 <div className="ami-row">
                   <div className="ami-section">
-                    <label className="ami-label">Selling Price</label>
-                    <div className="ami-currency-wrapper">
+                    <label className="ami-label">Selling Price *</label>
+                    <div className={`ami-currency-wrapper ${hasAttemptedSubmit && errors.sellingPrice ? 'is-invalid-border' : ''}`}>
                       <span className="ami-currency-symbol">₱</span>
                       <input
                         type="number"
@@ -544,6 +602,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                         min="0" step="any"
                       />
                     </div>
+                    {hasAttemptedSubmit && errors.sellingPrice && <p className="ami-error-text">{errors.sellingPrice}</p>}
                   </div>
                   <div className="ami-section">
                     <label className="ami-label">Est. Cost</label>
@@ -573,16 +632,17 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
 
                   <div className="ami-ingredients-table">
                     <div className="ami-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                      <label className="ami-label">Ingredient</label>
-                      <label className="ami-label">Qty</label>
-                      <label className="ami-label">Unit</label>
+                      <label className="ami-label">Ingredient *</label>
+                      <label className="ami-label">Qty *</label>
+                      <label className="ami-label">Unit *</label>
                       <label className="ami-label">Est. Cost</label>
                       <div></div>
                     </div>
                     {singleRecipe.ingredients.map(ing => renderIngredientRow(
                       ing,
                       (f, v) => updateSingleIngredient(ing.id, f, v),
-                      () => removeSingleIngredient(ing.id)
+                      () => removeSingleIngredient(ing.id),
+                      `single_ing_${ing.id}`
                     ))}
                   </div>
 
@@ -606,14 +666,15 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                   <div className="ami-variant-card" key={v.id}>
                     <div className="ami-variant-header">
                       <div className="ami-section">
-                        <label className="ami-label">Size/ Variant Name</label>
+                        <label className="ami-label">Size/ Variant Name *</label>
                         <input
                           type="text"
-                          className="ami-input"
+                          className={`ami-input ${hasAttemptedSubmit && errors[`variant_${v.id}_name`] ? 'is-invalid' : ''}`}
                           placeholder="e.g. 16oz"
                           value={v.name}
                           onChange={(e) => updateVariant(v.id, 'name', e.target.value)}
                         />
+                        {hasAttemptedSubmit && errors[`variant_${v.id}_name`] && <p className="ami-error-text">{errors[`variant_${v.id}_name`]}</p>}
                       </div>
                       <div className="ami-section" style={{ alignSelf: 'center', marginTop: '1.25rem' }}>
                         <label className="ami-toggle-container">
@@ -642,8 +703,8 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
 
                     <div className="ami-row">
                       <div className="ami-section">
-                        <label className="ami-label">Selling Price</label>
-                        <div className="ami-currency-wrapper">
+                        <label className="ami-label">Selling Price *</label>
+                        <div className={`ami-currency-wrapper ${hasAttemptedSubmit && errors[`variant_${v.id}_price`] ? 'is-invalid-border' : ''}`}>
                           <span className="ami-currency-symbol">₱</span>
                           <input
                             type="number"
@@ -654,6 +715,7 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
                             min="0" step="any"
                           />
                         </div>
+                        {hasAttemptedSubmit && errors[`variant_${v.id}_price`] && <p className="ami-error-text">{errors[`variant_${v.id}_price`]}</p>}
                       </div>
                       <div className="ami-section">
                         <label className="ami-label">Est. Cost</label>
@@ -681,16 +743,17 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
 
                       <div className="ami-ingredients-table">
                         <div className="ami-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                          <label className="ami-label">Ingredient</label>
-                          <label className="ami-label">Qty</label>
-                          <label className="ami-label">Unit</label>
+                          <label className="ami-label">Ingredient *</label>
+                          <label className="ami-label">Qty *</label>
+                          <label className="ami-label">Unit *</label>
                           <label className="ami-label">Est. Cost</label>
                           <div></div>
                         </div>
                         {v.ingredients.map(ing => renderIngredientRow(
                           ing,
                           (f, val) => updateVariantIngredient(v.id, ing.id, f, val),
-                          () => removeVariantIngredient(v.id, ing.id)
+                          () => removeVariantIngredient(v.id, ing.id),
+                          `var_${v.id}_ing_${ing.id}`
                         ))}
                       </div>
 
@@ -717,13 +780,20 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
             {errorMessage}
           </div>
         )}
+
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
         <div className="ami-modal-footer">
           <button className="ami-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
           <button
             className="ami-btn-save"
-            disabled={!isFormValid() || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleSaveItem}
           >
             {isSubmitting ? 'Saving...' : 'Add Menu Item'}

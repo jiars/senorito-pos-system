@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { logSystemActivity } from '../authService';
 
 export const fetchInventoryCategories = async () => {
   const { data, error } = await supabase
@@ -23,6 +24,7 @@ export const addInventoryCategory = async (categoryName) => {
   if (error) {
     throw new Error(error.message);
   }
+  await logSystemActivity();
   return data;
 };
 
@@ -37,6 +39,7 @@ export const updateInventoryCategory = async (id, newCategoryName) => {
   if (error) {
     throw new Error(error.message);
   }
+  await logSystemActivity();
   return data;
 };
 
@@ -52,5 +55,6 @@ export const deleteInventoryCategory = async (id) => {
   if (error) {
     throw new Error(error.message);
   }
+  await logSystemActivity();
   return data;
 };

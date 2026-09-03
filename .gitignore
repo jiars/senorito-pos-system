@@ -29,6 +29,7 @@ dist-ssr
 # Database Backups
 *.sql
 
-.agents
-supabase
-docs
+.agents/
+supabase/
+docs/
+backend/

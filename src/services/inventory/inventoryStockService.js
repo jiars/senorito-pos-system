@@ -1,5 +1,6 @@
 import { supabase } from "../supabaseClient";
 import { formatDecimal } from "../../utils/numberFormatters";
+import { logSystemActivity } from "../authService";
 
 // --- STOCK LOG & BATCH FUNCTIONS ---
 
@@ -307,6 +308,7 @@ export const logStockAdjustment = async ({
     // 6. Automatically recalculate and update the FIFO cost cache for the master item
     await updateItemFifoCost(item.id);
 
+    await logSystemActivity();
     return true;
 };
 

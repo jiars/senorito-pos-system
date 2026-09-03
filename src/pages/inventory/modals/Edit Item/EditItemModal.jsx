@@ -12,6 +12,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
   const [conversions, setConversions] = useState([]);
 
   const [errors, setErrors] = useState({});
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
 
@@ -37,6 +38,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
       }
 
       setErrors({});
+      setHasAttemptedSubmit(false);
       setApiError('');
       setIsSubmitting(false);
     }
@@ -108,6 +110,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
   const isFormValid = Object.keys(errors).length === 0 && name.trim() !== '' && unit !== '' && category !== '' && cost !== '' && reorderLevel !== '' && conversionsValid;
 
   const handleSave = async () => {
+    setHasAttemptedSubmit(true);
     if (!isFormValid || isSubmitting) return;
 
     setIsSubmitting(true);
@@ -158,24 +161,24 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
           <div className="edit-modal-form-grid">
             {/* Name */}
             <div className="edit-modal-group">
-              <label className="edit-modal-label">Name</label>
+              <label className="edit-modal-label">Name *</label>
               <input
                 type="text"
-                className={`edit-modal-input ${errors.name ? 'is-invalid' : ''}`}
+                className={`edit-modal-input ${hasAttemptedSubmit && errors.name ? 'is-invalid' : ''}`}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter item name"
                 disabled // Name should not be editable to prevent recipe breakage
                 title="Name cannot be changed after creation"
               />
-              {errors.name && <p className="edit-modal-error-msg">{errors.name}</p>}
+              {hasAttemptedSubmit && errors.name && <p className="edit-modal-error-msg">{errors.name}</p>}
             </div>
 
             {/* Unit */}
             <div className="edit-modal-group">
-              <label className="edit-modal-label">Unit</label>
+              <label className="edit-modal-label">Unit *</label>
               <select
-                className={`edit-modal-select ${errors.unit ? 'is-invalid' : ''}`}
+                className={`edit-modal-select ${hasAttemptedSubmit && errors.unit ? 'is-invalid' : ''}`}
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 disabled // Unit should not be editable to prevent recipe cost calculation breakage
@@ -192,14 +195,14 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
                 <option value="tbsp">tbsp</option>
                 <option value="cup">cup</option>
               </select>
-              {errors.unit && <p className="edit-modal-error-msg">{errors.unit}</p>}
+              {hasAttemptedSubmit && errors.unit && <p className="edit-modal-error-msg">{errors.unit}</p>}
             </div>
 
             {/* Category */}
             <div className="edit-modal-group">
-              <label className="edit-modal-label">Category</label>
+              <label className="edit-modal-label">Category *</label>
               <select
-                className={`edit-modal-select ${errors.category ? 'is-invalid' : ''}`}
+                className={`edit-modal-select ${hasAttemptedSubmit && errors.category ? 'is-invalid' : ''}`}
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
               >
@@ -210,15 +213,15 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
                   </option>
                 ))}
               </select>
-              {errors.category && <p className="edit-modal-error-msg">{errors.category}</p>}
+              {hasAttemptedSubmit && errors.category && <p className="edit-modal-error-msg">{errors.category}</p>}
             </div>
 
             {/* Cost/Unit */}
             <div className="edit-modal-group">
-              <label className="edit-modal-label">Cost/Unit (₱)</label>
+              <label className="edit-modal-label">Cost/Unit (₱) *</label>
               <input
                 type="number"
-                className={`edit-modal-input ${errors.cost ? 'is-invalid' : ''}`}
+                className={`edit-modal-input ${hasAttemptedSubmit && errors.cost ? 'is-invalid' : ''}`}
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
                 placeholder="0.00"
@@ -232,21 +235,21 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
                   Managed automatically by batches.
                 </small>
               )}
-              {errors.cost && !item?.inventory_batches?.length > 0 && <p className="edit-modal-error-msg">{errors.cost}</p>}
+              {hasAttemptedSubmit && errors.cost && !item?.inventory_batches?.length > 0 && <p className="edit-modal-error-msg">{errors.cost}</p>}
             </div>
 
             {/* Reorder Level */}
             <div className="edit-modal-group">
-              <label className="edit-modal-label">Reorder Level</label>
+              <label className="edit-modal-label">Reorder Level *</label>
               <input
                 type="number"
-                className={`edit-modal-input ${errors.reorderLevel ? 'is-invalid' : ''}`}
+                className={`edit-modal-input ${hasAttemptedSubmit && errors.reorderLevel ? 'is-invalid' : ''}`}
                 value={reorderLevel}
                 onChange={(e) => setReorderLevel(e.target.value)}
                 placeholder="0"
                 min="0"
               />
-              {errors.reorderLevel && <p className="edit-modal-error-msg">{errors.reorderLevel}</p>}
+              {hasAttemptedSubmit && errors.reorderLevel && <p className="edit-modal-error-msg">{errors.reorderLevel}</p>}
             </div>
 
             {/* Supplier */}
@@ -267,44 +270,47 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
           <div className="edit-modal-section">
             <h4 style={{ fontSize: '0.95rem', color: '#2C1810', marginBottom: '1rem' }}>Recipe Conversion Units</h4>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
-              <label className="edit-modal-label" style={{ marginBottom: 0 }}>Converted Unit</label>
-              <label className="edit-modal-label" style={{ marginBottom: 0 }}>
-                Equivalent Amount in {unit || 'base unit'}
-              </label>
-              <div style={{ width: '32px' }}></div>
-            </div>
+            {conversions.length > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
+                <label className="edit-modal-label" style={{ marginBottom: 0 }}>Converted Unit *</label>
+                <label className="edit-modal-label" style={{ marginBottom: 0 }}>
+                  Equivalent Amount in {unit || 'base unit'} *
+                </label>
+                <div style={{ width: '32px' }}></div>
+              </div>
+            )}
 
             {conversions.map((conv) => {
               const eq = parseFloat(conv.equivalent);
               const isConvUnitEmpty = conv.unit.trim() === '';
               const isEqInvalid = isNaN(eq) || eq <= 0;
               const hasInput = !isConvUnitEmpty || conv.equivalent !== '';
-              const showError = hasInput && (isConvUnitEmpty || isEqInvalid);
+              const showError = hasAttemptedSubmit && hasInput && (isConvUnitEmpty || isEqInvalid);
+              const showEmptyError = hasAttemptedSubmit && (isConvUnitEmpty || isEqInvalid);
 
               return (
                 <div key={conv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                   <div className="edit-modal-group" style={{ marginBottom: 0 }}>
                     <input
                       type="text"
-                      className={`edit-modal-input ${showError && isConvUnitEmpty ? 'is-invalid' : ''}`}
+                      className={`edit-modal-input ${showEmptyError && isConvUnitEmpty ? 'is-invalid' : ''}`}
                       placeholder="e.g. shot, tbsp"
                       value={conv.unit}
                       onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
                     />
-                    {showError && isConvUnitEmpty && <p className="edit-modal-error-msg">Required.</p>}
+                    {showEmptyError && isConvUnitEmpty && <p className="edit-modal-error-msg">Required.</p>}
                   </div>
                   <div className="edit-modal-group" style={{ marginBottom: 0 }}>
                     <input
                       type="number"
                       min="0"
                       step="any"
-                      className={`edit-modal-input ${showError && isEqInvalid ? 'is-invalid' : ''}`}
+                      className={`edit-modal-input ${showEmptyError && isEqInvalid ? 'is-invalid' : ''}`}
                       placeholder="Enter amount"
                       value={conv.equivalent}
                       onChange={(e) => handleConversionChange(conv.id, 'equivalent', e.target.value)}
                     />
-                    {showError && isEqInvalid && <p className="edit-modal-error-msg">Must be &gt; 0.</p>}
+                    {showEmptyError && isEqInvalid && <p className="edit-modal-error-msg">Must be &gt; 0.</p>}
                   </div>
                   <button
                     style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', marginTop: '0', padding: '0.6rem' }}
@@ -326,6 +332,12 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
           </div>
         </div>
 
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
         <div className="edit-modal-footer">
           {apiError && <p className="edit-modal-error-msg" style={{ marginRight: 'auto', marginBottom: 0 }}>{apiError}</p>}
           <button className="edit-btn-cancel" onClick={onClose} disabled={isSubmitting}>
@@ -334,7 +346,7 @@ const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories =
           <button
             className="edit-btn-save"
             onClick={handleSave}
-            disabled={!isFormValid || isSubmitting}
+            disabled={isSubmitting}
           >
             {isSubmitting ? 'Saving...' : 'Save'}
           </button>

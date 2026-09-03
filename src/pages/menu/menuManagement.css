@@ -248,6 +248,7 @@
   width: 100%;
   border-collapse: collapse;
   min-width: 1100px;
+  table-layout: fixed;
 }
 
 .menu-table thead th {

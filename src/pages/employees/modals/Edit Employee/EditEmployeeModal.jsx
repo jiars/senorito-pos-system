@@ -9,7 +9,7 @@ const getAccessString = (roleName) => {
       return 'POS, Order History';
     case 'Inventory Clerk':
       return 'Inventory Management, Purchase Orders, Inventory Valuation, Inventory Audit Log';
-    case 'Admin (Owner)':
+    case 'Owner':
       return 'All system features';
     default:
       return 'No access defined';
@@ -32,10 +32,16 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (employee) {
+      setHasAttemptedSubmit(false);
+      setErrors({});
+      setErrorMessage('');
+      const roleName = employee.role?.role_name || employee.role_name || 'Cashier';
       setFormData({
         firstName: employee.first_name || '',
         lastName: employee.last_name || '',
@@ -44,10 +50,9 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
         contactNumber: employee.contact_number || '',
         password: '', // Always empty on init
         confirmPassword: '',
-        role: employee.role?.role_name || employee.role_name || 'Cashier',
+        role: roleName,
         status: employee.status || 'Active'
       });
-      setError(null);
       setShowPassword(false);
       setShowConfirmPassword(false);
     }
@@ -65,6 +70,30 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
 
   const pwdRules = getPasswordStrength(formData.password);
   const isPasswordValid = Object.values(pwdRules).every(Boolean);
+
+  React.useEffect(() => {
+    if (!isOpen || !employee) return;
+    const newErrors = {};
+
+    if (!formData.firstName.trim()) newErrors.firstName = 'First Name is required.';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last Name is required.';
+    if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required.';
+
+    if (formData.password) {
+      if (!isPasswordValid) {
+        newErrors.password = 'Please meet all password requirements.';
+      }
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Confirm Password is required.';
+      } else if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match.';
+      }
+    }
+
+    setErrors(newErrors);
+  }, [formData, isOpen, employee, isPasswordValid]);
+
+  const isFormValid = Object.keys(errors).length === 0;
 
   if (!isOpen || !employee) return null;
 
@@ -84,23 +113,10 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
   };
 
   const handleSubmit = async () => {
-    setError(null);
-    if (!formData.firstName || !formData.lastName) {
-      setError("Please fill in all required fields (*)");
-      return;
-    }
+    setHasAttemptedSubmit(true);
+    if (isSubmitting || !isFormValid) return;
 
-    if (formData.password) {
-      if (!isPasswordValid) {
-        setError("Please meet all the new password requirements.");
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        setError("New passwords do not match.");
-        return;
-      }
-    }
-
+    setErrorMessage('');
     setIsSubmitting(true);
     try {
       await updateEmployee(employee.id, {
@@ -114,7 +130,7 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
 
       onClose(); // Will trigger refresh in parent
     } catch (err) {
-      setError(err.message || "An error occurred while updating the employee.");
+      setErrorMessage(err.message || "An error occurred while updating the employee.");
     } finally {
       setIsSubmitting(false);
     }
@@ -182,7 +198,7 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               options={[
                 { value: 'Cashier', label: 'Cashier' },
                 { value: 'Inventory Clerk', label: 'Inventory Clerk' },
-                { value: 'Admin (Owner)', label: 'Admin (Owner)' }
+                { value: 'Owner', label: 'Owner' }
               ]}
             />
           </div>
@@ -193,12 +209,13 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               <input
                 type="text"
                 name="firstName"
-                className="employee-form-input"
+                className={`employee-form-input ${hasAttemptedSubmit && errors.firstName ? 'is-invalid' : ''}`}
                 value={formData.firstName}
                 onChange={handleChange}
                 placeholder="e.g. Juan"
                 autoComplete="off"
               />
+              {hasAttemptedSubmit && errors.firstName && <p className="employee-error-text">{errors.firstName}</p>}
             </div>
             
             <div className="employee-form-group">
@@ -206,12 +223,13 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
               <input
                 type="text"
                 name="lastName"
-                className="employee-form-input"
+                className={`employee-form-input ${hasAttemptedSubmit && errors.lastName ? 'is-invalid' : ''}`}
                 value={formData.lastName}
                 onChange={handleChange}
                 placeholder="e.g. Santos"
                 autoComplete="off"
               />
+              {hasAttemptedSubmit && errors.lastName && <p className="employee-error-text">{errors.lastName}</p>}
             </div>
           </div>
 
@@ -246,25 +264,26 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
           </div>
 
           <div className="employee-form-group">
-            <label className="employee-form-label">Contact Number</label>
+            <label className="employee-form-label">Contact Number *</label>
             <input
               type="text"
               name="contactNumber"
-              className="employee-form-input"
+              className={`employee-form-input ${hasAttemptedSubmit && errors.contactNumber ? 'is-invalid' : ''}`}
               value={formData.contactNumber}
               onChange={handleChange}
               placeholder="e.g. 09123456789"
               autoComplete="off"
             />
+            {hasAttemptedSubmit && errors.contactNumber && <p className="employee-error-text">{errors.contactNumber}</p>}
           </div>
 
           <div className="employee-form-group">
             <label className="employee-form-label">New Password</label>
-            <div className="employee-password-wrapper">
+            <div className={`employee-password-wrapper ${hasAttemptedSubmit && errors.password ? 'is-invalid-border' : ''}`}>
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
-                className="employee-form-input"
+                className={`employee-form-input ${hasAttemptedSubmit && errors.password ? 'is-invalid' : ''}`}
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Leave blank to keep current"
@@ -278,6 +297,7 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
                 <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
               </button>
             </div>
+            {hasAttemptedSubmit && errors.password && <p className="employee-error-text">{errors.password}</p>}
             
             {formData.password.length > 0 && (
               <div className="employee-password-rules">
@@ -302,11 +322,11 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
 
           <div className="employee-form-group">
             <label className="employee-form-label">Confirm New Password</label>
-            <div className="employee-password-wrapper">
+            <div className={`employee-password-wrapper ${hasAttemptedSubmit && errors.confirmPassword ? 'is-invalid-border' : ''}`}>
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 name="confirmPassword"
-                className="employee-form-input"
+                className={`employee-form-input ${hasAttemptedSubmit && errors.confirmPassword ? 'is-invalid' : ''}`}
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm new password if changing"
@@ -321,14 +341,22 @@ const EditEmployeeModal = ({ isOpen, onClose, employee }) => {
                 <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
               </button>
             </div>
+            {hasAttemptedSubmit && errors.confirmPassword && <p className="employee-error-text">{errors.confirmPassword}</p>}
           </div>
 
-          {error && (
-            <div style={{ color: '#dc3545', fontSize: '0.875rem', fontWeight: '500', marginTop: '0.5rem' }}>
-              {error}
+          {errorMessage && (
+            <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
+              <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
+              {errorMessage}
             </div>
           )}
         </div>
+
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
 
         <div className="employee-modal-footer">
           <button className="employee-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>

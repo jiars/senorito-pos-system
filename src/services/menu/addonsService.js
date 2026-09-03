@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { logSystemActivity } from '../authService';
 import { formatDecimal } from '../../utils/numberFormatters';
 
 // ─── 1. Fetch All Active Add-ons (with their linked categories) ───
@@ -101,6 +102,7 @@ export const addAddon = async (addonData, categoryIds, recipes) => {
             }
         }
 
+        await logSystemActivity();
         return newAddon;
     } catch (error) {
         console.error('Error adding addon:', error.message);
@@ -192,6 +194,7 @@ export const updateAddon = async (addonId, addonData, categoryIds, recipes) => {
             }
         }
 
+        await logSystemActivity();
         return response.data[0];
     } catch (error) {
         console.error('Error updating addon:', error.message);
@@ -218,4 +221,5 @@ export const archiveAddon = async (addonId) => {
         console.error('Error archiving addon:', error.message);
         throw error;
     }
+    await logSystemActivity();
 };

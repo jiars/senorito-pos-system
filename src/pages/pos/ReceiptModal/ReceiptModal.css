@@ -255,10 +255,24 @@
   background-color: #2C1810;
 }
 
-/* For printing */
+/* For printing - 58mm Thermal Receipt Layout */
 @media print {
+  @page {
+    /* Set paper size to exactly 58mm width, length is automatic */
+    size: 58mm auto;
+    margin: 0;
+  }
+
+  /* Hide everything on the screen EXCEPT the modal content */
   body * {
     visibility: hidden;
+  }
+  
+  /* Reset the entire body to not interfere with the tiny paper */
+  body, html, #root {
+    background-color: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .pos-receipt-modal,
@@ -266,14 +280,69 @@
     visibility: visible;
   }
 
-  .pos-receipt-modal {
-    position: absolute;
+  .pos-receipt-overlay {
+    position: absolute !important;
     left: 0;
     top: 0;
-    width: 100%;
-    max-width: 100%;
-    box-shadow: none;
-    border-radius: 0;
+    background: white !important;
+    padding: 0 !important;
+    align-items: flex-start !important;
+    justify-content: flex-start !important;
+  }
+
+  .pos-receipt-modal {
+    position: relative !important;
+    left: 0;
+    top: 0;
+    /* Force exactly 58mm width for the actual printer */
+    width: 58mm !important; 
+    max-width: 58mm !important;
+    margin: 0 !important;
+    padding: 2mm !important; /* Tiny margin so text doesn't touch the exact physical edge */
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    /* Change font to monospace to look like a real hardware receipt */
+    font-family: 'Courier New', Courier, monospace !important;
+    color: #000 !important;
+  }
+
+  .pos-receipt-content-wrapper {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pos-receipt-header h2 {
+    font-size: 14px !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-weight: bold;
+    color: #000 !important;
+  }
+
+  .pos-receipt-header p,
+  .pos-receipt-transaction,
+  .pos-receipt-details,
+  .pos-receipt-summary,
+  .pos-receipt-payment-details,
+  .pos-receipt-thank-you {
+    font-size: 10px !important;
+    color: #000 !important;
+  }
+
+  .pos-receipt-table {
+    font-size: 10px !important;
+  }
+
+  .pos-receipt-table th,
+  .pos-receipt-table td {
+    padding: 2px 0 !important;
+    color: #000 !important;
+  }
+
+  .pos-receipt-divider {
+    border: none !important;
+    border-top: 1px dashed #000 !important;
+    margin: 6px 0 !important;
   }
 
   .pos-receipt-footer,

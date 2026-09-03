@@ -64,12 +64,14 @@ const EmployeeManagementPage = () => {
             Create, edit, and manage employee accounts and roles here.
           </p>
         </div>
-        <button
-          className="employee-btn-add"
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          <i className="bi bi-plus-circle"></i> Add Employee
-        </button>
+        <div className="employee-header-actions">
+          <button
+            className="employee-btn-add"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <i className="bi bi-plus-circle"></i> Add Employee
+          </button>
+        </div>
       </div>
 
       <div className="employee-panel">

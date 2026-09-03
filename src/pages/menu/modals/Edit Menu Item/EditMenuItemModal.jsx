@@ -13,6 +13,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const [pricingMode, setPricingMode] = useState('single');
 
@@ -47,6 +49,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     if (isOpen) {
       setErrorMessage('');
       setIsSubmitting(false);
+      setHasAttemptedSubmit(false);
+      setErrors({});
 
       const loadCategories = async () => {
         const cats = await fetchMenuCategories();
@@ -124,8 +128,6 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     }
   }, [isOpen, item]);
 
-  if (!isOpen) return null;
-
   /* ─── Math Helpers ─── */
   const calculateEstCost = (ingredients) => {
     return ingredients.reduce((total, ing) => {
@@ -157,20 +159,48 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   };
 
   /* ─── Validation Helpers ─── */
-  const isFormValid = () => {
-    const isBaseValid = baseInfo.name.trim() !== '' && baseInfo.category !== '';
-    if (!isBaseValid) return false;
+  useEffect(() => {
+    if (!isOpen) return;
+    const newErrors = {};
 
-    const hasValidIngredients = (ingredients) => {
-      return ingredients.some(ing => ing.ingredientId !== '' && ing.qty !== '' && Number(ing.qty) > 0);
-    };
+    if (!baseInfo.name.trim()) newErrors.name = 'Item name is required.';
+    if (!baseInfo.category) newErrors.category = 'Category is required.';
 
     if (pricingMode === 'single') {
-      return singleRecipe.sellingPrice !== '' && hasValidIngredients(singleRecipe.ingredients);
+      if (!singleRecipe.sellingPrice) {
+        newErrors.sellingPrice = 'Selling price is required.';
+      } else if (Number(singleRecipe.sellingPrice) <= 0) {
+        newErrors.sellingPrice = 'Price must be > 0.';
+      }
+      
+      singleRecipe.ingredients.forEach(ing => {
+        if (!ing.ingredientId) newErrors[`single_ing_${ing.id}_id`] = 'Required.';
+        if (!ing.qty) newErrors[`single_ing_${ing.id}_qty`] = 'Required.';
+        if (!ing.unit) newErrors[`single_ing_${ing.id}_unit`] = 'Required.';
+      });
     } else {
-      return variants.length > 0 && variants.every(v => v.name.trim() !== '' && v.sellingPrice !== '' && hasValidIngredients(v.ingredients));
+      variants.forEach(v => {
+        if (!v.name.trim()) newErrors[`variant_${v.id}_name`] = 'Variant name required.';
+        if (!v.sellingPrice) {
+          newErrors[`variant_${v.id}_price`] = 'Price required.';
+        } else if (Number(v.sellingPrice) <= 0) {
+          newErrors[`variant_${v.id}_price`] = 'Must be > 0.';
+        }
+        
+        v.ingredients.forEach(ing => {
+          if (!ing.ingredientId) newErrors[`var_${v.id}_ing_${ing.id}_id`] = 'Required.';
+          if (!ing.qty) newErrors[`var_${v.id}_ing_${ing.id}_qty`] = 'Required.';
+          if (!ing.unit) newErrors[`var_${v.id}_ing_${ing.id}_unit`] = 'Required.';
+        });
+      });
     }
-  };
+
+    setErrors(newErrors);
+  }, [baseInfo, pricingMode, singleRecipe, variants, isOpen]);
+
+  const isFormValid = Object.keys(errors).length === 0;
+
+  if (!isOpen) return null;
 
   /* ─── Handlers: Single Recipe ─── */
   const addSingleIngredient = () => {
@@ -181,6 +211,12 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   };
 
   const removeSingleIngredient = (id) => {
+    if (singleRecipe.ingredients.length <= 1) {
+      setErrorMessage('At least one ingredient is required.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
     setSingleRecipe({
       ...singleRecipe,
       ingredients: singleRecipe.ingredients.filter(ing => ing.id !== id)
@@ -215,6 +251,12 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   };
 
   const removeVariant = (vid) => {
+    if (variants.length <= 1) {
+      setErrorMessage('At least one variant/size is required.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
     setVariants(variants.filter(v => v.id !== vid));
   };
 
@@ -233,6 +275,14 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   };
 
   const removeVariantIngredient = (vid, iid) => {
+    const variant = variants.find(v => v.id === vid);
+    if (variant && variant.ingredients.length <= 1) {
+      setErrorMessage('At least one ingredient is required per variant.');
+      setTimeout(() => setErrorMessage(''), 3000);
+      return;
+    }
+    setErrorMessage('');
+
     setVariants(variants.map(v => {
       if (v.id !== vid) return v;
       return {
@@ -259,7 +309,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   };
 
   /* ─── Shared Render: Ingredient Row ─── */
-  const renderIngredientRow = (ing, onUpdate, onRemove) => {
+  const renderIngredientRow = (ing, onUpdate, onRemove, idPrefix) => {
     let rowCost = 0;
     let availableUnits = [];
     let selectedUnitData = null;
@@ -289,7 +339,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
       <div className="emi-ingredient-row" key={ing.id}>
         <div className="emi-section">
           <select
-            className="emi-select"
+            className={`emi-select ${hasAttemptedSubmit && errors[idPrefix + '_id'] ? 'is-invalid' : ''}`}
             value={ing.ingredientId}
             onChange={(e) => onUpdate('ingredientId', e.target.value)}
           >
@@ -300,21 +350,23 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               </option>
             ))}
           </select>
+          {hasAttemptedSubmit && errors[idPrefix + '_id'] && <p className="emi-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_id']}</p>}
         </div>
         <div className="emi-section">
           <input
             type="number"
-            className="emi-input"
+            className={`emi-input ${hasAttemptedSubmit && errors[idPrefix + '_qty'] ? 'is-invalid' : ''}`}
             placeholder="Qty"
             value={ing.qty}
             onChange={(e) => onUpdate('qty', e.target.value)}
             min="0" step="any"
           />
+          {hasAttemptedSubmit && errors[idPrefix + '_qty'] && <p className="emi-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_qty']}</p>}
         </div>
         <div className="emi-section">
           {availableUnits.length > 0 ? (
             <select
-              className="emi-select"
+              className={`emi-select ${hasAttemptedSubmit && errors[idPrefix + '_unit'] ? 'is-invalid' : ''}`}
               value={ing.unit}
               onChange={(e) => onUpdate('unit', e.target.value)}
             >
@@ -327,6 +379,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               -
             </div>
           )}
+          {hasAttemptedSubmit && errors[idPrefix + '_unit'] && <p className="emi-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_unit']}</p>}
         </div>
         <div className="emi-section emi-currency-wrapper">
           <span className="emi-currency-symbol">₱</span>
@@ -348,9 +401,10 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     );
   };
 
-  /* ─── Save Edited Item to Database ─── */
   const handleSaveEdit = async () => {
-    if (!item || isSubmitting) return;
+    setHasAttemptedSubmit(true);
+    if (!item || !isFormValid || isSubmitting) return;
+
     setIsSubmitting(true);
     setErrorMessage('');
 
@@ -531,25 +585,27 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
 
             <div className="emi-flex-fields">
               <div className="emi-section" style={{ marginBottom: 0 }}>
-                <label className="emi-label">Item Name</label>
+                <label className="emi-label">Item Name *</label>
                 <input
                   type="text"
-                  className="emi-input"
+                  className={`emi-input ${hasAttemptedSubmit && errors.name ? 'is-invalid' : ''}`}
                   placeholder="Enter menu item name"
                   value={baseInfo.name}
                   onChange={(e) => setBaseInfo({ ...baseInfo, name: e.target.value })}
                 />
+                {hasAttemptedSubmit && errors.name && <p className="emi-error-text">{errors.name}</p>}
               </div>
               <div className="emi-section" style={{ marginBottom: 0 }}>
-                <label className="emi-label">Category</label>
+                <label className="emi-label">Category *</label>
                 <select
-                  className="emi-select"
+                  className={`emi-select ${hasAttemptedSubmit && errors.category ? 'is-invalid' : ''}`}
                   value={baseInfo.category}
                   onChange={(e) => setBaseInfo({ ...baseInfo, category: e.target.value })}
                 >
                   <option value="">Select category</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.category_name}</option>)}
                 </select>
+                {hasAttemptedSubmit && errors.category && <p className="emi-error-text">{errors.category}</p>}
               </div>
               <div className="emi-section" style={{ marginBottom: 0, marginTop: '0.5rem' }}>
                 <label className="emi-toggle-container">
@@ -596,8 +652,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               <>
                 <div className="emi-row">
                   <div className="emi-section">
-                    <label className="emi-label">Selling Price</label>
-                    <div className="emi-currency-wrapper">
+                    <label className="emi-label">Selling Price *</label>
+                    <div className={`emi-currency-wrapper ${hasAttemptedSubmit && errors.sellingPrice ? 'is-invalid-border' : ''}`}>
                       <span className="emi-currency-symbol">₱</span>
                       <input
                         type="number"
@@ -608,6 +664,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                         min="0" step="any"
                       />
                     </div>
+                    {hasAttemptedSubmit && errors.sellingPrice && <p className="emi-error-text">{errors.sellingPrice}</p>}
                   </div>
                   <div className="emi-section">
                     <label className="emi-label">Est. Cost</label>
@@ -637,16 +694,17 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
 
                   <div className="emi-ingredients-table">
                     <div className="emi-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                      <label className="emi-label">Ingredient</label>
-                      <label className="emi-label">Qty</label>
-                      <label className="ami-label">Unit</label>
+                      <label className="emi-label">Ingredient *</label>
+                      <label className="emi-label">Qty *</label>
+                      <label className="emi-label">Unit *</label>
                       <label className="emi-label">Est. Cost</label>
                       <div></div>
                     </div>
                     {singleRecipe.ingredients.map(ing => renderIngredientRow(
                       ing,
                       (f, v) => updateSingleIngredient(ing.id, f, v),
-                      () => removeSingleIngredient(ing.id)
+                      () => removeSingleIngredient(ing.id),
+                      `single_ing_${ing.id}`
                     ))}
                   </div>
 
@@ -670,14 +728,15 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                   <div className="emi-variant-card" key={v.id}>
                     <div className="emi-variant-header">
                       <div className="emi-section">
-                        <label className="emi-label">Size/ Variant Name</label>
+                        <label className="emi-label">Size/ Variant Name *</label>
                         <input
                           type="text"
-                          className="emi-input"
+                          className={`emi-input ${hasAttemptedSubmit && errors[`variant_${v.id}_name`] ? 'is-invalid' : ''}`}
                           placeholder="e.g. 16oz"
                           value={v.name}
                           onChange={(e) => updateVariant(v.id, 'name', e.target.value)}
                         />
+                        {hasAttemptedSubmit && errors[`variant_${v.id}_name`] && <p className="emi-error-text">{errors[`variant_${v.id}_name`]}</p>}
                       </div>
                       <div className="emi-section" style={{ alignSelf: 'center', marginTop: '1.25rem' }}>
                         <label className="emi-toggle-container">
@@ -706,8 +765,8 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
 
                     <div className="emi-row">
                       <div className="emi-section">
-                        <label className="emi-label">Selling Price</label>
-                        <div className="emi-currency-wrapper">
+                        <label className="emi-label">Selling Price *</label>
+                        <div className={`emi-currency-wrapper ${hasAttemptedSubmit && errors[`variant_${v.id}_price`] ? 'is-invalid-border' : ''}`}>
                           <span className="emi-currency-symbol">₱</span>
                           <input
                             type="number"
@@ -718,6 +777,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
                             min="0" step="any"
                           />
                         </div>
+                        {hasAttemptedSubmit && errors[`variant_${v.id}_price`] && <p className="emi-error-text">{errors[`variant_${v.id}_price`]}</p>}
                       </div>
                       <div className="emi-section">
                         <label className="emi-label">Est. Cost</label>
@@ -745,16 +805,17 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
 
                       <div className="emi-ingredients-table">
                         <div className="emi-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                          <label className="emi-label">Ingredient</label>
-                          <label className="emi-label">Qty</label>
-                          <label className="emi-label">Unit</label>
+                          <label className="emi-label">Ingredient *</label>
+                          <label className="emi-label">Qty *</label>
+                          <label className="emi-label">Unit *</label>
                           <label className="emi-label">Est. Cost</label>
                           <div></div>
                         </div>
                         {v.ingredients.map(ing => renderIngredientRow(
                           ing,
                           (f, val) => updateVariantIngredient(v.id, ing.id, f, val),
-                          () => removeVariantIngredient(v.id, ing.id)
+                          () => removeVariantIngredient(v.id, ing.id),
+                          `var_${v.id}_ing_${ing.id}`
                         ))}
                       </div>
 
@@ -781,16 +842,23 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
             {errorMessage}
           </div>
         )}
+
+        {hasAttemptedSubmit && !isFormValid && (
+          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
+            Please fill in all required fields (*)
+          </div>
+        )}
+
         <div className="emi-modal-footer">
           <button className="emi-btn-cancel" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
           <button
             className="emi-btn-save"
-            disabled={!isFormValid() || isSubmitting}
+            disabled={isSubmitting}
             onClick={handleSaveEdit}
           >
-            {isSubmitting ? 'Saving...' : 'Save Menu Item'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 
