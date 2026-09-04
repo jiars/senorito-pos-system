@@ -10,8 +10,8 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <AppRoutes />
-        <SpeedInsights />
-        <Analytics />
+        {/* <SpeedInsights /> */}
+        {/* <Analytics /> */}
       </BrowserRouter>
     </AuthProvider>
   );

@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
-import './dashboard.css';
-import { 
-  getTodayMetrics, 
-  getInventoryAlerts,
-  getWeeklySales,
-  getTopSellingItems,
-  getRecentOrders
-} from '../../services/dashboard/dashboardService';
+import { formatCurrency } from '../../utils/currencyFormatters'
+
+import { fetchDashboardSummary } from '../../services/dashboard/dashboardService';
 import { AuthContext } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/currencyFormatters';
 
@@ -38,40 +33,29 @@ const DashboardPage = () => {
   const [isLoadingBottom, setIsLoadingBottom] = useState(true);
 
   useEffect(() => {
-    const loadTopData = async () => {
+    const loadDashboard = async () => {
       try {
         setIsLoadingTop(true);
-        const [todayMetrics, inventoryAlerts] = await Promise.all([
-          getTodayMetrics(),
-          getInventoryAlerts()
-        ]);
-        setMetrics(todayMetrics);
-        setAlerts(inventoryAlerts);
+        setIsLoadingBottom(true);
+
+        // Exactly ONE network request!
+        const data = await fetchDashboardSummary();
+
+        setMetrics(data.metrics);
+        setAlerts(data.alerts);
+        setWeeklySalesData(data.weeklySales);
+        setTopSellingItems(data.topItems);
+        setRecentOrders(data.recentOrders);
+
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
         setIsLoadingTop(false);
-      }
-    };
-    const loadBottomData = async () => {
-      try {
-        setIsLoadingBottom(true);
-        const [salesData, topItems, ordersData] = await Promise.all([
-          getWeeklySales(),
-          getTopSellingItems(),
-          getRecentOrders()
-        ]);
-        setWeeklySalesData(salesData);
-        setTopSellingItems(topItems);
-        setRecentOrders(ordersData);
-      } catch (error) {
-        console.error("Failed to load dashboard charts:", error);
-      } finally {
         setIsLoadingBottom(false);
       }
     };
-    loadTopData();
-    loadBottomData();
+
+    loadDashboard();
   }, []);
 
   /* ─── Expiry chip counts ─── */
@@ -85,8 +69,6 @@ const DashboardPage = () => {
   const adjustedMax = step * 4;
   const yAxisLabels = [adjustedMax, step * 3, step * 2, step, 0];
 
-  // Pagination logic removed to display only latest 6 orders
-
   /* ─── Low stock bar width helper ─── */
   const stockPercent = (qty, min) => {
     if (min === 0) return 0;
@@ -99,7 +81,7 @@ const DashboardPage = () => {
     const dayOfWeek = today.getDay();
     const startOfWeek = new Date(today);
     startOfWeek.setDate(today.getDate() - dayOfWeek);
-    
+
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
 
@@ -360,7 +342,7 @@ const DashboardPage = () => {
               ) : recentOrders.length === 0 ? (
                 <tr><td colSpan="6" style={{ textAlign: 'center', padding: '1rem' }}>No recent orders found.</td></tr>
               ) : (
-                recentOrders.slice(0, 6).map((order) => (
+                recentOrders.map((order) => (
                   <tr key={order.orderNo}>
                     <td className="dashboard-orders-orderno">{order.orderNo}</td>
                     <td>{order.cashier}</td>
@@ -380,8 +362,6 @@ const DashboardPage = () => {
             </tbody>
           </table>
         </div>
-
-        {/* End of Recent Orders Table */}
       </div>
     </div>
   );

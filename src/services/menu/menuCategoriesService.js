@@ -1,17 +1,15 @@
-import { supabase } from '../supabaseClient';
-
 export const fetchMenuCategories = async () => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('menu_categories')
-            .select('*')
-            .order('category_name', { ascending: true });
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        return response.data;
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-categories`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        return await response.json();
     } catch (error) {
         console.error('Error fetching categories:', error.message);
         return [];
@@ -19,18 +17,19 @@ export const fetchMenuCategories = async () => {
 };
 
 export const addMenuCategory = async (categoryName) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('menu_categories')
-            .insert([{ category_name: categoryName }])
-            .select();
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        await logSystemActivity();
-        return response.data[0];
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-categories`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ category_name: categoryName })
+        });
+        if (!response.ok) throw new Error('Failed to add category');
+        return await response.json();
     } catch (error) {
         console.error('Error adding category:', error.message);
         throw error;
@@ -38,17 +37,18 @@ export const addMenuCategory = async (categoryName) => {
 };
 
 export const updateMenuCategory = async (categoryId, newName) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('menu_categories')
-            .update({ category_name: newName })
-            .eq('id', categoryId);
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        await logSystemActivity();
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-categories/${categoryId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ category_name: newName })
+        });
+        if (!response.ok) throw new Error('Failed to update category');
         return true;
     } catch (error) {
         console.error('Error updating category:', error.message);
@@ -57,17 +57,16 @@ export const updateMenuCategory = async (categoryId, newName) => {
 };
 
 export const deleteMenuCategory = async (categoryId) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('menu_categories')
-            .delete()
-            .eq('id', categoryId);
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        await logSystemActivity();
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-categories/${categoryId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to delete category');
         return true;
     } catch (error) {
         console.error('Error deleting category:', error.message);

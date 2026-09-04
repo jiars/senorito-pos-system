@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 import { formatRoleKey } from '../../utils/stringFormatters';
 
@@ -12,9 +12,8 @@ import { ROLE_ROUTES } from '../../routes/roleRoutes';
 import './layout.css';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const navigate = useNavigate();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { logout, role } = useAuth();
 
   const handleLogoutClick = () => {
@@ -22,15 +21,11 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const confirmLogout = async () => {
-    try {
-      await logout();
+    setIsLoggingOut(true); // 1. Spin the button instantly!
 
-      setIsLogoutModalOpen(false);
+    await logout(); // 2. Wait for Laravel (the 0.5s travel time)
 
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+    window.location.href = '/login'; // 3. Hard Reload securely!
   };
 
   const navItems = [
@@ -92,6 +87,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={confirmLogout}
+        isLoggingOut={isLoggingOut}
       />
     </>
   );

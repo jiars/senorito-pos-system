@@ -3,31 +3,27 @@ import { supabaseAdmin } from './supabaseAdmin';
 
 export const loginUser = async (email, password) => {
     try {
-        const response = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
         });
 
-        if (response.error !== null)
-            throw response.error;
+        const data = await response.json();
 
-        const userId = response.data.user.id;
-
-        // Step 1: Login Gatekeeper Check
-        const profileData = await getUserProfile(userId);
-
-        if (profileData && profileData.status === 'Deactivated') {
-            await supabase.auth.signOut();
-            throw new Error("Your account has been deactivated. Please contact the owner.");
+        // if laravel returns an error
+        if (!response.ok) {
+            throw new Error(data.message);
         }
 
-        await supabaseAdmin
-            .from('profiles')
-            .update({ last_login_at: new Date().toISOString() })
-            .eq('id', userId);
+        // if laravel login successful, save token to localstorage
+        localStorage.setItem('auth_token', data.token);
 
-        await logSystemActivity();
-        return response.data;
+        return data;
+
     } catch (error) {
         console.error('Error logging in:', error.message);
         throw error;
@@ -36,10 +32,20 @@ export const loginUser = async (email, password) => {
 
 export const logoutUser = async () => {
     try {
-        const response = await supabase.auth.signOut();
+        const token = localStorage.getItem('auth_token');
 
-        if (response.error !== null)
-            throw response.error;
+        // Tell Laravel to destroy the token in the database
+        await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        // Delete the token from the browser
+        localStorage.removeItem('auth_token');
+
     } catch (error) {
         console.error('Error logging out:', error.message);
         throw error;

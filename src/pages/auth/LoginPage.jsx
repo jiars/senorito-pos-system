@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import senoritoLogo from '../../assets/images/senorito_logo.png';
 
@@ -15,7 +15,6 @@ const LoginPage = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +24,8 @@ const LoginPage = () => {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error(error);
       setErrorMsg(error.message || 'Invalid email or password. Please try again.');
@@ -104,7 +104,13 @@ const LoginPage = () => {
                 id="login-submit"
                 disabled={isLoggingIn === true}
               >
-                {isLoggingIn === true ? 'Logging in...' : 'Login'}
+                {isLoggingIn === true ? (
+                  <>
+                    <span className="pos-spinner"></span>
+                  </>
+                ) : (
+                  'Login'
+                )}
               </button>
             </form>
           </div>
