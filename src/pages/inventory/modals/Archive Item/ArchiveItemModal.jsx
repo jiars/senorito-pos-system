@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './archiveItemModal.css';
-import { archiveInventoryItem } from '../../../../services/inventory/inventoryItemsService';
-import { fetchAffectedMenuItems } from '../../../../services/menu/menuRecipesService';
+import { archiveInventoryItem, fetchAffectedMenuItems } from '../../../../services/inventory/inventoryItemsService';
 import { useAuth } from '../../../../hooks/useAuth';
 
 const ArchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {

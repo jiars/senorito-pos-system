@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import './editAddonModal.css';
 
 import { updateAddon } from '../../../../../services/menu/addonsService';
-
 import { fetchInventoryItems } from '../../../../../services/inventory/inventoryItemsService';
+import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
+
+import EditAddonBaseInfo from './components/EditAddonBaseInfo';
+import EditAddonIngredientRow from './components/EditAddonIngredientRow';
 
 const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [] }) => {
   const [addonName, setAddonName] = useState('');
@@ -66,41 +69,10 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
     }
   }, [isOpen, addon]);
 
-  /* ─── Math Helpers ─── */
-  const calculateEstCost = () => {
-    return ingredients.reduce((total, ing) => {
-      if (!ing.ingredientId || !ing.qty) return total;
-      const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-      if (!ref) return total;
-
-      let equivalent = 1;
-      if (ing.unit && ing.unit !== ref.base_unit) {
-        const conv = ref.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-        if (conv) equivalent = Number(conv.equivalent_base_amount);
-      }
-
-      const parsedQty = parseFloat(ing.qty) || 0;
-      const baseQty = parsedQty * equivalent;
-      return total + (baseQty * ref.cost_per_unit);
-    }, 0);
-  };
-
-  const estCost = calculateEstCost();
-
-  const calculateProfit = () => {
-    const sp = parseFloat(sellingPrice) || 0;
-    return sp - estCost;
-  };
-
-  const profit = calculateProfit();
-
-  const calculateMargin = () => {
-    const sp = parseFloat(sellingPrice) || 0;
-    if (sp === 0) return 0;
-    return (profit / sp) * 100;
-  };
-
-  const margin = calculateMargin();
+  /* ─── Math Helpers (from utils) ─── */
+  const estCost = calculateEstCost(ingredients, dbIngredients);
+  const profit = calculateProfit(sellingPrice, estCost);
+  const margin = calculateMargin(profit, sellingPrice);
 
   /* ─── Validation ─── */
   React.useEffect(() => {
@@ -142,36 +114,39 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
     setErrorMessage('');
 
     try {
-      const addonPayload = {
-        addon_name: addonName.trim(),
-        selling_price: parseFloat(sellingPrice) || 0,
-        estimated_cost: estCost,
-        profit: profit,
-        margin: margin,
-        pos_status: isAvailable ? 'Available' : 'Unavailable',
-        archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
+      const payload = {
+        base_info: {
+          addon_name: addonName.trim(),
+          selling_price: parseFloat(sellingPrice) || 0,
+          estimated_cost: estCost,
+          profit: profit,
+          margin: margin,
+          pos_status: isAvailable ? 'Available' : 'Unavailable',
+          archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
+        },
+        categories: selectedCategories,
+        recipes: ingredients
+          .filter(ing => ing.ingredientId && ing.qty)
+          .map(ing => {
+            const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+            let equivalent = 1;
+            if (ing.unit && ing.unit !== ref?.base_unit) {
+              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
+              if (conv) equivalent = Number(conv.equivalent_base_amount);
+            }
+            const baseQty = parseFloat(ing.qty) * equivalent;
+
+            return {
+              id: typeof ing.id === 'string' && ing.id.length > 20 ? ing.id : null,
+              inventory_item_id: ing.ingredientId,
+              quantity: parseFloat(ing.qty),
+              unit: ing.unit || ref?.base_unit,
+              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
+            };
+          })
       };
 
-      const recipePayload = ingredients
-        .filter(ing => ing.ingredientId && ing.qty)
-        .map(ing => {
-          const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-          let equivalent = 1;
-          if (ing.unit && ing.unit !== ref?.base_unit) {
-            const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-            if (conv) equivalent = Number(conv.equivalent_base_amount);
-          }
-          const baseQty = parseFloat(ing.qty) * equivalent;
-
-          return {
-            inventory_item_id: ing.ingredientId,
-            quantity: parseFloat(ing.qty),
-            unit: ing.unit || ref?.base_unit,
-            estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-          };
-        });
-
-      await updateAddon(addon.id, addonPayload, selectedCategories, recipePayload);
+      await updateAddon(addon.id, payload);
       if (refetchAddons) {
         await refetchAddons();
       }
@@ -213,109 +188,6 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
     }));
   };
 
-  /* ─── Renderers ─── */
-  const renderIngredientRow = (ing) => {
-    let rowCost = 0;
-    let availableUnits = [];
-    let selectedUnitData = null;
-
-    if (ing.ingredientId) {
-      const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-      if (ref) {
-        availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
-        if (ref.inventory_conversion_units) {
-          ref.inventory_conversion_units.forEach(cu => {
-            availableUnits.push({ unit: cu.converted_unit, equivalent: Number(cu.equivalent_base_amount), label: cu.converted_unit });
-          });
-        }
-        
-        selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
-
-        if (ing.qty) {
-          const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
-          rowCost = baseQty * ref.cost_per_unit;
-        }
-      }
-    }
-
-    return (
-      <div className="eao-ingredient-row" key={ing.id}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <select
-            className={`eao-select ${hasAttemptedSubmit && errors[`ing_${ing.id}_id`] ? 'is-invalid' : ''}`}
-            value={ing.ingredientId}
-            onChange={(e) => updateIngredient(ing.id, 'ingredientId', e.target.value)}
-          >
-            <option value="">Select ingredient</option>
-            {dbIngredients.map(i => (
-              <option key={i.id} value={i.id}>
-                {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
-              </option>
-            ))}
-          </select>
-          {hasAttemptedSubmit && errors[`ing_${ing.id}_id`] && <p className="eao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_id`]}</p>}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <input
-            type="number"
-            className={`eao-input ${hasAttemptedSubmit && errors[`ing_${ing.id}_qty`] ? 'is-invalid' : ''}`}
-            placeholder="Qty"
-            value={ing.qty}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '' || parseFloat(val) >= 0) {
-                updateIngredient(ing.id, 'qty', val);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === '-' || e.key === 'e') e.preventDefault();
-            }}
-            min="0" step="any"
-          />
-          {hasAttemptedSubmit && errors[`ing_${ing.id}_qty`] && <p className="eao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_qty`]}</p>}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {availableUnits.length > 0 ? (
-            <select
-              className={`eao-select ${hasAttemptedSubmit && errors[`ing_${ing.id}_unit`] ? 'is-invalid' : ''}`}
-              value={ing.unit}
-              onChange={(e) => updateIngredient(ing.id, 'unit', e.target.value)}
-            >
-              {availableUnits.map(u => (
-                <option key={u.unit} value={u.unit}>{u.label}</option>
-              ))}
-            </select>
-          ) : (
-            <input
-              type="text"
-              className="eao-input"
-              readOnly
-              value="-"
-              style={{ backgroundColor: '#f5f5f5', color: '#666' }}
-            />
-          )}
-          {hasAttemptedSubmit && errors[`ing_${ing.id}_unit`] && <p className="eao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_unit`]}</p>}
-        </div>
-        <div className="eao-currency-wrapper">
-          <span className="eao-currency-symbol">₱</span>
-          <input
-            type="text"
-            className="eao-input"
-            readOnly
-            value={rowCost > 0 ? rowCost.toFixed(2) : '0.00'}
-          />
-        </div>
-        <button
-          className="eao-btn-remove-ing"
-          onClick={() => removeIngredient(ing.id)}
-          title="Remove ingredient"
-        >
-          <i className="bi bi-x"></i>
-        </button>
-      </div>
-    );
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -333,105 +205,22 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
         {/* Body */}
         <div className="eao-modal-body">
 
-          <div className="eao-top-grid">
-
-            {/* Left Column */}
-            <div>
-              <div className="eao-section">
-                <label className="eao-label">Add-on Name *</label>
-                <input
-                  type="text"
-                  className={`eao-input ${hasAttemptedSubmit && errors.addonName ? 'is-invalid' : ''}`}
-                  placeholder="e.g. Extra Shot"
-                  value={addonName}
-                  onChange={(e) => setAddonName(e.target.value)}
-                />
-                {hasAttemptedSubmit && errors.addonName && <p className="eao-error-text">{errors.addonName}</p>}
-              </div>
-
-              {/* Available Toggle */}
-              <div className="eao-section" style={{ marginTop: '0.75rem' }}>
-                <label className="eao-toggle-container">
-                  <input
-                    type="checkbox"
-                    style={{ display: 'none' }}
-                    checked={isAvailable}
-                    onChange={(e) => setIsAvailable(e.target.checked)}
-                  />
-                  <span className="eao-toggle-switch">
-                    <span className="eao-toggle-slider"></span>
-                  </span>
-                  <span className="eao-toggle-label">Available for sale</span>
-                </label>
-              </div>
-
-              <div className="eao-section">
-                <label className="eao-label">Apply to Categories *</label>
-                <div className={`eao-categories-list ${hasAttemptedSubmit && errors.categories ? 'is-invalid-border' : ''}`} style={hasAttemptedSubmit && errors.categories ? { padding: '0.5rem', borderRadius: '6px' } : {}}>
-                  {categories.map((cat) => (
-                    <label className="eao-checkbox-label" key={cat.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedCategories.includes(cat.id)}
-                        onChange={() => toggleCategory(cat.id)}
-                      />
-                      {cat.category_name}
-                    </label>
-                  ))}
-                </div>
-                {hasAttemptedSubmit && errors.categories && <p className="eao-error-text">{errors.categories}</p>}
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div>
-              <div className="eao-section">
-                <label className="eao-label">Selling Price *</label>
-                <div className={`eao-currency-wrapper ${hasAttemptedSubmit && errors.sellingPrice ? 'is-invalid-border' : ''}`}>
-                  <span className="eao-currency-symbol">₱</span>
-                  <input
-                    type="number"
-                    className="eao-input"
-                    placeholder="0.00"
-                    value={sellingPrice}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '' || parseFloat(val) >= 0) {
-                        setSellingPrice(val);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === 'e') e.preventDefault();
-                    }}
-                    min="0" step="any"
-                  />
-                </div>
-                {hasAttemptedSubmit && errors.sellingPrice && <p className="eao-error-text">{errors.sellingPrice}</p>}
-              </div>
-
-              <div className="eao-section">
-                <label className="eao-label">Est. Cost</label>
-                <div className="eao-currency-wrapper">
-                  <span className="eao-currency-symbol">₱</span>
-                  <input type="text" className="eao-input" readOnly value={estCost.toFixed(2)} />
-                </div>
-              </div>
-
-              <div className="eao-section">
-                <label className="eao-label">Profit</label>
-                <div className="eao-currency-wrapper">
-                  <span className="eao-currency-symbol">₱</span>
-                  <input type="text" className="eao-input" readOnly value={profit.toFixed(2)} />
-                </div>
-              </div>
-
-              <div className="eao-section">
-                <label className="eao-label">Margin</label>
-                <input type="text" className="eao-input" readOnly value={`${margin.toFixed(2)}%`} />
-              </div>
-            </div>
-
-          </div>
+          <EditAddonBaseInfo 
+            addonName={addonName}
+            setAddonName={setAddonName}
+            isAvailable={isAvailable}
+            setIsAvailable={setIsAvailable}
+            categories={categories}
+            selectedCategories={selectedCategories}
+            toggleCategory={toggleCategory}
+            sellingPrice={sellingPrice}
+            setSellingPrice={setSellingPrice}
+            estCost={estCost}
+            profit={profit}
+            margin={margin}
+            errors={errors}
+            hasAttemptedSubmit={hasAttemptedSubmit}
+          />
 
           <div className="eao-bottom-section">
             <div className="eao-section">
@@ -446,7 +235,17 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
                   <label className="eao-label" style={{ fontSize: '0.8rem' }}>Est. Cost</label>
                   <div></div>
                 </div>
-                {ingredients.map(ing => renderIngredientRow(ing))}
+                {ingredients.map(ing => (
+                  <EditAddonIngredientRow 
+                    key={ing.id}
+                    ing={ing}
+                    dbIngredients={dbIngredients}
+                    updateIngredient={updateIngredient}
+                    removeIngredient={removeIngredient}
+                    errors={errors}
+                    hasAttemptedSubmit={hasAttemptedSubmit}
+                  />
+                ))}
               </div>
 
               <button

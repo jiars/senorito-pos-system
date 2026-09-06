@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { formatCurrency } from '../../utils/currencyFormatters'
 
 import { fetchDashboardSummary } from '../../services/dashboard/dashboardService';
 import { AuthContext } from '../../context/AuthContext';
 import { formatCurrency } from '../../utils/currencyFormatters';
+
+import './dashboard.css';
 
 /* ═══════════════════════════════════════════════════
    Dashboard Page Component

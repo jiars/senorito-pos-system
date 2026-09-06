@@ -1,25 +1,20 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\MenuManagement;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class MenuItem extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids;
 
-    // 1. Tell the Model which table to manage
     protected $table = 'menu_items';
-
     protected $keyType = 'string';
-
     public $incrementing = false;
-
-    // Disable timestamps if not used in Supabase
     public $timestamps = false;
 
-    // 2. Allow these columns to be edited
     protected $fillable = [
         'item_name',
         'category_id',
@@ -30,9 +25,18 @@ class MenuItem extends Model
         'archived'
     ];
 
-    // 3. Define the Relationship: An Item BELONGS TO a Category!
-    public function category()
+    public function menu_categories()
     {
         return $this->belongsTo(MenuCategory::class, 'category_id', 'id');
+    }
+
+    public function menu_recipes()
+    {
+        return $this->hasMany(MenuRecipe::class, 'menu_item_id', 'id');
+    }
+
+    public function menu_prices()
+    {
+        return $this->hasMany(MenuItemPrice::class, 'menu_item_id', 'id');
     }
 }

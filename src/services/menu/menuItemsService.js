@@ -1,7 +1,7 @@
 export const fetchMenuItems = async () => {
     const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-items`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/items`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -19,7 +19,7 @@ export const fetchMenuItems = async () => {
 export const addMenuItem = async (itemData) => {
     const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-items`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/items`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -29,6 +29,7 @@ export const addMenuItem = async (itemData) => {
             body: JSON.stringify(itemData)
         });
         if (!response.ok) throw new Error('Failed to add menu item');
+
         return await response.json();
     } catch (error) {
         console.error('Error adding menu item:', error.message);
@@ -36,22 +37,23 @@ export const addMenuItem = async (itemData) => {
     }
 };
 
-export const updateMenuItem = async (itemId, itemData) => {
+export const syncMenuItem = async (itemId, nestedPayload) => {
     const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-items/${itemId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/items/${itemId}/sync`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(itemData)
+            body: JSON.stringify(nestedPayload)
         });
-        if (!response.ok) throw new Error('Failed to update menu item');
-        return true;
+        if (!response.ok) throw new Error('Failed to sync menu item');
+
+        return await response.json();
     } catch (error) {
-        console.error('Error updating menu item:', error.message);
+        console.error('Error syncing menu item:', error.message);
         throw error;
     }
 };
@@ -59,8 +61,7 @@ export const updateMenuItem = async (itemId, itemData) => {
 export const archiveMenuItem = async (itemId) => {
     const token = localStorage.getItem('auth_token');
     try {
-        // We use DELETE because of our apiResource route! Our controller handles the archiving.
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-items/${itemId}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/items/${itemId}`, {
             method: 'DELETE',
             headers: {
                 'Accept': 'application/json',
@@ -68,6 +69,7 @@ export const archiveMenuItem = async (itemId) => {
             }
         });
         if (!response.ok) throw new Error('Failed to archive menu item');
+
         return true;
     } catch (error) {
         console.error('Error archiving menu item:', error.message);

@@ -18,7 +18,7 @@ const MenuTable = ({
         if (searchTerm !== '') {
             const search = searchTerm.toLowerCase();
             const name = (item.item_name || '').toLowerCase();
-            const categoryName = (item.category?.category_name || '').toLowerCase();
+            const categoryName = (item.menu_categories?.category_name || '').toLowerCase();
             
             if (!name.includes(search) && !categoryName.includes(search)) {
                 return false;
@@ -26,7 +26,7 @@ const MenuTable = ({
         }
 
         if (categoryFilter !== 'all') {
-            let categoryName = item.category.category_name;
+            let categoryName = item.menu_categories?.category_name;
             if (categoryName !== categoryFilter) {
                 return false;
             }
@@ -118,11 +118,11 @@ const MenuTable = ({
                                     <td>
                                         <span className="menu-item-name">{item.item_name}</span>
                                     </td>
-                                    <td>{item.category.category_name}</td>
+                                    <td>{item.menu_categories?.category_name}</td>
                                     <td>
-                                        {item.prices && item.prices.length > 0 ? (
+                                        {item.menu_prices && item.menu_prices.length > 0 ? (
                                             <div className="menu-price-stack">
-                                                {item.prices.map(p => (
+                                                {item.menu_prices.map(p => (
                                                     <span key={p.id || p.variant_name} className="menu-price-variant">
                                                         <strong>{formatCurrency(p.selling_price)}</strong> / {p.variant_name || 'regular'}
                                                     </span>

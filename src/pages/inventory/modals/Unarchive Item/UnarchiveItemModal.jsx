@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './unarchiveItemModal.css';
-import { unarchiveInventoryItem } from '../../../../services/inventory/inventoryItemsService';
-import { fetchAffectedMenuItems } from '../../../../services/menu/menuRecipesService';
+import { unarchiveInventoryItem, fetchAffectedMenuItems } from '../../../../services/inventory/inventoryItemsService';
 
 const UnarchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);

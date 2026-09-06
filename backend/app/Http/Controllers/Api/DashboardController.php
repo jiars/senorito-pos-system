@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    /**
-     * Get the complete Dashboard Summary in ONE request (BFF Pattern)
-     */
+    // Get the complete Dashboard Summary in ONE request (BFF Pattern)
     public function index(Request $request)
     {
         return response()->json([
@@ -22,9 +20,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get Today's Metrics (Sales, Expenses, Orders, Low Stock)
-     */
+    // Get Today's Metrics (Sales, Expenses, Orders, Low Stock)
     private function calculateMetrics()
     {
         // Get today's date in YYYY-MM-DD format
@@ -58,9 +54,7 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * Get Inventory Alerts (Low Stock & Expiry)
-     */
+    // Get Inventory Alerts (Low Stock & Expiry)
     private function calculateAlerts()
     {
         // 1. Low Stock Alert
@@ -114,9 +108,7 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * Get Weekly Sales Data (Sunday to Saturday)
-     */
+    // Get Weekly Sales Data (Sunday to Saturday)
     private function calculateWeeklySales()
     {
         // 1. Tell Carbon that our week starts on Sunday
@@ -154,9 +146,7 @@ class DashboardController extends Controller
         return $data;
     }
 
-    /**
-     * Get Top 5 Selling Items from the last 7 days
-     */
+    // Get Top 5 Selling Items from the last 7 days
     private function calculateTopItems()
     {
         $sevenDaysAgo = now()->subDays(7)->startOfDay();
@@ -198,9 +188,7 @@ class DashboardController extends Controller
         return $rankedItems;
     }
 
-    /**
-     * Get 5 Most Recent Orders for the Table
-     */
+    // Get 5 Most Recent Orders for the Table
     private function calculateRecentOrders()
     {
         // Join orders with profiles so we can get the cashier's First and Last Name

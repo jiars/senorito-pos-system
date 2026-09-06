@@ -285,3 +285,28 @@ export const unarchiveInventoryItem = async (id) => {
   await logSystemActivity();
   return data;
 };
+
+export const fetchAffectedMenuItems = async (inventoryItemId) => {
+    try {
+        const { data, error } = await supabase
+            .from('menu_recipes')
+            .select(`
+                menu_item_id,
+                menu_items ( item_name )
+            `)
+            .eq('inventory_item_id', inventoryItemId);
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data || data.length === 0) return [];
+
+        // Extract unique menu item names
+        const names = data.map(r => r.menu_items?.item_name).filter(Boolean);
+        return [...new Set(names)];
+    } catch (error) {
+        console.error('Error fetching affected menu items:', error.message);
+        throw error;
+    }
+};

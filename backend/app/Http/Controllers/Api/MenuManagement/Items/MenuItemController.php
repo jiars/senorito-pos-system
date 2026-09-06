@@ -1,25 +1,27 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\MenuManagement\Items;
 
 use App\Http\Controllers\Controller;
-use App\Models\MenuItem;
+use App\Models\MenuManagement\MenuItem;
+use App\Models\MenuManagement\MenuItemPrice;
+use App\Models\MenuManagement\MenuRecipe;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class MenuItemController extends Controller
 {
-    /**
-     * READ: Get all menu items WITH their category
-     */
+    // READ: Get all menu items WITH their category
     public function index()
     {
-        // 'with('category')' automatically joins the MenuCategory model!
-        return response()->json(MenuItem::with('category')->orderBy('item_name', 'asc')->get());
+        $items = MenuItem::with(['menu_categories', 'menu_prices', 'menu_recipes'])
+            ->orderBy('item_name', 'asc')
+            ->get();
+
+        return response()->json($items);
     }
 
-    /**
-     * CREATE: Add a new menu item
-     */
+    // CREATE: Add a new menu item
     public function store(Request $request)
     {
         $request->validate([
@@ -36,9 +38,7 @@ class MenuItemController extends Controller
         return response()->json($item, 201);
     }
 
-    /**
-     * UPDATE: Edit a menu item
-     */
+    // UPDATE: Edit a menu item
     public function update(Request $request, string $id)
     {
         $item = MenuItem::findOrFail($id);
@@ -55,9 +55,7 @@ class MenuItemController extends Controller
         return response()->json(['message' => 'Menu Item updated successfully']);
     }
 
-    /**
-     * DELETE (Archive): We don't actually delete menu items, we archive them!
-     */
+    // DELETE (Archive): We don't actually delete menu items, we archive them!
     public function destroy(string $id)
     {
         $item = MenuItem::findOrFail($id);

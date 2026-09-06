@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useMenu } from '../../hooks/useMenu';
+import { useMenuManagement } from '../../hooks/useMenuManagement';
 
 import MenuHeader from './components/MenuHeader';
 import MenuTable from './components/MenuTable';
@@ -14,7 +14,7 @@ import ConfirmDeleteMenuItemModal from './modals/Confirm Delete Menu Item/Confir
 import './menuManagement.css';
 
 const MenuManagementPage = () => {
-  const { menuItems, categories, isLoading, refetchMenu } = useMenu();
+  const { menuItems, categories, isLoading, refetch: refetchMenu } = useMenuManagement();
 
   // Only Modal Variables exist here now!
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);

@@ -1,201 +1,62 @@
-import { supabase } from '../supabaseClient';
 import { logSystemActivity } from '../authService';
-import { formatDecimal } from '../../utils/numberFormatters';
 
 // ─── 1. Fetch All Active Add-ons (with their linked categories) ───
 export const fetchAddons = async () => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('addons')
-            .select(`
-                *,
-                addon_categories (
-                    menu_category_id,
-                    menu_categories (
-                        category_name
-                    )
-                ),
-                addon_recipes (
-                    id,
-                    inventory_item_id,
-                    quantity,
-                    unit,
-                    estimated_cost,
-                    inventory_items (
-                        item_name,
-                        base_unit,
-                        current_stock,
-                        inventory_conversion_units(
-                            converted_unit,
-                            equivalent_base_amount
-                        )
-                    )
-                )
-            `)
-            .order('addon_name', { ascending: true });
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        return response.data;
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/addons`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to fetch add-ons from Laravel');
+        return await response.json();
     } catch (error) {
         console.error('Error fetching addons:', error.message);
         return [];
     }
 };
 
-export const addAddon = async (addonData, categoryIds, recipes) => {
+export const addAddon = async (payload) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const formattedAddonData = {
-            ...addonData,
-            selling_price: formatDecimal(addonData.selling_price),
-            estimated_cost: formatDecimal(addonData.estimated_cost),
-            profit: formatDecimal(addonData.profit),
-            margin: formatDecimal(addonData.margin)
-        };
-
-        const response = await supabase
-            .from('addons')
-            .insert([formattedAddonData])
-            .select();
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        const newAddon = response.data[0];
-
-        if (categoryIds && categoryIds.length > 0) {
-            const categoryLinks = categoryIds.map((catId) => {
-                return {
-                    addon_id: newAddon.id,
-                    menu_category_id: catId
-                };
-            });
-
-            const linkResponse = await supabase
-                .from('addon_categories')
-                .insert(categoryLinks);
-
-            if (linkResponse.error !== null) {
-                throw linkResponse.error;
-            }
-        }
-
-        // Insert recipes
-        if (recipes && recipes.length > 0) {
-            const recipeLinks = recipes.map(recipe => ({
-                addon_id: newAddon.id,
-                inventory_item_id: recipe.inventory_item_id,
-                quantity: formatDecimal(recipe.quantity),
-                unit: recipe.unit,
-                estimated_cost: formatDecimal(recipe.estimated_cost)
-            }));
-
-            const recipeResponse = await supabase
-                .from('addon_recipes')
-                .insert(recipeLinks);
-
-            if (recipeResponse.error !== null) {
-                throw recipeResponse.error;
-            }
-        }
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/addons`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error('Failed to add addon');
 
         await logSystemActivity();
-        return newAddon;
+        return await response.json();
     } catch (error) {
         console.error('Error adding addon:', error.message);
         throw error;
     }
 };
 
-export const updateAddon = async (addonId, addonData, categoryIds, recipes) => {
+export const updateAddon = async (addonId, payload) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        if (addonData.pos_status === 'Available') {
-            addonData.archived = false;
-        }
-
-        const formattedAddonData = {
-            ...addonData,
-            selling_price: addonData.selling_price !== undefined ? formatDecimal(addonData.selling_price) : addonData.selling_price,
-            estimated_cost: addonData.estimated_cost !== undefined ? formatDecimal(addonData.estimated_cost) : addonData.estimated_cost,
-            profit: addonData.profit !== undefined ? formatDecimal(addonData.profit) : addonData.profit,
-            margin: addonData.margin !== undefined ? formatDecimal(addonData.margin) : addonData.margin
-        };
-
-        const response = await supabase
-            .from('addons')
-            .update(formattedAddonData)
-            .eq('id', addonId)
-            .select();
-
-        if (response.error !== null) {
-            throw response.error;
-        }
-
-        if (categoryIds !== undefined && categoryIds !== null) {
-            const deleteResponse = await supabase
-                .from('addon_categories')
-                .delete()
-                .eq('addon_id', addonId);
-
-            if (deleteResponse.error !== null) {
-                throw deleteResponse.error;
-            }
-
-            if (categoryIds.length > 0) {
-                const categoryLinks = categoryIds.map((catId) => {
-                    return {
-                        addon_id: addonId,
-                        menu_category_id: catId
-                    };
-                });
-
-                const insertResponse = await supabase
-                    .from('addon_categories')
-                    .insert(categoryLinks);
-
-                if (insertResponse.error !== null) {
-                    throw insertResponse.error;
-                }
-            }
-        }
-
-        // Update recipes if provided
-        if (recipes !== undefined && recipes !== null) {
-            // Delete old recipes
-            const deleteRecipeResponse = await supabase
-                .from('addon_recipes')
-                .delete()
-                .eq('addon_id', addonId);
-
-            if (deleteRecipeResponse.error !== null) {
-                throw deleteRecipeResponse.error;
-            }
-
-            // Insert new recipes
-            if (recipes.length > 0) {
-                const recipeLinks = recipes.map(recipe => ({
-                    addon_id: addonId,
-                    inventory_item_id: recipe.inventory_item_id,
-                    quantity: formatDecimal(recipe.quantity),
-                    unit: recipe.unit,
-                    estimated_cost: formatDecimal(recipe.estimated_cost)
-                }));
-
-                const recipeInsertResponse = await supabase
-                    .from('addon_recipes')
-                    .insert(recipeLinks);
-
-                if (recipeInsertResponse.error !== null) {
-                    throw recipeInsertResponse.error;
-                }
-            }
-        }
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/addons/${addonId}/sync`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error('Failed to update addon');
 
         await logSystemActivity();
-        return response.data[0];
+        return await response.json();
     } catch (error) {
         console.error('Error updating addon:', error.message);
         throw error;
@@ -203,23 +64,21 @@ export const updateAddon = async (addonId, addonData, categoryIds, recipes) => {
 };
 
 export const archiveAddon = async (addonId) => {
+    const token = localStorage.getItem('auth_token');
     try {
-        const response = await supabase
-            .from('addons')
-            .update({
-                archived: true,
-                pos_status: 'Unavailable'
-            })
-            .eq('id', addonId);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/addons/${addonId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) throw new Error('Failed to archive addon');
 
-        if (response.error !== null) {
-            throw response.error;
-        }
-
+        await logSystemActivity();
         return true;
     } catch (error) {
         console.error('Error archiving addon:', error.message);
         throw error;
     }
-    await logSystemActivity();
 };
