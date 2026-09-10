@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../../hooks/useInventory';
 import { useAuth } from '../../hooks/useAuth';
 import { cleanupExpiredBatches } from '../../services/inventory/inventoryStockService';
-import { getExpiryInfo } from '../../utils/inventoryExpiryUtils';
 
 // Components
 import InventoryHeader from './components/InventoryHeader';
@@ -16,7 +14,6 @@ import ManageCategoriesModal from './modals/Manage Categories/ManageCategoriesMo
 import PrintQRCodeModal from './modals/Print QR/PrintQRCodeModal';
 import ArchiveItemModal from './modals/Archive Item/ArchiveItemModal';
 import EditItemModal from './modals/Edit Item/EditItemModal';
-import BatchesModal from './modals/Batches/BatchesModal';
 import StockHistoryModal from './modals/Stock History/StockHistoryModal';
 import StockLogModal from './modals/Stock Log/StockLogModal';
 
@@ -34,14 +31,13 @@ const InventoryPage = () => {
         hasCleanedUp.current = true;
         const cleanedCount = await cleanupExpiredBatches(user.id);
         if (cleanedCount > 0) {
-          refetchInventory(); // Reload data if any batches were zeroed out
+          refetchInventory();
         }
       }
     };
     runCleanup();
   }, [user?.id, refetchInventory]);
 
-  // Selected Items State
   const [selectedItems, setSelectedItems] = useState([]);
 
   // Modal States
@@ -52,23 +48,10 @@ const InventoryPage = () => {
   const [selectedArchiveItem, setSelectedArchiveItem] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedEditItem, setSelectedEditItem] = useState(null);
-  const [isBatchesModalOpen, setIsBatchesModalOpen] = useState(false);
-  const [selectedBatchesItem, setSelectedBatchesItem] = useState(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [selectedLogItem, setSelectedLogItem] = useState(null);
-
-  const navigate = useNavigate();
-
-  // Dynamic Computations
-  const totalItemsCount = inventoryItems.length;
-  const inStockCount = inventoryItems.filter(item => item.current_stock > item.minimum_level).length;
-  const lowStockCount = inventoryItems.filter(item => item.current_stock > 0 && item.current_stock <= item.minimum_level).length;
-  const outOfStockCount = inventoryItems.filter(item => item.current_stock === 0).length;
-
-  const expiringSoonCount = inventoryItems.filter(item => getExpiryInfo(item).status === 'Expiring Soon').length;
-  const expiredCount = inventoryItems.filter(item => getExpiryInfo(item).status === 'Expired').length;
 
   // Toggle Handlers
   const toggleSelectAll = () => {
@@ -92,12 +75,7 @@ const InventoryPage = () => {
       />
 
       <InventorySummaryCards
-        totalItemsCount={totalItemsCount}
-        inStockCount={inStockCount}
-        lowStockCount={lowStockCount}
-        outOfStockCount={outOfStockCount}
-        expiringSoonCount={expiringSoonCount}
-        expiredCount={expiredCount}
+        inventoryItems={inventoryItems}
       />
 
       <InventoryTable
@@ -109,8 +87,6 @@ const InventoryPage = () => {
         toggleItem={toggleItem}
         setSelectedLogItem={setSelectedLogItem}
         setIsLogModalOpen={setIsLogModalOpen}
-        setSelectedBatchesItem={setSelectedBatchesItem}
-        setIsBatchesModalOpen={setIsBatchesModalOpen}
         setSelectedHistoryItem={setSelectedHistoryItem}
         setIsHistoryModalOpen={setIsHistoryModalOpen}
         setSelectedEditItem={setSelectedEditItem}
@@ -163,15 +139,6 @@ const InventoryPage = () => {
         existingItems={inventoryItems.map(item => item.item_name)}
         categories={categories}
         refetchInventory={refetchInventory}
-      />
-
-      <BatchesModal
-        isOpen={isBatchesModalOpen}
-        onClose={() => {
-          setIsBatchesModalOpen(false);
-          setSelectedBatchesItem(null);
-        }}
-        item={selectedBatchesItem}
       />
 
       <StockHistoryModal

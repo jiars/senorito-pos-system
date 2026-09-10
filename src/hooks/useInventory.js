@@ -1,44 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
-import { fetchInventoryItems, fetchUnits } from '../services/inventory/inventoryItemsService';
-import { fetchInventoryCategories } from '../services/inventory/inventoryCategoriesService';
+import { useQuery } from '@tanstack/react-query';
+import api from '../utils/axios/axiosInstance';
+import { fetchUnits } from '../services/inventory/inventoryItemsService';
 
 export const useInventory = () => {
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [units, setUnits] = useState([])
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['inventory-management'],
+    queryFn: async () => {
+      // 1. Fetch categories and items from our new Laravel Orchestrator!
+      const response = await api.get('/inventory-management/init');
 
-  const loadInventory = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [itemsData, categoriesData, unitsData] = await Promise.all([
-        fetchInventoryItems(),
-        fetchInventoryCategories(),
-        fetchUnits()
-      ]);
-      setInventoryItems(itemsData || []);
-      setCategories(categoriesData || []);
-      setUnits(unitsData || []);
-    } catch (err) {
-      console.error('Error loading inventory:', err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      // 2. Temporarily fetch units from Supabase until we migrate ENUMs
+      const unitsData = await fetchUnits();
 
-  useEffect(() => {
-    loadInventory();
-  }, [loadInventory]);
+      return {
+        ...response.data,
+        units: unitsData
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
   return {
-    inventoryItems,
-    categories,
-    units,
+    inventoryItems: data?.items || [],
+    categories: data?.categories || [],
+    units: data?.units || [],
     isLoading,
-    error,
-    refetchInventory: loadInventory
+    error: error ? error.message : null,
+    refetchInventory: refetch
   };
 };

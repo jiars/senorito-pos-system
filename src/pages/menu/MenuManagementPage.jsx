@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useMenuManagement } from '../../hooks/useMenuManagement';
+import { useInventory } from '../../hooks/useInventory';
 
 import MenuHeader from './components/MenuHeader';
 import MenuTable from './components/MenuTable';
@@ -15,6 +16,7 @@ import './menuManagement.css';
 
 const MenuManagementPage = () => {
   const { menuItems, categories, isLoading, refetch: refetchMenu } = useMenuManagement();
+  const { inventoryItems } = useInventory();
 
   // Only Modal Variables exist here now!
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -63,6 +65,8 @@ const MenuManagementPage = () => {
         isOpen={isAddMenuItemModalOpen}
         onClose={() => setIsAddMenuItemModalOpen(false)}
         refetchMenu={refetchMenu}
+        categories={categories}
+        inventoryItems={inventoryItems}
       />
 
       <EditMenuItemModal
@@ -73,6 +77,8 @@ const MenuManagementPage = () => {
         }}
         item={selectedMenuItem}
         refetchMenu={refetchMenu}
+        categories={categories}
+        inventoryItems={inventoryItems}
       />
 
       <ConfirmDeleteMenuItemModal

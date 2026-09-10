@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './editMenuItemModal.css';
-import { fetchMenuCategories } from '../../../../services/menu/menuCategoriesService';
 import { syncMenuItem } from '../../../../services/menu/menuItemsService';
-import { useInventory } from '../../../../hooks/useInventory';
 import { uploadMenuImage } from '../../../../utils/imageUploadHelper';
 import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../utils/menu/pricingCalculations';
+import { validateMenuItemForm } from '../../../../utils/validation/menuValidation';
 import EditMenuBaseInfo from './components/EditMenuBaseInfo';
 import EditMenuSinglePrice from './components/EditMenuSinglePrice';
 import EditMenuVariants from './components/EditMenuVariants';
@@ -13,10 +12,8 @@ const getInitialBaseInfo = () => ({ name: '', category: '', isAvailable: false, 
 const getInitialSingleRecipe = () => ({ id: null, sellingPrice: '', ingredients: [{ id: Date.now(), ingredientId: '', qty: '', unit: '' }] });
 const getInitialVariant = () => ({ id: Date.now(), name: '', isAvailable: true, sellingPrice: '', ingredients: [{ id: Date.now() + 1, ingredientId: '', qty: '', unit: '' }] });
 
-const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
-  const { inventoryItems } = useInventory();
+const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu, categories, inventoryItems = [] }) => {
   /* ─── State ─── */
-  const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -37,9 +34,6 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
     setIsSubmitting(false);
     setHasAttemptedSubmit(false);
     setErrors({});
-
-    // Load categories
-    fetchMenuCategories().then(setCategories);
 
     if (item) {
       // 1. Populate Base Info
@@ -108,40 +102,7 @@ const EditMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
   /* ─── Validation Helpers ─── */
   useEffect(() => {
     if (!isOpen) return;
-    const newErrors = {};
-
-    if (!baseInfo.name.trim()) newErrors.name = 'Item name is required.';
-    if (!baseInfo.category) newErrors.category = 'Category is required.';
-
-    if (pricingMode === 'single') {
-      if (!singleRecipe.sellingPrice) {
-        newErrors.sellingPrice = 'Selling price is required.';
-      } else if (Number(singleRecipe.sellingPrice) <= 0) {
-        newErrors.sellingPrice = 'Price must be > 0.';
-      }
-
-      singleRecipe.ingredients.forEach(ing => {
-        if (!ing.ingredientId) newErrors[`single_ing_${ing.id}_id`] = 'Required.';
-        if (!ing.qty) newErrors[`single_ing_${ing.id}_qty`] = 'Required.';
-        if (!ing.unit) newErrors[`single_ing_${ing.id}_unit`] = 'Required.';
-      });
-    } else {
-      variants.forEach(v => {
-        if (!v.name.trim()) newErrors[`variant_${v.id}_name`] = 'Variant name required.';
-        if (!v.sellingPrice) {
-          newErrors[`variant_${v.id}_price`] = 'Price required.';
-        } else if (Number(v.sellingPrice) <= 0) {
-          newErrors[`variant_${v.id}_price`] = 'Must be > 0.';
-        }
-
-        v.ingredients.forEach(ing => {
-          if (!ing.ingredientId) newErrors[`var_${v.id}_ing_${ing.id}_id`] = 'Required.';
-          if (!ing.qty) newErrors[`var_${v.id}_ing_${ing.id}_qty`] = 'Required.';
-          if (!ing.unit) newErrors[`var_${v.id}_ing_${ing.id}_unit`] = 'Required.';
-        });
-      });
-    }
-
+    const newErrors = validateMenuItemForm(baseInfo, pricingMode, singleRecipe, variants);
     setErrors(newErrors);
   }, [baseInfo, pricingMode, singleRecipe, variants, isOpen]);
 

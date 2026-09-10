@@ -1,26 +1,27 @@
 <?php
 
-namespace App\Models\MenuManagement;
+namespace App\Models\InventoryManagement;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class MenuCategory extends Model
+class InventoryCategory extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'menu_categories';
+    protected $table = 'inventory_categories';
     protected $keyType = 'string';
     public $incrementing = false;
     public $timestamps = false;
 
     protected $fillable = [
-        'category_name'
+        'category_name',
+        'archived'
     ];
 
-    public function menu_items()
+    public function inventory_items()
     {
-        return $this->hasMany(MenuItem::class, 'category_id', 'id');
+        return $this->hasMany(InventoryItem::class, 'category_id', 'id');
     }
 }

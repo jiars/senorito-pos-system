@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './addMenuItemModal.css';
-import { fetchMenuCategories } from '../../../../services/menu/menuCategoriesService';
 import { addMenuItem } from '../../../../services/menu/menuItemsService';
-import { useInventory } from '../../../../hooks/useInventory';
 import { uploadMenuImage } from '../../../../utils/imageUploadHelper';
 import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../utils/menu/pricingCalculations';
+import { validateMenuItemForm } from '../../../../utils/validation/menuValidation';
 
 import AddMenuBaseInfo from './components/AddMenuBaseInfo';
 import AddMenuSinglePrice from './components/AddMenuSinglePrice';
@@ -14,10 +13,8 @@ const getInitialBaseInfo = () => ({ name: '', category: '', description: '', isA
 const getInitialSingleRecipe = () => ({ sellingPrice: '', ingredients: [{ id: Date.now(), ingredientId: '', qty: '', unit: '' }] });
 const getInitialVariant = () => ({ id: Date.now(), name: '', isAvailable: true, sellingPrice: '', ingredients: [{ id: Date.now() + 1, ingredientId: '', qty: '', unit: '' }] });
 
-const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
-  const { inventoryItems } = useInventory();
+const AddMenuItemModal = ({ isOpen, onClose, refetchMenu, categories, inventoryItems = [] }) => {
   /* ─── State ─── */
-  const [categories, setCategories] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -40,49 +37,13 @@ const AddMenuItemModal = ({ isOpen, onClose, refetchMenu }) => {
       setBaseInfo(getInitialBaseInfo());
       setSingleRecipe(getInitialSingleRecipe());
       setVariants([getInitialVariant()]);
-
-      fetchMenuCategories().then(setCategories);
     }
   }, [isOpen]);
 
   /* ─── Validation Helpers ─── */
   useEffect(() => {
     if (!isOpen) return;
-    const newErrors = {};
-
-    // TEMPORARILY DISABLED: if (!baseInfo.image) newErrors.image = 'Image is required.';
-    if (!baseInfo.name.trim()) newErrors.name = 'Item name is required.';
-    if (!baseInfo.category) newErrors.category = 'Category is required.';
-
-    if (pricingMode === 'single') {
-      if (!singleRecipe.sellingPrice) {
-        newErrors.sellingPrice = 'Selling price is required.';
-      } else if (Number(singleRecipe.sellingPrice) <= 0) {
-        newErrors.sellingPrice = 'Price must be > 0.';
-      }
-      
-      singleRecipe.ingredients.forEach(ing => {
-        if (!ing.ingredientId) newErrors[`single_ing_${ing.id}_id`] = 'Required.';
-        if (!ing.qty) newErrors[`single_ing_${ing.id}_qty`] = 'Required.';
-        if (!ing.unit) newErrors[`single_ing_${ing.id}_unit`] = 'Required.';
-      });
-    } else {
-      variants.forEach(v => {
-        if (!v.name.trim()) newErrors[`variant_${v.id}_name`] = 'Variant name required.';
-        if (!v.sellingPrice) {
-          newErrors[`variant_${v.id}_price`] = 'Price required.';
-        } else if (Number(v.sellingPrice) <= 0) {
-          newErrors[`variant_${v.id}_price`] = 'Must be > 0.';
-        }
-        
-        v.ingredients.forEach(ing => {
-          if (!ing.ingredientId) newErrors[`var_${v.id}_ing_${ing.id}_id`] = 'Required.';
-          if (!ing.qty) newErrors[`var_${v.id}_ing_${ing.id}_qty`] = 'Required.';
-          if (!ing.unit) newErrors[`var_${v.id}_ing_${ing.id}_unit`] = 'Required.';
-        });
-      });
-    }
-
+    const newErrors = validateMenuItemForm(baseInfo, pricingMode, singleRecipe, variants);
     setErrors(newErrors);
   }, [baseInfo, pricingMode, singleRecipe, variants, isOpen]);
 

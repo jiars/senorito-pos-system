@@ -26,29 +26,44 @@ const ManageMenuCategoriesModal = ({ isOpen, onClose, categories = [], menuItems
   const handleAddCategory = async () => {
     if (newCategory.trim() === '' || isSubmitting) return;
     setIsSubmitting(true);
-    await addMenuCategory(newCategory.trim());
-    if (refetchMenu) await refetchMenu();
-    setNewCategory('');
-    setIsSubmitting(false);
+    try {
+      await addMenuCategory(newCategory.trim());
+      if (refetchMenu) await refetchMenu();
+      setNewCategory('');
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ─── 2. Save Edit ───
   const handleSaveEdit = async (id) => {
     if (editName.trim() === '' || isSubmitting) return;
     setIsSubmitting(true);
-    await updateMenuCategory(id, editName.trim());
-    if (refetchMenu) await refetchMenu();
-    setEditingId(null);
-    setIsSubmitting(false);
+    try {
+      await updateMenuCategory(id, editName.trim());
+      if (refetchMenu) await refetchMenu();
+      setEditingId(null);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ─── 3. Delete Category ───
   const handleDeleteCategory = async (id) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    await deleteMenuCategory(id);
-    if (refetchMenu) await refetchMenu();
-    setIsSubmitting(false);
+    try {
+      await deleteMenuCategory(id);
+      if (refetchMenu) await refetchMenu();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,14 +148,16 @@ const ManageMenuCategoriesModal = ({ isOpen, onClose, categories = [], menuItems
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
-                        <button
-                          className="mc-action-btn mc-action-btn--delete"
-                          disabled={usedByCount > 0 || isSubmitting}
-                          title={usedByCount > 0 ? "Cannot delete category while items are using it." : "Delete"}
-                          onClick={() => handleDeleteCategory(cat.id)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
+                        {usedByCount === 0 && (
+                          <button
+                            className="mc-action-btn mc-action-btn--delete"
+                            disabled={isSubmitting}
+                            title="Delete"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        )}
                       </div>
                     </>
                   )}

@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import './addAddonModal.css';
 
 import { addAddon } from '../../../../../services/menu/addonsService';
-import { fetchInventoryItems } from '../../../../../services/inventory/inventoryItemsService';
 import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
+import { validateAddonForm } from '../../../../../utils/validation/menuValidation';
 
 import AddAddonBaseInfo from './components/AddAddonBaseInfo';
 import AddAddonIngredientRow from './components/AddAddonIngredientRow';
 
-const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
+const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [], inventoryItems: dbIngredients = [] }) => {
   const [addonName, setAddonName] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -19,21 +19,12 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   const [isAvailable, setIsAvailable] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dbIngredients, setDbIngredients] = useState([]);
   
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
 
   React.useEffect(() => {
-    const loadInventory = async () => {
-      try {
-        const items = await fetchInventoryItems();
-        setDbIngredients(items || []);
-      } catch (error) {
-        console.error("Failed to load inventory items:", error);
-      }
-    };
     if (isOpen) {
       setHasAttemptedSubmit(false);
       setErrors({});
@@ -43,7 +34,6 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
       setSelectedCategories([]);
       setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
       setIsAvailable(true);
-      loadInventory();
     }
   }, [isOpen]);
 
@@ -55,22 +45,7 @@ const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [] }) => {
   /* ─── Validation ─── */
   React.useEffect(() => {
     if (!isOpen) return;
-    const newErrors = {};
-
-    if (!addonName.trim()) newErrors.addonName = 'Add-on name is required.';
-    if (!sellingPrice) {
-      newErrors.sellingPrice = 'Price required.';
-    } else if (Number(sellingPrice) <= 0) {
-      newErrors.sellingPrice = 'Must be > 0.';
-    }
-    if (selectedCategories.length === 0) newErrors.categories = 'Select at least one category.';
-
-    ingredients.forEach(ing => {
-      if (!ing.ingredientId) newErrors[`ing_${ing.id}_id`] = 'Required.';
-      if (!ing.qty) newErrors[`ing_${ing.id}_qty`] = 'Required.';
-      if (!ing.unit) newErrors[`ing_${ing.id}_unit`] = 'Required.';
-    });
-
+    const newErrors = validateAddonForm(addonName, sellingPrice, selectedCategories, ingredients);
     setErrors(newErrors);
   }, [addonName, sellingPrice, selectedCategories, ingredients, isOpen]);
 

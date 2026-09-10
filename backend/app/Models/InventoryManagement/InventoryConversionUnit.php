@@ -1,31 +1,28 @@
 <?php
 
-namespace App\Models\MenuManagement;
+namespace App\Models\InventoryManagement;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class MenuRecipe extends Model
+class InventoryConversionUnit extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'menu_recipes';
+    protected $table = 'inventory_conversion_units';
     protected $keyType = 'string';
     public $incrementing = false;
     public $timestamps = false;
 
     protected $fillable = [
-        'menu_item_id',
-        'menu_item_price_id',
         'inventory_item_id',
-        'quantity',
-        'estimated_cost',
-        'unit'
+        'converted_unit',
+        'equivalent_base_amount'
     ];
 
-    public function menu_item()
+    public function inventory_item()
     {
-        return $this->belongsTo(MenuItem::class, 'menu_item_id', 'id');
+        return $this->belongsTo(InventoryItem::class, 'inventory_item_id', 'id');
     }
 }

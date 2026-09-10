@@ -1,15 +1,9 @@
+import api from '../../utils/axios/axiosInstance';
+
 export const fetchMenuCategories = async () => {
-    const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/categories`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) throw new Error('Failed to fetch categories');
-        return await response.json();
+        const response = await api.get('/menu-management/categories');
+        return response.data;
     } catch (error) {
         console.error('Error fetching categories:', error.message);
         return [];
@@ -17,62 +11,31 @@ export const fetchMenuCategories = async () => {
 };
 
 export const addMenuCategory = async (categoryName) => {
-    const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/categories`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ category_name: categoryName })
-        });
-        if (!response.ok) throw new Error('Failed to add category');
-
-        return await response.json();
+        const response = await api.post('/menu-management/categories', { category_name: categoryName });
+        return response.data;
     } catch (error) {
         console.error('Error adding category:', error.message);
-        throw error;
+        throw new Error(error.response?.data?.message || 'Failed to add category');
     }
 };
 
 export const updateMenuCategory = async (categoryId, newName) => {
-    const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/categories/${categoryId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ category_name: newName })
-        });
-        if (!response.ok) throw new Error('Failed to update category');
-
+        const response = await api.put(`/menu-management/categories/${categoryId}`, { category_name: newName });
         return true;
     } catch (error) {
         console.error('Error updating category:', error.message);
-        throw error;
+        throw new Error(error.response?.data?.message || 'Failed to update category');
     }
 };
 
 export const deleteMenuCategory = async (categoryId) => {
-    const token = localStorage.getItem('auth_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/menu-management/categories/${categoryId}`, {
-            method: 'DELETE',
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) throw new Error('Failed to delete category');
-
+        const response = await api.delete(`/menu-management/categories/${categoryId}`);
         return true;
     } catch (error) {
         console.error('Error deleting category:', error.message);
-        throw error;
+        throw new Error(error.response?.data?.message || 'Failed to delete category');
     }
 };

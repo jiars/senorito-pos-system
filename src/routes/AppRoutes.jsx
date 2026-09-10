@@ -11,7 +11,7 @@ import MainLayout from '../components/layout/MainLayout';
 import DashboardPage from '../pages/dashboard/DashboardPage';
 
 import InventoryPage from '../pages/inventory/InventoryPage';
-import InventoryArchivePage from '../pages/inventory/InventoryArchivePage';
+import InventoryArchivePage from '../pages/inventory/archive/InventoryArchivePage';
 import InventoryAuditLogPage from '../pages/inventory/audit/InventoryAuditLogPage';
 import InventoryValuationReport from '../pages/reports/inventory valuation/InventoryValuationReport';
 

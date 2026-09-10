@@ -10,6 +10,7 @@ import ConfirmDeleteAddonModal from './modals/Confirm Delete Add-on/ConfirmDelet
 
 import '../menuManagement.css';
 import { useMenuManagement } from '../../../hooks/useMenuManagement';
+import { useInventory } from '../../../hooks/useInventory';
 
 const ManageAddonsPage = () => {
   const [isAddAddonModalOpen, setIsAddAddonModalOpen] = useState(false);
@@ -19,6 +20,7 @@ const ManageAddonsPage = () => {
 
   const navigate = useNavigate();
   const { addons, categories, isLoading, refetch: refetchAddons } = useMenuManagement();
+  const { inventoryItems } = useInventory();
 
   const handleEditClick = (item) => {
     setSelectedAddon(item);
@@ -50,6 +52,7 @@ const ManageAddonsPage = () => {
         onClose={() => setIsAddAddonModalOpen(false)}
         refetchAddons={refetchAddons}
         categories={categories}
+        inventoryItems={inventoryItems}
       />
 
       <EditAddonModal
@@ -58,6 +61,7 @@ const ManageAddonsPage = () => {
         addon={selectedAddon}
         refetchAddons={refetchAddons}
         categories={categories}
+        inventoryItems={inventoryItems}
       />
 
       <ConfirmDeleteAddonModal

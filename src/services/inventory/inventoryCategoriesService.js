@@ -1,60 +1,32 @@
-import { supabase } from '../supabaseClient';
-import { logSystemActivity } from '../authService';
-
-export const fetchInventoryCategories = async () => {
-  const { data, error } = await supabase
-    .from('inventory_categories')
-    .select('*')
-    .eq('archived', false)
-    .order('category_name', { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  return data;
-};
+import api from '../../utils/axios/axiosInstance';
 
 export const addInventoryCategory = async (categoryName) => {
-  const { data, error } = await supabase
-    .from('inventory_categories')
-    .insert([{ category_name: categoryName }])
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
+  try {
+    const response = await api.post('/inventory-management/categories', {
+      category_name: categoryName
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to add inventory category');
   }
-  await logSystemActivity();
-  return data;
 };
 
 export const updateInventoryCategory = async (id, newCategoryName) => {
-  const { data, error } = await supabase
-    .from('inventory_categories')
-    .update({ category_name: newCategoryName })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
+  try {
+    const response = await api.put(`/inventory-management/categories/${id}`, {
+      category_name: newCategoryName
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to update inventory category');
   }
-  await logSystemActivity();
-  return data;
 };
 
 export const deleteInventoryCategory = async (id) => {
-  // We use soft-delete to preserve references in inventory_items
-  const { data, error } = await supabase
-    .from('inventory_categories')
-    .update({ archived: true })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
+  try {
+    const response = await api.delete(`/inventory-management/categories/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || 'Failed to delete inventory category');
   }
-  await logSystemActivity();
-  return data;
 };

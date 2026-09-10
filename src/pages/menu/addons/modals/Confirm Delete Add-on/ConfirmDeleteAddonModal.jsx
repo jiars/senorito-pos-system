@@ -13,13 +13,17 @@ const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon, refetchAddons }) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    await archiveAddon(addon.id);
-    if (refetchAddons) {
-      await refetchAddons();
+    try {
+      await archiveAddon(addon.id);
+      if (refetchAddons) {
+        await refetchAddons();
+      }
+      onClose();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-    onClose();
   };
 
   const categoriesList = [];

@@ -1,67 +1,91 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import './inventorySummaryCards.css';
 
-const InventorySummaryCards = ({
-    totalItemsCount,
-    inStockCount,
-    lowStockCount,
-    outOfStockCount,
-    expiringSoonCount = 0,
-    expiredCount = 0
-}) => {
+const InventorySummaryCards = ({ inventoryItems = [] }) => {
+    // Dynamic Computations
+    const stats = useMemo(() => {
+        const totalItemsCount = inventoryItems.length;
+        const inStockCount = inventoryItems.filter(item => item.current_stock > item.minimum_level).length;
+        const lowStockCount = inventoryItems.filter(item => item.current_stock > 0 && item.current_stock <= item.minimum_level).length;
+        const outOfStockCount = inventoryItems.filter(item => item.current_stock === 0).length;
+
+        // Calculate "new items added this month"
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+        const newItemsCount = inventoryItems.filter(item => {
+            const itemDate = new Date(item.created_at);
+            return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+        }).length;
+
+        // Calculate percentage
+        const inStockPercentage = totalItemsCount === 0 ? 0 : Math.round((inStockCount / totalItemsCount) * 100);
+
+        return {
+            totalItemsCount,
+            inStockCount,
+            lowStockCount,
+            outOfStockCount,
+            newItemsCount,
+            inStockPercentage
+        };
+    }, [inventoryItems]);
+
     return (
         <div className="inventory-summary-cards">
             {/* Total Items Card */}
-            <div className="inventory-summary-card inventory-summary-card--dark">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-box-seam"></i>
+            <div className="inventory-summary-card">
+                <div className="inventory-card-content">
+                    <p className="inventory-summary-card-label">Total Items</p>
+                    <h2 className="inventory-summary-card-value" style={{ color: '#9d5a42' }}>{stats.totalItemsCount}</h2>
+                    <p className="inventory-summary-card-subtext">
+                        <strong style={{ color: '#59844f' }}>{stats.newItemsCount} new items</strong> added this month
+                    </p>
                 </div>
-                <p className="inventory-summary-card-value">{totalItemsCount}</p>
-                <p className="inventory-summary-card-label">Total Items</p>
+                <div className="inventory-summary-card-icon" style={{ backgroundColor: '#deb4a2', color: '#fff' }}>
+                    <i className="bi bi-cup-hot-fill"></i>
+                </div>
             </div>
 
-            {/* In-Stock Card */}
-            <div className="inventory-summary-card inventory-summary-card--green">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-check-square"></i>
+            {/* In-Stock Items Card */}
+            <div className="inventory-summary-card">
+                <div className="inventory-card-content">
+                    <p className="inventory-summary-card-label">In-Stock Items</p>
+                    <h2 className="inventory-summary-card-value" style={{ color: '#9d5a42' }}>{stats.inStockCount}</h2>
+                    <p className="inventory-summary-card-subtext">
+                        <strong style={{ color: '#59844f' }}>{stats.inStockPercentage}%</strong> of inventory fully stocked
+                    </p>
                 </div>
-                <p className="inventory-summary-card-value">{inStockCount}</p>
-                <p className="inventory-summary-card-label">In-Stock</p>
+                <div className="inventory-summary-card-icon" style={{ backgroundColor: '#d0dfb6', color: '#fff' }}>
+                    <i className="bi bi-box-seam-fill"></i>
+                </div>
             </div>
 
-            {/* Low Stock Card */}
-            <div className="inventory-summary-card inventory-summary-card--yellow">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-graph-down-arrow"></i>
+            {/* Low Stock Alerts Card */}
+            <div className="inventory-summary-card">
+                <div className="inventory-card-content">
+                    <p className="inventory-summary-card-label">Low Stock Alerts</p>
+                    <h2 className="inventory-summary-card-value" style={{ color: '#9d5a42' }}>{stats.lowStockCount}</h2>
+                    <p className="inventory-summary-card-subtext">
+                        <strong style={{ color: '#e0a944' }}>{stats.lowStockCount} items</strong> below minimum threshold
+                    </p>
                 </div>
-                <p className="inventory-summary-card-value">{lowStockCount}</p>
-                <p className="inventory-summary-card-label">Low Stock</p>
+                <div className="inventory-summary-card-icon" style={{ backgroundColor: '#eaba9f', color: '#fff' }}>
+                    <i className="bi bi-exclamation-triangle-fill"></i>
+                </div>
             </div>
 
             {/* Out of Stock Card */}
-            <div className="inventory-summary-card inventory-summary-card--red">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-x-square"></i>
+            <div className="inventory-summary-card">
+                <div className="inventory-card-content">
+                    <p className="inventory-summary-card-label">Out of Stock</p>
+                    <h2 className="inventory-summary-card-value" style={{ color: '#9d5a42' }}>{stats.outOfStockCount}</h2>
+                    <p className="inventory-summary-card-subtext">
+                        <strong style={{ color: '#d34343' }}>{stats.outOfStockCount} items</strong> currently unavailable
+                    </p>
                 </div>
-                <p className="inventory-summary-card-value">{outOfStockCount}</p>
-                <p className="inventory-summary-card-label">Out of Stock</p>
-            </div>
-
-            {/* Expiring Soon Card */}
-            <div className="inventory-summary-card inventory-summary-card--blue">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-clock-history"></i>
+                <div className="inventory-summary-card-icon" style={{ backgroundColor: '#c89d9e', color: '#fff' }}>
+                    <i className="bi bi-box2-fill"></i>
                 </div>
-                <p className="inventory-summary-card-value">{expiringSoonCount}</p>
-                <p className="inventory-summary-card-label">Expiring Soon</p>
-            </div>
-
-            {/* Expired Card */}
-            <div className="inventory-summary-card inventory-summary-card--darkred">
-                <div className="inventory-summary-card-icon">
-                    <i className="bi bi-exclamation-triangle"></i>
-                </div>
-                <p className="inventory-summary-card-value">{expiredCount}</p>
-                <p className="inventory-summary-card-label">Expired</p>
             </div>
         </div>
     );

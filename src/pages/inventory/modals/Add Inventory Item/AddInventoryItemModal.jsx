@@ -53,11 +53,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
     if (!base || !purchase) return null;
     const b = base.toLowerCase();
     const p = purchase.toLowerCase();
-    
+
     if (b === p || p === b + 's' || p === b + 'es') return '1';
     if (b === 'ml' && (p === 'l' || p === 'liter' || p === 'liters')) return '1000';
     if (b === 'g' && (p === 'kg' || p === 'kilo' || p === 'kilos' || p === 'kilogram')) return '1000';
-    
+
     return null;
   };
 
@@ -479,14 +479,14 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
               const showError = hasAttemptedSubmit && hasInput && (isConvUnitEmpty || isEqInvalid);
               // Also show error if they attempted submit and fields are empty
               const showEmptyError = hasAttemptedSubmit && (isConvUnitEmpty || isEqInvalid);
-              
+
               let helperText = null;
               if (conv.equivalent && !isNaN(eq) && eq > 0) {
-                 const baseCost = getBaseUnitCost();
-                 if (baseCost !== null && baseCost > 0) {
-                    const convCost = (baseCost * eq).toFixed(2);
-                    helperText = <span style={{fontSize: '11px', color: '#666', marginTop: '4px'}}>Cost: ₱{convCost} / {conv.unit || 'unit'}</span>;
-                 }
+                const baseCost = getBaseUnitCost();
+                if (baseCost !== null && baseCost > 0) {
+                  const convCost = (baseCost * eq).toFixed(2);
+                  helperText = <span style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>Cost: ₱{convCost} / {conv.unit || 'unit'}</span>;
+                }
               }
 
               return (

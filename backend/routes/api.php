@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\InventoryManagement\Categories\InventoryCategoryController;
+use App\Http\Controllers\Api\InventoryManagement\InitInventoryManagementController;
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonController;
 use App\Http\Controllers\Api\MenuManagement\Categories\MenuCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Items\MenuItemController;
@@ -41,5 +43,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('addons', AddonController::class)->only(['index', 'destroy']);
         Route::post('addons', [AddonAddController::class, 'store']);
         Route::put('addons/{id}/sync', [AddonEditController::class, 'sync']);
+    });
+
+    Route::prefix('inventory-management')->group(function () {
+        // 1. Unified Data Fetch for Inventory Management
+        Route::get('/init', [InitInventoryManagementController::class, 'index']);
+
+        // 2. Categories (Fetch, Add, Edit, Delete)
+        Route::apiResource('categories', InventoryCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 });

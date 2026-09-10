@@ -2,36 +2,25 @@ import React, { useState, useEffect } from 'react';
 import './editAddonModal.css';
 
 import { updateAddon } from '../../../../../services/menu/addonsService';
-import { fetchInventoryItems } from '../../../../../services/inventory/inventoryItemsService';
 import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
+import { validateAddonForm } from '../../../../../utils/validation/menuValidation';
 
 import EditAddonBaseInfo from './components/EditAddonBaseInfo';
 import EditAddonIngredientRow from './components/EditAddonIngredientRow';
 
-const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [] }) => {
+const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [], inventoryItems: dbIngredients = [] }) => {
   const [addonName, setAddonName] = useState('');
   const [sellingPrice, setSellingPrice] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [ingredients, setIngredients] = useState([]);
   const [isAvailable, setIsAvailable] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dbIngredients, setDbIngredients] = useState([]);
   
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
 
-  React.useEffect(() => {
-    const loadInventory = async () => {
-      try {
-        const items = await fetchInventoryItems();
-        setDbIngredients(items || []);
-      } catch (error) {
-        console.error("Failed to load inventory items:", error);
-      }
-    };
-    if (isOpen) loadInventory();
-  }, [isOpen]);
+
 
   useEffect(() => {
     if (isOpen && addon) {
@@ -77,22 +66,7 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
   /* ─── Validation ─── */
   React.useEffect(() => {
     if (!isOpen) return;
-    const newErrors = {};
-
-    if (!addonName.trim()) newErrors.addonName = 'Add-on name is required.';
-    if (!sellingPrice) {
-      newErrors.sellingPrice = 'Price required.';
-    } else if (Number(sellingPrice) <= 0) {
-      newErrors.sellingPrice = 'Must be > 0.';
-    }
-    if (selectedCategories.length === 0) newErrors.categories = 'Select at least one category.';
-
-    ingredients.forEach(ing => {
-      if (!ing.ingredientId) newErrors[`ing_${ing.id}_id`] = 'Required.';
-      if (!ing.qty) newErrors[`ing_${ing.id}_qty`] = 'Required.';
-      if (!ing.unit) newErrors[`ing_${ing.id}_unit`] = 'Required.';
-    });
-
+    const newErrors = validateAddonForm(addonName, sellingPrice, selectedCategories, ingredients);
     setErrors(newErrors);
   }, [addonName, sellingPrice, selectedCategories, ingredients, isOpen]);
 
