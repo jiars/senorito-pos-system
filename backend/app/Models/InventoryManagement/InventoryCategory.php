@@ -16,8 +16,7 @@ class InventoryCategory extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'category_name',
-        'archived'
+        'category_name'
     ];
 
     public function inventory_items()

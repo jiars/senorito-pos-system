@@ -51,9 +51,24 @@ class MenuCategoryController extends Controller
     // DELETE: Delete a category
     public function destroy(string $id)
     {
-        $category = MenuCategory::findOrFail($id);
+        $category = MenuCategory::withCount([
+            'menu_items',
+            'addon_categories'
+        ])->findOrFail($id);
+
+        if (
+            $category->menu_items_count > 0 ||
+            $category->addon_categories_count > 0
+        ) {
+            return response()->json([
+                'message' => 'This category cannot be deleted because it is still used by a Menu Item or Add-on.'
+            ], 409);
+        }
+
         $category->delete();
 
-        return response()->json(['message' => 'Category deleted successfully']);
+        return response()->json([
+            'message' => 'Category deleted successfully.'
+        ]);
     }
 }

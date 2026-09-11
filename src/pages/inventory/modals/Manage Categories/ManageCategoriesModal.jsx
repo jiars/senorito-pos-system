@@ -4,7 +4,7 @@ import AddCategoryRow from './components/AddCategoryRow';
 import CategoryList from './components/CategoryList';
 import './manageCategoriesModal.css';
 
-const ManageCategoriesModal = ({ isOpen, onClose, categories = [], inventoryItems = [], refetchInventory }) => {
+const ManageCategoriesModal = ({ isOpen, onClose, categories = [], refetchInventory }) => {
   const [newCategory, setNewCategory] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
@@ -105,7 +105,6 @@ const ManageCategoriesModal = ({ isOpen, onClose, categories = [], inventoryItem
 
           <CategoryList 
             categories={categories}
-            inventoryItems={inventoryItems}
             editingId={editingId}
             editName={editName}
             isEditDuplicate={isEditDuplicate}

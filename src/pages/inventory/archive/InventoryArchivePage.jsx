@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UnarchiveItemModal from '../modals/Unarchive Item/UnarchiveItemModal';
-import { fetchArchivedInventoryItems } from '../../../services/inventory/inventoryItemsService';
+import { useInventoryManagement } from '../../../hooks/useInventoryManagement';
+import { getExpiryInfo } from '../../../utils/inventoryExpiryUtils';
 import InventoryArchiveHeader from './components/InventoryArchiveHeader';
 import InventoryArchiveFilters from './components/InventoryArchiveFilters';
 import InventoryArchiveTable from './components/InventoryArchiveTable';
@@ -11,9 +12,12 @@ import './inventoryArchive.css';
 const InventoryArchivePage = () => {
   const [isUnarchiveModalOpen, setIsUnarchiveModalOpen] = useState(false);
   const [selectedUnarchiveItem, setSelectedUnarchiveItem] = useState(null);
-  const [archivedItems, setArchivedItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const {
+    archivedInventoryItems: archivedItems,
+    isLoading,
+    error,
+    refetchInventoryManagement,
+  } = useInventoryManagement();
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +41,7 @@ const InventoryArchivePage = () => {
     const stockStatus = item.current_stock > (item.minimum_level || 0) ? 'In-stock' : (item.current_stock === 0 ? 'Out of Stock' : 'Low Stock');
     const matchesStatus = statusFilter === 'All Status' || stockStatus === statusFilter;
     
-    const expiryStatus = item.expiry || 'Good';
+    const expiryStatus = getExpiryInfo(item).status;
     const matchesExpiry = expiryFilter === 'All Expiry Status' || expiryStatus === expiryFilter;
 
     return matchesSearch && matchesCategory && matchesStatus && matchesExpiry;
@@ -49,23 +53,6 @@ const InventoryArchivePage = () => {
     setStatusFilter('All Status');
     setExpiryFilter('All Expiry Status');
   };
-
-  const loadArchivedItems = async () => {
-    setIsLoading(true);
-    try {
-      const data = await fetchArchivedInventoryItems();
-      setArchivedItems(data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch archived inventory: ' + err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadArchivedItems();
-  }, []);
 
   const getStatusChipClass = (status) => {
     switch (status) {
@@ -86,20 +73,15 @@ const InventoryArchivePage = () => {
   };
 
   const renderExpiry = (item) => {
-    if (!item.expiry) {
-      return <div className="inventory-expiry-cell">-</div>;
-    }
-
-    let prefix = 'Nearest:';
-    if (item.expiry === 'Expired') prefix = 'Expired:';
+    const expiry = getExpiryInfo(item);
 
     return (
       <div className="inventory-expiry-cell">
-        <span className={`inventory-expiry-chip ${getExpiryChipClass(item.expiry)}`}>
-          {item.expiry}
+        <span className={`inventory-expiry-chip ${getExpiryChipClass(expiry.status)}`}>
+          {expiry.status}
         </span>
         <span className="inventory-expiry-detail">
-          {prefix} {item.expiryDate} ({item.expiryDays})
+          {expiry.label}
         </span>
       </div>
     );
@@ -141,7 +123,7 @@ const InventoryArchivePage = () => {
           setSelectedUnarchiveItem(null);
         }}
         item={selectedUnarchiveItem}
-        refetchInventory={loadArchivedItems}
+        refetchInventory={refetchInventoryManagement}
       />
     </div>
   );

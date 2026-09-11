@@ -5,6 +5,7 @@ namespace App\Models\InventoryManagement;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class InventoryItem extends Model
 {
@@ -27,7 +28,8 @@ class InventoryItem extends Model
         'archived',
         'archived_by',
         'item_code',
-        'created_at'
+        'created_at',
+        'archived_at'
     ];
 
     public function inventory_categories()
@@ -43,5 +45,20 @@ class InventoryItem extends Model
     public function inventory_conversion_units()
     {
         return $this->hasMany(InventoryConversionUnit::class, 'inventory_item_id', 'id');
+    }
+
+    public function inventory_audit_logs()
+    {
+        return $this->hasMany(InventoryAuditLog::class, 'inventory_item_id', 'id');
+    }
+
+    public function archived_by_profile()
+    {
+        // User currently represents the profiles table.
+        return $this->belongsTo(
+            User::class,
+            'archived_by',
+            'id'
+        );
     }
 }

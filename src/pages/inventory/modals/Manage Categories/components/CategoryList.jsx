@@ -2,7 +2,6 @@ import React from 'react';
 
 const CategoryList = ({
   categories,
-  inventoryItems,
   editingId,
   editName,
   isEditDuplicate,
@@ -25,8 +24,8 @@ const CategoryList = ({
     <div className="mc-list">
       {categories.map((cat) => {
         const isEditing = editingId === cat.id;
-        // Check how many items use this category
-        const usedByCount = inventoryItems.filter((i) => i.category_id === cat.id).length;
+        // Laravel includes active and archived items in this count.
+        const usedByCount = Number(cat.inventory_items_count ?? 0);
 
         return (
           <div className="mc-list-item" key={cat.id}>

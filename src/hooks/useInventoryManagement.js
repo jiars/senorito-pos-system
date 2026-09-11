@@ -1,31 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../utils/axios/axiosInstance';
-import { fetchUnits } from '../services/inventory/inventoryItemsService';
 
-export const useInventory = () => {
+export const useInventoryManagement = () => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['inventory-management'],
     queryFn: async () => {
-      // 1. Fetch categories and items from our new Laravel Orchestrator!
+      // One request supplies both active and archived Inventory pages.
       const response = await api.get('/inventory-management/init');
-
-      // 2. Temporarily fetch units from Supabase until we migrate ENUMs
-      const unitsData = await fetchUnits();
-
-      return {
-        ...response.data,
-        units: unitsData
-      };
+      return response.data;
     },
     staleTime: 5 * 60 * 1000,
   });
 
   return {
     inventoryItems: data?.items || [],
+    archivedInventoryItems: data?.archivedItems || [],
     categories: data?.categories || [],
     units: data?.units || [],
     isLoading,
     error: error ? error.message : null,
-    refetchInventory: refetch
+    refetchInventoryManagement: refetch,
   };
 };

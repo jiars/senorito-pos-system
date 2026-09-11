@@ -339,3 +339,42 @@
     justify-content: center;
   }
 }
+
+.stocklog-custom-reason {
+  display: flex;
+  gap: 8px;
+}
+
+.stocklog-custom-reason-cancel {
+  flex-shrink: 0;
+  height: 42px;
+  margin: 0;
+  padding: 0 12px;
+}
+
+.stocklog-restock-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.75rem;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  background: #FAFAFA;
+  color: #495057;
+  font-size: 0.8rem;
+}
+
+.stocklog-restock-note i {
+  margin-top: 0.1rem;
+  color: #7A4B35;
+}
+
+.stocklog-form-error {
+  margin-bottom: 1rem;
+  padding: 0 1.5rem;
+  color: #dc3545;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: right;
+}

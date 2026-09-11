@@ -20,10 +20,12 @@ class InitMenuManagementController extends Controller
             ->get();
 
         $menuItems = MenuItem::with(['menu_categories', 'menu_prices', 'menu_recipes'])
+            ->where('archived', false)
             ->orderBy('item_name', 'asc')
             ->get();
 
         $addons = Addon::with(['addon_categories.menu_categories', 'addon_recipes'])
+            ->where('archived', false)
             ->orderBy('addon_name', 'asc')
             ->get();
 

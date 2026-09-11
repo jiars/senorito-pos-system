@@ -12,32 +12,45 @@ class MenuAddController extends Controller
 {
     public function store(Request $request)
     {
+        // Keep only the current basic duplicate-name validation.
         $request->validate([
-            'base_info.item_name' => 'required|string|unique:menu_items,item_name',
+            'base_info.item_name' =>
+            'required|string|unique:menu_items,item_name',
         ], [
-            'base_info.item_name.unique' => 'This menu item already exists.',
+            'base_info.item_name.unique' =>
+            'This menu item already exists.',
         ]);
-        DB::transaction(function () use ($request) {
-            // 1. CREATE BASE ITEM
-            $item = MenuItem::create($request->input('base_info'));
-            $newId = $item->id;
 
-            // 2. PREPARE PRICES FOR INSERTION
+        DB::transaction(function () use ($request) {
+            // Create the main Menu Item.
+            $menuItem = MenuItem::create(
+                $request->input('base_info')
+            );
+
             $prices = $request->input('prices', []);
             $pricesToInsert = [];
 
             foreach ($prices as $price) {
-                $price['menu_item_id'] = $newId;  // Attach the newly generated parent ID!
+                // Trust the calculations currently sent by React.
+                $price['menu_item_id'] = $menuItem->id;
                 $pricesToInsert[] = $price;
             }
 
-            // 3. CALL THE PRICE CONTROLLER (Only Insert!)
+            // Save prices and their recipes.
             if (!empty($pricesToInsert)) {
-                $priceController = app(MenuItemPriceController::class);
-                $priceController->storeMany($pricesToInsert, $newId);
+                $priceController = app(
+                    MenuItemPriceController::class
+                );
+
+                $priceController->storeMany(
+                    $pricesToInsert,
+                    $menuItem->id
+                );
             }
         });
 
-        return response()->json(['message' => 'Menu Item Created Perfectly!'], 201);
+        return response()->json([
+            'message' => 'Menu Item created successfully.'
+        ], 201);
     }
 }

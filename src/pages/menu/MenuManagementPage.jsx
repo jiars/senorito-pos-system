@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useMenuManagement } from '../../hooks/useMenuManagement';
-import { useInventory } from '../../hooks/useInventory';
+import { useInventoryManagement } from '../../hooks/useInventoryManagement';
 
 import MenuHeader from './components/MenuHeader';
 import MenuTable from './components/MenuTable';
@@ -16,7 +16,7 @@ import './menuManagement.css';
 
 const MenuManagementPage = () => {
   const { menuItems, categories, isLoading, refetch: refetchMenu } = useMenuManagement();
-  const { inventoryItems } = useInventory();
+  const { inventoryItems } = useInventoryManagement();
 
   // Only Modal Variables exist here now!
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);

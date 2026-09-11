@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\InventoryManagement\Categories\InventoryCategoryController;
 use App\Http\Controllers\Api\InventoryManagement\InitInventoryManagementController;
+use App\Http\Controllers\Api\InventoryManagement\Items\InventoryItemController;
+use App\Http\Controllers\Api\InventoryManagement\Stock\InventoryRestockController;
+use App\Http\Controllers\Api\ExpenseManagement\Categories\ExpenseCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonController;
 use App\Http\Controllers\Api\MenuManagement\Categories\MenuCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Items\MenuItemController;
@@ -9,6 +12,8 @@ use App\Http\Controllers\Api\MenuManagement\Orchestrators\AddonAddController;
 use App\Http\Controllers\Api\MenuManagement\Orchestrators\AddonEditController;
 use App\Http\Controllers\Api\MenuManagement\Orchestrators\MenuAddController;
 use App\Http\Controllers\Api\MenuManagement\Orchestrators\MenuEditController;
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryAddController;
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryEditController;
 use App\Http\Controllers\Api\MenuManagement\InitMenuManagementController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\AuthController;
@@ -51,5 +56,24 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // 2. Categories (Fetch, Add, Edit, Delete)
         Route::apiResource('categories', InventoryCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // 3. Inventory Items
+        Route::post('items', [InventoryAddController::class, 'store']);
+        Route::put('items/{id}/sync', [InventoryEditController::class, 'sync']);
+        Route::delete('items/{id}', [InventoryItemController::class, 'destroy']);
+
+        // Restock an Inventory Item
+        Route::post('items/{id}/restock', [InventoryRestockController::class, 'store',]);
+
+        // Menu Items and Add-ons affected by an ingredient
+        Route::get('items/{id}/affected', [InventoryItemController::class, 'affected']);
+
+        // Restore an archived Inventory Item
+        Route::patch('items/{id}/unarchive', [InventoryItemController::class, 'unarchive']);
+    });
+
+    Route::prefix('expense-management')->group(function () {
+        // 1. Categories (Fetch, Add, Edit, Delete)
+        Route::apiResource('categories', ExpenseCategoryController::class)->only(['index', 'store', 'update', 'destroy',]);
     });
 });

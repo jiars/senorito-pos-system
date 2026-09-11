@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useInventory } from '../../hooks/useInventory';
-import { useAuth } from '../../hooks/useAuth';
-import { cleanupExpiredBatches } from '../../services/inventory/inventoryStockService';
+import React, { useState } from 'react';
+import { useInventoryManagement } from '../../hooks/useInventoryManagement';
 
 // Components
 import InventoryHeader from './components/InventoryHeader';
@@ -20,23 +18,13 @@ import StockLogModal from './modals/Stock Log/StockLogModal';
 import './inventory.css';
 
 const InventoryPage = () => {
-  const { user } = useAuth();
-  const { inventoryItems, categories, units, isLoading, refetchInventory } = useInventory();
-  const hasCleanedUp = useRef(false);
-
-  // Auto-cleanup expired batches on mount
-  useEffect(() => {
-    const runCleanup = async () => {
-      if (user?.id && !hasCleanedUp.current) {
-        hasCleanedUp.current = true;
-        const cleanedCount = await cleanupExpiredBatches(user.id);
-        if (cleanedCount > 0) {
-          refetchInventory();
-        }
-      }
-    };
-    runCleanup();
-  }, [user?.id, refetchInventory]);
+  const {
+    inventoryItems,
+    categories,
+    units,
+    isLoading,
+    refetchInventoryManagement,
+  } = useInventoryManagement();
 
   const [selectedItems, setSelectedItems] = useState([]);
 
@@ -102,15 +90,14 @@ const InventoryPage = () => {
         existingItems={inventoryItems.map(item => item.item_name)}
         categories={categories}
         units={units}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <ManageCategoriesModal
         isOpen={isManageCategoriesOpen}
         onClose={() => setIsManageCategoriesOpen(false)}
         categories={categories}
-        inventoryItems={inventoryItems}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <PrintQRCodeModal
@@ -126,7 +113,7 @@ const InventoryPage = () => {
           setSelectedArchiveItem(null);
         }}
         item={selectedArchiveItem}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <EditItemModal
@@ -138,7 +125,7 @@ const InventoryPage = () => {
         item={selectedEditItem}
         existingItems={inventoryItems.map(item => item.item_name)}
         categories={categories}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <StockHistoryModal
@@ -156,7 +143,7 @@ const InventoryPage = () => {
           setIsLogModalOpen(false);
           setSelectedLogItem(null);
         }}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
         item={selectedLogItem}
       />
     </div>

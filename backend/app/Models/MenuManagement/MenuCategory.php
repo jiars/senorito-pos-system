@@ -23,4 +23,13 @@ class MenuCategory extends Model
     {
         return $this->hasMany(MenuItem::class, 'category_id', 'id');
     }
+
+    public function addon_categories()
+    {
+        return $this->hasMany(
+            AddonCategory::class,
+            'menu_category_id',
+            'id'
+        );
+    }
 }

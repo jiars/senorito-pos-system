@@ -11,6 +11,7 @@ class AddonController extends Controller
     {
         // Fetch all Add-ons and instantly grab the nested categories and recipes!
         $addons = Addon::with(['addon_categories.menu_categories', 'addon_recipes'])
+            ->where('archived', false)
             ->orderBy('addon_name', 'asc')
             ->get();
 

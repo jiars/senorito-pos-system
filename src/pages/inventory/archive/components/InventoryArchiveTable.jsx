@@ -56,10 +56,14 @@ const InventoryArchiveTable = ({
                     </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>{renderExpiry(item)}</td>
-                  <td style={{ textAlign: 'center' }}>{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : '-'}</td>
                   <td style={{ textAlign: 'center' }}>
-                    {item.profiles
-                      ? `${item.profiles.first_name || ''} ${item.profiles.last_name || ''}`.trim()
+                    {item.archived_at
+                      ? new Date(item.archived_at).toLocaleDateString()
+                      : '-'}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    {item.archived_by_profile
+                      ? `${item.archived_by_profile.first_name || ''} ${item.archived_by_profile.last_name || ''}`.trim()
                       : '-'}
                   </td>
                   <td style={{ textAlign: 'center' }}>

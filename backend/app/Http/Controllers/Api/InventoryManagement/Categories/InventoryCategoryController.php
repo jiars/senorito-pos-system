@@ -9,6 +9,15 @@ use Illuminate\Support\Str;
 
 class InventoryCategoryController extends Controller
 {
+    public function index()
+    {
+        $categories = InventoryCategory::withCount('inventory_items')
+            ->orderBy('category_name', 'asc')
+            ->get();
+
+        return response()->json($categories);
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -17,8 +26,7 @@ class InventoryCategoryController extends Controller
 
         $category = InventoryCategory::create([
             'id' => Str::uuid(),
-            'category_name' => $request->input('category_name'),
-            'archived' => false
+            'category_name' => $request->input('category_name')
         ]);
 
         return response()->json($category, 201);
@@ -41,8 +49,19 @@ class InventoryCategoryController extends Controller
     public function destroy(string $id)
     {
         $category = InventoryCategory::findOrFail($id);
+
+        $isUsed = $category->inventory_items()->exists();
+
+        if ($isUsed) {
+            return response()->json([
+                'message' => 'This category cannot be deleted because it is used by an Inventory Item.'
+            ], 409);
+        }
+
         $category->delete();
 
-        return response()->json(['message' => 'Category deleted successfully']);
+        return response()->json([
+            'message' => 'Inventory category deleted successfully.'
+        ]);
     }
 }

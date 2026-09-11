@@ -1,32 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import './unarchiveItemModal.css';
-import { unarchiveInventoryItem, fetchAffectedMenuItems } from '../../../../services/inventory/inventoryItemsService';
+import React, { useEffect, useState } from 'react';
 
-const UnarchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
+import {
+  fetchAffectedMenuItems,
+  unarchiveInventoryItem
+} from '../../../../services/inventory/inventoryItemsService';
+import UnarchiveAffectedRecords from './components/UnarchiveAffectedRecords';
+import UnarchiveItemHeader from './components/UnarchiveItemHeader';
+import UnarchiveItemSummary from './components/UnarchiveItemSummary';
+
+import './unarchiveItemModal.css';
+
+const emptyRecords = { menuItems: [], addons: [] };
+
+const normalizeAffectedRecords = (data) => {
+  if (Array.isArray(data)) return { menuItems: data, addons: [] };
+
+  return {
+    menuItems: data?.menuItems || data?.menu_items || [],
+    addons: data?.addons || []
+  };
+};
+
+const UnarchiveItemModal = ({
+  isOpen,
+  onClose,
+  item,
+  refetchInventory
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
-  const [affectedMenuItems, setAffectedMenuItems] = useState([]);
+  const [records, setRecords] = useState(emptyRecords);
   const [isLoadingAffected, setIsLoadingAffected] = useState(false);
 
   useEffect(() => {
-    const loadAffectedItems = async () => {
-      if (isOpen && item) {
-        setIsLoadingAffected(true);
-        try {
-          const items = await fetchAffectedMenuItems(item.id);
-          setAffectedMenuItems(items);
-        } catch (error) {
-          console.error("Failed to load affected menu items", error);
-        } finally {
-          setIsLoadingAffected(false);
-        }
+    if (!isOpen || !item) return;
+
+    let isCurrent = true;
+    setApiError('');
+    setRecords(emptyRecords);
+    setIsLoadingAffected(true);
+
+    const loadAffectedRecords = async () => {
+      try {
+        const data = await fetchAffectedMenuItems(item.id);
+        if (isCurrent) setRecords(normalizeAffectedRecords(data));
+      } catch (error) {
+        console.error('Failed to load affected records:', error);
+      } finally {
+        if (isCurrent) setIsLoadingAffected(false);
       }
     };
-    
-    loadAffectedItems();
+
+    loadAffectedRecords();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [isOpen, item]);
 
   if (!isOpen || !item) return null;
+
+  const totalAffected =
+    records.menuItems.length + records.addons.length;
 
   const handleUnarchive = async () => {
     if (isSubmitting) return;
@@ -36,11 +71,8 @@ const UnarchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
 
     try {
       await unarchiveInventoryItem(item.id);
-      
-      if (refetchInventory) {
-        await refetchInventory();
-      }
 
+      if (refetchInventory) await refetchInventory();
       onClose();
     } catch (error) {
       setApiError(error.message || 'Failed to unarchive item.');
@@ -52,89 +84,51 @@ const UnarchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
   return (
     <div className="unarchive-modal-overlay">
       <div className="unarchive-modal-content">
-        {/* Header - Premium Redesign with Iconography */}
-        <div className="unarchive-modal-header">
-          <div className="unarchive-header-icon">
-            <i className="bi bi-box-arrow-up"></i>
-          </div>
-          <h3>Unarchive Item</h3>
-          <span className="unarchive-modal-subtitle">{item.item_name}</span>
-          <button className="unarchive-modal-close" onClick={onClose} aria-label="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+        <UnarchiveItemHeader
+          itemName={item.item_name}
+          onClose={onClose}
+          isSubmitting={isSubmitting}
+        />
 
-        {/* Body */}
         <div className="unarchive-modal-body">
-          
-          {/* Beautiful Stat Cards */}
-          <div className="unarchive-stats-grid">
-            <div className="unarchive-stat-card">
-              <div className="unarchive-stat-icon">
-                <i className="bi bi-box-seam"></i>
-              </div>
-              <div className="unarchive-stat-details">
-                <span className="unarchive-stat-label">Last Stock</span>
-                <span className="unarchive-stat-value">{item.current_stock || 0} {item.base_unit}</span>
-              </div>
-            </div>
-            <div className="unarchive-stat-card">
-              <div className="unarchive-stat-icon unarchive-stat-icon--alt">
-                <i className="bi bi-check-circle"></i>
-              </div>
-              <div className="unarchive-stat-details">
-                <span className="unarchive-stat-label">Last Status</span>
-                <span className="unarchive-stat-value">In-stock</span>
-              </div>
-            </div>
-            <div className="unarchive-stat-card">
-              <div className="unarchive-stat-icon unarchive-stat-icon--alt">
-                <i className="bi bi-clock-history"></i>
-              </div>
-              <div className="unarchive-stat-details">
-                <span className="unarchive-stat-label">Last Expiry</span>
-                <span className="unarchive-stat-value">Expired</span>
-              </div>
-            </div>
-          </div>
+          <UnarchiveItemSummary
+            item={item}
+            totalAffected={totalAffected}
+          />
 
           <hr className="unarchive-divider" />
 
-          {/* Premium Affected Items List */}
-          <div className="unarchive-affected-section">
-            <h4>Affected menu items</h4>
-            <div className="unarchive-affected-list">
-              {isLoadingAffected ? (
-                <div style={{ fontSize: '0.85rem', color: '#666' }}>Loading affected items...</div>
-              ) : affectedMenuItems.length > 0 ? (
-                affectedMenuItems.map((menuItem, idx) => (
-                  <div key={idx} className="unarchive-affected-pill">
-                    <span>{menuItem}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: '0.85rem', color: '#666' }}>No menu items currently use this ingredient.</div>
-              )}
-            </div>
-          </div>
+          <UnarchiveAffectedRecords
+            records={records}
+            isLoading={isLoadingAffected}
+          />
 
-          {/* High-visibility Warning Box */}
           <div className="unarchive-warning-box">
-            <i className="bi bi-info-circle-fill unarchive-warning-icon"></i>
+            <i className="bi bi-info-circle-fill unarchive-warning-icon" />
             <p className="unarchive-warning-text">
-              This item will be returned to the active inventory list. Please review its stock level and expiry details after restoring.
+              This item will return to active Inventory. Review its stock and
+              expiry details after restoring it.
             </p>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="unarchive-modal-footer">
-          {apiError && <p className="unarchive-error-msg" style={{color: 'red', marginRight: 'auto', marginBottom: 0, fontSize: '0.85rem'}}>{apiError}</p>}
-          <button className="unarchive-btn-cancel" onClick={onClose} disabled={isSubmitting}>
+          {apiError && <p className="unarchive-error-msg">{apiError}</p>}
+          <button
+            type="button"
+            className="unarchive-btn-cancel"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
-          <button className="unarchive-btn-confirm" onClick={handleUnarchive} disabled={isSubmitting}>
-            <i className="bi bi-box-arrow-up"></i>
+          <button
+            type="button"
+            className="unarchive-btn-confirm"
+            onClick={handleUnarchive}
+            disabled={isSubmitting}
+          >
+            <i className="bi bi-box-arrow-up" />
             {isSubmitting ? 'Unarchiving...' : 'Unarchive'}
           </button>
         </div>

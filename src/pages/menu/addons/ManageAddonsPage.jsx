@@ -10,7 +10,7 @@ import ConfirmDeleteAddonModal from './modals/Confirm Delete Add-on/ConfirmDelet
 
 import '../menuManagement.css';
 import { useMenuManagement } from '../../../hooks/useMenuManagement';
-import { useInventory } from '../../../hooks/useInventory';
+import { useInventoryManagement } from '../../../hooks/useInventoryManagement';
 
 const ManageAddonsPage = () => {
   const [isAddAddonModalOpen, setIsAddAddonModalOpen] = useState(false);
@@ -20,7 +20,7 @@ const ManageAddonsPage = () => {
 
   const navigate = useNavigate();
   const { addons, categories, isLoading, refetch: refetchAddons } = useMenuManagement();
-  const { inventoryItems } = useInventory();
+  const { inventoryItems } = useInventoryManagement();
 
   const handleEditClick = (item) => {
     setSelectedAddon(item);
