@@ -1,0 +1,29 @@
+:root {
+  /* Brand */
+  --app-color-brand: #7b4030;
+  --app-color-brand-hover: #683528;
+  --app-color-brand-soft: #dbc5bd;
+  --app-color-danger: #9a3f3f;
+  --app-color-accent: #d37a63;
+  --app-color-accent-muted: #c4a799;
+  --app-color-success: #46b549;
+  --app-color-info: #0d6efd;
+  --app-color-highlight: #ccd67f;
+  --app-color-highlight-muted: #e4d6a9;
+
+  /* Surfaces and text */
+  --app-color-canvas: #f4f4f4;
+  --app-color-surface: #ffffff;
+  --app-color-text: #3f3936;
+  --app-color-text-muted: #68625f;
+  --app-color-border: #aaa5a2;
+
+  /* Shared sizing */
+  --app-control-height: 52px;
+  --app-radius-control: 8px;
+  --app-radius-panel: 28px;
+
+  /* Shared effects */
+  --app-focus-ring: 0 0 0 1px var(--app-color-brand);
+  --app-shadow-panel: 12px 0 32px rgba(36, 18, 10, 0.14);
+}

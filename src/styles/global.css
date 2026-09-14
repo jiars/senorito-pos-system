@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "./variables.css";
 
+@layer base {
 /* CSS Reset */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -48,4 +49,5 @@ ul, ol {
 .text-medium { font-weight: 500; }
 .text-regular { font-weight: 400; }
 
-.text-muted { color: var(--color-text-muted); }
+.text-muted { color: var(--color-text-muted); }
+}
