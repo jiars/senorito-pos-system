@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 
-import { useAuth } from '../../../../hooks/useAuth';
-import { logStockAdjustment } from '../../../../services/inventory/inventoryStockService';
+import { useRefreshInventoryAuditLogs } from '../../../../hooks/useInventoryAuditLogs';
+import { useRefreshInventoryValuation } from '../../../../hooks/useInventoryValuation';
+import { correctInventoryStock } from '../../../../services/inventory/stock/correctionService';
 import { restockInventoryItem } from '../../../../services/inventory/stock/restockService';
+import { recordInventoryWastage } from '../../../../services/inventory/stock/wastageService';
 import { validateStockLog } from '../../../../utils/validation/inventory/stockLogValidation';
 import RestockFields from './components/RestockFields';
 import RestockExpenseNotice from './components/RestockExpenseNotice';
@@ -14,8 +16,21 @@ import StockReasonFields from './components/StockReasonFields';
 
 import './stockLogModal.css';
 
+const getBatchTime = value => value ? new Date(value).getTime() : Number.MAX_SAFE_INTEGER;
+
+const compareOldestBatch = (a, b) => {
+  const receivedDifference = getBatchTime(a.received_date) - getBatchTime(b.received_date);
+  if (receivedDifference !== 0) return receivedDifference;
+
+  const createdDifference = getBatchTime(a.created_at) - getBatchTime(b.created_at);
+  if (createdDifference !== 0) return createdDifference;
+
+  return a.batch_number.localeCompare(b.batch_number, undefined, { numeric: true });
+};
+
 const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
-  const { user } = useAuth();
+  const refreshAuditLogs = useRefreshInventoryAuditLogs();
+  const refreshValuation = useRefreshInventoryValuation();
   const [actionType, setActionType] = useState('restock');
   const [quantity, setQuantity] = useState('');
   const [totalCost, setTotalCost] = useState('');
@@ -34,9 +49,21 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
   // Batches already come from the unified Inventory init request.
   const batches = useMemo(() => {
     return [...(item?.inventory_batches || [])].sort((a, b) => {
-      if ((a.quantity > 0) !== (b.quantity > 0)) return a.quantity > 0 ? -1 : 1;
-      return new Date(a.expiration_date || a.received_date || a.created_at) -
-        new Date(b.expiration_date || b.received_date || b.created_at);
+      const aHasStock = Number(a.quantity) > 0;
+      const bHasStock = Number(b.quantity) > 0;
+
+      // Active batches always appear before depleted batches.
+      if (aHasStock !== bHasStock) return aHasStock ? -1 : 1;
+
+      if (aHasStock) {
+        // Active batches use FEFO, with FIFO as the tie-breaker.
+        const expirationDifference = getBatchTime(a.expiration_date) -
+          getBatchTime(b.expiration_date);
+        if (expirationDifference !== 0) return expirationDifference;
+      }
+
+      // Depleted batches and FEFO ties use oldest received batch first.
+      return compareOldestBatch(a, b);
     });
   }, [item]);
 
@@ -53,8 +80,15 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
     setHasAttemptedSubmit(false);
   };
 
-  const defaultBatchId = batches.find(batch => Number(batch.quantity) > 0)?.id || batches[0]?.id || '';
+  const activeDefaultBatchId = batches.find(batch => Number(batch.quantity) > 0)?.id || '';
+  const correctionDefaultBatchId = activeDefaultBatchId || batches[0]?.id || '';
+  const defaultBatchId = actionType === 'correct'
+    ? correctionDefaultBatchId
+    : activeDefaultBatchId;
   const effectiveBatchId = actionType === 'restock' ? '' : selectedBatchId || defaultBatchId;
+  const selectedBatchStock = Number(
+    batches.find(batch => batch.id === effectiveBatchId)?.quantity || 0,
+  );
 
   const errors = useMemo(() => validateStockLog({
     actionType,
@@ -64,30 +98,40 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
     expirationDate,
     isExpiryTracked,
     selectedBatchId: effectiveBatchId,
+    selectedBatchStock,
     reason,
-  }), [actionType, quantity, currentStock, totalCost, expirationDate, isExpiryTracked, effectiveBatchId, reason]);
+  }), [actionType, quantity, currentStock, totalCost, expirationDate, isExpiryTracked, effectiveBatchId, selectedBatchStock, reason]);
 
   const preview = useMemo(() => {
     const numericQuantity = Number(quantity) || 0;
-    if (actionType === 'correct') {
-      const difference = numericQuantity - currentStock;
-      return {
-        label: 'Difference',
-        value: quantity === '' ? '-' : `${difference > 0 ? '+' : ''}${difference} ${unit}`,
-      };
-    }
+    const quantityChange = actionType === 'restock'
+      ? numericQuantity
+      : actionType === 'wastage'
+        ? -numericQuantity
+        : numericQuantity - selectedBatchStock;
+    const stockAfter = currentStock + quantityChange;
 
-    const stockAfter = actionType === 'restock'
-      ? currentStock + numericQuantity
-      : Math.max(0, currentStock - numericQuantity);
-    return { label: 'New Stock (preview)', value: `${stockAfter} ${unit}` };
-  }, [actionType, quantity, currentStock, unit]);
+    return {
+      label: 'New Stock (preview)',
+      stock: `${stockAfter} ${unit}`,
+      change: quantity === ''
+        ? null
+        : `${quantityChange > 0 ? '+' : ''}${quantityChange} ${unit}`,
+      tone: quantityChange > 0 ? 'positive' : quantityChange < 0 ? 'negative' : 'neutral',
+    };
+  }, [actionType, quantity, currentStock, selectedBatchStock, unit]);
 
   if (!isOpen || !item) return null;
 
   const handleActionChange = nextAction => {
     setActionType(nextAction);
-    setSelectedBatchId(nextAction === 'restock' ? '' : defaultBatchId);
+    setSelectedBatchId(
+      nextAction === 'restock'
+        ? ''
+        : nextAction === 'correct'
+          ? correctionDefaultBatchId
+          : activeDefaultBatchId,
+    );
     setReason('');
     setIsCustomReason(false);
   };
@@ -104,11 +148,6 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
     setIsSubmitting(true);
     try {
       const numericQuantity = Number(quantity);
-      const newTotalStock = actionType === 'restock'
-        ? currentStock + numericQuantity
-        : actionType === 'wastage'
-          ? currentStock - numericQuantity
-          : numericQuantity;
 
       // Restock sends one nested payload to its Laravel orchestrator.
       const restockPayload = {
@@ -124,27 +163,43 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
         },
       };
 
-      // Keep the old payload for Wastage and Correction until migrated.
-      const legacyAdjustmentPayload = {
-        item: { ...item, current_stock: currentStock },
-        actionType,
-        quantityChange: numericQuantity,
-        newTotalStock,
-        userId: user?.id,
-        reason: reason.trim(),
-        notes: notes.trim(),
-        totalCost: Number(totalCost) || 0,
-        supplier: actionType === 'restock' ? notes.trim() : null,
-        expirationDate: expirationDate || null,
-        selectedBatchId: effectiveBatchId || null,
+      // Wastage only needs stock details and the selected starting batch.
+      const wastagePayload = {
+        stockData: {
+          quantity: numericQuantity,
+          reason: reason.trim(),
+          notes: notes.trim() || null,
+        },
+        batchData: {
+          selected_batch_id: effectiveBatchId,
+        },
+      };
+
+      // Correction sends the actual count of the selected batch.
+      const correctionPayload = {
+        stockData: {
+          actual_batch_quantity: numericQuantity,
+          reason: reason.trim(),
+          notes: notes.trim() || null,
+        },
+        batchData: {
+          selected_batch_id: effectiveBatchId,
+        },
       };
 
       if (actionType === 'restock') {
         await restockInventoryItem(item.id, restockPayload);
+      } else if (actionType === 'wastage') {
+        await recordInventoryWastage(item.id, wastagePayload);
       } else {
-        await logStockAdjustment(legacyAdjustmentPayload);
+        await correctInventoryStock(item.id, correctionPayload);
       }
-      if (refetchInventory) await refetchInventory();
+
+      // Prepare fresh Inventory and Audit data before closing the modal.
+      const refreshRequests = [refreshAuditLogs(), refreshValuation()];
+      if (refetchInventory) refreshRequests.push(refetchInventory());
+
+      await Promise.allSettled(refreshRequests);
       handleClose();
     } catch (error) {
       alert(error.message);
@@ -174,6 +229,7 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
           {actionType !== 'restock' && (
             <>
               <StockBatchSelector
+                actionType={actionType}
                 batches={batches}
                 value={effectiveBatchId}
                 onChange={setSelectedBatchId}
@@ -189,7 +245,11 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
             quantity={quantity}
             setQuantity={setQuantity}
             previewLabel={preview.label}
-            previewValue={preview.value}
+            previewStock={preview.stock}
+            previewChange={preview.change}
+            previewTone={preview.tone}
+            selectedBatchStock={selectedBatchStock}
+            unit={unit}
             error={errors.quantity}
             showError={hasAttemptedSubmit}
           />

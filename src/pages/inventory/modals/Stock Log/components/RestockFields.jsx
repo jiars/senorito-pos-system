@@ -16,7 +16,7 @@ const RestockFields = ({
           value={totalCost}
           onChange={event => setTotalCost(event.target.value)}
           placeholder="₱ 0.00"
-          min="0"
+          min="1"
         />
         {showErrors && errors.totalCost && <p className="stocklog-error-msg">{errors.totalCost}</p>}
       </div>

@@ -19,6 +19,7 @@ class InventoryAuditLog extends Model
     protected $fillable = [
         'inventory_item_id',
         'batch_id',
+        'transaction_reference',
         'action',
         'source',
         'quantity_change',

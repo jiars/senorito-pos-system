@@ -15,23 +15,26 @@ class InventoryBatchController extends Controller
             'quantity' => $baseQuantity,
             'expiration_date' => $purchaseData['expiration_date'] ?? null,
             'received_date' => now(),
-            'source' =>
-            $purchaseData['source'] ??
-                $purchaseData['supplier'] ??
-                'Initial Stock',
+            'source' => $purchaseData['source'] ?? $purchaseData['supplier'] ??    'Initial Stock',
             'status' => 'Active',
             'unit_cost' => $purchaseData['cost_per_unit'],
         ]);
     }
 
-    public function getFifoCost(string $inventoryItemId)
+    public function getEffectiveCost(string $inventoryItemId, bool $trackExpiry)
     {
-        // Use the cost of the oldest batch that still has stock.
-        return InventoryBatch::where(
+        $query = InventoryBatch::where(
             'inventory_item_id',
             $inventoryItemId
-        )
-            ->where('quantity', '>', 0)
+        )->where('quantity', '>', 0);
+
+        // Expiry-tracked items use the batch that expires first.
+        if ($trackExpiry)
+            $query->orderByRaw('expiration_date ASC NULLS LAST');
+
+
+        // FIFO is used as the main or fallback ordering.
+        return $query
             ->orderBy('received_date')
             ->orderBy('created_at')
             ->value('unit_cost');

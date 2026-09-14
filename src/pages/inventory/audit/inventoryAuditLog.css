@@ -157,6 +157,47 @@
   overflow-x: auto;
 }
 
+.audit-empty-cell {
+  padding: 40px !important;
+  text-align: center !important;
+  color: #666666 !important;
+}
+
+.audit-align-left {
+  text-align: left !important;
+}
+
+.audit-date-value {
+  font-weight: 500;
+}
+
+.audit-time-value {
+  color: #6b7280;
+  font-size: 11px;
+}
+
+.audit-item-cell {
+  font-weight: 500;
+  text-align: left !important;
+  white-space: normal;
+}
+
+.audit-batch-cell {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.audit-reference-cell {
+  color: #555555;
+  font-weight: 500;
+  text-align: left !important;
+}
+
+.audit-load-error {
+  margin: 0;
+  color: #C62828;
+}
+
 .audit-main-table {
   width: 100%;
   border-collapse: collapse;

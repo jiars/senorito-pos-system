@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+import { useRefreshInventoryAuditLogs } from '../../../../hooks/useInventoryAuditLogs';
+import { useRefreshInventoryValuation } from '../../../../hooks/useInventoryValuation';
 import { addInventoryItem } from '../../../../services/inventory/inventoryItemsService';
 import { validateAddInventoryItem } from '../../../../utils/validation/inventory/addInventoryValidation';
 import AddInventoryBaseInfo from './components/AddInventoryBaseInfo';
@@ -10,6 +12,8 @@ import ExpiryAndNoteSection from './components/ExpiryAndNoteSection';
 import './addInventoryItemModal.css';
 
 const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories = [], units = [], refetchInventory }) => {
+  const refreshAuditLogs = useRefreshInventoryAuditLogs();
+  const refreshValuation = useRefreshInventoryValuation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [itemName, setItemName] = useState('');
@@ -177,7 +181,11 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
 
       await addInventoryItem(payload);
 
-      if (refetchInventory) await refetchInventory();
+      // Prepare fresh Inventory and Audit data before closing the modal.
+      const refreshRequests = [refreshAuditLogs(), refreshValuation()];
+      if (refetchInventory) refreshRequests.push(refetchInventory());
+
+      await Promise.allSettled(refreshRequests);
       onClose();
     } catch (error) {
       console.error("Error adding item:", error);

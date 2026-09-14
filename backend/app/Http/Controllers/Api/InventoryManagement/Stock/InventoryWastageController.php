@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api\InventoryManagement\Stock;
 
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryWastageOrchestrator;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryRestockOrchestrator;
 
-class InventoryRestockController extends Controller
+class InventoryWastageController extends Controller
 {
     public function store(Request $request, string $id)
     {
@@ -15,16 +15,15 @@ class InventoryRestockController extends Controller
             'stockData.quantity' => 'required|numeric|gt:0',
             'stockData.reason' => 'required|string|max:255',
             'stockData.notes' => 'nullable|string|max:1000',
-            'purchaseData.total_cost' => 'required|numeric|min:1',
-            'purchaseData.supplier' => 'nullable|string|max:255',
-            'purchaseData.expiration_date' => 'nullable|date',
+            'batchData.selected_batch_id' =>
+            'required|uuid|exists:inventory_batches,id',
         ]);
 
-        $item = app(InventoryRestockOrchestrator::class)
+        $item = app(InventoryWastageOrchestrator::class)
             ->store($request, $id);
 
         return response()->json([
-            'message' => 'Inventory item restocked successfully.',
+            'message' => 'Inventory wastage recorded successfully.',
             'item' => $item,
         ]);
     }

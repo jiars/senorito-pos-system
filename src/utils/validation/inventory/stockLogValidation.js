@@ -6,6 +6,7 @@ export const validateStockLog = ({
   expirationDate,
   isExpiryTracked,
   selectedBatchId,
+  selectedBatchStock,
   reason,
 }) => {
   const errors = {};
@@ -14,10 +15,10 @@ export const validateStockLog = ({
   if (quantity === '' || !Number.isFinite(numericQuantity)) {
     errors.quantity = 'Quantity is required.';
   } else if (actionType === 'correct') {
-    if (numericQuantity < 0) {
-      errors.quantity = 'Quantity cannot be negative.';
-    } else if (numericQuantity === currentStock) {
-      errors.quantity = 'New stock is the same as current stock.';
+    if (numericQuantity < 1) {
+      errors.quantity = 'Quantity must be greater than 0.';
+    } else if (numericQuantity === selectedBatchStock) {
+      errors.quantity = 'The batch already has this quantity.';
     }
   } else if (numericQuantity <= 0) {
     errors.quantity = 'Quantity must be greater than 0.';
@@ -27,8 +28,8 @@ export const validateStockLog = ({
 
   if (actionType === 'restock') {
     const numericCost = Number(totalCost);
-    if (totalCost === '' || !Number.isFinite(numericCost) || numericCost < 0) {
-      errors.totalCost = 'Enter a valid total cost.';
+    if (totalCost === '' || !Number.isFinite(numericCost) || numericCost < 1) {
+      errors.totalCost = 'Total cost must be at least 1.';
     }
 
     if (isExpiryTracked && !expirationDate) {

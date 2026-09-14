@@ -184,6 +184,10 @@
   flex: 1;
 }
 
+.val-category-table-body {
+  padding: 0;
+}
+
 /* ─── Chart ─── */
 .val-chart-container {
   display: flex;
@@ -225,11 +229,39 @@
   gap: 0.375rem;
   font-size: 0.65rem;
   color: #495057;
+  cursor: pointer;
 }
 
 .val-legend-color {
   width: 8px;
   height: 8px;
+}
+
+.val-chart-hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.val-chart-hover-name {
+  max-width: 120px;
+  overflow: hidden;
+  color: #6c757d;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.val-chart-hover-percent {
+  color: #2C1810;
+  font-size: 1.5rem;
+  font-weight: 700;
 }
 
 /* ─── Category Table ─── */
@@ -359,9 +391,21 @@
   font-weight: 600;
 }
 
+.val-table-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.val-table-wrapper {
+  overflow-x: auto;
+}
+
 .val-main-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .val-main-table th {
@@ -381,6 +425,29 @@
   border-bottom: 1px solid #f0e0d8;
 }
 
+.val-main-table th:nth-child(2) { width: 130px; }
+.val-main-table th:nth-child(3) { width: 80px; }
+.val-main-table th:nth-child(4) { width: 70px; }
+.val-main-table th:nth-child(5) { width: 90px; }
+.val-main-table th:nth-child(6) { width: 120px; }
+.val-main-table th:nth-child(7) { width: 140px; }
+.val-main-table th:nth-child(8) { width: 100px; }
+
+.val-main-table th:nth-child(n + 3),
+.val-main-table td:nth-child(n + 3) {
+  text-align: center;
+}
+
+.val-value-cell {
+  font-weight: 600;
+}
+
+.val-empty-cell {
+  padding: 40px;
+  color: #666;
+  text-align: center;
+}
+
 .val-main-table tr:hover {
   background-color: #FFF8F3;
 }
@@ -393,6 +460,10 @@
 .val-main-table-grand td {
   border-bottom: none;
   padding: 1rem 1.25rem;
+}
+
+.val-main-table-grand td:first-child {
+  text-align: right;
 }
 
 /* =========================================
@@ -505,6 +576,35 @@
     background-color: #ffffff;
     font-size: 11px;
     color: #495057;
+  }
+
+  .print-val-section {
+    margin-bottom: 20px;
+  }
+
+  .print-val-section h3 {
+    margin-bottom: 8px;
+    color: #000;
+    font-size: 12pt;
+  }
+
+  .print-align-right {
+    text-align: right !important;
+  }
+
+  .print-empty-cell {
+    padding: 20px !important;
+    text-align: center !important;
+  }
+
+  .print-value-cell {
+    font-weight: 600;
+  }
+
+  .print-total-label,
+  .print-total-value {
+    font-weight: bold;
+    text-align: right !important;
   }
 
   .print-footer {

@@ -4,6 +4,10 @@ use App\Http\Controllers\Api\InventoryManagement\Categories\InventoryCategoryCon
 use App\Http\Controllers\Api\InventoryManagement\InitInventoryManagementController;
 use App\Http\Controllers\Api\InventoryManagement\Items\InventoryItemController;
 use App\Http\Controllers\Api\InventoryManagement\Stock\InventoryRestockController;
+use App\Http\Controllers\Api\InventoryManagement\Stock\InventoryWastageController;
+use App\Http\Controllers\Api\InventoryManagement\Stock\InventoryCorrectionController;
+use App\Http\Controllers\Api\InventoryManagement\AuditLogs\InventoryAuditLogController;
+use App\Http\Controllers\Api\InventoryManagement\Reports\InventoryValuationController;
 use App\Http\Controllers\Api\ExpenseManagement\Categories\ExpenseCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonController;
 use App\Http\Controllers\Api\MenuManagement\Categories\MenuCategoryController;
@@ -62,14 +66,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('items/{id}/sync', [InventoryEditController::class, 'sync']);
         Route::delete('items/{id}', [InventoryItemController::class, 'destroy']);
 
-        // Restock an Inventory Item
+        // Restock, Wastage and Correction
         Route::post('items/{id}/restock', [InventoryRestockController::class, 'store',]);
+        Route::post('items/{id}/wastage', [InventoryWastageController::class, 'store',]);
+        Route::post('items/{id}/correction', [InventoryCorrectionController::class, 'store']);
+
+        // Read-only Inventory Audit Log
+        Route::get('audit-logs', [InventoryAuditLogController::class, 'index']);
 
         // Menu Items and Add-ons affected by an ingredient
         Route::get('items/{id}/affected', [InventoryItemController::class, 'affected']);
 
         // Restore an archived Inventory Item
         Route::patch('items/{id}/unarchive', [InventoryItemController::class, 'unarchive']);
+
+        // Read-only Inventory Valuation report
+        Route::get('reports/valuation', [InventoryValuationController::class, 'index',]);
     });
 
     Route::prefix('expense-management')->group(function () {

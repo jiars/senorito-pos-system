@@ -164,6 +164,33 @@
   color: #6C757D;
 }
 
+.stocklog-preview {
+  width: 100%;
+  min-height: 39px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #D9C0AE;
+  border-radius: 6px;
+  background-color: #F8F9FA;
+  color: #6C757D;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-sizing: border-box;
+}
+
+.stocklog-preview-change {
+  font-weight: 400;
+  font-style: italic;
+}
+
+.stocklog-preview-change--positive {
+  color: #198754;
+}
+
+.stocklog-preview-change--negative {
+  color: #DC3545;
+}
+
 .stocklog-input:focus:not([readonly]),
 .stocklog-select:focus {
   outline: none;

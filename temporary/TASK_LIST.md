@@ -127,24 +127,75 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
     - [x] Create and connect the Restock Axios service.
     - [x] Register the protected Laravel Restock route.
   - [x] Save Restock through one database transaction.
-  - [ ] Keep Restock, Wastage, and Correction in separate frontend service files.
+  - [x] Keep Restock, Wastage, and Correction in separate frontend service files.
     - [x] Create `stock/restockService.js` without removing the legacy Inventory Stock service.
     - [x] Connect Restock to its service while preserving the legacy stock service.
   - [x] Keep the HTTP controller, orchestrator, and record operations in separate backend files.
     - [x] Scaffold `InventoryRestockController.php`.
     - [x] Scaffold `InventoryRestockOrchestrator.php`.
   - [x] Keep Expense code under Expense Management, not Inventory Management.
-  - [ ] Test Restock and verify stock, batch, purchase, audit, and expense records.
+  - [x] Test Restock and verify stock, batch, purchase, audit, and expense records.
+  - [x] Require the Restock total cost to be at least 1 in React and Laravel.
 - [x] Create a new batch for every restock.
 - [x] Connect Restock with purchase history, audit logs, and an Inventory Purchase expense.
-- [ ] Create Wastage operation.
-- [ ] Create Correction operation.
-- [ ] Migrate automatic expired-batch cleanup to Laravel before enabling it again.
-- [ ] Preserve FIFO batch behavior.
-- [ ] Prevent negative stock.
-- [ ] Move Stock History and Audit to Laravel.
-  - [ ] Do not expose update or delete operations for Purchase History and Audit Logs.
-- [ ] Move Inventory Valuation to Laravel.
+- [x] Create Wastage operation.
+  - [x] Review the legacy Supabase Wastage and batch-deduction behavior.
+  - [x] Create the separate Wastage Axios service and connect its payload.
+  - [x] Create the Wastage HTTP controller and orchestrator.
+  - [x] Deduct from the selected batch, then continue through eligible batches when needed.
+  - [x] Update the Inventory Item and create an Audit Log in one transaction.
+  - [x] Prevent negative item and batch stock.
+  - [x] Add a shared transaction reference to Inventory Audit Logs.
+  - [x] Create one grouped audit row for every batch affected by Wastage.
+  - [x] Register and test the protected Wastage endpoint.
+    - [x] Register and verify the protected Wastage route.
+    - [x] Test Wastage and its database changes in the browser.
+- [x] Create Correction operation.
+  - [x] Review and correct the legacy Correction behavior.
+  - [x] Create a separate Correction Axios service and payload.
+  - [x] Create the Correction HTTP controller and orchestrator.
+  - [x] Handle selected-batch additions and deductions without negative stock.
+  - [x] Create a batch-specific Audit Log in one transaction.
+  - [x] Register and test the protected Correction endpoint.
+- [~] Migrate automatic expired-batch cleanup to Laravel before enabling it again.
+  - [x] Create the expired-batch worker controller and Laravel orchestrator.
+  - [x] Create and register the `inventory:cleanup-expired` Artisan command.
+  - [x] Schedule cleanup daily at 12:05 AM Philippine time without overlap.
+  - [x] Test using a controlled expired batch and verify stock, audit, and cost changes.
+  - [-] Configure the scheduler runner — postponed until deployment/polishing.
+- [~] Preserve FIFO/FEFO batch behavior.
+  - [x] Apply the effective-cost rule in Laravel Restock, Wastage, Correction, and Expiry Cleanup.
+  - [ ] Apply the same behavior to POS when POS checkout is migrated.
+- [~] Prevent negative stock.
+  - [x] Protect Laravel Wastage, Correction, and Expiry Cleanup.
+  - [ ] Protect POS deductions when POS checkout is migrated.
+- [x] Move the complete Inventory Audit Log to Laravel; per-item Stock History is intentionally skipped.
+  - [x] Review the current Supabase fetches and required response data.
+  - [-] Migrate the per-item Stock History modal — intentionally skipped because it may be removed later.
+  - [x] Refactor the complete Inventory Audit Log page into smaller components.
+  - [x] Move Audit Log filtering, formatting, and Excel export into a dedicated utility.
+  - [x] Add a TanStack Query hook for Inventory Audit Logs.
+  - [x] Preload fresh Audit Log data after Add, Restock, Wastage, and Correction.
+  - [x] Refetch Audit Logs when the page opens or the browser regains focus.
+  - [x] Add the read-only Laravel Audit Log endpoint.
+  - [x] Move the frontend Audit Log service to Axios.
+  - [x] Connect and test the complete Audit Log page.
+  - [x] Do not expose update or delete operations for Purchase History and Audit Logs.
+- [x] Refactor and migrate Inventory Valuation data fetching to Laravel.
+  - [x] Create a TanStack Query hook while temporarily keeping the current data source.
+  - [x] Move valuation calculations, filtering, sorting, chart preparation, and Excel export into dedicated JS utilities.
+  - [x] Split the visible report into focused React components.
+  - [x] Move the complete print-only layout into its own component.
+  - [x] Preserve the current batch-value and weighted-average-cost formulas in JavaScript.
+  - [x] Run frontend lint and visually test totals, filters, chart, export, and print.
+    - [x] Pass focused ESLint and the production frontend build.
+    - [x] Verify the extracted print layout in browser print preview.
+  - [x] Add a dedicated read-only Laravel valuation endpoint.
+  - [x] Add the Axios valuation service and switch the hook from Supabase to Laravel.
+  - [x] Refresh the Valuation cache after Add, Restock, Wastage, and Correction.
+  - [x] Refetch Valuation on page open/focus for server-created Expiry changes.
+  - [x] Compare Laravel results against the current report before removing its old fetch.
+  - [-] Move valuation calculations to Laravel — postponed until the main system migration is complete.
 - [ ] Remove replaced Inventory Supabase calls after testing.
 
 ## Later Modules
@@ -154,8 +205,20 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
   - [x] Add Expense and Expense Category model relationships.
   - [x] Add index, store, update, and unused-only destroy operations.
   - [x] Register protected category routes.
-  - [ ] Move the Expense Category frontend service to Axios later with the Expense module.
-- [ ] Migrate Employees and remove the frontend service-role key.
+  - [ ] Move the Expense Category frontend service to Axios using the existing Laravel endpoints.
+  - [ ] Connect Expense Category UI refresh to TanStack Query.
+  - [ ] Test add, edit, and unused-only delete behavior.
+- [-] Migrate Employees and remove the frontend service-role key — paused for team discussion about account creation and login design.
+  - [x] Review the `profiles` and `roles` schema, current modals, and frontend payloads.
+  - [ ] Detach `profiles.id` from Supabase `auth.users.id` and add automatic UUID generation.
+  - [ ] Confirm profile email/username uniqueness and status values before creating employees through Laravel.
+  - [ ] Fix the Laravel User/Profile model fields and add its Role relationship.
+  - [ ] Create the Employee Management init endpoint for employees and roles.
+  - [ ] Create separate store, update, activate, and deactivate backend operations.
+  - [ ] Hash staff passwords in Laravel and reject login for deactivated profiles.
+  - [ ] Replace the Employee Supabase service with Axios and TanStack Query.
+  - [ ] Refactor the Employee page and modals while keeping the current UI behavior.
+  - [ ] Remove `supabaseAdmin.js` and its frontend service-role environment variable after testing.
 - [ ] Rotate the Supabase service-role key.
 - [ ] Migrate Expenses.
 - [ ] Migrate POS checkout.
@@ -175,6 +238,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Final Checks
 
+- [ ] Configure and verify the Laravel scheduler runner for local use and production hosting.
+- [ ] Review backend folder structure and move non-HTTP business logic from Controllers into Actions or Services.
 - [ ] Run frontend lint and build.
 - [ ] Run Laravel tests.
 - [ ] Test every role and protected endpoint.
@@ -183,4 +248,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Next Task
 
-Register the protected Restock route, verify Laravel syntax/routes, then test the complete Restock transaction.
+Migrate the Expense Category frontend flow to Axios and connect it to the existing Laravel CRUD endpoints.
