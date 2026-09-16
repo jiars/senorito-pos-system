@@ -5,6 +5,7 @@ namespace App\Models\MenuManagement;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\InventoryManagement\InventoryItem;
 
 class AddonRecipe extends Model
 {
@@ -26,5 +27,14 @@ class AddonRecipe extends Model
     public function addon()
     {
         return $this->belongsTo(Addon::class, 'addon_id', 'id');
+    }
+
+    public function inventory_items()
+    {
+        return $this->belongsTo(
+            InventoryItem::class,
+            'inventory_item_id',
+            'id'
+        );
     }
 }

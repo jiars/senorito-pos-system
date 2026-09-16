@@ -1,4 +1,6 @@
 import React from 'react';
+import { formatCurrency } from '../../../utils/currencyFormatters';
+import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import './ReceiptModal.css';
 
 const ReceiptModal = ({ orderDetails, onClose }) => {
@@ -19,13 +21,8 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
     date
   } = orderDetails;
 
-  const formattedDate = date.toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric'
-  });
-
-  const formattedTime = date.toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true
-  });
+  const formattedDate = formatDate(date);
+  const formattedTime = formatTime(date);
 
   const handlePrint = () => {
     window.print();
@@ -88,8 +85,8 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
                       </p>
                     </td>
                     <td>{item.qty}</td>
-                    <td>₱{(item.basePrice || item.price).toFixed(2)}</td>
-                    <td>₱{((item.basePrice || item.price) * item.qty).toFixed(2)}</td>
+                    <td>{formatCurrency(item.basePrice || item.price)}</td>
+                    <td>{formatCurrency((item.basePrice || item.price) * item.qty)}</td>
                   </tr>
                   {item.addOns && item.addOns.length > 0 && item.addOns.map((ao, idx) => (
                     <tr key={`${item.cartId}-ao-${idx}`} className="pos-receipt-addon-row">
@@ -99,8 +96,8 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
                         </p>
                       </td>
                       <td></td>
-                      <td>₱{Number(ao.price).toFixed(2)}</td>
-                      <td>₱{(Number(ao.price) * ao.qty * item.qty).toFixed(2)}</td>
+                      <td>{formatCurrency(ao.price)}</td>
+                      <td>{formatCurrency(Number(ao.price) * ao.qty * item.qty)}</td>
                     </tr>
                   ))}
                 </React.Fragment>
@@ -113,15 +110,15 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
           <div className="pos-receipt-summary">
             <div className="pos-receipt-summary-row">
               <strong>Subtotal</strong>
-              <span>₱{subtotal.toFixed(2)}</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className="pos-receipt-summary-row">
               <strong>Discounts {discountType !== 'None' ? `(${discountType})` : ''}</strong>
-              <span>₱{discountAmount.toFixed(2)}</span>
+              <span>{formatCurrency(discountAmount)}</span>
             </div>
             <div className="pos-receipt-summary-row total">
               <strong>Total</strong>
-              <span>₱{total.toFixed(2)}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
           </div>
 
@@ -134,11 +131,11 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
             </div>
             <div className="pos-receipt-payment-row">
               <strong>Amount Paid</strong>
-              <span>₱{amountPaid.toFixed(2)}</span>
+              <span>{formatCurrency(amountPaid)}</span>
             </div>
             <div className="pos-receipt-payment-row">
               <strong>Change</strong>
-              <span>₱{change.toFixed(2)}</span>
+              <span>{formatCurrency(change)}</span>
             </div>
           </div>
 

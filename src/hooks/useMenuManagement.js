@@ -1,13 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import api from '../utils/axios/axiosInstance';
+import { useQuery } from "@tanstack/react-query";
+import { fetchMenuManagement } from "@/services/menu/menuManagementService";
 
 export const useMenuManagement = () => {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['menu-management'],
-    queryFn: async () => {
-      const response = await api.get('/menu-management/init');
-      return response.data;
-    },
+    queryKey: ["menu-management"],
+    queryFn: fetchMenuManagement,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -17,6 +14,6 @@ export const useMenuManagement = () => {
     addons: data?.addons || [],
     isLoading,
     error: error ? error.message : null,
-    refetch
+    refetch,
   };
 };

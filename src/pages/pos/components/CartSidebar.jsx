@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCurrency } from '../../../utils/currencyFormatters';
 
 const CartSidebar = ({
   cartItems,
@@ -14,6 +15,8 @@ const CartSidebar = ({
   amountPaid,
   setAmountPaid,
   onProcessOrder,
+  canIncreaseQuantity,
+  isProcessingOrder,
   isCartOpen,
   setIsCartOpen
 }) => {
@@ -34,7 +37,7 @@ const CartSidebar = ({
   const change = Math.max(0, paid - total);
 
   // Check if process button should be disabled
-  const isProcessDisabled = cartItems.length === 0 || 
+  const isProcessDisabled = isProcessingOrder || cartItems.length === 0 ||
     (paymentMethod === 'Cash' && paid < total);
 
   // Handlers for logic rules
@@ -78,11 +81,21 @@ const CartSidebar = ({
             <div className="pos-cart-item" key={item.cartId}>
               <div className="pos-cart-item-info">
                 <h5 className="pos-cart-item-name">{item.name}</h5>
-                <p className="pos-cart-item-meta">{item.variant || 'Regular'} • ₱{item.price.toFixed(2)}</p>
+                <p className="pos-cart-item-meta">{item.variant || 'Regular'} • {formatCurrency(item.price)}</p>
                 {item.addOns && item.addOns.length > 0 && (
-                  <div className="pos-cart-item-addons" style={{ fontSize: '0.6rem', color: '#9C6C55', marginTop: '0.1rem' }}>
-                    {item.addOns.map(ao => `${ao.qty * item.qty}x ${ao.name}`).join(', ')}
+                  <div className="pos-cart-item-addons">
+                    {item.addOns.map((ao, index) => (
+                      <span key={ao.id}>
+                        {ao.qty * item.qty}x {ao.name}
+                        {index < item.addOns.length - 1 ? ',' : ''}
+                      </span>
+                    ))}
                   </div>
+                )}
+                {!canIncreaseQuantity(item.cartId) && (
+                  <p className="pos-cart-stock-note">
+                    Maximum available stock reached.
+                  </p>
                 )}
               </div>
               <div className="pos-cart-qty-ctrl">
@@ -96,12 +109,14 @@ const CartSidebar = ({
                 <button
                   className="pos-cart-qty-btn"
                   onClick={() => onUpdateQty(item.cartId, item.qty + 1)}
+                  disabled={!canIncreaseQuantity(item.cartId)}
+                  title={!canIncreaseQuantity(item.cartId) ? 'Maximum available stock reached' : 'Add quantity'}
                 >
                   <i className="bi bi-plus"></i>
                 </button>
               </div>
               <div className="pos-cart-item-total">
-                ₱{(item.price * item.qty).toFixed(2)}
+                {formatCurrency(item.price * item.qty)}
               </div>
               <button
                 className="pos-cart-item-remove"
@@ -165,7 +180,7 @@ const CartSidebar = ({
         <div className="pos-summary">
           <div className="pos-summary-row">
             <span>Subtotal</span>
-            <span>₱{subtotal.toFixed(2)}</span>
+            <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="pos-summary-row pos-summary-discount">
             <span>
@@ -179,12 +194,12 @@ const CartSidebar = ({
               </select>
             </span>
             <span className="discount-val">
-              {discountAmount > 0 ? `-₱${discountAmount.toFixed(2)}` : '₱0.00'}
+              {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : formatCurrency(0)}
             </span>
           </div>
           <div className="pos-total-row">
             <span>Total</span>
-            <span>₱{total.toFixed(2)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
         </div>
 
@@ -202,6 +217,11 @@ const CartSidebar = ({
                 placeholder="0.00"
               />
             </div>
+            {paymentMethod === 'Cash' && amountPaid !== '' && paid < total && (
+              <p className="pos-payment-error">
+                Insufficient amount. Add {formatCurrency(total - paid)} more.
+              </p>
+            )}
           </div>
           <div className="pos-payment-col">
             <label className="pos-payment-label">Change</label>
@@ -222,7 +242,7 @@ const CartSidebar = ({
           disabled={isProcessDisabled}
           onClick={() => onProcessOrder({ total, subtotal, discountAmount, change })}
         >
-          Process Order
+          {isProcessingOrder ? 'Processing...' : 'Process Order'}
         </button>
 
       </div>

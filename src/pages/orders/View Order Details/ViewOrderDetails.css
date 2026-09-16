@@ -29,6 +29,31 @@
   padding: 1.75rem 2rem;
 }
 
+.order-details-modal--loading {
+  max-width: 320px;
+}
+
+.order-details-full-state {
+  min-height: 160px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #6c757d;
+}
+
+.order-details-loading-icon {
+  font-size: 1.75rem;
+  animation: spin 1s linear infinite;
+}
+
+.order-details-error-text {
+  color: #dc3545;
+  text-align: center;
+}
+
 /* ─── Header ─── */
 .order-details-header {
   position: relative;

@@ -29,8 +29,23 @@ class InventoryBatchController extends Controller
         )->where('quantity', '>', 0);
 
         // Expiry-tracked items use the batch that expires first.
-        if ($trackExpiry)
-            $query->orderByRaw('expiration_date ASC NULLS LAST');
+        if ($trackExpiry) {
+            // Ignore expired batches when choosing the effective cost.
+            $query->where(function ($batchQuery) {
+                $batchQuery
+                    ->whereNull('expiration_date')
+                    ->orWhere(
+                        'expiration_date',
+                        '>=',
+                        now('Asia/Manila')->toDateString()
+                    );
+            });
+
+            // Use the batch that expires first.
+            $query->orderByRaw(
+                'expiration_date ASC NULLS LAST'
+            );
+        }
 
 
         // FIFO is used as the main or fallback ordering.

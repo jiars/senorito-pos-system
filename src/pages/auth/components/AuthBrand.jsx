@@ -1,4 +1,4 @@
-import senoritoLogo from '../../../assets/images/senorito_logo.png';
+import senoritoLogo from "../../../assets/images/smoke.png";
 
 const AuthBrand = () => {
   return (

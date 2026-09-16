@@ -181,12 +181,18 @@ const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories
 
       await addInventoryItem(payload);
 
-      // Prepare fresh Inventory and Audit data before closing the modal.
-      const refreshRequests = [refreshAuditLogs(), refreshValuation()];
-      if (refetchInventory) refreshRequests.push(refetchInventory());
+      // Refresh the current Inventory page before closing the modal.
+      if (refetchInventory) {
+        await refetchInventory();
+      }
 
-      await Promise.allSettled(refreshRequests);
       onClose();
+
+      // Refresh secondary pages without delaying the Inventory modal.
+      Promise.allSettled([
+        refreshAuditLogs(),
+        refreshValuation(),
+      ]);
     } catch (error) {
       console.error("Error adding item:", error);
       alert(error.message);

@@ -653,3 +653,24 @@
     justify-content: center;
   }
 }
+
+.expense-category-summary-box {
+  height: 100%;
+}
+
+.expense-category-summary-divider {
+  margin: 0.5rem 0 1rem;
+  border-bottom: 1px solid #f0e0d8;
+}
+
+.expense-category-summary-title {
+  margin: 0 0 1rem;
+  color: #2c1810;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.expense-category-summary-empty {
+  color: #888;
+  text-align: center;
+}

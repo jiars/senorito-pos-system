@@ -12,6 +12,10 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Record the supplied main-page references.
 - [x] Create the frontend implementation plan.
 - [x] Create this frontend task list.
+- [x] Create the frontend design questionnaire.
+- [x] Add focused frontend architecture, design-system, and Figma workflow rules.
+- [x] Record the approved frontend design decisions.
+- [x] Create the concise frontend chat handoff prompt.
 - [x] Run a baseline lint and production build before UI dependencies are changed.
 
 ### Baseline Result

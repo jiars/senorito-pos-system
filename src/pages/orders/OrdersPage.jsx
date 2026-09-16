@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import ViewOrderDetails from './View Order Details/ViewOrderDetails';
+import OrdersFilterBar from './components/OrdersFilterBar';
+import OrdersTable from './components/OrdersTable';
+import OrdersPagination from './components/OrdersPagination';
 import './ordersPage.css';
 
-import { fetchOrderHistory, fetchOrderDetails } from '../../services/pos/ordersService';
+import { useOrderManagement } from '../../hooks/useOrderManagement';
 import { formatCurrency } from '../../utils/currencyFormatters';
 
-// We no longer use dummyOrders, we fetch live data from Supabase.
-
 const OrdersPage = () => {
+  const {
+    orders,
+    isLoading,
+    error,
+  } = useOrderManagement();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -15,27 +22,8 @@ const OrdersPage = () => {
   const [orderSource, setOrderSource] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
   
-  const [orders, setOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
-
-  React.useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchOrderHistory();
-      setOrders(data);
-    } catch (error) {
-      console.error("Failed to load orders:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleResetFilters = () => {
     setSearchTerm('');
@@ -65,12 +53,11 @@ const OrdersPage = () => {
       orderSource: order.order_source,
       paymentMethod: order.payment_method,
       discountType: order.discount_type || 'None',
-      subtotal: order.subtotal,
-      discountAmount: order.discount_amount || 0,
-      total: order.total,
-      amountPaid: order.amount_paid || 0,
-      change: order.change_amount || 0,
-      items: [] // Will be populated in Step 3
+      subtotal: Number(order.subtotal) || 0,
+      discountAmount: Number(order.discount_amount) || 0,
+      total: Number(order.total) || 0,
+      amountPaid: Number(order.amount_paid) || 0,
+      change: Number(order.change_amount) || 0,
     });
   };
 
@@ -120,158 +107,33 @@ const OrdersPage = () => {
 
       {/* ───── Main Panel (Filters + Table) ───── */}
       <div className="orders-panel">
-        {/* Filters Bar */}
-        <div className="orders-filter-bar">
-          <div className="orders-search">
-            <i className="bi bi-search"></i>
-            <input
-              type="text"
-              placeholder="Search order #, date, cashier, source..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+        <OrdersFilterBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          fromDate={fromDate}
+          setFromDate={setFromDate}
+          toDate={toDate}
+          setToDate={setToDate}
+          paymentMethod={paymentMethod}
+          setPaymentMethod={setPaymentMethod}
+          orderSource={orderSource}
+          setOrderSource={setOrderSource}
+          handleResetFilters={handleResetFilters}
+        />
 
-          <div className="orders-date-group">
-            <span className="orders-date-label">From</span>
-            <input
-              type="date"
-              className="orders-filter-date"
-              title="From Date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-          </div>
+        <OrdersTable
+          isLoading={isLoading}
+          error={error}
+          paginatedOrders={paginatedOrders}
+          getSourceClass={getSourceClass}
+          handleViewOrder={handleViewOrder}
+        />
 
-          <div className="orders-date-group">
-            <span className="orders-date-label">To</span>
-            <input
-              type="date"
-              className="orders-filter-date"
-              title="To Date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
-          </div>
-
-          <select
-            className="orders-filter-select"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-          >
-            <option value="All">All Payment Method</option>
-            <option value="Cash">Cash</option>
-            <option value="GCash">GCash</option>
-            <option value="External">External</option>
-          </select>
-
-          <select
-            className="orders-filter-select"
-            value={orderSource}
-            onChange={(e) => setOrderSource(e.target.value)}
-          >
-            <option value="All">All Order Source</option>
-            <option value="In-Store">In-Store</option>
-            <option value="Foodpanda">Foodpanda</option>
-            <option value="Grab">Grab</option>
-          </select>
-
-          <button className="orders-reset-btn" onClick={handleResetFilters}>
-            Reset
-          </button>
-        </div>
-
-        {/* Orders Table */}
-        <div className="orders-table-wrapper">
-          <table className="orders-table">
-            <thead>
-              <tr>
-                <th>ORDER #</th>
-                <th>DATE & TIME</th>
-                <th>CASHIER</th>
-                <th>TOTAL</th>
-                <th>PAYMENT METHOD</th>
-                <th>SOURCE</th>
-                <th style={{ textAlign: 'center' }}>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                    <i className="bi bi-arrow-clockwise" style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }}></i>
-                    Loading Orders...
-                  </td>
-                </tr>
-              ) : paginatedOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                    No orders found matching your criteria.
-                  </td>
-                </tr>
-              ) : (
-                paginatedOrders.map((order) => {
-                  const cashierName = order.cashier ? `${order.cashier.first_name} ${order.cashier.last_name}` : 'Owner / System';
-                  const formattedDate = new Date(order.order_datetime).toLocaleString('en-US', {
-                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                  });
-
-                  return (
-                    <tr key={order.id}>
-                      <td><strong>{order.order_number}</strong></td>
-                      <td>{formattedDate}</td>
-                      <td>{cashierName}</td>
-                      <td><strong>{formatCurrency(order.total)}</strong></td>
-                      <td>{order.payment_method}</td>
-                      <td>
-                        <span className={`orders-chip ${getSourceClass(order.order_source)}`}>
-                          {order.order_source}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="orders-actions" style={{ justifyContent: 'center' }}>
-                          <button
-                            className="orders-action-btn orders-action-btn--view"
-                            title="View Order"
-                            onClick={() => handleViewOrder(order)}
-                          >
-                            <i className="bi bi-card-list"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="orders-pagination">
-            <span>Page {currentPage} of {totalPages}</span>
-            <div className="orders-pagination-btns" style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                className="orders-page-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => p - 1)}
-              >
-                <i className="bi bi-chevron-left"></i>
-              </button>
-              <button className="orders-page-btn active" style={{ backgroundColor: '#E9ECEF', fontWeight: 'bold' }}>
-                {currentPage}
-              </button>
-              <button
-                className="orders-page-btn"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => p + 1)}
-              >
-                <i className="bi bi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-        )}
+        <OrdersPagination
+          totalPages={totalPages}
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+        />
       </div>
 
       <ViewOrderDetails

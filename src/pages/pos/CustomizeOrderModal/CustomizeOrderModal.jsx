@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import './CustomizeDrinkModal.css';
-const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) => {
+import { formatCurrency } from '../../../utils/currencyFormatters';
+import { getInventoryStockStatus } from '../../../utils/pos/checkoutCalculations';
+import './CustomizeOrderModal.css';
+const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose, onAddToCart }) => {
   // State for selected size variant. Default to the first variant if available.
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 
@@ -27,25 +29,13 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
       );
 
       setAddOns(validAddons.map(ao => {
-        let isAvailable = ao.pos_status === 'Available';
-        let unavailableReason = ao.pos_status === 'Available' ? '' : '(Unavailable)';
-
-        if (isAvailable && ao.addon_recipes && ao.addon_recipes.length > 0) {
-           for (const recipe of ao.addon_recipes) {
-              const required = Number(recipe.quantity) || 0;
-              const available = recipe.inventory_items?.current_stock || 0;
-              if (available < required) {
-                 isAvailable = false;
-                 unavailableReason = '(Out of Stock)';
-                 break;
-              }
-           }
-        }
+        const isAvailable = ao.pos_status === 'Available';
+        const unavailableReason = isAvailable ? '' : 'Not Available';
 
         return {
           id: ao.id,
           name: ao.addon_name,
-          price: ao.selling_price,
+          price: Number(ao.selling_price) || 0,
           selected: false,
           qty: 1,
           recipes: ao.addon_recipes || [],
@@ -71,63 +61,74 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
   // Calculate grand total: (basePrice + addOnsTotal) * drinkQty
   const total = (basePrice + addOnsTotal) * drinkQty;
 
+  const buildStockPreviewItem = (quantity, addonOptions = addOns) => {
+    const variantId = product.variants && product.variants.length > 0
+      ? product.variants[selectedVariantIndex].id
+      : product.defaultPriceId;
+
+    const mainRecipes = product.rawRecipes?.filter(recipe =>
+      recipe.menu_item_price_id === variantId ||
+      recipe.menu_item_price_id === null
+    ) || [];
+
+    const selectedAddons = addonOptions
+      .filter(addon => addon.selected)
+      .map(addon => ({
+        qty: addon.qty,
+        recipes: addon.recipes,
+      }));
+
+    return {
+      cartId: 'stock-preview',
+      qty: quantity,
+      recipeIngredients: mainRecipes,
+      addOns: selectedAddons,
+    };
+  };
+
+  const getStockStatusForSelection = (quantity, addonOptions = addOns) => {
+    const previewItem = buildStockPreviewItem(quantity, addonOptions);
+    return getInventoryStockStatus([...cartItems, previewItem]);
+  };
+
   const handleToggleAddOn = (id) => {
-    setAddOns(prev => prev.map(ao =>
+    const updatedAddons = addOns.map(ao =>
       ao.id === id ? { ...ao, selected: !ao.selected } : ao
-    ));
+    );
+
+    if (!getStockStatusForSelection(drinkQty, updatedAddons).hasEnoughStock) return;
+    setAddOns(updatedAddons);
   };
 
   const handleUpdateAddOnQty = (id, delta) => {
-    setAddOns(prev => prev.map(ao => {
+    const updatedAddons = addOns.map(ao => {
       if (ao.id === id) {
         const newQty = Math.max(1, ao.qty + delta); // minimum 1
         return { ...ao, qty: newQty };
       }
       return ao;
-    }));
+    });
+
+    if (delta > 0 && !getStockStatusForSelection(drinkQty, updatedAddons).hasEnoughStock) return;
+    setAddOns(updatedAddons);
   };
 
-  // Helper to aggregate stock and check if the current combination is valid
-  const checkStockSufficiency = () => {
-    const inventoryNeeded = {};
+  const getAddOnActionStatus = (addon) => {
+    const updatedAddons = addOns.map(currentAddon => {
+      if (currentAddon.id !== addon.id) return currentAddon;
 
-    // 1. Main Drink Requirements
-    const variantId = product.variants && product.variants.length > 0
-      ? product.variants[selectedVariantIndex].id
-      : product.defaultPriceId;
-    
-    const mainRecipes = product.rawRecipes?.filter(r => r.menu_item_price_id === variantId || r.menu_item_price_id === null) || [];
-    
-    for (const r of mainRecipes) {
-      const id = r.inventory_item_id;
-      if (!inventoryNeeded[id]) {
-        inventoryNeeded[id] = { required: 0, available: r.inventory_items?.current_stock || 0 };
-      }
-      inventoryNeeded[id].required += (Number(r.quantity) || 0) * drinkQty;
-    }
+      return addon.selected
+        ? { ...currentAddon, qty: currentAddon.qty + 1 }
+        : { ...currentAddon, selected: true };
+    });
 
-    // 2. Add-ons Requirements
-    const selectedAddOns = addOns.filter(ao => ao.selected);
-    for (const ao of selectedAddOns) {
-      for (const r of ao.recipes) {
-        const id = r.inventory_item_id;
-        if (!inventoryNeeded[id]) {
-          inventoryNeeded[id] = { required: 0, available: r.inventory_items?.current_stock || 0 };
-        }
-        inventoryNeeded[id].required += (Number(r.quantity) || 0) * ao.qty * drinkQty;
-      }
-    }
-
-    // 3. Compare
-    for (const key in inventoryNeeded) {
-      if (inventoryNeeded[key].required > inventoryNeeded[key].available) {
-        return false;
-      }
-    }
-    return true;
+    return getStockStatusForSelection(drinkQty, updatedAddons);
   };
 
-  const isCombinationValid = checkStockSufficiency();
+  const currentStockStatus = getStockStatusForSelection(drinkQty);
+  const nextQuantityStockStatus = getStockStatusForSelection(drinkQty + 1);
+  const isCombinationValid = currentStockStatus.hasEnoughStock;
+  const canIncreaseDrinkQuantity = nextQuantityStockStatus.hasEnoughStock;
 
   const handleAddToCartClick = () => {
     // Gather selected variant name
@@ -170,7 +171,7 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
           <button className="pos-customize-close" onClick={onClose}>
             <i className="bi bi-x-lg"></i>
           </button>
-          <h2>Customize Drink</h2>
+          <h2>Customize Order</h2>
           <p>{product.name}</p>
         </div>
 
@@ -190,8 +191,8 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
                       if (v.isAvailable) setSelectedVariantIndex(idx);
                     }}
                   >
-                    <h3>{v.name} {!v.isAvailable && <span style={{color: 'red', fontSize: '0.7rem'}}>(N/A)</span>}</h3>
-                    <p>₱{v.price.toFixed(2)}</p>
+                    <h3>{v.name} {!v.isAvailable && <span className="pos-customize-not-available">Not Available</span>}</h3>
+                    <p>{formatCurrency(v.price)}</p>
                   </div>
                 ))}
               </div>
@@ -212,11 +213,24 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
               <button
                 className="pos-customize-qty-btn"
                 onClick={() => setDrinkQty(drinkQty + 1)}
+                disabled={!canIncreaseDrinkQuantity}
               >
                 <i className="bi bi-plus"></i>
               </button>
             </div>
           </div>
+
+          {!isCombinationValid && (
+            <p className="pos-customize-stock-note error">
+              Insufficient stock: {currentStockStatus.insufficientIngredients.join(', ')}.
+            </p>
+          )}
+
+          {isCombinationValid && !canIncreaseDrinkQuantity && (
+            <p className="pos-customize-stock-note">
+              Maximum available quantity reached.
+            </p>
+          )}
 
           {/* Add-ons */}
           <h3 className="pos-customize-section-title">Add-ons</h3>
@@ -226,17 +240,21 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
                 No available add-ons for this category.
               </div>
             ) : (
-              addOns.map(ao => (
-                <div key={ao.id} className={`pos-customize-addon ${!ao.isAvailable ? 'pos-customize-addon-disabled' : ''}`} style={!ao.isAvailable ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
+              addOns.map(ao => {
+                const actionStockStatus = getAddOnActionStatus(ao);
+                const isAddOnActionBlocked = !actionStockStatus.hasEnoughStock;
+
+                return (
+                <div key={ao.id} className={`pos-customize-addon ${!ao.isAvailable ? 'pos-customize-addon-disabled' : ''}`}>
                   <input
                     type="checkbox"
                     className="pos-customize-addon-checkbox"
                     checked={ao.selected}
-                    disabled={!ao.isAvailable}
+                    disabled={!ao.isAvailable || (!ao.selected && isAddOnActionBlocked)}
                     onChange={() => handleToggleAddOn(ao.id)}
                   />
                   <span className="pos-customize-addon-name">
-                    {ao.name} {!ao.isAvailable && <span style={{color: 'red', fontSize: '0.8rem', marginLeft: '0.5rem'}}>{ao.unavailableReason || '(N/A)'}</span>}
+                    {ao.name} {!ao.isAvailable && <span className="pos-customize-not-available">{ao.unavailableReason || 'Not Available'}</span>}
                   </span>
 
                   {ao.selected && (
@@ -252,15 +270,24 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
                       <button
                         className="pos-customize-qty-btn"
                         onClick={() => handleUpdateAddOnQty(ao.id, 1)}
+                        disabled={isAddOnActionBlocked}
+                        title={isAddOnActionBlocked ? 'Maximum available stock reached' : 'Add quantity'}
                       >
                         <i className="bi bi-plus"></i>
                       </button>
                     </div>
                   )}
 
-                  <span className="pos-customize-addon-price">+ ₱{ao.price.toFixed(2)}</span>
+                  <span className="pos-customize-addon-price">+ {formatCurrency(ao.price)}</span>
+
+                  {ao.isAvailable && isAddOnActionBlocked && (
+                    <p className="pos-customize-addon-stock-note">
+                      Insufficient stock: {actionStockStatus.insufficientIngredients.join(', ')}.
+                    </p>
+                  )}
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -270,7 +297,7 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
         <div className="pos-customize-footer">
           <div className="pos-customize-total">
             <span>Total</span>
-            <span>₱ {total.toFixed(2)}</span>
+            <span>{formatCurrency(total)}</span>
           </div>
           <button 
             className="pos-customize-add-btn" 
@@ -287,4 +314,4 @@ const CustomizeDrinkModal = ({ product, allAddons = [], onClose, onAddToCart }) 
   );
 };
 
-export default CustomizeDrinkModal;
+export default CustomizeOrderModal;

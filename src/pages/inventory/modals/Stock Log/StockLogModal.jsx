@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { useRefreshInventoryAuditLogs } from '../../../../hooks/useInventoryAuditLogs';
 import { useRefreshInventoryValuation } from '../../../../hooks/useInventoryValuation';
+import { useRefreshSalesReport } from '../../../../hooks/useSalesReport';
 import { correctInventoryStock } from '../../../../services/inventory/stock/correctionService';
 import { restockInventoryItem } from '../../../../services/inventory/stock/restockService';
 import { recordInventoryWastage } from '../../../../services/inventory/stock/wastageService';
@@ -31,6 +32,7 @@ const compareOldestBatch = (a, b) => {
 const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
   const refreshAuditLogs = useRefreshInventoryAuditLogs();
   const refreshValuation = useRefreshInventoryValuation();
+  const refreshSalesReport = useRefreshSalesReport();
   const [actionType, setActionType] = useState('restock');
   const [quantity, setQuantity] = useState('');
   const [totalCost, setTotalCost] = useState('');
@@ -195,12 +197,24 @@ const StockLogModal = ({ isOpen, onClose, refetchInventory, item }) => {
         await correctInventoryStock(item.id, correctionPayload);
       }
 
-      // Prepare fresh Inventory and Audit data before closing the modal.
-      const refreshRequests = [refreshAuditLogs(), refreshValuation()];
-      if (refetchInventory) refreshRequests.push(refetchInventory());
+      // Refresh the current Inventory page before closing the modal.
+      if (refetchInventory) {
+        await refetchInventory();
+      }
 
-      await Promise.allSettled(refreshRequests);
       handleClose();
+
+      // Refresh secondary pages without delaying the Inventory modal.
+      const backgroundRefreshRequests = [
+        refreshAuditLogs(),
+        refreshValuation(),
+      ];
+
+      if (actionType === 'wastage') {
+        backgroundRefreshRequests.push(refreshSalesReport());
+      }
+
+      Promise.allSettled(backgroundRefreshRequests);
     } catch (error) {
       alert(error.message);
     } finally {

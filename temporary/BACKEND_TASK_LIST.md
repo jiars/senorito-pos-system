@@ -1,6 +1,6 @@
 # Temporary Task List
 
-Updated: September 11, 2026
+Updated: September 15, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skipped
 
@@ -19,7 +19,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 - [x] Inspect Menu Category schema, usage, and current hard-delete flow.
 - [x] Confirm Menu Category rule: no archive; permanent deletion is allowed only when unused.
 - [x] Confirm Inventory Category rule: no archive; permanent deletion is allowed only when unused.
-- [ ] Decide archive/delete rules for Expenses and Expense Categories.
+- [x] Decide archive/delete rules: archive Expense records; hard-delete Expense Categories only when unused.
 - [ ] Review UUIDs, foreign keys, unique fields, and decimal constraints.
 - [ ] Fix Laravel users/profile migration mismatches.
 - [ ] Review and reduce unsafe Supabase RLS policies.
@@ -86,6 +86,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
     - [x] Register the protected Add Inventory API route.
   - [x] Move the Add Inventory Item service to Axios.
   - [x] Test and verify all created records.
+  - [ ] Fix misplaced Inventory Add rules for minimum level, category, and supplier.
   - [ ] Add an automated transaction rollback test.
 - [x] Refactor Edit Inventory Item and create its Laravel sync orchestrator.
   - [x] Split the Edit modal into reusable UI components.
@@ -165,10 +166,10 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
   - [-] Configure the scheduler runner — postponed until deployment/polishing.
 - [~] Preserve FIFO/FEFO batch behavior.
   - [x] Apply the effective-cost rule in Laravel Restock, Wastage, Correction, and Expiry Cleanup.
-  - [ ] Apply the same behavior to POS when POS checkout is migrated.
+  - [x] Apply the same behavior to POS when POS checkout is migrated.
 - [~] Prevent negative stock.
   - [x] Protect Laravel Wastage, Correction, and Expiry Cleanup.
-  - [ ] Protect POS deductions when POS checkout is migrated.
+  - [x] Protect POS deductions when POS checkout is migrated.
 - [x] Move the complete Inventory Audit Log to Laravel; per-item Stock History is intentionally skipped.
   - [x] Review the current Supabase fetches and required response data.
   - [-] Migrate the per-item Stock History modal — intentionally skipped because it may be removed later.
@@ -200,14 +201,36 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Later Modules
 
-- [~] Prepare Expense Category CRUD while building Restock.
+- [x] Prepare Expense Category CRUD while building Restock.
   - [x] Create a separate Expense Category controller.
   - [x] Add Expense and Expense Category model relationships.
   - [x] Add index, store, update, and unused-only destroy operations.
   - [x] Register protected category routes.
-  - [ ] Move the Expense Category frontend service to Axios using the existing Laravel endpoints.
-  - [ ] Connect Expense Category UI refresh to TanStack Query.
-  - [ ] Test add, edit, and unused-only delete behavior.
+  - [x] Add the Expense Management init endpoint for expenses and categories.
+  - [x] Move the Expense Category frontend service to Axios using the existing Laravel endpoints.
+  - [x] Connect Expense Category UI refresh to TanStack Query.
+  - [x] Test add, edit, and unused-only delete behavior.
+- [x] Migrate Expenses.
+  - [x] Add Expense archive columns and model support.
+  - [x] Add the Expense init service and TanStack Query hook.
+  - [x] Connect the Expense page and Category modal to the shared query.
+  - [x] Add separate Laravel Expense Add and Edit orchestrators.
+  - [x] Add Expense archive and unarchive operations.
+  - [x] Return active and archived Expenses through the init endpoint.
+  - [x] Move the remaining Expense service operations from Supabase to Axios.
+  - [x] Connect Add, Edit, and Archive UI refreshes.
+  - [-] Expense Archive page and Unarchive UI removed by user decision.
+  - [x] Keep Inventory Purchase connected to Laravel Restock; remove Wastage from Expense Management.
+  - [x] Refactor Add, Edit, Archive, and Category Expense modals into smaller components.
+  - [-] Wastage-to-Expense backend recording postponed because the category may be removed later.
+  - [x] Test all Expense operations and financial-history preservation.
+  - [x] Refactor the large Expense page into CBA components.
+  - [x] Remove the legacy separate Wastage table/summary/export and show one complete Expense records list.
+  - [x] Remove Inventory Wastage forms, totals, and actions from Expense Management only.
+  - [x] Archive legacy Inventory Wastage Expense records.
+  - [-] Keep all categories in the init response so Inventory Wastage can be managed and deleted later.
+  - [x] Hide Inventory Wastage only from Add Expense and cash-expense records.
+  - [x] Hide category delete actions when Menu, Inventory, or Expense records use them.
 - [-] Migrate Employees and remove the frontend service-role key — paused for team discussion about account creation and login design.
   - [x] Review the `profiles` and `roles` schema, current modals, and frontend payloads.
   - [ ] Detach `profiles.id` from Supabase `auth.users.id` and add automatic UUID generation.
@@ -220,26 +243,112 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
   - [ ] Refactor the Employee page and modals while keeping the current UI behavior.
   - [ ] Remove `supabaseAdmin.js` and its frontend service-role environment variable after testing.
 - [ ] Rotate the Supabase service-role key.
-- [ ] Migrate Expenses.
-- [ ] Migrate POS checkout.
-- [ ] Migrate Orders.
-- [ ] Migrate Reports.
+- [x] Migrate Order History.
+  - [x] Review the current Order History page, services, hooks, and Supabase queries.
+  - [x] Review the Order, Order Item, payment, and selected Add-on database relationships.
+  - [x] Define the Laravel Order History init response while preserving the current frontend filters.
+  - [x] Create the required Laravel models and relationships.
+  - [x] Create the Order Item controller and module init controller using separated folders.
+  - [x] Replace Supabase reads with Axios and TanStack Query.
+  - [x] Keep the completed Order History component refactor without changing its design.
+  - [x] Test order list, receipt details, search, filters, and pagination.
+- [x] Migrate Reports.
+  - [x] Review the Sales Report page, four Supabase queries, calculations, and filters.
+  - [x] Keep Inventory Valuation on its completed Laravel endpoint.
+  - [x] Define separated Sales Report controller folders and one protected init response.
+  - [x] Fetch sales, item, category, source, hourly, profitability, and Inventory Wastage data through Laravel.
+  - [x] Read Wastage cost from Inventory audit data instead of Expense categories.
+  - [x] Replace Sales Report Supabase calls with Axios and TanStack Query.
+  - [x] Fetch Sales Report data once through a fixed init query and apply page filters locally.
+  - [x] Refresh Sales Report after Wastage while secondary Inventory reports refresh in the background.
+    - [x] Refresh the current Inventory or Expense page before closing its modal.
+    - [x] Start Audit Log and Valuation refreshes without blocking the current modal.
+    - [x] Verify that Wastage updates the cached Sales Report in the browser.
+  - [x] Keep reusable report calculations in JavaScript until the final backend-hardening phase.
+  - [x] Test filters, cards, charts, tables, empty states, and print layout.
 - [ ] Complete Profile and password management.
+- [x] Migrate online POS checkout.
+  - [x] Review the current POS flow, services, payloads, and database relationships.
+  - [x] Define a POS-specific Laravel init response.
+    - [x] Create the POS init controller and checkout orchestrator files.
+    - [x] Add the missing Menu Recipe and Add-on Recipe inventory relationships.
+    - [x] Return categories, items, prices, recipes, add-ons, conversions, and current stock.
+    - [x] Add the protected POS init route.
+    - [x] Connect the POS page to its Axios service and TanStack init hook.
+    - [x] Verify online POS loading in the browser.
+    - [-] Verify cached offline loading during the dedicated Offline Mode phase.
+  - [x] Add the required Order and checkout models/relationships.
+  - [x] Create separated Order, Order Item, Add-on, and Inventory deduction workers.
+  - [x] Create one transactional checkout orchestrator.
+  - [x] Create Orders, Order Items, and selected Add-on records.
+  - [x] Deduct recipe ingredients from Inventory batches using FEFO/FIFO.
+  - [x] Create grouped POS Sale Inventory Audit Logs.
+  - [x] Support Cash and GCash payments.
+  - [x] Replace online POS checkout and initialization Supabase calls with Axios and TanStack Query.
+  - [x] Refresh the Inventory Management cache in the background after checkout.
+  - [x] Refresh Order History, Audit Logs, Inventory Valuation, and Sales Report caches after checkout.
+  - [x] Keep the existing Dexie offline path untouched until Offline Mode migration.
+  - [x] Connect and refactor the POS UI without changing its design.
+    - [x] Add proactive cart stock limits before checkout.
+      - [x] Prevent sidebar quantity increases beyond available ingredient stock.
+      - [x] Include existing cart usage when choosing quantities in the customization modal.
+      - [x] Show a dynamic maximum-stock note and disable invalid quantity increases.
+      - [x] Combine Menu and Add-on recipe usage when checking available stock.
+      - [x] Show the blocking Inventory Item names and disable unavailable Add-on increases.
+      - [x] Rename the visible modal title to `Customize Order`.
+      - [x] Replace variant `N/A` wording with `Not Available`.
+      - [x] Show a live insufficient-payment note for Cash.
+    - [x] Reuse the shared conversion-aware stock calculation for Product Cards and variants.
+    - [x] Show full product-area loading initially and a non-destructive overlay during refresh.
+  - [x] Test successful checkout and insufficient-stock handling for the current single-cashier setup.
+    - [x] Verify a successful checkout and FEFO/FIFO batch deduction.
+    - [x] Verify Cash, GCash, add-ons, and multi-item checkout.
+    - [-] Verify concurrent insufficient-stock rejection and complete transaction rollback — postponed for the current single-cashier setup.
 
 ## Offline Mode
 
+- [x] Review the existing Dexie cache, offline checkout, sync service, routes, and offline documentation.
 - [ ] Add offline lock screen.
 - [ ] Allow only POS while offline.
-- [ ] Add client transaction UUID and database uniqueness.
-- [ ] Add Laravel sync endpoint and idempotency protection.
-- [ ] Match online and offline stock calculations.
+- [x] Add client transaction UUID and database uniqueness.
+  - [x] Add the unique nullable Orders column and model support.
+  - [x] Add Laravel checkout replay handling and simultaneous-request protection.
+  - [x] Send one UUID from online checkout and save it with offline queued orders.
+  - [x] Verify a completed online order stores a non-null UUID.
+  - [x] Verify replaying the same UUID does not create or deduct twice.
+- [x] Store the Laravel checkout-shaped payload in the offline queue.
+- [~] Replace the legacy Supabase sync with the Laravel checkout endpoint.
+  - [x] Add the Laravel-based offline sync service with retry status tracking.
+  - [x] Connect POS auto-sync and refresh affected query caches after success.
+  - [x] Verify one queued offline order syncs once and is removed from Dexie.
+    - [x] Lock the POS while syncing and wait for fresh Menu and stock data before unlocking.
+    - [x] Keep the sync/refetch loader above the complete POS interface.
+    - [x] Verify the refreshed stock prevents another invalid order after synchronization.
+- [x] Reuse the Laravel checkout endpoint with idempotency protection for offline sync.
+- [x] Populate and use one Dexie `inventoryStock` source of truth.
+- [x] Match online and offline Menu plus Add-on conversion calculations.
+- [x] Deduct local shadow stock atomically with the queued order.
+- [x] Keep failed or unauthorized sync records safely queued.
+- [x] Refresh Laravel data and the local cache after successful sync.
 - [ ] Test failed and repeated sync.
-- [ ] Test Cash and GCash offline behavior.
+- [x] Test Cash and GCash offline behavior.
 
 ## Final Checks
 
+- [ ] Test two simultaneous cashiers against the same remaining stock and verify complete checkout rollback.
+- [ ] Review remaining large React pages and extract focused hooks only where state or lifecycle logic is complex.
+- [ ] Standardize remaining server mutations with TanStack Query where it improves cache refresh and loading behavior.
+- [ ] Group POS Sale Audit Logs by `transaction_reference` in an expandable row.
+  - [ ] Show the related order number, cashier, date, ingredients, affected batches, quantity changes, and stock before/after.
+  - [ ] Keep one Audit Log row per affected batch while sharing one transaction reference for the complete checkout.
 - [ ] Configure and verify the Laravel scheduler runner for local use and production hosting.
+- [ ] Review Menu, Inventory, and Expense init payload sizes; move large secondary details to cached on-demand queries only where beneficial.
+- [ ] Refactor the large Dashboard controller into separated data providers while preserving one Dashboard endpoint.
 - [ ] Review backend folder structure and move non-HTTP business logic from Controllers into Actions or Services.
+- [ ] Classify frontend utilities as presentation helpers, live previews, or trusted business calculations.
+- [ ] Move trusted Order, Inventory, Menu costing, Expense summary, Dashboard, and Report calculations into tested Laravel Actions or Services.
+- [ ] Keep frontend preview calculations for responsiveness, but always let Laravel recalculate and save the final trusted values.
+- [ ] Keep formatting, chart geometry, export formatting, and other UI-only helpers in JavaScript.
 - [ ] Run frontend lint and build.
 - [ ] Run Laravel tests.
 - [ ] Test every role and protected endpoint.
@@ -248,4 +357,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Next Task
 
-Migrate the Expense Category frontend flow to Axios and connect it to the existing Laravel CRUD endpoints.
+Add the offline lock screen and restrict offline access to the POS.

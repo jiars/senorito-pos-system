@@ -80,10 +80,10 @@ Every multi-table operation must use one Laravel database transaction.
 Migrate in this order:
 
 1. Expenses
-2. POS checkout
-3. Orders
-4. Reports
-5. Profile and activity logs
+2. Order History
+3. Reports
+4. Profile and activity logs
+5. POS checkout
 
 ## Phase 8: Offline Mode
 

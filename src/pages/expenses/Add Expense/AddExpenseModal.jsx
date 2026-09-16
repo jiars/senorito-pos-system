@@ -1,624 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import './addExpenseModal.css';
-import { addExpense } from '../../../services/expenses/expenseService';
-import { fetchInventoryItems } from '../../../services/inventory/inventoryItemsService';
-import { logStockAdjustment, fetchItemBatches } from '../../../services/inventory/inventoryStockService';
-import { useAuth } from '../../../hooks/useAuth';
+import React, { useEffect, useState } from "react";
+import { useInventoryManagement } from "../../../hooks/useInventoryManagement";
+import { useRefreshInventoryAuditLogs } from "../../../hooks/useInventoryAuditLogs";
+import { useRefreshInventoryValuation } from "../../../hooks/useInventoryValuation";
+import { addExpense } from "../../../services/expenses/expenseService";
+import { restockInventoryItem } from "../../../services/inventory/stock/restockService";
+import AddExpenseFields from "./components/AddExpenseFields";
+import AddExpenseFooter from "./components/AddExpenseFooter";
+import AddExpenseHeader from "./components/AddExpenseHeader";
+import ExpensePaymentFields from "./components/ExpensePaymentFields";
+import InventoryExpenseFields from "./components/InventoryExpenseFields";
+import { validateExpenseForm } from "../../../utils/validation/expenses/expenseValidation";
+import "./addExpenseModal.css";
+
+const emptyForm = {
+  category_id: "",
+  expense_date: "",
+  description: "",
+  amount: "",
+  vendor: "",
+  payment_method: "",
+  receipt_reference: "",
+  inventory_item_id: "",
+  quantity_to_add: "",
+  expiration_date: "",
+};
 
 const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
-  const { user } = useAuth();
+  const {
+    inventoryItems,
+    refetchInventoryManagement,
+  } = useInventoryManagement();
+  const refreshAuditLogs = useRefreshInventoryAuditLogs();
+  const refreshValuation = useRefreshInventoryValuation();
 
-  const [formData, setFormData] = useState({
-    category_id: '',
-    expense_date: '',
-    description: '',
-    amount: '',
-    vendor: '',
-    payment_method: '',
-    receipt_reference: '',
-    // New inventory fields
-    inventory_item_id: '',
-    quantity_to_add: '',
-    expiration_date: '',
-    quantity_to_deduct: '',
-    wastage_reason: 'Expired',
-    other_wastage_reason: '',
-    selected_batch_id: ''
-  });
-
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [batches, setBatches] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [errors, setErrors] = useState({});
+  const [formData, setFormData] = useState(emptyForm);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
 
-  // Check if selected category is Inventory Purchase or Wastage
-  const selectedCategoryName = categories.find(c => c.id === formData.category_id)?.category_name;
-  const isInventoryPurchase = selectedCategoryName === 'Inventory Purchase';
-  const isInventoryWastage = selectedCategoryName === 'Inventory Wastage';
+  const visibleCategories = categories.filter(
+    (category) => category.category_name !== "Inventory Wastage",
+  );
+  const selectedCategory = visibleCategories.find(
+    (category) => category.id === formData.category_id,
+  );
+  const isPurchase = selectedCategory?.category_name === "Inventory Purchase";
+  const selectedItem = inventoryItems.find(
+    (item) => item.id === formData.inventory_item_id,
+  );
+  const errors = validateExpenseForm(formData, { isPurchase, selectedItem });
+  const isFormValid = Object.keys(errors).length === 0;
 
-  // Get selected inventory item for preview calculations
-  const selectedInventoryItem = inventoryItems.find(item => item.id === formData.inventory_item_id);
-
-  useEffect(() => {
-    if (isOpen) {
-      const loadInventoryItems = async () => {
-        try {
-          const items = await fetchInventoryItems();
-          setInventoryItems(items);
-        } catch (err) {
-          console.error("Failed to load inventory items", err);
-        }
-      };
-      loadInventoryItems();
-
-      // Clear error when opening
-      setError(null);
-      setErrors({});
-      setHasAttemptedSubmit(false);
-    }
-  }, [isOpen]);
-
-  // Fetch batches when item is selected for wastage
-  useEffect(() => {
-    if (isInventoryWastage && formData.inventory_item_id) {
-      fetchItemBatches(formData.inventory_item_id)
-        .then(data => {
-          const sorted = [...(data || [])].sort((a, b) => {
-            if ((a.quantity > 0 && b.quantity > 0) || (a.quantity <= 0 && b.quantity <= 0)) return 0;
-            return a.quantity > 0 ? -1 : 1;
-          });
-          setBatches(sorted);
-          if (sorted.length > 0 && !formData.selected_batch_id) {
-            setFormData(prev => ({ ...prev, selected_batch_id: sorted[0].id }));
-          }
-        })
-        .catch(err => console.error("Error fetching batches:", err));
-    } else {
-      setBatches([]);
-    }
-  }, [formData.inventory_item_id, isInventoryWastage]);
-
-  // Auto-calculate amount for Wastage
-  useEffect(() => {
-    if (isInventoryWastage && formData.selected_batch_id && formData.quantity_to_deduct) {
-      const batch = batches.find(b => b.id === formData.selected_batch_id);
-      const qty = Number(formData.quantity_to_deduct);
-      if (batch && !isNaN(qty)) {
-        const cost = Number(batch.unit_cost) || Number(selectedInventoryItem?.cost_per_unit) || 0;
-        const loss = (qty * cost).toFixed(2);
-        if (formData.amount !== loss) {
-          setFormData(prev => ({ ...prev, amount: loss }));
-        }
-      }
-    } else if (isInventoryWastage && (!formData.quantity_to_deduct || !formData.selected_batch_id)) {
-      if (formData.amount !== '') {
-        setFormData(prev => ({ ...prev, amount: '' }));
-      }
-    }
-  }, [isInventoryWastage, formData.selected_batch_id, formData.quantity_to_deduct, batches, selectedInventoryItem]);
-
-  // Validation hook
   useEffect(() => {
     if (!isOpen) return;
-    const newErrors = {};
 
-    if (!formData.category_id) newErrors.category_id = 'Category is required.';
-    if (!formData.expense_date) newErrors.expense_date = 'Date is required.';
-    if (!formData.description.trim()) newErrors.description = 'Description is required.';
-    
-    if (!isInventoryWastage) {
-      if (!formData.amount) {
-        newErrors.amount = 'Amount is required.';
-      } else if (Number(formData.amount) <= 0) {
-        newErrors.amount = 'Amount must be > 0.';
-      }
-      if (!formData.payment_method) {
-        newErrors.payment_method = 'Payment method is required.';
-      }
-    }
-
-    if (isInventoryWastage || isInventoryPurchase) {
-      if (!formData.inventory_item_id) newErrors.inventory_item_id = 'Inventory item is required.';
-    }
-
-    if (isInventoryPurchase) {
-      if (!formData.quantity_to_add || Number(formData.quantity_to_add) <= 0) {
-        newErrors.quantity_to_add = 'Quantity must be > 0.';
-      }
-      if (selectedInventoryItem?.track_expiry && !formData.expiration_date) {
-        newErrors.expiration_date = 'Expiration date is required.';
-      }
-    }
-
-    if (isInventoryWastage) {
-      if (!formData.selected_batch_id) newErrors.selected_batch_id = 'Batch is required.';
-      const qtyToDeduct = Number(formData.quantity_to_deduct);
-      if (!formData.quantity_to_deduct || qtyToDeduct <= 0) {
-        newErrors.quantity_to_deduct = 'Quantity must be > 0.';
-      } else {
-        const selectedBatch = batches.find(b => b.id === formData.selected_batch_id);
-        if (selectedBatch && qtyToDeduct > Number(selectedBatch.quantity)) {
-          newErrors.quantity_to_deduct = `Exceeds batch stock (${selectedBatch.quantity}).`;
-        }
-      }
-      if (formData.wastage_reason === 'Other' && !formData.other_wastage_reason.trim()) {
-        newErrors.other_wastage_reason = 'Reason is required.';
-      }
-    }
-
-    setErrors(newErrors);
-  }, [formData, isInventoryWastage, isInventoryPurchase, isOpen, batches, selectedInventoryItem]);
+    setApiError("");
+    setHasAttemptedSubmit(false);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const resetAndClose = () => {
+    setFormData(emptyForm);
+    setHasAttemptedSubmit(false);
+    setApiError("");
+    onClose();
   };
 
-  const isFormValid = Object.keys(errors).length === 0;
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((current) => {
+      if (name === "category_id") {
+        return { ...emptyForm, category_id: value, expense_date: current.expense_date };
+      }
+      return { ...current, [name]: value };
+    });
+  };
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
     if (!isFormValid || isSubmitting) return;
 
     try {
-      setError(null);
       setIsSubmitting(true);
+      setApiError("");
 
-      if (isInventoryPurchase) {
-        const quantityChange = Number(formData.quantity_to_add);
-        const currentStock = Number(selectedInventoryItem.current_stock || 0);
-        const newTotalStock = currentStock + quantityChange;
-
-        await logStockAdjustment({
-          item: selectedInventoryItem,
-          actionType: 'restock',
-          quantityChange: quantityChange,
-          newTotalStock: newTotalStock,
-          userId: user.id,
-          reason: "Purchase via Expense Module",
-          notes: formData.description,
-          totalCost: Number(formData.amount),
-          supplier: formData.vendor || null,
-          expirationDate: formData.expiration_date || null,
-          expenseDate: formData.expense_date,
-          paymentMethod: formData.payment_method,
-          receiptReference: formData.receipt_reference || null,
-          source: 'Expense Page'
+      if (isPurchase) {
+        await restockInventoryItem(selectedItem.id, {
+          stockData: {
+            quantity: Number(formData.quantity_to_add),
+            reason: "Purchase via Expense Module",
+            notes: formData.description.trim(),
+          },
+          purchaseData: {
+            total_cost: Number(formData.amount),
+            supplier: formData.vendor.trim() || null,
+            expiration_date: formData.expiration_date || null,
+            expense_date: formData.expense_date,
+            payment_method: formData.payment_method,
+            receipt_reference: formData.receipt_reference.trim() || null,
+          },
         });
+        // Refresh the current Expense page before closing the modal.
+        await refetch();
+        resetAndClose();
 
-      } else if (isInventoryWastage) {
-        const quantityChange = -Math.abs(Number(formData.quantity_to_deduct));
-        const currentStock = Number(selectedInventoryItem.current_stock || 0);
-        const newTotalStock = Math.max(0, currentStock + quantityChange);
-
-        await logStockAdjustment({
-          item: selectedInventoryItem,
-          actionType: 'wastage',
-          quantityChange: quantityChange,
-          newTotalStock: newTotalStock,
-          userId: user.id,
-          reason: formData.wastage_reason === 'Other' ? formData.other_wastage_reason.trim() : formData.wastage_reason,
-          notes: formData.description,
-          totalCost: Number(formData.amount), // Automatically calculated earlier
-          supplier: formData.vendor || null,
-          expirationDate: null,
-          selectedBatchId: formData.selected_batch_id,
-          expenseDate: formData.expense_date,
-          paymentMethod: 'N/A (Loss)',
-          receiptReference: null,
-          source: 'Expense Page'
-        });
-
+        // Refresh Inventory-related pages in the background.
+        Promise.allSettled([
+          refetchInventoryManagement(),
+          refreshAuditLogs(),
+          refreshValuation(),
+        ]);
       } else {
         await addExpense({
           category_id: formData.category_id,
-          description: formData.description,
-          amount: Number(formData.amount),
-          vendor: formData.vendor || null,
-          payment_method: formData.payment_method,
-          receipt_reference: formData.receipt_reference || null,
           expense_date: formData.expense_date,
-          recorded_by: user.id
+          description: formData.description.trim(),
+          amount: Number(formData.amount),
+          vendor: formData.vendor.trim() || null,
+          payment_method: formData.payment_method,
+          receipt_reference: formData.receipt_reference.trim() || null,
         });
+        await refetch();
+        resetAndClose();
       }
-
-      // Reset form
-      setFormData({
-        category_id: '',
-        expense_date: '',
-        description: '',
-        amount: '',
-        vendor: '',
-        payment_method: '',
-        receipt_reference: '',
-        inventory_item_id: '',
-        quantity_to_add: '',
-        expiration_date: '',
-        quantity_to_deduct: '',
-        wastage_reason: 'Expired',
-        other_wastage_reason: '',
-        selected_batch_id: ''
-      });
-
-      await refetch();
-      onClose();
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      setApiError(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Calculations for previews
-  const quantityAdded = Number(formData.quantity_to_add) || 0;
-  const quantityDeducted = Number(formData.quantity_to_deduct) || 0;
-  const currentStock = selectedInventoryItem ? Number(selectedInventoryItem.current_stock) : 0;
-  const newStockPreview = currentStock + quantityAdded;
-  const newStockPreviewWastage = Math.max(0, currentStock - quantityDeducted);
-  const baseUnit = selectedInventoryItem ? selectedInventoryItem.base_unit : '';
-
-  const amountVal = Number(formData.amount) || 0;
-  const newCostPerUnit = quantityAdded > 0 ? (amountVal / quantityAdded).toFixed(2) : '0.00';
-
   return (
     <div className="expense-modal-overlay">
       <div className="expense-modal-content">
-        <div className="expense-modal-header">
-          <h3>Add Expense</h3>
-          <button className="expense-modal-close" onClick={onClose} title="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+        <AddExpenseHeader
+          onClose={resetAndClose}
+          isSubmitting={isSubmitting}
+        />
 
         <div className="expense-modal-body">
+          <AddExpenseFields
+            formData={formData}
+            errors={errors}
+            showErrors={hasAttemptedSubmit}
+            categories={visibleCategories}
+            isSubmitting={isSubmitting}
+            isPurchase={isPurchase}
+            onChange={handleChange}
+          />
 
-          <div className="expense-form-grid expense-form-grid--2">
-            <div className="expense-form-group">
-              <label className="expense-form-label">Category *</label>
-              <select
-                className={`expense-form-select ${hasAttemptedSubmit && errors.category_id ? 'is-invalid' : ''}`}
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              >
-                <option value="" disabled>Select category...</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                ))}
-              </select>
-              {hasAttemptedSubmit && errors.category_id && <p className="expense-modal-error-msg">{errors.category_id}</p>}
-            </div>
-            <div className="expense-form-group">
-              <label className="expense-form-label">Date *</label>
-              <input
-                type="date"
-                className={`expense-form-input ${hasAttemptedSubmit && errors.expense_date ? 'is-invalid' : ''}`}
-                name="expense_date"
-                value={formData.expense_date}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-              {hasAttemptedSubmit && errors.expense_date && <p className="expense-modal-error-msg">{errors.expense_date}</p>}
-            </div>
-          </div>
+          <InventoryExpenseFields
+            formData={formData}
+            errors={errors}
+            showErrors={hasAttemptedSubmit}
+            inventoryItems={inventoryItems}
+            selectedItem={selectedItem}
+            isPurchase={isPurchase}
+            isSubmitting={isSubmitting}
+            onChange={handleChange}
+          />
 
-          <div className="expense-form-group">
-            <label className="expense-form-label">Description *</label>
-            <input
-              type="text"
-              className={`expense-form-input ${hasAttemptedSubmit && errors.description ? 'is-invalid' : ''}`}
-              placeholder="e.g. Monthly Rent"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            />
-            {hasAttemptedSubmit && errors.description && <p className="expense-modal-error-msg">{errors.description}</p>}
-          </div>
+          <ExpensePaymentFields
+            formData={formData}
+            paymentError={errors.payment_method}
+            showError={hasAttemptedSubmit}
+            isSubmitting={isSubmitting}
+            onChange={handleChange}
+          />
 
-          <div className="expense-form-grid expense-form-grid--2">
-            {!isInventoryPurchase && (
-              <div className="expense-form-group">
-                <label className="expense-form-label">Amount *</label>
-                <div className="expense-amount-wrapper">
-                  <span className="expense-amount-symbol">₱</span>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    step="0.01"
-                    name="amount"
-                    className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
-                    value={formData.amount}
-                    onChange={handleChange}
-                    disabled={isSubmitting || isInventoryWastage}
-                    title={isInventoryWastage ? "Amount is automatically calculated from batch cost" : ""}
-                  />
-                </div>
-                {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
-                {isInventoryWastage && (
-                  <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                    Auto-calculated from batch cost
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="expense-form-group" style={isInventoryPurchase ? { gridColumn: 'span 2' } : {}}>
-              <label className="expense-form-label">Vendor/Supplier</label>
-              <input
-                type="text"
-                className="expense-form-input"
-                placeholder="Optional"
-                name="vendor"
-                value={formData.vendor}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          {/* DYNAMIC INVENTORY FIELDS */}
-          {(isInventoryPurchase || isInventoryWastage) && (
-            <div className="expense-inventory-section" style={{ borderLeft: '4px solid #D9C0AE', paddingLeft: '1.25rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-              <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
-                <label className="expense-form-label">Inventory Item *</label>
-                <select
-                  className={`expense-form-select ${hasAttemptedSubmit && errors.inventory_item_id ? 'is-invalid' : ''}`}
-                  name="inventory_item_id"
-                  value={formData.inventory_item_id}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                >
-                  <option value="" disabled>
-                    {isInventoryWastage ? 'Select item to waste...' : 'Select item to restock...'}
-                  </option>
-                  {inventoryItems.map(item => (
-                    <option key={item.id} value={item.id}>{item.item_name}</option>
-                  ))}
-                </select>
-                {hasAttemptedSubmit && errors.inventory_item_id && <p className="expense-modal-error-msg">{errors.inventory_item_id}</p>}
-                {selectedInventoryItem && (
-                  <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '0.35rem' }}>
-                    Current stock: <strong style={{ color: '#2C1810' }}>{selectedInventoryItem.current_stock} {selectedInventoryItem.base_unit}</strong>
-                  </div>
-                )}
-              </div>
-
-              {/* WASTAGE SPECIFIC FIELDS */}
-              {isInventoryWastage ? (
-                <>
-                  <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
-                    <label className="expense-form-label">Select Batch *</label>
-                    <select
-                      className={`expense-form-select ${hasAttemptedSubmit && errors.selected_batch_id ? 'is-invalid' : ''}`}
-                      name="selected_batch_id"
-                      value={formData.selected_batch_id}
-                      onChange={handleChange}
-                      disabled={isSubmitting || batches.length === 0}
-                    >
-                      {batches.map(b => (
-                        <option key={b.id} value={b.id}>
-                          {b.batch_number} ({b.quantity} left) {b.expiration_date ? `- Exp: ${b.expiration_date}` : ''}
-                        </option>
-                      ))}
-                      {batches.length === 0 && (
-                        <option value="" disabled>No batches available</option>
-                      )}
-                    </select>
-                    {hasAttemptedSubmit && errors.selected_batch_id && <p className="expense-modal-error-msg">{errors.selected_batch_id}</p>}
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Quantity to Remove *</label>
-                      <input
-                        type="number"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_deduct ? 'is-invalid' : ''}`}
-                        name="quantity_to_deduct"
-                        value={formData.quantity_to_deduct}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder="0"
-                        min="0.01"
-                        step="0.01"
-                      />
-                      {hasAttemptedSubmit && errors.quantity_to_deduct && <p className="expense-modal-error-msg">{errors.quantity_to_deduct}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Stock (preview)</label>
-                      <input
-                        type="text"
-                        className="expense-form-input"
-                        value={`${newStockPreviewWastage} ${baseUnit}`}
-                        disabled
-                        style={{ backgroundColor: '#FAFAFA', color: '#6c757d', cursor: 'not-allowed' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Reason *</label>
-                      <select
-                        className="expense-form-select"
-                        name="wastage_reason"
-                        value={formData.wastage_reason}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                      >
-                        <option value="Expired">Expired</option>
-                        <option value="Spilled">Spilled</option>
-                        <option value="Spoiled/Damaged">Spoiled/Damaged</option>
-                        <option value="Quality Issue">Quality Issue</option>
-                        <option value="Theft/Lost">Theft/Lost</option>
-                        <option value="Other">Other (Please specify)</option>
-                      </select>
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">
-                        {formData.wastage_reason === 'Other' ? 'Specify Reason *' : 'Notes (Optional)'}
-                      </label>
-                      <input
-                        type="text"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.other_wastage_reason ? 'is-invalid' : ''}`}
-                        name={formData.wastage_reason === 'Other' ? "other_wastage_reason" : "description"}
-                        value={formData.wastage_reason === 'Other' ? formData.other_wastage_reason : formData.description}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder={formData.wastage_reason === 'Other' ? "Specify reason..." : "Enter details..."}
-                      />
-                      {hasAttemptedSubmit && errors.other_wastage_reason && <p className="expense-modal-error-msg">{errors.other_wastage_reason}</p>}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* RESTOCK SPECIFIC FIELDS */
-                <>
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Quantity to Add *</label>
-                      <input
-                        type="number"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_add ? 'is-invalid' : ''}`}
-                        name="quantity_to_add"
-                        value={formData.quantity_to_add}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder="0"
-                        min="1"
-                        step="0.01"
-                      />
-                      {hasAttemptedSubmit && errors.quantity_to_add && <p className="expense-modal-error-msg">{errors.quantity_to_add}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Stock (preview)</label>
-                      <input
-                        type="text"
-                        className="expense-form-input"
-                        value={`${newStockPreview} ${baseUnit}`}
-                        disabled
-                        style={{ backgroundColor: '#FAFAFA', color: '#6c757d', cursor: 'not-allowed' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Total Purchase Cost *</label>
-                      <div className="expense-amount-wrapper">
-                        <span className="expense-amount-symbol">₱</span>
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          step="0.01"
-                          name="amount"
-                          className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
-                          value={formData.amount}
-                          onChange={handleChange}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Cost per Unit</label>
-                      <div className="expense-amount-wrapper" style={{ backgroundColor: '#FAFAFA', cursor: 'not-allowed' }}>
-                        <span className="expense-amount-symbol" style={{ backgroundColor: '#FAFAFA' }}>₱</span>
-                        <input
-                          type="text"
-                          value={newCostPerUnit}
-                          disabled
-                          style={{ color: '#6c757d', cursor: 'not-allowed' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2">
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">
-                        Expiration Date {selectedInventoryItem?.track_expiry ? '*' : '(Optional)'}
-                      </label>
-                      <input
-                        type="date"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.expiration_date ? 'is-invalid' : ''}`}
-                        name="expiration_date"
-                        value={formData.expiration_date}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                      />
-                      {hasAttemptedSubmit && errors.expiration_date && <p className="expense-modal-error-msg">{errors.expiration_date}</p>}
-                      {!errors.expiration_date && (
-                        <small style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                          {selectedInventoryItem?.track_expiry ? 'Required for expiry-tracked items' : 'Optional'}
-                        </small>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#FAFAFA', border: '1px solid #E9ECEF', borderRadius: '8px', fontSize: '0.8rem', color: '#495057', display: 'flex', gap: '0.5rem', alignItems: 'start' }}>
-                    <i className="bi bi-info-circle-fill" style={{ color: '#7A4B35', marginTop: '0.1rem' }}></i>
-                    <span>Recording an inventory purchase expense will automatically update the inventory with a new restock. The updated cost per unit will take effect once the new batch is utilized.</span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {!isInventoryWastage && (
-            <>
-              <div className="expense-form-group">
-                <label className="expense-form-label">Payment Method *</label>
-                <select
-                  className={`expense-form-select ${hasAttemptedSubmit && errors.payment_method ? 'is-invalid' : ''}`}
-                  name="payment_method"
-                  value={formData.payment_method}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                >
-                  <option value="" disabled>Select payment method...</option>
-                  <option value="Cash">Cash</option>
-                  <option value="GCash">GCash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Credit Card">Credit Card</option>
-                </select>
-                {hasAttemptedSubmit && errors.payment_method && <p className="expense-modal-error-msg">{errors.payment_method}</p>}
-              </div>
-
-              <div className="expense-form-group">
-                <label className="expense-form-label">Receipt Reference</label>
-                <input
-                  type="text"
-                  className="expense-form-input"
-                  placeholder="Receipt # or URL"
-                  name="receipt_reference"
-                  value={formData.receipt_reference}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </>
-          )}
-
-          {error && <div style={{ color: '#dc3545', marginTop: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
+          {apiError && <p className="expense-modal-error-msg">{apiError}</p>}
         </div>
 
         {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
+          <p className="expense-modal-form-error">
+            Please fill in all required fields (*).
+          </p>
         )}
 
-        <div className="expense-modal-footer">
-          <button className="expense-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
-          <button className="expense-modal-btn-save" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Expense'}
-          </button>
-        </div>
+        <AddExpenseFooter
+          onClose={resetAndClose}
+          onSave={handleSubmit}
+          isSubmitting={isSubmitting}
+        />
       </div>
     </div>
   );
