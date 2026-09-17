@@ -1,19 +1,13 @@
-import React, { useState } from 'react';
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
-import './layout.css';
+import { useState } from "react";
+import { Outlet } from "react-router-dom";
 
-/**
- * MainLayout — Reusable layout wrapper for all authenticated pages.
- * 
- * Usage:
- *   <MainLayout>
- *     <DashboardPage />
- *   </MainLayout>
- * 
- * Each page renders its own title using the reusable .layout-page-heading class.
- */
-const MainLayout = ({ children }) => {
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
+import Breadcrumbs from "./Breadcrumbs";
+
+import "./main-layout.css";
+
+const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const toggleSidebar = () => {
@@ -27,8 +21,8 @@ const MainLayout = ({ children }) => {
   return (
     <div className="layout-container">
       {/* Mobile overlay */}
-      <div 
-        className={`layout-overlay ${isSidebarOpen ? 'open' : ''}`} 
+      <div
+        className={`layout-overlay ${isSidebarOpen ? "open" : ""}`}
         onClick={closeSidebar}
         aria-hidden="true"
       ></div>
@@ -36,10 +30,11 @@ const MainLayout = ({ children }) => {
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
 
       <div className="layout-content-wrapper">
-        <Topbar toggleSidebar={toggleSidebar} />
-        
+        <Topbar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+
         <main className="layout-main">
-          {children}
+          <Breadcrumbs />
+          <Outlet />
         </main>
       </div>
     </div>

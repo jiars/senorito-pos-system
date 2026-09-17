@@ -26,13 +26,13 @@
   /* ─── Surfaces & Borders ─────────────────────────────────────── */
   --color-border: #E5E7EB;
   --color-border-dark: #D1D5DB;
-  --color-bg-main: #F5F5F5;
+  --color-bg-main: #F5F5F7;
   --color-bg-card: #ffffff;
   --color-bg-hover: #F3F4F6;
   --color-bg-muted: #F9FAFB;
 
   /* ─── Typography ─────────────────────────────────────────────── */
-  --font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-base: var(--app-font-family);
 
   /* ─── Border Radius ──────────────────────────────────────────── */
   --radius-sm: 4px;

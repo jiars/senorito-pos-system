@@ -1,0 +1,47 @@
+.loading-bean {
+  position: absolute;
+  width: 6rem;
+  height: 6rem;
+  object-fit: contain;
+  opacity: 0.3;
+  animation: loading-bean-opacity-cycle 3s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.loading-bean--left {
+  bottom: 0;
+  left: 0;
+  animation-delay: 0s;
+}
+
+.loading-bean--middle {
+  top: 0;
+  left: 47%;
+  transform: translateX(-50%);
+  animation-delay: -1.2s;
+}
+
+.loading-bean--right {
+  right: 0;
+  bottom: 0;
+  animation-delay: -0.6s;
+}
+
+@keyframes loading-bean-opacity-cycle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  33.333%,
+  66.666% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-bean {
+    animation: none;
+    opacity: 1;
+  }
+}

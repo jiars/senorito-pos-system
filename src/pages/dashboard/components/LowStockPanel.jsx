@@ -1,4 +1,10 @@
-import React from 'react';
+const getStockBarColorClass = (level) => {
+  if (level === "critical") {
+    return "bg-[var(--app-color-danger)]";
+  }
+
+  return "bg-[var(--app-color-highlight-muted)]";
+};
 
 const LowStockPanel = ({ alerts, isLoadingTop }) => {
   const stockPercent = (qty, min) => {
@@ -7,44 +13,60 @@ const LowStockPanel = ({ alerts, isLoadingTop }) => {
   };
 
   return (
-    <div className="dashboard-panel dashboard-lowstock-panel">
-      <div className="dashboard-panel-header dashboard-panel-header--danger">
-        <h3 className="dashboard-panel-title">
-          <i className="bi bi-exclamation-triangle-fill"></i>
-          Low Stock Alert
+    <section className="flex h-full min-h-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+      <header className="flex items-center border-b-2 border-[var(--app-color-border-subtle)] pb-[var(--app-space-4)]">
+        <h3 className="text-[length:var(--app-font-size-h3)] leading-[var(--app-line-height-h3)] font-bold text-[var(--app-color-text)]">
+          Low Stock Items
         </h3>
-      </div>
+      </header>
 
-      <div className="dashboard-lowstock-list">
+      <div className="mt-[var(--app-space-4)] flex min-h-0 flex-1 flex-col gap-[var(--app-gap-related)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {isLoadingTop ? (
-          <p style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>Loading...</p>
+          <p className="grid flex-1 place-items-center text-sm text-[var(--app-color-text-subtle)]">
+            Loading low stock items...
+          </p>
         ) : alerts.lowStockItems.length === 0 ? (
-          <p style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>Stock levels are good.</p>
+          <p className="grid flex-1 place-items-center text-sm text-[var(--app-color-text-subtle)]">
+            Stock levels are good.
+          </p>
         ) : (
-          alerts.lowStockItems.map((item, idx) => (
-            <div key={idx} className="dashboard-lowstock-item">
-              <div className="dashboard-lowstock-item-info">
-                <p className="dashboard-lowstock-item-name">{item.name}</p>
-                <p className="dashboard-lowstock-item-min">Min. {item.min}</p>
+          alerts.lowStockItems.map((item) => (
+            <article
+              key={`${item.name}-${item.unit}`}
+              className="mx-1 grid min-h-[58px] grid-cols-[64px_minmax(0,1fr)_minmax(140px,1.4fr)] items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-brand-border)] px-[var(--app-space-4)] py-[var(--app-space-2)]"
+            >
+              <p className="text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] font-bold text-[var(--app-color-text-subtle)]">
+                {item.qty} {item.unit}
+              </p>
+
+              <div className="min-w-0">
+                <p className="truncate text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-bold text-[var(--app-color-text)]">
+                  {item.name}
+                </p>
+
+                <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                  Min. {item.min} {item.unit}
+                </p>
               </div>
-              <div className="dashboard-lowstock-item-right">
-                <span
-                  className={`dashboard-lowstock-badge dashboard-lowstock-badge--${item.level}`}
-                >
-                  {item.qty} {item.unit}
-                </span>
-              </div>
-              <div className="dashboard-lowstock-bar-track">
+
+              <div
+                aria-label={`${item.name} stock level`}
+                aria-valuemax={item.min}
+                aria-valuemin={0}
+                aria-valuenow={Math.min(item.qty, item.min)}
+                className="h-2 overflow-hidden rounded-full bg-[var(--app-color-border-subtle)]"
+                role="progressbar"
+              >
                 <div
-                  className={`dashboard-lowstock-bar-fill dashboard-lowstock-bar-fill--${item.level}`}
+                  className={`h-full rounded-full ${getStockBarColorClass(item.level)}`}
                   style={{ width: `${stockPercent(item.qty, item.min)}%` }}
                 ></div>
               </div>
-            </div>
+            </article>
           ))
         )}
       </div>
-    </div>
+    </section>
   );
 };
 

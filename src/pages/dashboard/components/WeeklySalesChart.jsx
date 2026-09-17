@@ -1,68 +1,125 @@
-import React from 'react';
-import { formatCurrency } from '../../../utils/currencyFormatters';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+
+import { formatCurrency } from "../../../utils/currencyFormatters";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "../../../components/ui/chart";
 
 const WeeklySalesChart = ({ weeklySalesData, isLoadingBottom }) => {
-  const getWeekRangeString = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - dayOfWeek);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    const options = { month: 'short', day: 'numeric', year: 'numeric' };
-    return `${startOfWeek.toLocaleDateString('en-US', options)} - ${endOfWeek.toLocaleDateString('en-US', options)}`;
+  const chartConfig = {
+    sales: {
+      label: "Sales",
+      color: "var(--app-color-chart-weekly-sales)",
+    },
   };
 
-  const rawMaxSales = weeklySalesData.length > 0 ? Math.max(...weeklySalesData.map((d) => d.value)) : 0;
-  const step = Math.ceil(rawMaxSales / 4 / 100) * 100 || 100;
-  const adjustedMax = step * 4;
-  const yAxisLabels = [adjustedMax, step * 3, step * 2, step, 0];
+  const chartData = weeklySalesData.map((item) => {
+    return {
+      day: item.day,
+      sales: item.value,
+    };
+  });
+
+  const axisTick = {
+    fill: "var(--app-color-text-muted)",
+    fontFamily: "var(--app-font-family)",
+    fontSize: 12,
+  };
+
+  const getWeekRangeString = () => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    const endOfWeek = new Date(today);
+
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+    const dateOptions = {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    };
+
+    const startDate = startOfWeek.toLocaleDateString("en-US", dateOptions);
+    const endDate = endOfWeek.toLocaleDateString("en-US", dateOptions);
+
+    return `${startDate} - ${endDate}`;
+  };
 
   return (
-    <div className="dashboard-panel dashboard-chart-panel">
-      <div className="dashboard-panel-header">
-        <h3 className="dashboard-panel-title">
-          <i className="bi bi-bar-chart-line-fill"></i>
-          Weekly Sales ({getWeekRangeString()})
-        </h3>
-      </div>
+    <section className="flex min-h-0 flex-1 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+      <header className="mb-[var(--app-gap-section)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
+        <div>
+          <h3 className="m-0 text-[length:var(--app-font-size-h3)] leading-[var(--app-line-height-h3)] font-bold text-[var(--app-color-text)]">
+            Weekly Sales Performance
+          </h3>
 
-      <div className="dashboard-chart-area">
-        {/* Y-axis labels */}
-        <div className="dashboard-chart-yaxis">
-          {yAxisLabels.map((val) => (
-            <span key={val} className="dashboard-chart-ylabel">{formatCurrency(val)}</span>
-          ))}
+          <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+            Monitor sales trends and performance over the past 7 days.
+          </p>
         </div>
 
-        {/* Bars */}
-        <div className="dashboard-chart-bars">
-          {isLoadingBottom ? (
-            <p style={{ textAlign: 'center', width: '100%', color: '#666' }}>Loading chart...</p>
-          ) : weeklySalesData.length === 0 ? (
-            <p style={{ textAlign: 'center', width: '100%', color: '#666' }}>No sales data for the past week.</p>
-          ) : (
-            weeklySalesData.map((d) => (
-              <div key={d.day} className="dashboard-chart-bar-group">
-                <div className="dashboard-chart-bar-wrapper">
-                  <div
-                    className="dashboard-chart-bar"
-                    style={{ height: `${adjustedMax > 0 ? (d.value / adjustedMax) * 100 : 0}%` }}
-                  >
-                    <span className="dashboard-chart-bar-tooltip">
-                      {formatCurrency(d.value)}
-                    </span>
-                  </div>
-                </div>
-                <span className="dashboard-chart-xlabel">{d.day}</span>
-              </div>
-            ))
-          )}
+        <time className="self-center text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] font-normal text-[var(--app-color-text-subtle)]">
+          {getWeekRangeString()}
+        </time>
+      </header>
+
+      {isLoadingBottom ? (
+        <div className="grid min-h-[300px] flex-1 place-items-center text-[length:var(--app-font-size-body)] text-[var(--app-color-text-subtle)]">
+          Loading weekly performance...
         </div>
-      </div>
-    </div>
+      ) : chartData.length === 0 ? (
+        <div className="grid min-h-[300px] flex-1 place-items-center text-[length:var(--app-font-size-body)] text-[var(--app-color-text-subtle)]">
+          No sales data for the past week.
+        </div>
+      ) : (
+        <ChartContainer
+          config={chartConfig}
+          className="min-h-[300px] flex-1 w-full !aspect-auto"
+        >
+          <BarChart accessibilityLayer data={chartData}>
+            <CartesianGrid
+              stroke="var(--app-color-chart-grid)"
+              strokeDasharray="3 3"
+            />
+
+            <XAxis
+              dataKey="day"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              tick={axisTick}
+            />
+
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={82}
+              tickFormatter={(value) => formatCurrency(value)}
+              tick={axisTick}
+            />
+
+            <ChartTooltip
+              cursor={{ fill: "rgb(123 64 48 / 8%)" }}
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => formatCurrency(value)}
+                />
+              }
+            />
+
+            <Bar
+              dataKey="sales"
+              fill="var(--color-sales)"
+              radius={[3, 3, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
+      )}
+    </section>
   );
 };
 

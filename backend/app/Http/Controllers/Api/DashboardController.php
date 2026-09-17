@@ -161,14 +161,20 @@ class DashboardController extends Controller
             ->where('orders.status', '!=', 'Cancelled')
             // 2. Select the names and tell Postgres to SUM the quantity and subtotal
             ->select(
+                'menu_items.id as id',
                 'menu_items.item_name as name',
+                'menu_items.image_url as image_url',
                 'menu_categories.category_name as category',
                 DB::raw('SUM(order_items.quantity) as sold'),
                 DB::raw('SUM(order_items.subtotal) as price')
             )
             // Group them by item name
-            ->groupBy('menu_items.item_name', 'menu_categories.category_name')
-            // Sort by most sold
+            ->groupBy(
+                'menu_items.id',
+                'menu_items.item_name',
+                'menu_items.image_url',
+                'menu_categories.category_name'
+            )
             ->orderBy('sold', 'desc')
             // Only grab the top 5
             ->limit(5)
@@ -177,9 +183,11 @@ class DashboardController extends Controller
         // 3. Add the Rank number (1, 2, 3...)
         $rankedItems = $topItems->map(function ($item, $index) {
             return [
+                'id' => $item->id,
                 'rank' => $index + 1,
                 'category' => $item->category ?? 'Uncategorized',
                 'name' => $item->name,
+                'imageUrl' => $item->image_url,
                 'price' => (float) $item->price,
                 'sold' => (int) $item->sold
             ];

@@ -1,29 +1,69 @@
 :root {
+  /* Typography */
+  --app-font-family:
+    "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+
   /* Brand */
   --app-color-brand: #7b4030;
   --app-color-brand-hover: #683528;
+  --app-color-brand-border: rgb(123 64 48 / 25%);
+  --app-color-brand-number: #9d6638;
+  --app-color-brand-deep: #3a1a0a;
+  --app-color-brand-header: #4b251b;
   --app-color-brand-soft: #dbc5bd;
+
+  --app-gradient-metric-orders: linear-gradient(
+    135deg,
+    rgb(123 64 48 / 50%),
+    rgb(225 117 88 / 50%)
+  );
+  --app-gradient-metric-revenue: linear-gradient(
+    135deg,
+    rgb(83 143 85 / 50%),
+    rgb(204 214 127 / 50%)
+  );
+  --app-gradient-metric-expense: linear-gradient(
+    135deg,
+    rgb(230 57 70 / 50%),
+    rgb(118 65 80 / 50%)
+  );
+
   --app-color-danger: #9a3f3f;
+  --app-color-danger-foreground: #8b3030;
+  --app-color-danger-surface: rgb(154 63 63 / 10%);
+  --app-color-danger-border: rgb(154 63 63 / 30%);
   --app-color-accent: #d37a63;
   --app-color-accent-muted: #c4a799;
   --app-color-success: #46b549;
+  --app-color-synced: #173d19;
   --app-color-info: #0d6efd;
   --app-color-highlight: #ccd67f;
   --app-color-highlight-muted: #e4d6a9;
 
+  --app-color-chart-weekly-sales: #b69a92;
+  --app-color-chart-grid: #e5dfdc;
+
   /* Surfaces and text */
-  --app-color-canvas: #f4f4f4;
+  --app-color-canvas: #f5f5f7;
+  --app-color-backdrop: #202020;
   --app-color-surface: #ffffff;
   --app-color-text: #3f3936;
   --app-color-text-muted: #68625f;
+  --app-color-text-soft: #514d4b;
+  --app-color-text-subtle: #8f8989;
   --app-color-border: #aaa5a2;
+  --app-color-border-strong: #7b736f;
+  --app-color-border-subtle: #e4dedb;
+  --app-color-surface-soft: #fff9f6;
+  --app-color-control-hover: #f6eeeb;
 
   /* Shared sizing */
   --app-control-height: 52px;
   --app-radius-control: 8px;
-  --app-radius-panel: 28px;
+  --app-radius-panel: 1.25rem;
 
   /* Shared effects */
   --app-focus-ring: 0 0 0 1px var(--app-color-brand);
   --app-shadow-panel: 12px 0 32px rgba(36, 18, 10, 0.14);
+  --app-shadow-card: 0 3px 10px rgb(0 0 0 / 10%);
 }

@@ -19,7 +19,7 @@
 }
 
 .login-floating-field input:hover {
-  border-color: #7b736f;
+  border-color: var(--app-color-border-strong);
 }
 
 .login-floating-field input:focus {
@@ -69,13 +69,13 @@
 .login-password-toggle {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: 4px;
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  color: #716966;
+  color: var(--app-color-text-muted);
   background: transparent;
   border: 0;
   border-radius: 50%;
@@ -85,7 +85,7 @@
 
 .login-password-toggle:hover {
   color: var(--app-color-brand);
-  background-color: #f6eeeb;
+  background-color: var(--app-color-control-hover);
 }
 
 .login-password-toggle:focus-visible {
@@ -98,7 +98,7 @@
   height: 18px;
   margin-right: 10px;
   border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #ffffff;
+  border-top-color: var(--primary-foreground);
   border-radius: 50%;
   animation: login-spin 700ms linear infinite;
 }

@@ -30,5 +30,7 @@ dist-ssr
 *.sql
 
 .cursor/
+.agents/
 supabase/
+temporary/
 docs/

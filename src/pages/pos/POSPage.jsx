@@ -20,7 +20,7 @@ import { useRefreshInventoryAuditLogs } from "../../hooks/useInventoryAuditLogs"
 import { useRefreshInventoryValuation } from "../../hooks/useInventoryValuation";
 import { useRefreshOrderManagement } from "../../hooks/useOrderManagement";
 import { useRefreshSalesReport } from "../../hooks/useSalesReport";
-import { AuthContext } from "../../context/AuthContext";
+import { AuthContext } from "../../context/authContext";
 import { db } from "../../utils/offlineDB";
 import {
   generateClientTransactionId,
@@ -109,180 +109,184 @@ const POSPage = () => {
   const totalQty = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
   // Format Laravel data online or use the saved Dexie data offline.
-  const loadMenu = React.useCallback(async (freshPosData = null) => {
-    try {
-      setIsLoading(true);
-      let data, addonsData, categoriesData, inventoryStockData;
-      const hasFreshPosData = freshPosData !== null;
-      const shouldLoadOnlineData = isOnline || hasFreshPosData;
+  const loadMenu = React.useCallback(
+    async (freshPosData = null) => {
+      try {
+        setIsLoading(true);
+        let data, addonsData, categoriesData, inventoryStockData;
+        const hasFreshPosData = freshPosData !== null;
+        const shouldLoadOnlineData = isOnline || hasFreshPosData;
 
-      if (shouldLoadOnlineData) {
-        if (!hasFreshPosData && posDataError) {
-          throw new Error(posDataError);
-        }
+        if (shouldLoadOnlineData) {
+          if (!hasFreshPosData && posDataError) {
+            throw new Error(posDataError);
+          }
 
-        if (hasFreshPosData) {
-          data = freshPosData.items || [];
-          addonsData = freshPosData.addons || [];
-          categoriesData = freshPosData.categories || [];
-          inventoryStockData = freshPosData.inventory_stock || [];
-        } else {
-          data = menuItems;
-          addonsData = addons;
-          categoriesData = posCategories;
-          inventoryStockData = posInventoryStock;
-        }
+          if (hasFreshPosData) {
+            data = freshPosData.items || [];
+            addonsData = freshPosData.addons || [];
+            categoriesData = freshPosData.categories || [];
+            inventoryStockData = freshPosData.inventory_stock || [];
+          } else {
+            data = menuItems;
+            addonsData = addons;
+            categoriesData = posCategories;
+            inventoryStockData = posInventoryStock;
+          }
 
-        inventoryStockData = inventoryStockData.map((item) => ({
-          id: item.id,
-          item_name: item.item_name,
-          base_unit: item.base_unit,
-          current_stock: Number(item.usable_stock) || 0,
-          archived: Boolean(item.archived),
-        }));
+          inventoryStockData = inventoryStockData.map((item) => ({
+            id: item.id,
+            item_name: item.item_name,
+            base_unit: item.base_unit,
+            current_stock: Number(item.usable_stock) || 0,
+            archived: Boolean(item.archived),
+          }));
 
-        // Replace the complete refreshable cache together.
-        await db.transaction(
-          "rw",
-          [db.menuItems, db.addons, db.categories, db.inventoryStock],
-          async () => {
-            await Promise.all([
-              db.menuItems.clear(),
-              db.addons.clear(),
-              db.categories.clear(),
-              db.inventoryStock.clear(),
-            ]);
+          // Replace the complete refreshable cache together.
+          await db.transaction(
+            "rw",
+            [db.menuItems, db.addons, db.categories, db.inventoryStock],
+            async () => {
+              await Promise.all([
+                db.menuItems.clear(),
+                db.addons.clear(),
+                db.categories.clear(),
+                db.inventoryStock.clear(),
+              ]);
 
-            if (data.length > 0) await db.menuItems.bulkPut(data);
-            if (addonsData.length > 0) await db.addons.bulkPut(addonsData);
-            if (categoriesData.length > 0) {
-              await db.categories.bulkPut(categoriesData);
-            }
-            if (inventoryStockData.length > 0) {
-              await db.inventoryStock.bulkPut(inventoryStockData);
-            }
-          },
-        );
-
-        console.log("Online: Laravel POS data cached to Dexie.");
-      } else {
-        // Fetch Data from Dexie (Offline DB)
-        console.log("Offline Mode: Loading menu from Dexie...");
-        data = await db.menuItems.toArray();
-        addonsData = await db.addons.toArray();
-        categoriesData = await db.categories.toArray();
-        inventoryStockData = await db.inventoryStock.toArray();
-
-        if (data.length === 0) {
-          console.warn(
-            "No offline data found. Please connect to the internet first.",
+              if (data.length > 0) await db.menuItems.bulkPut(data);
+              if (addonsData.length > 0) await db.addons.bulkPut(addonsData);
+              if (categoriesData.length > 0) {
+                await db.categories.bulkPut(categoriesData);
+              }
+              if (inventoryStockData.length > 0) {
+                await db.inventoryStock.bulkPut(inventoryStockData);
+              }
+            },
           );
-        }
-      }
 
-      const stockById = new Map();
-      inventoryStockData.forEach((item) => {
-        stockById.set(item.id, item);
-      });
-
-      const menuItemsWithStock = applyInventoryStock(
-        data,
-        "menu_recipes",
-        stockById,
-      );
-      const addonsWithStock = applyInventoryStock(
-        addonsData,
-        "addon_recipes",
-        stockById,
-      );
-
-      const categoryNames = [
-        "All",
-        ...categoriesData.map((c) => c.category_name),
-      ];
-      setCategories(categoryNames);
-
-      setGlobalAddons(addonsWithStock);
-      // Transform Laravel or cached data into the shape POSPage expects.
-      const formattedProducts = menuItemsWithStock.map((item) => {
-        let basePrice = 0;
-        let displayPrice = formatCurrency(0);
-        let variants = [];
-        let defaultPriceId = null;
-        const itemPrices = item.menu_prices || [];
-        const itemRecipes = item.menu_recipes || [];
-
-        if (item.pricing_type === "Fixed") {
-          const regularPriceObj =
-            itemPrices.find((p) => p.variant_name === "Regular") ||
-            itemPrices[0];
-          basePrice = Number(regularPriceObj?.selling_price) || 0;
-          displayPrice = formatCurrency(basePrice);
-          defaultPriceId = regularPriceObj?.id || null;
+          console.log("Online: Laravel POS data cached to Dexie.");
         } else {
-          // Sort variants by price (lowest to highest) for display
-          const sortedPrices = [...itemPrices].sort(
-            (a, b) => a.selling_price - b.selling_price,
-          );
-          if (sortedPrices.length > 0) {
-            basePrice = sortedPrices[0].selling_price;
-            const minPrice = Number(sortedPrices[0].selling_price) || 0;
-            const maxPrice =
-              Number(sortedPrices[sortedPrices.length - 1].selling_price) || 0;
+          // Fetch Data from Dexie (Offline DB)
+          console.log("Offline Mode: Loading menu from Dexie...");
+          data = await db.menuItems.toArray();
+          addonsData = await db.addons.toArray();
+          categoriesData = await db.categories.toArray();
+          inventoryStockData = await db.inventoryStock.toArray();
 
-            if (minPrice === maxPrice) {
-              displayPrice = formatCurrency(minPrice);
-            } else {
-              displayPrice = `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`;
-            }
-
-            variants = sortedPrices.map((p) => ({
-              id: p.id,
-              name: p.variant_name,
-              price: Number(p.selling_price) || 0,
-              isAvailable: p.pos_status !== "Unavailable",
-            }));
+          if (data.length === 0) {
+            console.warn(
+              "No offline data found. Please connect to the internet first.",
+            );
           }
         }
 
-        return {
-          id: `p-${item.id}`,
-          name: item.item_name,
-          category: item.menu_categories?.category_name || "Uncategorized",
-          categoryId: item.category_id,
-          price: displayPrice,
-          basePrice,
-          defaultPriceId,
-          imageURL: item.image_url || imgDefault,
-          variants,
-          rawRecipes: itemRecipes,
-          isAvailable: item.pos_status === "Available" && !item.archived,
-        };
-      });
+        const stockById = new Map();
+        inventoryStockData.forEach((item) => {
+          stockById.set(item.id, item);
+        });
 
-      // Sort: Alphabetical, but Unavailable items always at the very end
-      formattedProducts.sort((a, b) => {
-        if (a.isAvailable && !b.isAvailable) return -1;
-        if (!a.isAvailable && b.isAvailable) return 1;
-        return a.name.localeCompare(b.name);
-      });
+        const menuItemsWithStock = applyInventoryStock(
+          data,
+          "menu_recipes",
+          stockById,
+        );
+        const addonsWithStock = applyInventoryStock(
+          addonsData,
+          "addon_recipes",
+          stockById,
+        );
 
-      setPosProducts(formattedProducts);
-    } catch (error) {
-      console.error("Failed to load menu for POS:", error);
-      alert("Error loading menu: " + error.message);
-    } finally {
-      setIsLoading(false);
-      setHasLoadedMenu(true);
-    }
-  }, [
-    addons,
-    isOnline,
-    menuItems,
-    posCategories,
-    posDataError,
-    posInventoryStock,
-  ]);
+        const categoryNames = [
+          "All",
+          ...categoriesData.map((c) => c.category_name),
+        ];
+        setCategories(categoryNames);
+
+        setGlobalAddons(addonsWithStock);
+        // Transform Laravel or cached data into the shape POSPage expects.
+        const formattedProducts = menuItemsWithStock.map((item) => {
+          let basePrice = 0;
+          let displayPrice = formatCurrency(0);
+          let variants = [];
+          let defaultPriceId = null;
+          const itemPrices = item.menu_prices || [];
+          const itemRecipes = item.menu_recipes || [];
+
+          if (item.pricing_type === "Fixed") {
+            const regularPriceObj =
+              itemPrices.find((p) => p.variant_name === "Regular") ||
+              itemPrices[0];
+            basePrice = Number(regularPriceObj?.selling_price) || 0;
+            displayPrice = formatCurrency(basePrice);
+            defaultPriceId = regularPriceObj?.id || null;
+          } else {
+            // Sort variants by price (lowest to highest) for display
+            const sortedPrices = [...itemPrices].sort(
+              (a, b) => a.selling_price - b.selling_price,
+            );
+            if (sortedPrices.length > 0) {
+              basePrice = sortedPrices[0].selling_price;
+              const minPrice = Number(sortedPrices[0].selling_price) || 0;
+              const maxPrice =
+                Number(sortedPrices[sortedPrices.length - 1].selling_price) ||
+                0;
+
+              if (minPrice === maxPrice) {
+                displayPrice = formatCurrency(minPrice);
+              } else {
+                displayPrice = `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`;
+              }
+
+              variants = sortedPrices.map((p) => ({
+                id: p.id,
+                name: p.variant_name,
+                price: Number(p.selling_price) || 0,
+                isAvailable: p.pos_status !== "Unavailable",
+              }));
+            }
+          }
+
+          return {
+            id: `p-${item.id}`,
+            name: item.item_name,
+            category: item.menu_categories?.category_name || "Uncategorized",
+            categoryId: item.category_id,
+            price: displayPrice,
+            basePrice,
+            defaultPriceId,
+            imageURL: item.image_url || imgDefault,
+            variants,
+            rawRecipes: itemRecipes,
+            isAvailable: item.pos_status === "Available" && !item.archived,
+          };
+        });
+
+        // Sort: Alphabetical, but Unavailable items always at the very end
+        formattedProducts.sort((a, b) => {
+          if (a.isAvailable && !b.isAvailable) return -1;
+          if (!a.isAvailable && b.isAvailable) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        setPosProducts(formattedProducts);
+      } catch (error) {
+        console.error("Failed to load menu for POS:", error);
+        alert("Error loading menu: " + error.message);
+      } finally {
+        setIsLoading(false);
+        setHasLoadedMenu(true);
+      }
+    },
+    [
+      addons,
+      isOnline,
+      menuItems,
+      posCategories,
+      posDataError,
+      posInventoryStock,
+    ],
+  );
 
   React.useEffect(() => {
     if (isOnline && isPosDataLoading) {

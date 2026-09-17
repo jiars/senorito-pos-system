@@ -1,0 +1,109 @@
+.layout-topbar {
+  position: sticky;
+  top: 0;
+  height: var(--layout-topbar-height);
+  background-color: var(--layout-topbar-bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  border-bottom: 0;
+  box-shadow: var(--shadow-card);
+  z-index: 90;
+  flex-shrink: 0;
+}
+
+.layout-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.layout-hamburger-btn {
+  display: none;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--layout-text-dark);
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.layout-hamburger-btn:hover {
+  background-color: var(--app-color-canvas);
+}
+
+.layout-hamburger-btn.is-active {
+  background-color: var(--app-color-brand-soft);
+}
+
+.layout-hamburger-btn:active {
+  transform: scale(0.94);
+}
+
+.layout-hamburger-btn i {
+  font-size: 1.5rem;
+}
+
+.layout-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.layout-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--layout-text-dark);
+  cursor: pointer;
+}
+
+.layout-user-profile:hover,
+.layout-user-profile:focus-visible {
+  background-color: var(--app-color-canvas);
+}
+
+.layout-user-avatar {
+  background-color: var(--app-color-brand-soft);
+  color: var(--app-color-brand);
+  font-weight: 700;
+}
+
+.layout-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--layout-text-dark);
+}
+
+.layout-user-role {
+  font-size: 0.7rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+@media (max-width: 1200px) {
+  .layout-hamburger-btn {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .layout-topbar {
+    padding: 0 1rem;
+  }
+}
