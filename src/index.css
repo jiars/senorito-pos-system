@@ -6,6 +6,7 @@
 @import "@fontsource-variable/inter";
 @import "./styles/theme.css";
 @import "./styles/typography.css";
+@import "./styles/responsive.css";
 
 @custom-variant dark (&:is(.dark *));
 

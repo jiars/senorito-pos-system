@@ -1,83 +1,67 @@
-/**
- * Filters the visible expense records by search term and date range.
- * @param {Array} visibleExpenses The base list of visible expenses.
- * @param {string} searchTerm The current search term.
- * @param {string} fromDate The start date filter.
- * @param {string} toDate The end date filter.
- * @returns {Array} The filtered list of expense records.
- */
-export const filterExpenseRecords = (visibleExpenses, searchTerm, fromDate, toDate) => {
-  return visibleExpenses.filter((record) => {
-    // Search
-    const searchLower = searchTerm.toLowerCase();
-    const categoryName = record.expense_categories?.category_name || "Uncategorized";
+const toInputDateValue = (date) => {
+  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
 
-    // Clean description to make startsWith more useful (e.g., removing 'Wastage: ' or 'Restock: ' prefix)
-    let searchDesc = record.description.toLowerCase();
-    if (searchDesc.startsWith("wastage: ")) searchDesc = searchDesc.replace("wastage: ", "");
-    if (searchDesc.startsWith("restock: ")) searchDesc = searchDesc.replace("restock: ", "");
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+};
+
+export const filterExpenseRecords = (
+  visibleExpenses,
+  searchTerm,
+  fromDate,
+  toDate,
+  selectedCategories = [],
+) => {
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  return visibleExpenses.filter((record) => {
+    const categoryName =
+      record.expense_categories?.category_name || "Uncategorized";
+    const description = String(record.description ?? "").toLowerCase();
+    const vendor = String(record.vendor ?? "").toLowerCase();
 
     const matchesSearch =
-      categoryName.toLowerCase().startsWith(searchLower) ||
-      searchDesc.startsWith(searchLower) ||
-      (record.vendor && record.vendor.toLowerCase().startsWith(searchLower));
+      normalizedSearch.length === 0 ||
+      categoryName.toLowerCase().includes(normalizedSearch) ||
+      description.includes(normalizedSearch) ||
+      vendor.includes(normalizedSearch);
 
-    // Date
-    let matchesDate = true;
-    if (fromDate || toDate) {
-      const recordDate = new Date(record.expense_date);
-      if (fromDate) {
-        const start = new Date(fromDate);
-        start.setHours(0, 0, 0, 0);
-        if (recordDate < start) matchesDate = false;
-      }
-      if (toDate) {
-        const end = new Date(toDate);
-        end.setHours(23, 59, 59, 999);
-        if (recordDate > end) matchesDate = false;
-      }
-    }
+    const matchesCategory =
+      selectedCategories.length === 0 ||
+      selectedCategories.includes(categoryName);
 
-    return matchesSearch && matchesDate;
+    const recordDate = String(record.expense_date ?? "").slice(0, 10);
+    const matchesFromDate = !fromDate || recordDate >= fromDate;
+    const matchesToDate = !toDate || recordDate <= toDate;
+
+    return matchesSearch && matchesCategory && matchesFromDate && matchesToDate;
   });
 };
 
-/**
- * Returns the date range based on a selected preset.
- * @param {string} preset The selected preset (e.g. 'Today', 'This Month').
- * @returns {Object} An object containing { start, end } formatted date strings.
- */
 export const getDateRangeFromPreset = (preset) => {
-  const now = new Date();
-  
-  if (preset === "All Time" || preset === "Custom") {
+  const today = new Date();
+  const toDate = toInputDateValue(today);
+
+  if (preset === "All Time" || preset === "Custom")
     return { start: "", end: "" };
-  } 
+
+  if (preset === "This Day") return { start: toDate, end: toDate };
+
+  if (preset === "This Week") {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+
+    return {
+      start: toInputDateValue(startOfWeek),
+      end: toDate,
+    };
+  }
 
   if (preset === "This Month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { 
-      start: start.toISOString().split("T")[0], 
-      end: end.toISOString().split("T")[0] 
-    };
-  } 
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  if (preset === "Last Month") {
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { 
-      start: start.toISOString().split("T")[0], 
-      end: end.toISOString().split("T")[0] 
-    };
-  } 
-
-  if (preset === "This Year") {
-    const start = new Date(now.getFullYear(), 0, 1);
-    const end = new Date(now.getFullYear(), 11, 31);
-    return { 
-      start: start.toISOString().split("T")[0], 
-      end: end.toISOString().split("T")[0] 
+    return {
+      start: toInputDateValue(startOfMonth),
+      end: toDate,
     };
   }
 

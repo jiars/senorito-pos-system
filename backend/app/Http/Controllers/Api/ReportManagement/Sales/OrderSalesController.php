@@ -22,7 +22,7 @@ class OrderSalesController extends Controller
         ])
             ->with([
                 'order_items:id,order_id,menu_item_id,price_id,quantity,unit_price,subtotal',
-                'order_items.menu_item:id,item_name,category_id,pricing_type',
+                'order_items.menu_item:id,item_name,category_id,pricing_type,image_url',
                 'order_items.menu_item.menu_categories:id,category_name',
                 'order_items.variant:id,variant_name,selling_price,estimated_cost',
             ])

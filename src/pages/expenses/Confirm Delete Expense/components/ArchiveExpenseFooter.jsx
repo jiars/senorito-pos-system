@@ -1,5 +1,3 @@
-import React from "react";
-
 const ArchiveExpenseFooter = ({ onClose, onArchive, isSubmitting }) => (
   <div className="cde-modal-footer">
     <button className="cde-btn-cancel" onClick={onClose} disabled={isSubmitting}>

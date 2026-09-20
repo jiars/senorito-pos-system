@@ -1,39 +1,44 @@
-import { useMemo, useState } from 'react';
-import { useInventoryAuditLogs } from '../../../hooks/useInventoryAuditLogs';
+import { useMemo, useState } from "react";
+import PageLayout from "@/components/layout/PageLayout";
+import { Button } from "@/components/ui/button";
+import { useInventoryAuditLogs } from "../../../hooks/useInventoryAuditLogs";
+
 import {
   exportInventoryAuditLogs,
   filterInventoryAuditLogs,
-} from '../../../utils/inventory/inventoryAuditLogUtils';
-import InventoryAuditFilters from './components/InventoryAuditFilters';
-import InventoryAuditHeader from './components/InventoryAuditHeader';
-import InventoryAuditPagination from './components/InventoryAuditPagination';
-import InventoryAuditTable from './components/InventoryAuditTable';
-import './inventoryAuditLog.css';
+} from "../../../utils/inventory/inventoryAuditLogUtils";
+
+import InventoryAuditTable from "./components/InventoryAuditTable";
+import InventoryAuditPagination from "./components/InventoryAuditPagination";
+import InventoryAuditToolbar from "./components/InventoryAuditToolbar";
+import "./inventoryAuditLog.css";
 
 const ITEMS_PER_PAGE = 12;
 
 const EMPTY_FILTERS = {
-  searchTerm: '',
-  fromDate: '',
-  toDate: '',
-  action: 'All actions',
-  source: 'All sources',
+  searchTerm: "",
+  fromDate: "",
+  toDate: "",
+  reportPeriod: "all",
+  recordedBy: [],
+  reasons: [],
+  sources: [],
 };
 
 const InventoryAuditLogPage = () => {
   const { logs, isLoading, error } = useInventoryAuditLogs();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
 
   const filteredLogs = useMemo(() => {
     return filterInventoryAuditLogs(logs, filters);
   }, [logs, filters]);
 
-  const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLogs = filteredLogs.slice(
     startIndex,
-    startIndex + ITEMS_PER_PAGE,
+    startIndex + itemsPerPage,
   );
 
   const handleFilterChange = (field, value) => {
@@ -52,40 +57,70 @@ const InventoryAuditLogPage = () => {
     setFilters(EMPTY_FILTERS);
   };
 
+  const handleApplyFilters = (nextFilters) => {
+    setCurrentPage(1);
+    setFilters(nextFilters);
+  };
+
   const handleExport = () => {
     if (filteredLogs.length === 0) {
-      alert('No logs to export based on current filters.');
+      alert("No logs to export based on current filters.");
       return;
     }
 
     exportInventoryAuditLogs(filteredLogs);
   };
 
+  const headerActions = (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={handleExport}
+      className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)]"
+    >
+      <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
+      Export
+    </Button>
+  );
+
   return (
-    <div className="audit-page">
-      <InventoryAuditHeader onExport={handleExport} />
+    <PageLayout
+      title="Inventory Audit Log"
+      subtitle="Track all inventory changes and adjustments over time."
+      actions={headerActions}
+      className="audit-page-shell flex flex-col gap-4"
+    >
+      <div className="audit-page-layout audit-page">
+        <section className="audit-page-toolbar">
+          <InventoryAuditToolbar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onApplyFilters={handleApplyFilters}
+            onReset={handleResetFilters}
+            isLoading={isLoading}
+          />
+        </section>
 
-      {error && <p className="audit-load-error">{error}</p>}
+        <section className="audit-page-table">
+          <InventoryAuditTable
+            logs={paginatedLogs}
+            isLoading={isLoading}
+            error={error}
+          />
+        </section>
 
-      <div className="audit-panel">
-        <InventoryAuditFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={handleResetFilters}
-        />
-
-        <InventoryAuditTable
-          logs={paginatedLogs}
-          isLoading={isLoading}
-        />
-
-        <InventoryAuditPagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-        />
+        <section className="audit-page-pagination">
+          <InventoryAuditPagination
+            totalLogs={filteredLogs.length}
+            pageSize={itemsPerPage}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setItemsPerPage}
+            isLoading={isLoading}
+          />
+        </section>
       </div>
-    </div>
+    </PageLayout>
   );
 };
 

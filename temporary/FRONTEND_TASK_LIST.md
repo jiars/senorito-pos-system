@@ -1,6 +1,6 @@
 # Frontend Figma Migration Task List
 
-Updated: September 16, 2026
+Updated: September 18, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferred
 
@@ -36,6 +36,9 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Confirm all supplied tablet references use a fixed `1194px` width with variable page height for scrollable content.
 - [x] Treat Figma as visual direction, not a literal component implementation; approved reusable shadcn/Base UI improvements may intentionally differ.
 - [x] Build and approve the tablet layout first, then adapt each module to desktop and mobile before completion.
+- [x] Apply the Dashboard responsive-layout approach to every module using `src/styles/responsive.css` as the canonical tablet-first breakpoint reference: complex module layout/height/scroll rules in module CSS, component-specific Tailwind changes locally, scoped mobile density adjustments, `svh` clamps for short viewports, and checks at tablet, desktop, phone, and short-phone viewport sizes.
+- [x] Start every redesigned module by building and approving its complete page layout first, modeled on the Dashboard/Order History named-region approach. Define the page's content regions, columns, full-width rows, gaps, scroll containment, and responsive behavior before styling individual cards, charts, tables, or controls.
+- [x] Keep each module's CSS file dedicated to that module's complex grid, height/clamp, scroll, print, and breakpoint relationships. Keep normal component presentation, spacing, typography, colors, and local responsive changes in Tailwind within the focused component.
 - [x] Require visual approval before starting the next module.
 - [x] Use simple English for all guidance and progress updates.
 - [x] Default to guidance-only work with a maximum of three tasks per batch to reduce token usage.
@@ -45,6 +48,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Tell the user which shadcn/ui components are needed before every new module and wait for the user to add the approved components.
 - [x] Let the user write Laravel backend code.
 - [x] Keep frontend service-layer files user-owned unless the user explicitly authorizes the agent to edit named service files for a specific task.
+- [x] Require every fetched module to distinguish loading, error, empty, and populated states. Failed requests must not be converted into empty arrays, objects, or zero-data success states; test failure and retry behavior when a module fetch is migrated.
+- [x] Require each fetched module's loading state to use structured shadcn Skeletons that mirror the final card, avatar, text, form, list, or table layout; keep loading presentation in the focused component and loading coordination in its page or hook.
 - [x] Let the agent create and refactor frontend layout, JSX, and styling files.
 - [x] Keep the current sidebar background color.
 - [x] Plan sidebar group labels without changing route paths.
@@ -110,8 +115,10 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [ ] Remove Vite starter/demo global styles only after proving they have no required consumers.
 - [ ] Update the existing component preview page into a basic UI catalog.
 - [ ] Create shared Loading, Error, Empty, and Skeleton states.
+- [-] Final shared EmptyState visual design — the current reusable EmptyState is functional placeholder copy/styles until its approved design is ready; then update it centrally and review every consumer.
 - [ ] Build the shared customized table foundation from shadcn Table primitives when the first table module begins.
 - [ ] Keep column definitions inside their modules so the shared table does not become an oversized universal component.
+- [x] Make shared DataTable cells wrap long content, preserve automatic row growth, and provide reliable native two-axis scrolling with temporary auto-hiding scrollbars.
 - [ ] Build shared simple filter popover and sort-menu patterns from the supplied reference.
 - [ ] Preserve current sorting, filtering, pagination, export, print, payload, and API behavior while replacing table presentation.
 - [ ] Do not add TanStack Table unless a later module proves it is needed and the user approves it.
@@ -164,95 +171,143 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Phase 4: Dashboard
 
-- [ ] Keep the current Dashboard service response unchanged.
-- [~] Migrate Dashboard sections component-by-component with Tailwind-first JSX styling. Do not adjust legacy `dashboard.css` values while a section still uses its selectors.
-- [ ] Keep reusable colors, gradients, number colors, and shadows in `src/styles/theme.css`; keep only genuinely complex Dashboard behavior (for example, chart internals or custom scrolling) in local CSS if still needed after migration.
+- [x] Keep the current Dashboard service response unchanged during the current UI migration.
+- [-] Defer the Dashboard API Error state and Retry action to final Dashboard checks. With explicit service authorization, make request failures reject with a meaningful error instead of returning an empty array, without changing the successful response shape.
+- [x] Migrate Dashboard sections component-by-component with Tailwind-first JSX styling. Do not adjust legacy `dashboard.css` values while a section still uses its selectors.
+- [x] Keep reusable colors, gradients, number colors, and shadows in `src/styles/theme.css`; keep only genuinely complex Dashboard behavior (for example, chart internals or custom scrolling) in local CSS if still needed after migration.
 - [x] Establish shared tablet typography, 8pt spacing, radius, and touch-target tokens; apply and verify the standard in Expiry Alerts.
 - [x] Apply the approved Expiry Alerts typography and spacing pattern to Low Stock Items.
 - [x] Apply the same shared typography system to Summary Cards.
 - [x] Apply the same shared typography system to Weekly Performance.
 - [x] Apply the shared spacing system to the Dashboard overview layout, including full-width Top Selling and Recent Orders rows.
-- [~] Restyle Top Selling Items as a horizontal five-item menu-card list using the existing Dashboard data and image fallback.
-- [ ] Create the Dashboard page header and breadcrumbs.
-- [ ] Extract summary metric cards.
-- [ ] Extract Weekly Performance.
-- [ ] Extract Expiry Alerts.
-- [ ] Extract Low Stock Items.
-- [ ] Extract Top Selling Items.
-- [ ] Add loading, error, empty, and populated states.
+- [x] Restyle and visually approve Top Selling Items as a horizontal five-item menu-card list using the existing Dashboard data and image fallback.
+- [x] Migrate and visually approve Dashboard Recent Orders with the reusable customized DataTable. The existing latest-six-order data behavior remains unchanged; selection, toolbar, search, filters, sorting, and pagination remain deferred.
+- [x] Create the Dashboard page header and breadcrumbs.
+- [x] Extract summary metric cards.
+- [x] Extract Weekly Performance.
+- [x] Extract Expiry Alerts.
+- [x] Extract Low Stock Items.
+- [x] Extract Top Selling Items.
+- [x] Replace Dashboard loading text with reusable skeleton states and add successful-response placeholder empty states — visual QA and build passed; final EmptyState visual design remains deferred.
 - [ ] Match the supplied desktop layout.
 - [ ] Create tablet and mobile behavior.
 - [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
+- [x] Run focused lint and production build.
 - [ ] Visually review and approve Dashboard before continuing.
-- [ ] Final Dashboard cleanup: after visual approval and build verification, run a zero-reference check, remove obsolete `dashboard.css` selectors, and keep or remove the remaining file only according to the verified complex-style needs.
+- [x] Final Dashboard cleanup: after visual approval and build verification, run a zero-reference check, remove obsolete `dashboard.css` selectors, and keep or remove the remaining file only according to the verified complex-style needs.
 
 ## Phase 5: Order History
 
-- [ ] Preserve existing order data and details behavior.
-- [ ] Separate page header, order-state tabs, shared toolbar, customized table, pagination, and details modal.
-- [ ] Match the supplied main-page layout.
-- [ ] Handle long tables on tablet and mobile.
-- [ ] Preserve status, payment, cashier, and order-source labels.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Order History before continuing.
+- [x] Preserve the existing order data, client-side search/date/payment/source filters, pagination, and Order Details modal behavior while migrating the visible UI.
+- [x] Create the Order History structural foundation: shared `PageLayout`, named `orders-page-layout` children for toolbar/table/pagination, and layout-only `ordersPage.css` modeled after the Dashboard layout pattern.
+- [x] Integrate the shared filter foundation: bounded search bar, `FilterPopover`, Report Period, calendar date fields, collapsible multi-select groups, Clear all, and Apply.
+- [x] Migrate the visible order table to the reusable `DataTable` with the Dashboard Recent Orders column direction and a final Bootstrap eye View action that preserves the existing details modal.
+- [x] Create reusable `DataTablePagination` from the approved shadcn block pagination pattern. It provides rows-per-page selection, page summary, first/previous/next/last actions, and no selection/drag-drop behavior. Replace and remove the Order History-only pagination component.
+- [x] Match the supplied main-page layout.
+- [x] Handle long tables on tablet portrait, phone, and short-height layouts with horizontal and internal vertical scrolling.
+- [x] Preserve status, payment, cashier, and order-source labels.
+- [x] Visually verify the shared filter direction, button states, report-period presets, manual-date Custom state, skeletons, and narrow viewport behavior.
+- [x] Run focused lint and production build for Order History.
+- [x] Visually review and approve Order History before continuing.
 
 ## Phase 6A: Inventory Stock Overview
 
-- [ ] Preserve Inventory query, stock, batch, archive, and modal behavior.
-- [ ] Build the Stock Overview tabs and page sections.
-- [ ] Extract inventory summary cards.
-- [ ] Extract Quick Actions.
-- [ ] Build the Inventory Items view on the shared customized table foundation.
-- [ ] Preserve expiry and stock-status indicators.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Stock Overview before continuing.
+- [x] Preserve Inventory query, stock, batch, archive, and modal behavior during the approved Stock Overview migration.
+- [x] Build and approve the responsive-first Inventory page layout: `PageLayout`, page-header actions, line-variant four-tab workspace, tab caption, named regions, tablet columns, full-width table row, responsive stacking, and dense-panel scroll containment. Keep `inventory.css` layout-only before styling individual sections.
+- [x] Build the line-variant shadcn Tabs workspace: Stock Overview (default), Batches, Wastage, and Purchase History. Keep focused tab content components rather than nesting a complete page layout inside every tab.
+- [x] Extract Inventory Stock Insights with reusable summary cards and approved Quick Action visuals.
+- [x] Make Stock Overview summary cards interactive: selecting a metric applies the matching existing stock filter without changing Inventory data behavior.
+- [~] Reconnect Receive Stock, Log Wastage, and Correction to the existing Stock Log flow after the modal phase adds the required item-selection step.
+- [x] Build the Inventory Items view on the shared customized table foundation with stable Inventory-only column widths, badges, row-action menu, and pagination.
+- [x] Consolidate Stock Overview to the same focused composition as Batches and Wastage: one Insights component plus one self-contained table component that owns its toolbar, columns, and pagination.
+- [x] Build Batches with one-row clickable Overall Batches, Expiring in 7 Days, Expired, and placeholder Value at Risk summary cards, followed by the Item Batches shared table section.
+- [x] Keep the Batches table focused on Batch #, Quantity, Unit Cost, Expiration, Status, Source, and Added, plus row selection for Print QR.
+- [x] Add Batches search, sidebar-section filters, Latest Added / Oldest Added sorting, Print QR selection, and shared pagination.
+- [x] Reuse the shared `FilterDateRange` inside the Batches and Wastage Timeframe sidebar section for independent Received Date and Expiration Date ranges; do not maintain an Inventory-only date-range wrapper.
+- [x] Add Latest Added and Oldest Added sorting to Stock Overview without changing its stable Inventory-only columns.
+- [x] Build Wastage with one-row clickable Total Wastage Cost, Total Wastage Logs, Most Wasted Item, and Most Common Reason summary cards.
+- [x] Build the Wastage Logs shared table with search, Timeframe/Category/Reason/Source sidebar filters, Latest/Oldest sorting, badges, and pagination, without row selection or Print QR.
+- [x] Consume the permanent top-level `purchaseHistory` init payload with its item, batch, and creator relationships; do not reconstruct purchase history from mutable batch quantities.
+- [x] Build Purchase History as a table-only tab with search, shared date/supplier filters, Latest/Oldest sorting, the shared DataTable, and shared pagination without Print.
+- [x] Run focused Inventory lint and production/PWA build after Stock consolidation and Purchase History integration.
+- [x] Visually review and approve the Purchase History tab at tablet, desktop, portrait, and phone widths.
+- [x] Migrate Inventory Archive to the shared `PageLayout` with a Back to Inventory header action and one self-contained Archive table component owning its search, Categories/Status sidebar filters, shared DataTable, skeleton, restore action, and pagination.
+- [x] Remove the proven-unused legacy Archive header/filter components, keep `inventoryArchive.css` layout-only, and apply the shared responsive height limits for phone and tablet portrait.
+- [x] Run focused Archive lint and the production/PWA build after migration and cleanup.
+- [x] Visually review and approve Inventory Archive at tablet, desktop, portrait, phone, and short-height viewports.
+- [x] Preserve expiry and stock-status indicators with shadcn badges.
+- [x] Apply the approved shared sidebar-filter direction to Stock Overview.
+- [-] Defer visual modal redesigns and page-level Quick Action item selection until the full Inventory tab layout is approved; preserve current modal behavior meanwhile.
+- [x] Run focused lint and production build for Stock Overview.
+- [x] Visually review and approve Stock Overview before continuing.
+- [x] Run focused lint and production build for the Batches tab.
+- [x] Visually review and approve the Batches tab.
+- [x] Run focused lint and production build for the Wastage tab.
+- [x] Visually review and approve the Wastage tab.
+- [x] Add and visually approve the Inventory Quick Actions structured loading skeleton.
+- [x] Clean the Inventory module after Batches/Wastage: consolidate page modal state and ID selection handlers, remove unreferenced legacy `InventoryTable` and summary CSS, keep `inventory.css` layout-only, and localize Archive legacy styles to `inventoryArchive.css`.
+- [x] Run focused Inventory lint and production/PWA build after cleanup.
 
 ## Phase 6B: Inventory Valuation
 
-- [ ] Preserve valuation formulas, export, and print behavior.
-- [ ] Extract the valuation chart and summary.
-- [ ] Extract Highest Value.
-- [ ] Build the valuation view on the shared customized table foundation.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Inventory Valuation before continuing.
+- [x] Preserve valuation formulas, export, and print behavior.
+- [x] Extract the Value per Inventory panel: chart, category legend, metric summary, and Highest Value view.
+- [x] Build the valuation view on the shared customized table foundation with reusable pagination.
+- [x] Apply shared category filtering, numeric-aware `0 - Z` / `Z - 0` sorting, and shared toolbar controls.
+- [x] Add structured Value per Inventory skeleton, loading, empty, and populated states.
+- [x] Add tablet, desktop, phone, and short-height responsive layout/scroll containment.
+- [x] Remove zero-reference legacy valuation components and CSS; colocate print-only CSS with its PrintLayout component.
+- [x] Run production build.
+- [x] Visually review and approve Inventory Valuation before continuing.
 
 ## Phase 6C: Inventory Audit Log
 
-- [ ] Preserve audit query, formatting, export, and print behavior.
-- [ ] Separate header, shared toolbar, customized table, badges, and pagination.
-- [ ] Use the supplied audit layout as direction while applying the shared customized table system.
-- [ ] Preserve action, source, stock-change, batch, reason, reference, and employee fields.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Inventory Audit Log before continuing.
+- [x] Preserve audit query, formatting, export, and existing behavior. The page has Export only; no Print behavior exists or was added.
+- [x] Build and approve the Audit Log page layout: PageLayout, named toolbar/table/pagination regions, contained tablet table width, responsive stacking, and dense-table scroll containment. Keep `inventoryAuditLog.css` layout-only.
+- [x] Separate shared toolbar, customized table, Audit-specific badges, and pagination.
+- [x] Use the supplied audit layout as direction while applying the shared customized table system.
+- [x] Preserve action, source, stock-change, batch, reason, reference, and employee fields.
+- [x] Apply the approved simple and sidebar-section filter directions without changing the audit API service.
+- [x] Verify loading skeleton, empty state, error fallback, populated state, desktop, tablet, phone, and short-height table containment.
+- [x] Run focused lint and production build.
+- [x] Visually review and approve Inventory Audit Log before continuing.
 
 ## Phase 7: Sales
 
-- [ ] Preserve report calculations and export behavior.
-- [ ] Extract summary metrics.
-- [ ] Extract Menu Profitability.
-- [ ] Extract hourly sales chart.
-- [ ] Extract Top Selling Items.
-- [ ] Extract Sales by Order Source.
-- [ ] Extract Sales by Menu Category.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Sales before continuing.
+- [x] Preserve report calculations and export behavior, including XLSX export and print layout.
+- [x] Extract reusable summary metrics.
+- [x] Extract Menu Profitability: responsive heatmap, metric matrix, and a 60vw detail Sheet using the shared DataTable and local profitability sorting control.
+- [x] Extract hourly sales chart.
+- [x] Extract Top Selling Items.
+- [x] Extract Sales by Order Source.
+- [x] Extract Sales by Menu Category.
+- [x] Apply the approved shared filter direction where needed.
+- [x] Apply responsive desktop, tablet, phone, and short-height behavior.
+- [x] Run focused lint and production build.
+- [x] Visually review and approve Sales before continuing.
 
 ## Phase 8: Expense Tracking
 
-- [ ] Preserve expense, category, and inventory-purchase behavior.
-- [ ] Extract summary metrics.
-- [ ] Extract Quick Actions.
-- [ ] Extract Expense Distribution.
-- [ ] Build the expense records view on the shared customized table foundation.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Expense Tracking before continuing.
+- [x] Preserve the `/expenses` route, Expense/Sales hooks, Expense init payload, calculations, Excel export, category and inventory-purchase behavior, add/edit/archive restrictions, modal flows, permissions, and offline behavior.
+- [x] Build and approve the responsive-first Expense page layout: shared PageLayout, four-card summary region, 55/45 Distribution/Quick Actions row, and full-width records region containing toolbar/table/pagination.
+- [x] Add the PageHeader actions: three-dot overflow menu containing Export, View Archive, and Manage Categories, followed by the primary Add Expense button. View Archive now routes to `/expenses/archive`.
+- [x] Rebuild the four display-only summary cards with shared `SummaryCards`: Total Expenses, Salary, Inventory Purchases, and Top Operating Expense.
+- [x] Create one focused `ExpenseOverview.jsx` component owning the 55/45 Expense Distribution and Quick Actions child panels.
+- [x] Rebuild Expense Distribution inside `ExpenseOverview` as a header/caption child panel with a responsive bar chart and structured skeleton.
+- [x] Align Expense Distribution with Dashboard Weekly Sales: fixed Sunday-to-Saturday buckets with zero totals for calendar days without recorded expenses.
+- [x] Build four Quick Actions inside `ExpenseOverview` using the approved Inventory action-card layout. Manage Categories and View Archive are connected; Pay Employee and Purchase Inventory remain intentionally disabled until their modal workflows are approved.
+- [x] Build the records toolbar with shared search and a simple, non-sidebar FilterPopover containing Expense Period (`All Time`, `This Day`, `This Week`, `This Month`), shared From/To date range, and collapsible multi-select Categories.
+- [x] Migrate Expense Records to the shared DataTable with module-owned columns, light-surface category badges, overflow row actions, loading/error/empty/populated states, and preserved Inventory Purchase restrictions.
+- [x] Add shared DataTablePagination and reset to page 1 when search or applied filters change.
+- [x] Keep `expenseTracking.css` layout-only and implement desktop, tablet landscape, tablet portrait, phone, and short-height behavior.
+- [x] Verify disabled actions, loading, empty, populated, responsive, export, archive/restore, and Add/Edit/Manage Categories open-close-reopen modal behavior. Final cross-module keyboard/contrast and approved ErrorState/Retry checks remain in Final Cleanup.
+- [x] Remove the replaced Expense Filter Bar, Distribution Panel, and Category Breakdown components after confirming zero remaining references.
+- [x] Build the responsive Expense Archive frontend at `/expenses/archive` using `PageLayout`, Back to Expense Tracking action, category-only filter, search, shared DataTable, shared pagination, category badges, and Restore action.
+- [x] Add metadata-driven parent breadcrumbs for Expense Archive and Inventory Archive.
+- [x] Return `archivedExpenses` from the Expense init response with category, recorder, and archived-by relationships, and consume it through the existing Expense hook.
+- [x] Run focused lint and production/PWA build.
+- [x] Expense Tracking and Expense Archive are visually approved, including the three post-cleanup modal smoke checks.
+- [x] Restore the shared Base UI ScrollArea to its pre-Content-wrapper structure after that wrapper regressed Recharts rendering; verify Dashboard Weekly Sales and Expense Distribution builds.
 
 ## Phase 9: Menu Management
 
@@ -308,4 +363,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Current Next Task
 
-Visually approve Top Selling Items, then start Recent Orders with the shared customized data-table foundation.
+Start the Menu Management layout audit using the approved module-first layout workflow.

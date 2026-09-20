@@ -1,9 +1,31 @@
-import defaultMenuImage from "../../../assets/images/default_menu_picture.jpg";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "../../../components/ui/card";
+import { Skeleton } from "../../../components/ui/skeleton";
+import EmptyState from "@/components/feedback/EmptyState";
+import TopSellingItemCard from "@/components/product-card/TopSellingItemCard";
 
-const TopSellingPanel = ({ topSellingItems, isLoadingBottom }) => {
-  const handleImageError = (event) => {
-    event.currentTarget.src = defaultMenuImage;
-  };
+const TopSellingPanel = ({ topSellingItems, isLoading }) => {
+  if (isLoading) {
+    return (
+      <Card
+        aria-busy="true"
+        aria-label="Loading top selling items"
+        className="gap-0 rounded-[var(--app-radius-panel-standard)] !py-0 !ring-0"
+      >
+        <CardHeader className="px-[var(--app-padding-panel)] pt-[var(--app-padding-panel)]">
+          <Skeleton className="h-5 w-44" />
+          <Skeleton className="h-3 w-72" />
+        </CardHeader>
+
+        <CardContent className="px-[var(--app-padding-panel)] pb-[var(--app-padding-panel)] pt-[var(--app-gap-section)]">
+          <Skeleton className="h-[7.25rem] w-full rounded-[var(--app-radius-nested)]" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
@@ -19,44 +41,19 @@ const TopSellingPanel = ({ topSellingItems, isLoadingBottom }) => {
         </div>
       </header>
 
-      {isLoadingBottom ? (
-        <div className="grid min-h-32 place-items-center text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text-subtle)]">
-          Loading top items...
-        </div>
-      ) : topSellingItems.length === 0 ? (
-        <div className="grid min-h-32 place-items-center text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text-subtle)]">
-          No sales recorded yet.
-        </div>
+      {topSellingItems.length === 0 ? (
+        <EmptyState
+          title="No top-selling items yet"
+          description="Top items will appear here after completed sales are recorded."
+        />
       ) : (
-        <div className="flex gap-[var(--app-gap-related)] overflow-x-auto pb-[var(--app-space-2)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-[var(--app-space-2)] flex gap-[var(--app-gap-related)] overflow-x-auto px-[var(--app-space-2)] py-[var(--app-space-2)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {topSellingItems.slice(0, 5).map((item) => (
-            <article
+            <TopSellingItemCard
               key={item.id}
-              className="flex min-h-[18rem] w-[32rem] shrink-0 items-center rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-canvas)] p-[var(--app-space-4)]"
-            >
-              <img
-                src={item.imageUrl || defaultMenuImage}
-                alt={item.name}
-                className="mr-[var(--app-gap-section)] size-24 shrink-0 rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] object-cover shadow-[var(--app-shadow-card)]"
-                onError={handleImageError}
-              />
-
-              <div className="flex min-h-48 min-w-0 flex-1 flex-col justify-between py-[var(--app-space-6)]">
-                <div>
-                  <p className="truncate text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] font-bold text-[var(--app-color-text)]">
-                    {item.name}
-                  </p>
-
-                  <p className="mt-[var(--app-space-2)] truncate text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] uppercase text-[var(--app-color-text-subtle)]">
-                    {item.category}
-                  </p>
-                </div>
-
-                <p className="text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] text-[var(--app-color-brand-deep)]">
-                  {item.sold} sold
-                </p>
-              </div>
-            </article>
+              item={item}
+              className="w-[18rem] shrink-0"
+            />
           ))}
         </div>
       )}

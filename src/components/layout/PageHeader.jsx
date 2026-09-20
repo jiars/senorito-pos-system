@@ -2,18 +2,28 @@
  * Shared heading for back-office pages.
  * PageLayout provides its title, subtitle, and optional actions.
  */
-const PageHeader = ({ title, subtitle, rightActions, className = "" }) => {
+const PageHeader = ({
+  title,
+  subtitle,
+  titleAccessory,
+  rightActions,
+  className = "",
+}) => {
   return (
     <header
-      className={`mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between ${className}`}
+      className={`flex flex-col gap-4 md:flex-row md:items-start md:justify-between ${className}`}
     >
       <div>
-        <h1 className="m-0 text-2xl font-bold tracking-[-0.02em] text-[var(--app-color-brand-header)] md:text-3xl">
-          {title}
-        </h1>
+        <div className="flex items-center gap-[var(--app-space-2)]">
+          <h1 className="m-0 text-2xl font-bold tracking-[-0.02em] text-[var(--app-color-brand-header)] md:text-3xl">
+            {title}
+          </h1>
+
+          {titleAccessory}
+        </div>
 
         {subtitle && (
-          <p className="mt-1 text-sm text-[var(--app-color-text-subtle)]">
+          <p className="mt-1 text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text-subtle)]">
             {subtitle}
           </p>
         )}

@@ -4,7 +4,7 @@
 use App\Http\Controllers\AuthController;
 
 // dashboard
-use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DashboardManagement\InitDashboardController;
 
 // inventory
 use App\Http\Controllers\Api\InventoryManagement\InitInventoryManagementController;
@@ -60,7 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/dashboard', [InitDashboardController::class, 'index']);
 
     Route::prefix('menu-management')->group(function () {
         // 1. Unified Data Fetch for Menu Management
@@ -73,11 +73,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('items', MenuItemController::class)->only(['index', 'destroy']);
         Route::post('items', [MenuAddController::class, 'store']);
         Route::put('items/{id}/sync', [MenuEditController::class, 'sync']);
+        Route::patch('items/{id}/unarchive', [MenuItemController::class, 'unarchive']);
 
         // 4. Add-ons (Fetch, Archive, Add Orchestrator, Edit Orchestrator)
         Route::apiResource('addons', AddonController::class)->only(['index', 'destroy']);
         Route::post('addons', [AddonAddController::class, 'store']);
         Route::put('addons/{id}/sync', [AddonEditController::class, 'sync']);
+        Route::patch('addons/{id}/unarchive', [AddonController::class, 'unarchive']);
     });
 
     Route::prefix('inventory-management')->group(function () {

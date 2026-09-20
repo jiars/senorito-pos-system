@@ -30,4 +30,20 @@ class AddonController extends Controller
 
         return response()->json(['message' => 'Add-on archived successfully']);
     }
+
+    public function unarchive(string $id)
+    {
+        $addon = Addon::where('archived', true)
+            ->findOrFail($id);
+
+        // Keep it unavailable until the owner reviews it.
+        $addon->update([
+            'archived' => false,
+            'pos_status' => 'Unavailable',
+        ]);
+
+        return response()->json([
+            'message' => 'Add-on restored successfully.',
+        ]);
+    }
 }

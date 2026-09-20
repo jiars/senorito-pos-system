@@ -1,9 +1,21 @@
 import PageHeader from "./PageHeader";
 
-const PageLayout = ({ title, subtitle, actions, children, className = "" }) => {
+const PageLayout = ({
+  title,
+  subtitle,
+  actions,
+  titleAccessory,
+  children,
+  className = "",
+}) => {
   return (
     <section className={className}>
-      <PageHeader title={title} subtitle={subtitle} rightActions={actions} />
+      <PageHeader
+        title={title}
+        subtitle={subtitle}
+        titleAccessory={titleAccessory}
+        rightActions={actions}
+      />
 
       {children}
     </section>

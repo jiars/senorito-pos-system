@@ -30,4 +30,24 @@ class MenuItemController extends Controller
         ]);
         return response()->json(['message' => 'Menu Item archived successfully']);
     }
+
+    public function unarchive(string $id)
+    {
+        $item = MenuItem::where('archived', true)
+            ->findOrFail($id);
+
+        $recipeStatus = $item->menu_recipes()->exists()
+            ? 'Complete'
+            : 'Incomplete';
+
+        $item->update([
+            'archived' => false,
+            'pos_status' => 'Unavailable',
+            'recipe_status' => $recipeStatus,
+        ]);
+
+        return response()->json([
+            'message' => 'Menu Item restored successfully.',
+        ]);
+    }
 }

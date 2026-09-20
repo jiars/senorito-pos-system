@@ -8,12 +8,15 @@ const getCategoryName = (orderItem) => {
   return menuItem.menu_categories.category_name;
 };
 
-const matchesCategory = (categoryName, selectedCategory) => {
-  if (!selectedCategory || selectedCategory === "All Categories") {
+const matchesCategory = (categoryName, selectedCategories = []) => {
+  if (selectedCategories.length === 0) {
     return true;
   }
 
-  return categoryName.toLowerCase() === selectedCategory.toLowerCase();
+  return selectedCategories.some(
+    (selectedCategory) =>
+      categoryName.toLowerCase() === selectedCategory.toLowerCase(),
+  );
 };
 
 const normalizeOrderSource = (source) => {
@@ -80,7 +83,9 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
 
       if (!itemTotals[menuItem.id]) {
         itemTotals[menuItem.id] = {
+          id: menuItem.id,
           name: menuItem.item_name,
+          image_url: menuItem.image_url,
           category: categoryName,
           sold: 0,
           revenue: 0,
@@ -132,7 +137,18 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
   };
 };
 
-// Calculate sales by source and hourly order counts.
+const hourlySalesBuckets = [
+  { time: "8–10 AM", startHour: 8, endHour: 10 },
+  { time: "10–12 NN", startHour: 10, endHour: 12 },
+  { time: "12–2 PM", startHour: 12, endHour: 14 },
+  { time: "2–4 PM", startHour: 14, endHour: 16 },
+  { time: "4–6 PM", startHour: 16, endHour: 18 },
+  { time: "6–8 PM", startHour: 18, endHour: 20 },
+  { time: "8–10 PM", startHour: 20, endHour: 22 },
+  { time: "10 PM–12 AM", startHour: 22, endHour: 24 },
+];
+
+// Calculate sales by source and order totals for each fixed two-hour period.
 export const calculateOrderTrends = (orders) => {
   const sourceTotals = {
     "In-Store": {
@@ -152,7 +168,11 @@ export const calculateOrderTrends = (orders) => {
     },
   };
 
-  const hourlyTotals = {};
+  const hourlyTotals = hourlySalesBuckets.map((bucket) => ({
+    ...bucket,
+    orders: 0,
+  }));
+  let totalHourlyOrders = 0;
 
   orders.forEach((order) => {
     const source = normalizeOrderSource(order.order_source);
@@ -164,21 +184,14 @@ export const calculateOrderTrends = (orders) => {
       const orderDate = new Date(order.order_datetime);
       const hour = orderDate.getHours();
 
-      let displayHour = `${hour - 12}PM`;
+      const bucketIndex = hourlyTotals.findIndex(
+        (bucket) => hour >= bucket.startHour && hour < bucket.endHour,
+      );
 
-      if (hour === 0) displayHour = "12AM";
-      else if (hour < 12) displayHour = `${hour}AM`;
-      else if (hour === 12) displayHour = "12PM";
-
-      if (!hourlyTotals[displayHour]) {
-        hourlyTotals[displayHour] = {
-          time: displayHour,
-          orders: 0,
-          orderHour: hour,
-        };
+      if (bucketIndex >= 0) {
+        hourlyTotals[bucketIndex].orders += 1;
+        totalHourlyOrders += 1;
       }
-
-      hourlyTotals[displayHour].orders += 1;
     }
   });
 
@@ -195,18 +208,15 @@ export const calculateOrderTrends = (orders) => {
     };
   });
 
-  const hourlyData = Object.values(hourlyTotals)
-    .sort((first, second) => first.orderHour - second.orderHour)
-    .map((hour) => {
-      return {
-        time: hour.time,
-        orders: hour.orders,
-      };
-    });
+  const hourlyData = hourlyTotals.map(({ time, orders }) => ({
+    time,
+    orders,
+  }));
 
   return {
     sourceData,
     hourlyData,
+    totalHourlyOrders,
   };
 };
 
@@ -320,7 +330,7 @@ export const calculateQuadrantCounts = (profitability) => {
   return counts;
 };
 
-export const calculateHourlyOverview = (hourlyData) => {
+export const calculateHourlyOverview = (hourlyData, totalHourlyOrders) => {
   const safeHourlyData =
     hourlyData.length > 0 ? hourlyData : [{ time: "N/A", orders: 0 }];
 
@@ -330,9 +340,9 @@ export const calculateHourlyOverview = (hourlyData) => {
     return current.orders > highest.orders ? current : highest;
   });
 
-  const totalOrders = safeHourlyData.reduce((total, item) => {
-    return total + item.orders;
-  }, 0);
+  const totalOrders =
+    totalHourlyOrders ??
+    safeHourlyData.reduce((total, item) => total + item.orders, 0);
 
   const stepSize = maxOrders > 0 ? Math.ceil(maxOrders / 4) : 1;
 

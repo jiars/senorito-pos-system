@@ -1,6 +1,6 @@
 # Frontend Figma Migration Implementation Plan
 
-Updated: September 16, 2026
+Updated: September 18, 2026
 
 ## Goal
 
@@ -18,6 +18,9 @@ The migration will be completed one module at a time. Every module must be revie
 - Guidance must remain complete and production-quality. Do not skip architecture, separation of concerns, reusable design, validation, accessibility, responsive behavior, loading/error/empty/disabled states, or verification because the user is applying the code.
 - The user applies frontend code changes by default. The agent edits files only when the user explicitly asks it to edit, apply, or implement the named task.
 - The agent may edit frontend service files only when the user gives explicit permission for that specific task. Without that permission, service files remain user-owned.
+- Every fetched module must preserve distinct loading, error, empty, and populated outcomes. A failed request must reject or throw a meaningful error instead of being converted into an empty success value such as `[]` or `{}`; only an explicitly authorized service task may change this behavior.
+- For every fetched module, verify loading uses a structured shadcn Skeleton that matches the final layout and reserves its space (for example: card, avatar, text, form, list, or table). Keep this skeleton inside the focused visual component; the page or hook only coordinates `isLoading`.
+- The current shared `EmptyState` is a functional placeholder. Replace its visual design centrally after the approved empty-state reference is ready, then recheck every module that consumes it.
 - Keep the current sidebar background color.
 - Add sidebar group labels such as `Sales & Reports`, `Inventory & Menu`, and `Administration` without changing route paths.
 - Use the supplied shared filter reference as the visual direction for simple category, status, and sort controls. Final button variants and modal designs still require their own references.
@@ -26,6 +29,9 @@ The migration will be completed one module at a time. Every module must be revie
 - All supplied tablet frames use a fixed `1194px` width. Their heights may vary because long pages are vertically scrollable; do not force every page to an `834px` document height.
 - Treat Figma as the approved visual hierarchy and direction, not as a literal component implementation. Improve details with reusable shadcn/Base UI primitives, accessibility, and responsive behavior.
 - Implement the approved tablet layout first, then adapt that same module to desktop and mobile before the module is considered complete.
+- Apply the Dashboard responsive strategy to every module using `src/styles/responsive.css` as the canonical reference: begin from the `1194px` tablet layout, then adapt to desktop (`1440px+`), tablet landscape (`1024px–1439px`), tablet portrait (`640px–1023px`), and phone (below `640px`). Module CSS owns complex grid, height/clamp, scrolling, and breakpoint relationships; focused components own element-specific Tailwind changes. Preserve readable text, use scoped overrides instead of global typography changes, use `svh` clamps for short viewports, and test `1194x834`, `1440x900`, `390x844`, and `390x600`.
+- Before styling or extracting individual module components, establish and approve the module's complete page-level layout. Follow the Dashboard/Order History pattern: named regions for header/toolbar/content columns/full-width sections, then define column sizing, gaps, scroll containment, and responsive stacking. This gives every module a stable visual overview before component-level work begins.
+- Keep each module CSS file layout-only: complex grids, section relationships, height/clamp constraints, scrolling, print selectors, and breakpoint rules. Use Tailwind in the focused JSX component for normal presentation, typography, tokens, local spacing, colors, and local responsive density.
 - Before starting each module, list the exact shadcn/ui components needed. The user decides whether to use them and runs every add/install command.
 - Pause for visual approval after each module.
 
@@ -72,11 +78,12 @@ Still required before redesigning their main pages:
 8. Do not remove working CSS or legacy UI components until their replacement is tested.
 9. Preserve role-based navigation behavior.
 10. Preserve loading, error, empty, modal, print, export, offline, archive, and form behavior.
-11. Run lint and the production build after every module.
-12. Keep each implementation batch to no more than three tasks and make it small enough to review and reverse safely.
-13. Do not add a shadcn/ui component silently. Complete a component-requirement check with the user before every new module.
-14. Existing uncommitted work belongs to the user. Re-read every target file before editing and do not overwrite unrelated backend, service, or module changes.
-15. Screenshot files should live outside the production bundle under `temporary/figma-references/` with an index that records screen name, frame width, exported height, device type, approval status, and intentional deviations.
+11. Treat a successful zero-record response as an empty state and a failed request as an error state with retry. Never mask an API, authentication, permission, offline, or server failure as empty data.
+12. Run lint and the production build after every module.
+13. Keep each implementation batch to no more than three tasks and make it small enough to review and reverse safely.
+14. Do not add a shadcn/ui component silently. Complete a component-requirement check with the user before every new module.
+15. Existing uncommitted work belongs to the user. Re-read every target file before editing and do not overwrite unrelated backend, service, or module changes.
+16. Screenshot files should live outside the production bundle under `temporary/figma-references/` with an index that records screen name, frame width, exported height, device type, approval status, and intentional deviations.
 
 ## Architecture Decision
 
@@ -243,6 +250,8 @@ Before implementation, define accessible foreground colors for every background.
 
 Figma tables are layout references only. Build a customized Senorito table system from shadcn Table primitives and shared theme tokens rather than copying the screenshot table markup or keeping page-specific table clones.
 
+Do not copy a complete shadcn dashboard-block data table into the application. Those examples can include block-specific drag-and-drop, pagination, and sample-data behavior. Instead, create one small reusable `DataTable` foundation on top of the installed shadcn Table primitives. Each module owns its data, column definitions, cell renderers, and actions; the shared table owns only the semantic wrapper, optional selection checkbox column, loading/error/empty states, controlled horizontal scrolling, and consistent tablet styling. Selection and row actions must be opt-in so read-only tables do not render unused controls.
+
 The shared table foundation should support:
 
 - semantic table markup and accessible labels
@@ -331,6 +340,8 @@ Do not add a clickable `Store Settings` item until its route and requirements ex
 8. Remove Vite starter/demo global styles only after confirming they are not required.
 9. Build shared customized table and simple-filter foundations as their first consuming modules are migrated.
 
+Dashboard Recent Orders is the first consumer of the reusable table foundation. Keep it limited to the latest six orders and migrate only its table presentation during the Dashboard visual pass. Its search, filters, sorting controls, pagination, and header toolbar remain deferred because a six-row dashboard preview does not need them; those controls will be completed during Dashboard final checks or when a full table module requires them.
+
 ### Phase 2: Authentication and Loading
 
 1. Create `AuthLayout` from the approved tablet Login reference.
@@ -356,7 +367,7 @@ Do not add a clickable `Store Settings` item until its route and requirements ex
 
 1. Preserve the current Dashboard API response and data loading behavior.
 2. Split the page into summary, weekly performance, expiry, low-stock, and top-selling sections.
-3. Match the supplied layout using real data and shared feedback states.
+3. Match the supplied layout using real data, reusable skeleton loading states, and successful-response empty states. Defer the Dashboard API-error fallback and retry behavior to final Dashboard checks because it requires an explicitly authorized service-contract decision.
 4. Use the shared tablet typography, 8pt spacing, radius, touch-target, and canvas tokens. Apply them progressively in this order: Expiry Alerts, Low Stock Items, Summary Cards, Weekly Performance, then the Dashboard overview layout.
 5. Keep dashboard component styling Tailwind-first. Retain `dashboard.css` only for complex layout relationships, scrolling, or chart internals after the component migration is complete.
 6. Apply the approved shared filter direction where needed; leave final shared button styling deferred.
@@ -369,6 +380,17 @@ Do not add a clickable `Store Settings` item until its route and requirements ex
 3. Match the supplied layout and shared filter direction while deferring final button styling.
 4. Pause for approval.
 
+Completed implementation:
+
+- Use the shared `PageLayout` and a Dashboard-style `orders-page-layout` with explicit toolbar, table, and pagination children.
+- Keep `ordersPage.css` limited to responsive table scroll containment: portrait, phone, and short-height `svh` caps. Local controls and pagination use component Tailwind classes.
+- Use the shared `FilterPopover`, `FilterOptionGroup`, and `FilterDatePicker`; Order History owns only values, options, preset logic, Apply, and Clear callbacks.
+- Use the shared `DataTable` for the Order History table. The page owns its columns and preserves the existing order-details action through a final Bootstrap eye column.
+- Use shared `DataTablePagination` for client-side table pagination. It is derived only from the shadcn block's Rows per page, page summary, and first/previous/next/last controls; exclude row selection, drag/drop, Tabs, and block-only dependencies. Its loading state is one compact long skeleton.
+- Use the bounded toolbar search at tablet/desktop and full width below the `sm` breakpoint, following the supplied toolbar reference.
+- Shared table scrolling supports horizontal-only by default and both directions when a dense module explicitly needs contained vertical scrolling.
+- Order History tablet, desktop, portrait, phone, short-height, skeleton, empty, filter, pagination, and populated-table behavior are approved. Focused lint and production build pass.
+
 ### Phase 6: Inventory Modules
 
 Migrate and approve these separately:
@@ -379,19 +401,89 @@ Migrate and approve these separately:
 
 Preserve stock, batch, expiry, valuation, audit, export, print, archive, and modal behavior. Use the shared customized table and filter foundations rather than copying the Figma table implementation.
 
+For each inventory module, first build and approve its named page-level layout and its module layout CSS before styling section components. Inventory Audit Log and Inventory Valuation are complete. The next active module is Stock Overview.
+
+### Phase 6A: Inventory Stock Overview
+
+1. Preserve the existing `/inventory` route, init query, stock calculations, archive, QR, stock-log, history, add/edit, category, and modal behavior.
+2. Build responsive page-level layout first: `PageLayout`, header actions, a line-variant four-tab workspace, tab caption, named regions, tablet-first columns, controlled table containment, then desktop/portrait/phone/short-height adjustments using `responsive.css`.
+3. Use one `InventoryWorkspace` with focused tab content components: Stock Overview, Batches, Wastage, and Purchase History. Do not nest complete page layouts inside every tab.
+4. Stock Overview contains interactive summary cards and Quick Actions above its shared toolbar/table. A clicked metric applies the matching existing stock filter and sort state.
+5. Stock Overview, Batches, and Wastage use search, sidebar-section filters, `0 - Z` / `Z - 0` sorting, Print QR, and the shared DataTable. Purchase History remains table-only with its approved collapsible filters.
+6. Defer modal redesigns until the page/tab layout receives visual approval; current functional modals remain connected and unchanged.
+
+### Phase 6B: Inventory Valuation
+
+Completed September 19, 2026:
+
+1. Preserved the valuation calculation, export, print, search, category filter, pagination, and data contracts.
+2. Replaced the legacy summary/chart views with one Tailwind-first `Value per Inventory` panel: accessible donut chart, responsive category legend, metric placeholders, Highest Value summary, and a reusable metric-value display.
+3. Reused shared DataTable, toolbar search, FilterPopover, FilterOptionGroup, and pagination; numeric-aware `0 - Z` and `Z - 0` sorting now includes item names beginning with numbers.
+4. Added a complete panel skeleton and responsive behavior for desktop, tablet, phone, and short-height table regions.
+5. Removed zero-reference legacy valuation components and presentation CSS. Print-only styles are colocated beside `InventoryValuationPrintLayout` and hide only print-irrelevant shell content.
+6. Production build and visual QA passed.
+
+### Phase 6C: Inventory Audit Log
+
+Completed September 18, 2026:
+
+1. Preserved the existing audit query, client-side filtering, formatting, and export behavior. The page has Export only; Print was not added because no working Print contract exists.
+2. Approved the `PageLayout` with explicit toolbar/table/pagination regions, full-width table containment, and responsive `svh` rules in `inventoryAuditLog.css`.
+3. Reused the approved shared search, filter popover, DataTable, pagination, skeleton, empty-state, and responsive patterns. Audit-specific columns and badges remain local to the module.
+4. Added the opt-in sidebar filter-popover mode for complex filter categories. Audit Log uses Date & Staff, Reason, and Sources sections; existing simple filter popovers remain unchanged.
+5. Focused lint and production build pass. Desktop, tablet, phone, short-height behavior, loading, error, empty, and populated states are approved.
+
 ### Phase 7: Sales
 
-1. Preserve report calculations and export behavior.
-2. Split summary metrics, profitability matrix, top-selling charts, order-source chart, and category chart.
-3. Match the supplied main-page layout.
-4. Pause for approval.
+Completed September 19, 2026:
+
+1. Preserved report calculations and filters while adding the approved XLSX export and corrected print layout.
+2. Built reusable summary metrics, profitability, hourly-sales, top-selling, order-source, and category regions using the established page-layout pattern.
+3. Menu Profitability uses a responsive 60vw detail Sheet, shared DataTable, and local four-option sorting popover; the Sheet overlays app chrome.
+4. Applied desktop, tablet, phone, short-height, loading, and empty-state behavior, then passed focused lint and production build.
+5. Sales is visually approved.
 
 ### Phase 8: Expense Tracking
 
-1. Preserve expense, category, inventory-purchase, and reporting behavior.
-2. Split summary cards, quick actions, distribution report, filters, and expense table.
-3. Match the supplied main-page layout and shared filter direction while deferring final button styling.
-4. Pause for approval.
+Planned September 20, 2026:
+
+1. Preserve the `/expenses` route, Expense and Sales hooks, unified Expense init payload, category and inventory-purchase behavior, date filtering, Excel export, add/edit/archive restrictions, modal flows, permissions, and offline behavior. Do not edit Expense services or Laravel during this visual migration.
+2. Establish and approve the responsive page-level layout before styling individual sections:
+
+   ```text
+   PageLayout
+     PageHeader
+       Expense Tracking title and subtitle
+       overflow three-dot action menu: Export, View Archive, Manage Categories
+       Add Expense primary action
+     expense-page-layout
+       expense-page-summary
+         four non-interactive summary cards
+       expense-page-overview (`ExpenseOverview`)
+         Expense Distribution child panel (55%)
+         Quick Actions child panel (45%)
+       expense-page-records
+         toolbar: search + simple filter popover
+         shared DataTable
+         shared pagination
+   ```
+
+3. Build responsiveness with the layout: tablet-first at `1194x834`; four horizontal summary cards and a 55/45 overview row on tablet landscape/desktop; 2x2 summary cards and stacked overview panels on tablet portrait; single-column readable cards/panels on phone; `svh` containment for the chart, quick actions, and table on short screens. Keep typography changes module-scoped and above the approved readable minimums.
+4. Reuse shared `SummaryCards` for Total Expenses, Salary, Inventory Purchases, and Top Operating Expense. Cards are display-only and must preserve the existing expense calculations; add only derived presentation calculations backed by the current records.
+5. Create one focused `ExpenseOverview` component that owns the 55/45 Expense Distribution and Quick Actions child panels, matching the successful Inventory Insights composition while keeping both responsibilities readable inside the component.
+6. Replace the legacy donut/category-breakdown layout inside `ExpenseOverview` with an Expense Distribution child panel containing a standard header, caption, tooltip, and bar chart. Use the existing chart foundation/theme tokens and provide a structured panel skeleton.
+7. Add the Quick Actions child panel inside `ExpenseOverview` using the approved Inventory Quick Actions card layout with four rows: Pay Employee, Purchase Inventory, Manage Expense Categories, and View Archive. Reuse proven existing modal/actions only. Manage Categories and View Archive are connected; Pay Employee and Purchase Inventory stay disabled until their modal workflows are approved.
+8. Build the records toolbar with shared `ToolbarSearchInput` and a simple `FilterPopover` without sidebar sections. Its content contains Expense Period (`All Time`, `This Day`, `This Week`, `This Month`), shared From/To date-range picker, and a collapsible multi-select Category group. Preserve the existing date-filter meaning and reset pagination on applied changes.
+9. Migrate Expense Records to the shared `DataTable` and `DataTablePagination`; keep date, category, description, vendor/supplier, amount, recorded-by, edit, and archive behavior. Put row actions in the approved overflow menu and retain the Inventory Purchase edit/archive restrictions.
+10. Keep `expenseTracking.css` layout-only: named regions, four-card grid, `ExpenseOverview` 55/45 child columns, height clamps, scroll containment, responsive stacking, and print selectors if required. Use Tailwind and semantic tokens for component presentation.
+11. Preserve distinct loading, error, empty, populated, and disabled states. Verify `1194x834`, `1440x900`, `390x844`, and `390x600`, then run focused lint and the production/PWA build before visual approval and cleanup.
+
+Completed September 20, 2026:
+
+12. Added the responsive `/expenses/archive` page with parent breadcrumbs, Back to Expense Tracking action, category search/filtering, shared DataTable/pagination, category badges, and restore behavior backed by the Expense init payload.
+13. Completed the Expense zero-reference audit, removed obsolete React imports, replaced modal reset effects with mount-scoped modal content, kept services unchanged, and passed focused frontend lint plus the production/PWA build.
+14. Completed the post-cleanup Expense modal smoke checks and restored the shared Base UI ScrollArea to its pre-Content-wrapper structure after the added wrapper regressed percentage-width Recharts rendering.
+15. Aligned Expense Distribution with Dashboard Weekly Sales by using a fixed current Sunday-to-Saturday range and retaining zero-value days in the chart.
 
 ### Phase 9: Menu Management
 
@@ -437,7 +529,7 @@ A module is complete only when:
 - Its tablet reference is approved first, followed by its desktop and mobile responsive adaptations.
 - Existing data and actions still work.
 - No backend or API contract was changed.
-- Loading, error, empty, and populated states are handled.
+- Loading, error, empty, and populated states are handled; loading uses a structured skeleton matching the final card, avatar, text, form, list, or table layout.
 - Keyboard focus and text contrast are acceptable.
 - Desktop, tablet, and mobile layouts are checked.
 - Lint and production build pass.

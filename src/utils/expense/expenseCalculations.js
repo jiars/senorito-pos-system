@@ -31,19 +31,128 @@ export const buildCategoryColorMap = (categories) => {
  * @param {number} netSales Total net sales from the sales report.
  * @returns {Object} Summary totals (overallExpenses, totalInventoryPurchases, netOperational)
  */
-export const calculateExpenseSummary = (filteredExpenseRecords, netSales) => {
-  const overallExpenses = filteredExpenseRecords.reduce(
-    (sum, e) => sum + Number(e.amount),
-    0
+export const calculateExpenseSummary = (
+  filteredExpenseRecords,
+  netSales = 0,
+) => {
+  const normalizedRecords = filteredExpenseRecords.map((expense) => ({
+    ...expense,
+    normalizedCategory:
+      expense.expense_categories?.category_name?.trim().toLowerCase() ??
+      "uncategorized",
+    numericAmount: Number(expense.amount) || 0,
+  }));
+
+  const overallExpenses = normalizedRecords.reduce(
+    (total, expense) => total + expense.numericAmount,
+    0,
   );
 
-  const totalInventoryPurchases = filteredExpenseRecords
-    .filter((e) => e.expense_categories?.category_name === "Inventory Purchase")
-    .reduce((sum, e) => sum + Number(e.amount), 0);
+  const salaryRecords = normalizedRecords.filter((expense) =>
+    ["salary", "salaries"].includes(expense.normalizedCategory),
+  );
 
+  const salaryExpenses = salaryRecords.reduce(
+    (total, expense) => total + expense.numericAmount,
+    0,
+  );
+
+  const inventoryPurchaseRecords = normalizedRecords.filter(
+    (expense) => expense.normalizedCategory === "inventory purchase",
+  );
+
+  const totalInventoryPurchases = inventoryPurchaseRecords.reduce(
+    (total, expense) => total + expense.numericAmount,
+    0,
+  );
+
+  const operatingCategoryTotals = normalizedRecords.reduce(
+    (totals, expense) => {
+      if (expense.normalizedCategory === "inventory purchase") {
+        return totals;
+      }
+
+      const categoryName =
+        expense.expense_categories?.category_name || "Uncategorized";
+
+      totals[categoryName] =
+        (totals[categoryName] || 0) + expense.numericAmount;
+
+      return totals;
+    },
+    {},
+  );
+
+  const topOperatingExpenseEntry = Object.entries(operatingCategoryTotals).sort(
+    ([, amountA], [, amountB]) => amountB - amountA,
+  )[0];
+
+  const topOperatingExpense = topOperatingExpenseEntry
+    ? {
+        category: topOperatingExpenseEntry[0],
+        amount: topOperatingExpenseEntry[1],
+      }
+    : {
+        category: "No data",
+        amount: 0,
+      };
+
+  const inventoryPurchasePercentage =
+    overallExpenses > 0
+      ? Math.round((totalInventoryPurchases / overallExpenses) * 100)
+      : 0;
+
+  // Temporarily retained for the existing Excel export.
   const netOperational = netSales - overallExpenses;
 
-  return { overallExpenses, totalInventoryPurchases, netOperational };
+  return {
+    overallExpenses,
+    salaryExpenses,
+    salaryTransactionCount: salaryRecords.length,
+    totalInventoryPurchases,
+    inventoryPurchasePercentage,
+    topOperatingExpense,
+    expenseTransactionCount: normalizedRecords.length,
+    netOperational,
+  };
+};
+
+/**
+ * Groups expenses into the current Sunday-to-Saturday week used by Dashboard.
+ * Missing calendar days remain visible with a zero total.
+ */
+export const calculateExpenseDistributionData = (expenseRecords = []) => {
+  const totalsByDate = expenseRecords.reduce((totals, expense) => {
+    const dateKey = String(expense.expense_date ?? "").slice(0, 10);
+
+    if (!dateKey) {
+      return totals;
+    }
+
+    totals[dateKey] = (totals[dateKey] || 0) + (Number(expense.amount) || 0);
+
+    return totals;
+  }, {});
+
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+  return Array.from({ length: 7 }, (_, dayIndex) => {
+    const currentDate = new Date(startOfWeek);
+    currentDate.setDate(startOfWeek.getDate() + dayIndex);
+
+    const timezoneOffset = currentDate.getTimezoneOffset() * 60 * 1000;
+    const date = new Date(currentDate.getTime() - timezoneOffset)
+      .toISOString()
+      .slice(0, 10);
+
+    return {
+      date,
+      label: currentDate.toLocaleDateString("en-US", { weekday: "short" }),
+      amount: totalsByDate[date] || 0,
+    };
+  });
 };
 
 /**
@@ -52,9 +161,12 @@ export const calculateExpenseSummary = (filteredExpenseRecords, netSales) => {
  * @param {number} overallExpenses The total overall expenses amount.
  * @returns {Array} An array of objects representing category breakdowns, sorted by amount descending.
  */
-export const calculateCategoryBreakdown = (filteredExpenseRecords, overallExpenses) => {
+export const calculateCategoryBreakdown = (
+  filteredExpenseRecords,
+  overallExpenses,
+) => {
   const categoryTotals = {};
-  
+
   filteredExpenseRecords.forEach((e) => {
     const catName = e.expense_categories?.category_name || "Uncategorized";
     if (!categoryTotals[catName]) categoryTotals[catName] = 0;
@@ -65,36 +177,8 @@ export const calculateCategoryBreakdown = (filteredExpenseRecords, overallExpens
     .map(([category, amount]) => ({
       category,
       amount,
-      pct: overallExpenses > 0 ? ((amount / overallExpenses) * 100).toFixed(2) : 0,
+      pct:
+        overallExpenses > 0 ? ((amount / overallExpenses) * 100).toFixed(2) : 0,
     }))
     .sort((a, b) => b.amount - a.amount);
-};
-
-/**
- * Calculates SVG properties (dashArray, dashOffset) for a circular chart.
- * @param {Array} categoryBreakdown The array of category breakdown objects.
- * @param {number} overallExpenses The total overall expenses amount.
- * @param {Object} categoryColorMap A map of category names to color hex codes.
- * @returns {Array} Array of segment objects with SVG rendering data.
- */
-export const calculateChartSegments = (categoryBreakdown, overallExpenses, categoryColorMap) => {
-  const radius = 80;
-  const circumference = 2 * Math.PI * radius;
-  let offset = 0;
-
-  return categoryBreakdown.map((cat) => {
-    const proportion = overallExpenses > 0 ? cat.amount / overallExpenses : 0;
-    const dashArray = proportion * circumference;
-    const gap = circumference - dashArray;
-    const dashOffset = circumference - offset;
-    offset += dashArray;
-
-    return {
-      ...cat,
-      dashArray,
-      gap,
-      dashOffset,
-      color: categoryColorMap[cat.category] || "#888888",
-    };
-  });
 };

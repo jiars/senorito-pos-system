@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
-import './salesReport.css';
-import { useSalesReport } from '../../../hooks/useSalesReport';
-import { formatCurrency } from '../../../utils/currencyFormatters';
+import { useState } from "react";
+import "./salesReport.css";
+import { useSalesReport } from "../../../hooks/useSalesReport";
+
+import PageLayout from "@/components/layout/PageLayout";
+import { Button } from "@/components/ui/button";
+import SummaryCards from "@/components/summary-cards/SummaryCards";
+
+import { formatCurrency } from "../../../utils/currencyFormatters";
 import {
   calculateSalesSummary,
   calculateSalesAnalytics,
@@ -11,43 +16,40 @@ import {
   calculateHourlyOverview,
   calculateHeatmapLimits,
   getQuadrantColorClass,
-} from '../../../utils/reports/salesReportCalculations';
+} from "../../../utils/reports/salesReportCalculations";
 import {
   filterSalesOrders,
   filterWastageRecords,
-} from '../../../utils/reports/salesReportFilters';
+} from "../../../utils/reports/salesReportFilters";
+import { exportSalesReport } from "../../../utils/reports/salesReportExportUtils";
 
 // Import components
-import SalesFilterBar from './components/SalesFilterBar';
-import SalesSummaryCards from './components/SalesSummaryCards';
-import { SalesBySourcePanel, TopSellingItemsPanel, SalesByCategoryPanels, HourlySalesPattern } from './components/SalesPerformancePanels';
-import { MenuProfitabilityHeatmap, QuadrantLegend, DetailedProfitabilityTable } from './components/ProfitabilityPanels';
-import SalesPrintLayout from './components/SalesPrintLayout';
+import SalesProfitabilityPanel from "./components/SalesProfitabilityPanel";
+import SalesReportFilters from "./components/SalesReportFilters";
+import SalesDistributionPanel from "./components/SalesDistributionPanel";
+import SalesPerformancePanel from "./components/SalesPerformancePanel";
+import SalesPrintLayout from "./components/SalesPrintLayout";
 
-const categoryColors = ['#2E7D32', '#EF6C00', '#0277BD', '#7B1FA2', '#00695C'];
+const categoryColors = ["#2E7D32", "#EF6C00", "#0277BD", "#7B1FA2", "#00695C"];
 
 const SalesReportPage = () => {
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [datePreset, setDatePreset] = useState('All Time');
-  const [filterSource, setFilterSource] = useState('All Order Sources');
-  const [filterCategory, setFilterCategory] = useState('All Categories');
-  const [profitabilitySort, setProfitabilitySort] = useState('Highest Revenue');
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [datePreset, setDatePreset] = useState("All Time");
+  const [filterSources, setFilterSources] = useState([]);
+  const [filterCategories, setFilterCategories] = useState([]);
+  const [profitabilitySort, setProfitabilitySort] = useState("Highest Revenue");
   const [heatmapActive, setHeatmapActive] = useState(null);
 
-  const {
-    orders,
-    wastageRecords,
-    categories,
-  } = useSalesReport();
+  const { orders, wastageRecords, categories, isLoading } = useSalesReport();
 
   // Filter the cached init data without requesting Laravel again.
   const filteredOrders = filterSalesOrders(
     orders,
     fromDate,
     toDate,
-    filterSource,
-    filterCategory,
+    filterSources,
+    filterCategories,
   );
   const filteredWastageRecords = filterWastageRecords(
     wastageRecords,
@@ -60,14 +62,17 @@ const SalesReportPage = () => {
     filteredOrders,
     filteredWastageRecords,
   );
-  const analytics = calculateSalesAnalytics(filteredOrders, filterCategory);
+  const analytics = calculateSalesAnalytics(filteredOrders, filterCategories);
   const trends = calculateOrderTrends(filteredOrders);
   const detailedProfitability = calculateDetailedProfitability(
     filteredOrders,
-    filterCategory,
+    filterCategories,
   );
   const quadCounts = calculateQuadrantCounts(detailedProfitability);
-  const hourlyOverview = calculateHourlyOverview(trends.hourlyData);
+  const hourlyOverview = calculateHourlyOverview(
+    trends.hourlyData,
+    trends.totalHourlyOrders,
+  );
   const heatmapLimits = calculateHeatmapLimits(detailedProfitability);
 
   const topSellingItems = analytics.topSelling.slice(0, 6);
@@ -81,139 +86,166 @@ const SalesReportPage = () => {
   const maxQty = heatmapLimits.maxQty;
   const maxRev = heatmapLimits.maxRev;
 
-  const handleDatePresetChange = (preset) => {
-    setDatePreset(preset);
-    if (preset === 'All Time' || preset === 'Custom') {
-      if (preset === 'All Time') {
-        setFromDate('');
-        setToDate('');
-      }
-      return;
-    }
-
-    const today = new Date();
-    let start = '';
-    let end = '';
-
-    const formatDate = (d) => {
-      const offset = d.getTimezoneOffset();
-      d = new Date(d.getTime() - (offset*60*1000));
-      return d.toISOString().split('T')[0];
-    };
-
-    if (preset === 'Today') {
-      start = formatDate(today);
-      end = formatDate(today);
-    } else if (preset === 'This Week') {
-      const first = today.getDate() - today.getDay(); 
-      const firstDay = new Date(today.setDate(first));
-      const lastDay = new Date(today.setDate(first + 6));
-      start = formatDate(firstDay);
-      end = formatDate(lastDay);
-    } else if (preset === 'This Month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-      start = formatDate(firstDay);
-      end = formatDate(lastDay);
-    } else if (preset === 'Last Month') {
-      const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
-      start = formatDate(firstDay);
-      end = formatDate(lastDay);
-    } else if (preset === 'This Year') {
-      const firstDay = new Date(today.getFullYear(), 0, 1);
-      const lastDay = new Date(today.getFullYear(), 11, 31);
-      start = formatDate(firstDay);
-      end = formatDate(lastDay);
-    }
-
-    setFromDate(start);
-    setToDate(end);
-  };
-
-  const summaryCards = [
-    { id: 'orders', icon: 'bi-cup-hot-fill', value: summaryData.totalOrders.toString(), label: 'Total Orders', color: 'brown' },
-    { id: 'gross', icon: 'bi-bag-check-fill', value: formatCurrency(summaryData.grossSales), label: 'Gross Sales', color: 'green' },
-    { id: 'net', icon: 'bi-cash-stack', value: formatCurrency(summaryData.netSales), label: 'Net Sales', color: 'gray' },
-    { id: 'avg', icon: 'bi-receipt', value: formatCurrency(summaryData.avgOrderValue), label: 'Average Order Value', color: 'yellow' },
-    { id: 'wastage', icon: 'bi-exclamation-triangle-fill', value: formatCurrency(summaryData.totalWastageCost), label: 'Total Wastage Cost', color: 'red' },
+  const salesSummaryCards = [
+    {
+      id: "total-orders",
+      title: "Total Orders",
+      value: summaryData.totalOrders,
+      description: "Total orders made in this period",
+    },
+    {
+      id: "gross-revenue",
+      title: "Gross Revenue",
+      value: formatCurrency(summaryData.grossSales),
+      description: "Sales before deductions",
+    },
+    {
+      id: "net-revenue",
+      title: "Net Revenue",
+      value: formatCurrency(summaryData.netSales),
+      description: "Completed sales after deductions",
+    },
+    {
+      id: "average-order-value",
+      title: "Average Order Value",
+      value: formatCurrency(summaryData.avgOrderValue),
+      description: "Average value per completed order",
+    },
   ];
 
-  return (
-    <div className="sales-page">
+  const printSummaryCards = salesSummaryCards.map((card, index) => {
+    const printColors = ["brown", "green", "gray", "yellow"];
 
-      {/* ───── Page Header ───── */}
-      <div className="sales-page-header">
-        <div className="layout-page-heading">
-          <h2>Sales Report</h2>
-          <p>View and analyze your sales performance and profitability metrics.</p>
-        </div>
+    return {
+      ...card,
+      label: card.title,
+      color: printColors[index],
+    };
+  });
 
-        <div className="sales-header-actions">
-          <button className="sales-btn sales-btn--primary" onClick={() => window.print()}>
-            <i className="bi bi-printer"></i>
-            Print
-          </button>
-        </div>
-      </div>
+  const handleApplySalesFilters = (nextFilters) => {
+    setDatePreset(nextFilters.datePreset);
+    setFromDate(nextFilters.fromDate);
+    setToDate(nextFilters.toDate);
 
-      <SalesFilterBar
+    setFilterCategories(nextFilters.categories);
+    setFilterSources(nextFilters.orderSources);
+  };
+
+  const handleClearSalesFilters = () => {
+    setDatePreset("All Time");
+    setFromDate("");
+    setToDate("");
+    setFilterCategories([]);
+    setFilterSources([]);
+  };
+
+  const handleExport = () => {
+    exportSalesReport({
+      summaryData,
+      topSellingItems,
+      sourceData,
+      categorySales,
+      detailedProfitability,
+      hourlyData: safeHourlyData,
+    });
+  };
+
+  const pageActions = (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleExport}
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)]"
+      >
+        <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
+        Export
+      </Button>
+
+      <SalesReportFilters
         datePreset={datePreset}
-        handleDatePresetChange={handleDatePresetChange}
-        filterSource={filterSource}
-        setFilterSource={setFilterSource}
-        filterCategory={filterCategory}
-        setFilterCategory={setFilterCategory}
-        categories={categories}
         fromDate={fromDate}
-        setFromDate={setFromDate}
         toDate={toDate}
-        setToDate={setToDate}
-        setDatePreset={setDatePreset}
+        filterCategories={filterCategories}
+        filterSources={filterSources}
+        categories={categories}
+        onApplyFilters={handleApplySalesFilters}
+        onClearFilters={handleClearSalesFilters}
       />
 
-      <SalesSummaryCards summaryCards={summaryCards} />
+      <Button
+        type="button"
+        onClick={() => window.print()}
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-white hover:bg-[var(--app-color-brand-hover)]"
+      >
+        <i aria-hidden="true" className="bi bi-printer" />
+        Print
+      </Button>
+    </>
+  );
 
-      <div className="sales-section-grid">
-        <SalesBySourcePanel sourceData={sourceData} summaryData={summaryData} />
-        <TopSellingItemsPanel topSellingItems={topSellingItems} />
+  return (
+    <PageLayout
+      title="Sales"
+      subtitle="View and analyze your sales performance and profitability metrics."
+      actions={pageActions}
+      className="sales-page-shell flex flex-col gap-4"
+    >
+      <div className="sales-page-layout sales-page">
+        <section className="sales-page-summary">
+          <SummaryCards
+            cards={salesSummaryCards}
+            isLoading={isLoading}
+            gridClassName="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2 lg:grid-cols-4 px-[var(--app-space-4)]"
+          />
+        </section>
+
+        <section className="sales-page-profitability">
+          <SalesProfitabilityPanel
+            isLoading={isLoading}
+            detailedProfitability={detailedProfitability}
+            profitabilitySort={profitabilitySort}
+            setProfitabilitySort={setProfitabilitySort}
+            quadCounts={quadCounts}
+            heatmapActive={heatmapActive}
+            setHeatmapActive={setHeatmapActive}
+            maxQty={maxQty}
+            maxRev={maxRev}
+            getQuadColorClass={getQuadrantColorClass}
+          />
+        </section>
+
+        <section className="sales-page-performance">
+          <SalesPerformancePanel
+            isLoading={isLoading}
+            hourlyData={safeHourlyData}
+            yAxisLabels={yAxisLabels}
+            maxOrders={maxOrders}
+            peakHour={peakHour}
+            totalOrders={totalOrders}
+            topSellingItems={topSellingItems}
+          />
+        </section>
+
+        <section className="sales-page-distribution">
+          <SalesDistributionPanel
+            isLoading={isLoading}
+            sourceData={sourceData}
+            categorySales={categorySales}
+            categoryColors={categoryColors}
+            summaryData={summaryData}
+          />
+        </section>
       </div>
-
-      <div className="sales-section-grid">
-        <MenuProfitabilityHeatmap
-          detailedProfitability={detailedProfitability}
-          heatmapActive={heatmapActive}
-          setHeatmapActive={setHeatmapActive}
-          maxQty={maxQty}
-          maxRev={maxRev}
-          getQuadColorClass={getQuadrantColorClass}
-        />
-        <QuadrantLegend quadCounts={quadCounts} />
-      </div>
-
-      <DetailedProfitabilityTable
-        detailedProfitability={detailedProfitability}
-        profitabilitySort={profitabilitySort}
-        setProfitabilitySort={setProfitabilitySort}
-      />
-
-      <SalesByCategoryPanels categorySales={categorySales} categoryColors={categoryColors} />
-
-      <HourlySalesPattern
-        hourlyData={safeHourlyData}
-        yAxisLabels={yAxisLabels}
-        maxOrders={maxOrders}
-        peakHour={peakHour}
-        totalOrders={totalOrders}
-      />
 
       <SalesPrintLayout
         datePreset={datePreset}
-        filterSource={filterSource}
-        filterCategory={filterCategory}
+        filterSource={filterSources.join(", ") || "All Order Sources"}
+        filterCategory={filterCategories.join(", ") || "All Categories"}
         fromDate={fromDate}
         toDate={toDate}
-        summaryCards={summaryCards}
+        summaryCards={printSummaryCards}
         sourceData={sourceData}
         summaryData={summaryData}
         topSellingItems={topSellingItems}
@@ -226,8 +258,7 @@ const SalesReportPage = () => {
         peakHour={peakHour}
         totalOrders={totalOrders}
       />
-
-    </div>
+    </PageLayout>
   );
 };
 

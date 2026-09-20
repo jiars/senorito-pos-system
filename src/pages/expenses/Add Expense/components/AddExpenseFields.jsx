@@ -1,5 +1,3 @@
-import React from "react";
-
 const FieldError = ({ message }) =>
   message ? <p className="expense-modal-error-msg">{message}</p> : null;
 

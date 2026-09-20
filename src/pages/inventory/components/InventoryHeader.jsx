@@ -1,46 +1,60 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 
-const InventoryHeader = ({
-    setIsPrintQRModalOpen,
-    setIsArchiveModalOpen,
-    setIsManageCategoriesOpen,
-    setIsAddModalOpen,
-    selectedItemsCount
-}) => {
-    const navigate = useNavigate();
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-    return (
-        <div className="inventory-page-header">
-            <div className="layout-page-heading">
-                <h2>Inventory Management</h2>
-                <p>Manage and monitor your products, ingredients, and packaging materials.</p>
-            </div>
+const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
+  const navigate = useNavigate();
 
-            <div className="inventory-header-actions">
-                <button
-                    className="inventory-btn"
-                    onClick={() => setIsPrintQRModalOpen(true)}
-                    disabled={selectedItemsCount === 0}
-                >
-                    <i className="bi bi-qr-code"></i>
-                    Print QR Code
-                </button>
-                <button className="inventory-btn" onClick={() => navigate('/inventory/archive')}>
-                    <i className="bi bi-archive"></i>
-                    View archived items
-                </button>
-                <button className="inventory-btn" onClick={() => setIsManageCategoriesOpen(true)}>
-                    <i className="bi bi-tag"></i>
-                    Manage Categories
-                </button>
-                <button className="inventory-btn inventory-btn--primary" onClick={() => setIsAddModalOpen(true)}>
-                    <i className="bi bi-plus-circle"></i>
-                    Add Item
-                </button>
-            </div>
-        </div>
-    );
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-[var(--app-space-2)]">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="Open Inventory actions"
+              className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] p-0 text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] hover:bg-[var(--app-color-control-hover)]"
+            >
+              <i aria-hidden="true" className="bi bi-three-dots-vertical" />
+            </Button>
+          }
+        />
+
+        <DropdownMenuContent align="end" className="z-[100] w-52">
+          <DropdownMenuItem disabled>
+            <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
+            Export
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => navigate("/inventory/archive")}>
+            <i aria-hidden="true" className="bi bi-archive" />
+            View Archive
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={onOpenManageCategories}>
+            <i aria-hidden="true" className="bi bi-tags" />
+            Manage Categories
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Button
+        type="button"
+        onClick={onOpenAddItem}
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+      >
+        <i aria-hidden="true" className="bi bi-plus-lg" />
+        Add New Item
+      </Button>
+    </div>
+  );
 };
 
 export default InventoryHeader;

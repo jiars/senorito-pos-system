@@ -12,8 +12,8 @@ const getLocalDate = (value) => {
   return `${year}-${month}-${day}`;
 };
 
-const orderHasCategory = (order, selectedCategory) => {
-  if (selectedCategory === "All Categories") {
+const orderHasCategory = (order, selectedCategories = []) => {
+  if (selectedCategories.length === 0) {
     return true;
   }
 
@@ -24,7 +24,10 @@ const orderHasCategory = (order, selectedCategory) => {
     const category = menuItem ? menuItem.menu_categories : null;
     const categoryName = category ? category.category_name : "Uncategorized";
 
-    return categoryName.toLowerCase() === selectedCategory.toLowerCase();
+    return selectedCategories.some(
+      (selectedCategory) =>
+        categoryName.toLowerCase() === selectedCategory.toLowerCase(),
+    );
   });
 };
 
@@ -33,8 +36,8 @@ export const filterSalesOrders = (
   orders,
   fromDate,
   toDate,
-  selectedSource,
-  selectedCategory,
+  selectedSources = [],
+  selectedCategories = [],
 ) => {
   return orders.filter((order) => {
     const orderDate = getLocalDate(order.order_datetime);
@@ -44,13 +47,16 @@ export const filterSalesOrders = (
     if (toDate && orderDate > toDate) return false;
 
     if (
-      selectedSource !== "All Order Sources" &&
-      orderSource.toLowerCase() !== selectedSource.toLowerCase()
+      selectedSources.length > 0 &&
+      !selectedSources.some(
+        (selectedSource) =>
+          orderSource.toLowerCase() === selectedSource.toLowerCase(),
+      )
     ) {
       return false;
     }
 
-    return orderHasCategory(order, selectedCategory);
+    return orderHasCategory(order, selectedCategories);
   });
 };
 

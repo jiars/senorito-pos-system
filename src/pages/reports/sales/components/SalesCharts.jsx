@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { formatCurrency } from '../../../../utils/currencyFormatters';
 
 export const DonutChart = ({ data, total }) => {
@@ -6,14 +6,22 @@ export const DonutChart = ({ data, total }) => {
   const radius = 80;
   const strokeWidth = 30;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+  const segments = data
+    .filter((item) => item.pct > 0)
+    .reduce(
+      (result, item) => {
+        const dashArray = (item.pct / 100) * circumference;
 
-  const segments = data.filter(d => d.pct > 0).map((d) => {
-    const dashArray = (d.pct / 100) * circumference;
-    const dashOffset = -offset;
-    offset += dashArray;
-    return { ...d, dashArray, dashOffset };
-  });
+        return {
+          offset: result.offset + dashArray,
+          segments: [
+            ...result.segments,
+            { ...item, dashArray, dashOffset: -result.offset },
+          ],
+        };
+      },
+      { offset: 0, segments: [] },
+    ).segments;
 
   return (
     <div className="donut-chart-container">
@@ -54,14 +62,26 @@ export const PieChart = ({ data, colors }) => {
   const strokeWidth = 100;
   const circumference = 2 * Math.PI * radius;
   const totalPct = data.reduce((sum, d) => sum + d.pct, 0);
-  let offset = 0;
+  const segments = data.reduce(
+    (result, item, index) => {
+      const dashArray =
+        totalPct > 0 ? (item.pct / totalPct) * circumference : 0;
 
-  const segments = data.map((d, idx) => {
-    const dashArray = (d.pct / totalPct) * circumference;
-    const dashOffset = -offset;
-    offset += dashArray;
-    return { ...d, dashArray, dashOffset, color: colors[idx % colors.length] };
-  });
+      return {
+        offset: result.offset + dashArray,
+        segments: [
+          ...result.segments,
+          {
+            ...item,
+            dashArray,
+            dashOffset: -result.offset,
+            color: colors[index % colors.length],
+          },
+        ],
+      };
+    },
+    { offset: 0, segments: [] },
+  ).segments;
 
   return (
     <div className="pie-chart-container">

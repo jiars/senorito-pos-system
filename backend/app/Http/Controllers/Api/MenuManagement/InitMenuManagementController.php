@@ -24,15 +24,35 @@ class InitMenuManagementController extends Controller
             ->orderBy('item_name', 'asc')
             ->get();
 
+        $archivedMenuItems = MenuItem::with([
+            'menu_categories',
+            'menu_prices',
+            'menu_recipes',
+        ])
+            ->where('archived', true)
+            ->orderBy('item_name', 'asc')
+            ->get();
+
         $addons = Addon::with(['addon_categories.menu_categories', 'addon_recipes'])
             ->where('archived', false)
+            ->orderBy('addon_name', 'asc')
+            ->get();
+
+        // Fetch archived Add-ons using the same relationships.
+        $archivedAddons = Addon::with([
+            'addon_categories.menu_categories',
+            'addon_recipes',
+        ])
+            ->where('archived', true)
             ->orderBy('addon_name', 'asc')
             ->get();
 
         return response()->json([
             'categories' => $categories,
             'items' => $menuItems,
-            'addons' => $addons
+            'addons' => $addons,
+            'archivedMenuItems' => $archivedMenuItems,
+            'archivedAddons' => $archivedAddons,
         ]);
     }
 }

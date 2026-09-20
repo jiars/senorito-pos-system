@@ -1,30 +1,27 @@
-const InventoryAuditPagination = ({ currentPage, totalPages, onPageChange }) => {
-  if (totalPages === 0) return null;
+import DataTablePagination from "@/components/data-table/DataTablePagination";
 
+/**
+ * Inventory Audit owns its page-specific row-count options.
+ * Shared pagination behavior and styling remain in DataTablePagination.
+ */
+const InventoryAuditPagination = ({
+  totalLogs,
+  pageSize,
+  currentPage,
+  onPageChange,
+  onPageSizeChange,
+  isLoading,
+}) => {
   return (
-    <div className="audit-pagination">
-      <span>Page {currentPage} of {totalPages}</span>
-
-      <div className="audit-pagination-btns">
-        <button
-          className="audit-page-btn"
-          disabled={currentPage === 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          <i className="bi bi-chevron-left"></i>
-        </button>
-
-        <button className="audit-page-btn active">{currentPage}</button>
-
-        <button
-          className="audit-page-btn"
-          disabled={currentPage === totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          <i className="bi bi-chevron-right"></i>
-        </button>
-      </div>
-    </div>
+    <DataTablePagination
+      totalItems={totalLogs}
+      pageSize={pageSize}
+      pageSizeOptions={[12, 24, 36, 48]}
+      currentPage={currentPage}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
+      isLoading={isLoading}
+    />
   );
 };
 

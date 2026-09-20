@@ -213,7 +213,7 @@ class DashboardController extends Controller
                 'profiles.last_name'
             )
             ->orderBy('orders.order_datetime', 'desc')
-            ->limit(5)
+            ->limit(6)
             ->get();
 
         // Format the data exactly how React expects it

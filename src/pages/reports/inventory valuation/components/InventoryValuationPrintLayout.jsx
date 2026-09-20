@@ -1,3 +1,5 @@
+import "./inventory-valuation-print-layout.css";
+
 const formatCurrency = (value) => {
   return Number(value).toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -13,10 +15,10 @@ const InventoryValuationPrintLayout = ({
   sort,
   filteredTotal,
 }) => {
-  const generatedDate = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+  const generatedDate = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
   });
 
   return (
@@ -32,10 +34,18 @@ const InventoryValuationPrintLayout = ({
         </div>
 
         <div className="print-val-filters-box">
-          <span><strong>Search:</strong> {searchTerm || 'None'}</span>
-          <span><strong>Category:</strong> {category}</span>
-          <span><strong>Total Value:</strong> ₱{formatCurrency(filteredTotal)}</span>
-          <span><strong>Sort By:</strong> {sort.replace('Sort: ', '')}</span>
+          <span>
+            <strong>Search:</strong> {searchTerm || "None"}
+          </span>
+          <span>
+            <strong>Category:</strong> {category}
+          </span>
+          <span>
+            <strong>Total Value:</strong> ₱{formatCurrency(filteredTotal)}
+          </span>
+          <span>
+            <strong>Sort By:</strong> {sort.replace("Sort: ", "")}
+          </span>
         </div>
       </div>
 
@@ -52,7 +62,9 @@ const InventoryValuationPrintLayout = ({
           <tbody>
             {categorySummary.length === 0 ? (
               <tr>
-                <td colSpan="3" className="print-empty-cell">No data</td>
+                <td colSpan="3" className="print-empty-cell">
+                  No data
+                </td>
               </tr>
             ) : (
               categorySummary.map((summary) => (
@@ -85,7 +97,9 @@ const InventoryValuationPrintLayout = ({
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan="6" className="print-empty-cell">No items found.</td>
+                <td colSpan="6" className="print-empty-cell">
+                  No items found.
+                </td>
               </tr>
             ) : (
               <>
@@ -102,7 +116,9 @@ const InventoryValuationPrintLayout = ({
                   </tr>
                 ))}
                 <tr className="val-print-table-grand">
-                  <td colSpan="5" className="print-total-label">TOTAL VALUE</td>
+                  <td colSpan="5" className="print-total-label">
+                    TOTAL VALUE
+                  </td>
                   <td className="print-total-value">
                     ₱{formatCurrency(filteredTotal)}
                   </td>
@@ -114,8 +130,8 @@ const InventoryValuationPrintLayout = ({
       </section>
 
       <div className="print-footer">
-        Señorito Café — Point of Sale & Inventory Management System |
-        {' '}Inventory Valuation Report | Generated {generatedDate}
+        Señorito Café — Point of Sale & Inventory Management System | Inventory
+        Valuation Report | Generated {generatedDate}
       </div>
     </div>
   );

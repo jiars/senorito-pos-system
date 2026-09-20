@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { QRCodeSVG } from 'qrcode.react';
 import { Checkbox } from '../../../../components/ui/Checkbox/Checkbox';
@@ -6,21 +6,24 @@ import { supabase } from '../../../../services/supabaseClient';
 
 import './printQRCodeModal.css';
 
-const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
-  const [selectedQRIds, setSelectedQRIds] = useState([]);
+const PrintQRCodeModalContent = ({
+  isOpen,
+  onClose,
+  selectedItems = [],
+  initialSelectedBatchIds = [],
+  selectItemsByDefault = true,
+}) => {
+  const [selectedQRIds, setSelectedQRIds] = useState(() => {
+    const itemIds = selectItemsByDefault
+      ? selectedItems.map((item) => item.id)
+      : [];
+
+    return [...new Set([...itemIds, ...initialSelectedBatchIds])];
+  });
 
   // For batches
   const [batches, setBatches] = useState([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
-
-  // Sync internal checkbox state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      // Auto-select items by default
-      const itemIds = selectedItems.map(item => item.id);
-      setSelectedQRIds(itemIds);
-    }
-  }, [isOpen, selectedItems]);
 
   // Fetch batches when modal opens
   useEffect(() => {
@@ -29,7 +32,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
         setIsLoadingBatches(true);
         try {
           const itemIds = selectedItems.map(item => item.id);
-          const { data, error } = await supabase
+          let query = supabase
             .from('inventory_batches')
             .select(`
               *,
@@ -39,9 +42,15 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
                 base_unit
               )
             `)
-            .in('inventory_item_id', itemIds)
-            .gt('quantity', 0)
-            .order('expiration_date', { ascending: true });
+            .in('inventory_item_id', itemIds);
+
+          query = initialSelectedBatchIds.length > 0
+            ? query.in('id', initialSelectedBatchIds)
+            : query.gt('quantity', 0);
+
+          const { data, error } = await query.order('expiration_date', {
+            ascending: true,
+          });
 
           if (error) throw error;
           setBatches(data || []);
@@ -53,9 +62,7 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
       };
       fetchBatches();
     }
-  }, [isOpen, selectedItems]);
-
-  if (!isOpen) return null;
+  }, [initialSelectedBatchIds, isOpen, selectedItems]);
 
   const toggleSelect = (id) => {
     setSelectedQRIds((prev) =>
@@ -260,6 +267,12 @@ const PrintQRCodeModal = ({ isOpen, onClose, selectedItems = [] }) => {
       </div>
     </div>
   );
+};
+
+const PrintQRCodeModal = (props) => {
+  if (!props.isOpen) return null;
+
+  return <PrintQRCodeModalContent {...props} />;
 };
 
 export default PrintQRCodeModal;

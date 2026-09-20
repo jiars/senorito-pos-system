@@ -18,7 +18,7 @@ import "./dashboard.css";
 ═══════════════════════════════════════════════════ */
 
 const DashboardPage = () => {
-  const [isLoadingTop, setIsLoadingTop] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   // States for Step 2
   const [metrics, setMetrics] = useState({
@@ -37,13 +37,11 @@ const DashboardPage = () => {
   const [weeklySalesData, setWeeklySalesData] = useState([]);
   const [topSellingItems, setTopSellingItems] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
-  const [isLoadingBottom, setIsLoadingBottom] = useState(true);
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        setIsLoadingTop(true);
-        setIsLoadingBottom(true);
+        setIsLoading(true);
 
         // Exactly ONE network request!
         const data = await fetchDashboardSummary();
@@ -56,8 +54,7 @@ const DashboardPage = () => {
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
-        setIsLoadingTop(false);
-        setIsLoadingBottom(false);
+        setIsLoading(false);
       }
     };
 
@@ -68,37 +65,37 @@ const DashboardPage = () => {
     <PageLayout
       title="Overview"
       subtitle="Here is the summary of overall data"
-      className="flex flex-col gap-4"
+      className="dashboard-page-shell flex flex-col gap-4"
     >
-      <div className="dashboard-overview-layout">
-        <div className="dashboard-overview-primary">
-          <SummaryCards metrics={metrics} isLoadingTop={isLoadingTop} />
+      <div className="dashboard-overview-layout dashboard-page">
+        <section className="dashboard-overview-primary">
+          <SummaryCards metrics={metrics} isLoading={isLoading} />
 
           <WeeklySalesChart
             weeklySalesData={weeklySalesData}
-            isLoadingBottom={isLoadingBottom}
+            isLoading={isLoading}
           />
-        </div>
+        </section>
 
-        <div className="dashboard-overview-secondary">
-          <ExpiryBatchesPanel alerts={alerts} isLoadingTop={isLoadingTop} />
+        <section className="dashboard-overview-secondary">
+          <ExpiryBatchesPanel alerts={alerts} isLoading={isLoading} />
 
-          <LowStockPanel alerts={alerts} isLoadingTop={isLoadingTop} />
-        </div>
+          <LowStockPanel alerts={alerts} isLoading={isLoading} />
+        </section>
 
-        <div className="dashboard-overview-top-selling">
+        <section className="dashboard-overview-top-selling">
           <TopSellingPanel
             topSellingItems={topSellingItems}
-            isLoadingBottom={isLoadingBottom}
+            isLoading={isLoading}
           />
-        </div>
+        </section>
 
-        <div className="dashboard-overview-recent-orders">
+        <section className="dashboard-overview-recent-orders">
           <RecentOrdersTable
             recentOrders={recentOrders}
-            isLoadingBottom={isLoadingBottom}
+            isLoading={isLoading}
           />
-        </div>
+        </section>
       </div>
     </PageLayout>
   );

@@ -29,9 +29,17 @@ class InitExpenseManagementController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Fetch archived Expenses using the same relationships.
+        $archivedExpenses = Expense::with($relations)
+            ->where('archived', true)
+            ->orderBy('archived_at', 'desc')
+            ->orderBy('expense_date', 'desc')
+            ->get();
+
         return response()->json([
             'categories' => $categories,
             'expenses' => $expenses,
+            'archivedExpenses' => $archivedExpenses,
         ]);
     }
 }

@@ -1,5 +1,3 @@
-import React from "react";
-
 const ArchiveExpenseHeader = ({ description, onClose, isSubmitting }) => (
   <div className="cde-modal-header">
     <div className="cde-header-icon">

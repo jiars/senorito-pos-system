@@ -78,6 +78,9 @@ export const filterInventoryAuditLogs = (logs, filters) => {
   return logs.filter((log) => {
     const formattedLog = formatAuditLog(log);
     const searchTerm = filters.searchTerm.trim().toLowerCase();
+    const selectedRecordedBy = filters.recordedBy || [];
+    const selectedReasons = filters.reasons || [];
+    const selectedSources = filters.sources || [];
 
     if (searchTerm) {
       const searchableText = [
@@ -106,13 +109,20 @@ export const filterInventoryAuditLogs = (logs, filters) => {
     }
 
     if (
-      filters.action !== 'All actions' &&
-      log.action !== filters.action
+      selectedRecordedBy.length > 0 &&
+      !selectedRecordedBy.includes(formattedLog.performerName)
     ) return false;
 
     if (
-      filters.source !== 'All sources' &&
-      log.source !== filters.source
+      selectedReasons.length > 0 &&
+      !selectedReasons.some((reason) =>
+        formattedLog.reason.toLowerCase().includes(reason.toLowerCase()),
+      )
+    ) return false;
+
+    if (
+      selectedSources.length > 0 &&
+      !selectedSources.includes(formattedLog.source)
     ) return false;
 
     return true;

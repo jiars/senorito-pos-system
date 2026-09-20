@@ -1,4 +1,3 @@
-import React from 'react';
 import { DonutChart, PieChart, QuadBadge } from './SalesCharts';
 import { formatCurrency } from '../../../../utils/currencyFormatters';
 

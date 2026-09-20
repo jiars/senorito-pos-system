@@ -1,78 +1,161 @@
-import {
-  formatAuditLog,
-  getAuditActionClass,
-  getAuditChangeClass,
-  getAuditSourceClass,
-} from '../../../../utils/inventory/inventoryAuditLogUtils';
+import DataTable from "@/components/data-table/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { formatAuditLog } from "../../../../utils/inventory/inventoryAuditLogUtils";
 
-const InventoryAuditTable = ({ logs, isLoading }) => {
+const getActionBadgeClassName = (action) => {
+  if (action === "Wastage") {
+    return "bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger-foreground)]";
+  }
+
+  if (action === "Purchase") {
+    return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
+  }
+
+  return "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]";
+};
+
+const getSourceBadgeClassName = (source) => {
+  if (source === "Stock Log Modal") {
+    return "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]";
+  }
+
+  if (source === "Purchase Order") {
+    return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
+  }
+
+  return "bg-[var(--app-color-brand-border)] text-[var(--app-color-brand)]";
+};
+
+const getAuditColumns = () => {
+  return [
+    {
+      id: "dateTime",
+      header: "Date & Time",
+      meta: { width: "9rem" },
+      cell: ({ row }) => {
+        const auditRow = formatAuditLog(row.original);
+
+        return (
+          <div>
+            <p className="font-medium">{auditRow.date}</p>
+            <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              {auditRow.time}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      id: "item",
+      header: "Item",
+      meta: { width: "10rem", cellClassName: "whitespace-normal" },
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {formatAuditLog(row.original).itemName}
+        </span>
+      ),
+    },
+    {
+      id: "action",
+      header: "Action",
+      meta: { width: "9rem" },
+      cell: ({ row }) => {
+        const auditRow = formatAuditLog(row.original);
+
+        return (
+          <Badge
+            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getActionBadgeClassName(auditRow.action)}`}
+          >
+            {auditRow.action}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "source",
+      header: "Source",
+      meta: { width: "9rem" },
+      cell: ({ row }) => {
+        const auditRow = formatAuditLog(row.original);
+
+        return (
+          <Badge
+            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getSourceBadgeClassName(auditRow.source)}`}
+          >
+            {auditRow.source}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "change",
+      header: "Change",
+      meta: { width: "6rem" },
+      cell: ({ row }) => (
+        <span className="font-semibold">
+          {formatAuditLog(row.original).change}
+        </span>
+      ),
+    },
+    {
+      id: "before",
+      header: "Before",
+      meta: { width: "5rem" },
+      cell: ({ row }) => formatAuditLog(row.original).before,
+    },
+    {
+      id: "after",
+      header: "After",
+      meta: { width: "5rem" },
+      cell: ({ row }) => formatAuditLog(row.original).after,
+    },
+    {
+      id: "batch",
+      header: "Batch",
+      meta: { width: "8rem" },
+      cell: ({ row }) => (
+        <span className="font-semibold">
+          {formatAuditLog(row.original).batchNumber}
+        </span>
+      ),
+    },
+    {
+      id: "reason",
+      header: "Reason",
+      meta: { width: "10rem", cellClassName: "whitespace-normal" },
+      cell: ({ row }) => formatAuditLog(row.original).reason,
+    },
+    {
+      id: "reference",
+      header: "Ref #",
+      meta: { width: "8rem" },
+      cell: ({ row }) => formatAuditLog(row.original).reference,
+    },
+    {
+      id: "by",
+      header: "By",
+      meta: { width: "9rem" },
+      cell: ({ row }) => formatAuditLog(row.original).performerName,
+    },
+  ];
+};
+
+const InventoryAuditTable = ({ logs, isLoading, error }) => {
+  const errorMessage = error || "";
+
   return (
-    <div className="audit-table-wrapper">
-      <table className="audit-main-table" style={{ tableLayout: 'fixed', minWidth: '1200px' }}>
-        <thead>
-          <tr>
-            <th style={{ width: '110px', textAlign: 'left' }}>Date & Time</th>
-            <th style={{ width: '140px', textAlign: 'left' }}>Item</th>
-            <th style={{ width: '130px', textAlign: 'left' }}>Action</th>
-            <th style={{ width: '120px', textAlign: 'left' }}>Source</th>
-            <th style={{ width: '80px' }}>Change</th>
-            <th style={{ width: '70px' }}>Before</th>
-            <th style={{ width: '70px' }}>After</th>
-            <th style={{ width: '90px' }}>Batch</th>
-            <th style={{ width: '160px', textAlign: 'left' }}>Reason</th>
-            <th style={{ width: '90px', textAlign: 'left' }}>Ref #</th>
-            <th style={{ width: '100px', textAlign: 'left' }}>By</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {isLoading ? (
-            <tr>
-              <td colSpan="11" className="audit-empty-cell">
-                Loading audit logs...
-              </td>
-            </tr>
-          ) : logs.length === 0 ? (
-            <tr>
-              <td colSpan="11" className="audit-empty-cell">
-                No audit logs found.
-              </td>
-            </tr>
-          ) : (
-            logs.map((log) => {
-              const row = formatAuditLog(log);
-
-              return (
-                <tr key={log.id}>
-                  <td className="audit-align-left">
-                    <div className="audit-date-value">{row.date}</div>
-                    <div className="audit-time-value">{row.time}</div>
-                  </td>
-                  <td className="audit-item-cell">{row.itemName}</td>
-                  <td className="audit-align-left">
-                    <span className={`audit-chip ${getAuditActionClass(log.action)}`}>
-                      {row.action}
-                    </span>
-                  </td>
-                  <td className="audit-align-left">
-                    <span className={`audit-chip ${getAuditSourceClass(log.source)}`}>
-                      {row.source}
-                    </span>
-                  </td>
-                  <td className={getAuditChangeClass(log.quantity_change)}>{row.change}</td>
-                  <td>{row.before}</td>
-                  <td>{row.after}</td>
-                  <td className="audit-batch-cell">{row.batchNumber}</td>
-                  <td className="audit-reason-col">{row.reason}</td>
-                  <td className="audit-reference-cell">{row.reference}</td>
-                  <td className="audit-align-left">{row.performerName}</td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={getAuditColumns()}
+      data={logs}
+      getRowId={(log) => String(log.id)}
+      tableLabel="Inventory audit log"
+      isLoading={isLoading}
+      skeletonRowCount={12}
+      errorMessage={errorMessage}
+      emptyMessage="No audit logs found."
+      scrollAreaClassName="audit-table-scroll-area"
+      scrollbarOrientation="both"
+    />
   );
 };
 

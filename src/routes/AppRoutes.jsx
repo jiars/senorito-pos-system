@@ -14,8 +14,10 @@ import InventoryValuationReport from "../pages/reports/inventory valuation/Inven
 
 import MenuManagementPage from "../pages/menu/MenuManagementPage";
 import ManageAddonsPage from "../pages/menu/addons/ManageAddonsPage";
+import MenuArchivePage from "../pages/menu/archive/MenuArchivePage";
 
 import ExpenseTrackingPage from "../pages/expenses/ExpenseTrackingPage";
+import ExpenseArchivePage from "../pages/expenses/archive/ExpenseArchivePage";
 import OrdersPage from "../pages/orders/OrdersPage";
 import POSPage from "../pages/pos/POSPage";
 import SalesReportPage from "../pages/reports/sales/SalesReportPage";
@@ -77,12 +79,14 @@ const AppRoutes = () => {
 
         <Route path="/menu" element={<MenuManagementPage />} />
         <Route path="/menu/addons" element={<ManageAddonsPage />} />
+        <Route path="/menu/archive" element={<MenuArchivePage />} />
 
         <Route path="/pos" element={<POSPage />} />
         <Route path="/profile" element={<UserProfilePage />} />
         <Route path="/employees" element={<EmployeeManagementPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/expenses" element={<ExpenseTrackingPage />} />
+        <Route path="/expenses/archive" element={<ExpenseArchivePage />} />
         <Route path="/reports/sales" element={<SalesReportPage />} />
       </Route>
 

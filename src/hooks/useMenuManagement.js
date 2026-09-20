@@ -12,6 +12,8 @@ export const useMenuManagement = () => {
     categories: data?.categories || [],
     menuItems: data?.items || [],
     addons: data?.addons || [],
+    archivedMenuItems: data?.archivedMenuItems || [],
+    archivedAddons: data?.archivedAddons || [],
     isLoading,
     error: error ? error.message : null,
     refetch,

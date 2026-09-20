@@ -1,3 +1,82 @@
+/* Menu page-level layout. Component presentation stays in JSX/Tailwind. */
+.menu-page-layout {
+  display: grid;
+  min-width: 0;
+  gap: var(--app-gap-section);
+}
+
+.menu-workspace,
+.menu-workspace-bar,
+.menu-tabs-scroll,
+.menu-workspace-toolbar,
+.menu-tab-content {
+  min-width: 0;
+}
+
+.menu-workspace {
+  display: grid;
+  gap: var(--app-gap-section);
+}
+
+.menu-workspace-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-gap-section);
+}
+
+.menu-tabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.menu-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-workspace-toolbar {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--app-space-2);
+}
+
+.menu-addons-table-scroll-area {
+  max-height: min(34rem, calc(100svh - 20rem));
+}
+
+@media (max-width: 1023px) {
+  .menu-workspace-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .menu-workspace-toolbar {
+    width: 100%;
+  }
+
+  .menu-addons-table-scroll-area {
+    max-height: var(--app-panel-height-tablet-portrait);
+  }
+}
+
+@media (max-width: 639px) {
+  .menu-page-shell {
+    --app-gap-section: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
+  }
+
+  .menu-workspace-toolbar {
+    justify-content: stretch;
+  }
+
+  .menu-addons-table-scroll-area {
+    max-height: var(--app-panel-height-phone);
+  }
+}
+
 /* ─── Page Container ─── */
 .menu-page {
   display: flex;
@@ -35,32 +114,32 @@
   transition: all 0.2s ease;
   border: 1px solid #d9c0ae;
   background-color: #ffffff;
-  color: #2C1810;
+  color: #2c1810;
   height: 38px;
   white-space: nowrap;
 }
 
 .menu-btn:hover:not(:disabled) {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
+  background-color: #fff8f3;
+  border-color: #7a4b35;
 }
 
 .menu-btn:disabled {
-  background-color: #FAFAFA;
-  color: #ADB5BD;
-  border-color: #E9ECEF;
+  background-color: #fafafa;
+  color: #adb5bd;
+  border-color: #e9ecef;
   cursor: not-allowed;
 }
 
 .menu-btn--primary {
-  background-color: #3A1A0A;
+  background-color: #3a1a0a;
   color: #ffffff;
-  border-color: #3A1A0A;
+  border-color: #3a1a0a;
 }
 
 .menu-btn--primary:hover:not(:disabled) {
-  background-color: #5A2D15;
-  border-color: #5A2D15;
+  background-color: #5a2d15;
+  border-color: #5a2d15;
   color: #ffffff;
 }
 
@@ -79,7 +158,9 @@
   flex-direction: column;
   gap: 0.375rem;
   min-width: 0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -89,27 +170,27 @@
 }
 
 .menu-summary-card--dark {
-  background: linear-gradient(135deg, #3A1A0A, #5A2D15);
+  background: linear-gradient(135deg, #3a1a0a, #5a2d15);
 }
 
 .menu-summary-card--green {
-  background: linear-gradient(135deg, #2E7D32, #4A7A5A);
+  background: linear-gradient(135deg, #2e7d32, #4a7a5a);
 }
 
 .menu-summary-card--yellow {
-  background: linear-gradient(135deg, #E6A817, #F9A825);
+  background: linear-gradient(135deg, #e6a817, #f9a825);
 }
 
 .menu-summary-card--red {
-  background: linear-gradient(135deg, #C62828, #dc3545);
+  background: linear-gradient(135deg, #c62828, #dc3545);
 }
 
 .menu-summary-card--blue {
-  background: linear-gradient(135deg, #1976D2, #42A5F5);
+  background: linear-gradient(135deg, #1976d2, #42a5f5);
 }
 
 .menu-summary-card--darkred {
-  background: linear-gradient(135deg, #8E1600, #B71C1C);
+  background: linear-gradient(135deg, #8e1600, #b71c1c);
 }
 
 .menu-summary-card-icon {
@@ -176,15 +257,17 @@
   border: 1px solid #d9c0ae;
   border-radius: 20px;
   font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
+  font-family: "Inter", sans-serif;
+  color: #2c1810;
   background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .menu-search input:focus {
   outline: none;
-  border-color: #7A4B35;
+  border-color: #7a4b35;
   box-shadow: 0 0 0 3px rgba(122, 75, 53, 0.1);
 }
 
@@ -193,8 +276,8 @@
   border: 1px solid #d9c0ae;
   border-radius: 20px;
   font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
+  font-family: "Inter", sans-serif;
+  color: #2c1810;
   background-color: #ffffff;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M2.5 4.5l3.5 3.5 3.5-3.5z'/%3E%3C/svg%3E");
@@ -206,7 +289,7 @@
 
 .menu-filter-select:focus {
   outline: none;
-  border-color: #7A4B35;
+  border-color: #7a4b35;
 }
 
 .menu-reset-btn {
@@ -214,7 +297,7 @@
   border: 1px solid #d9c0ae;
   border-radius: 20px;
   background-color: #ffffff;
-  color: #2C1810;
+  color: #2c1810;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
@@ -222,8 +305,8 @@
 }
 
 .menu-reset-btn:hover {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
+  background-color: #fff8f3;
+  border-color: #7a4b35;
 }
 
 /* ─── Table ─── */
@@ -266,7 +349,7 @@
 .menu-table tbody td {
   padding: 0.875rem 1.25rem;
   font-size: 0.8125rem;
-  color: #2C1810;
+  color: #2c1810;
   border-bottom: 1px solid #f5ebe5;
   vertical-align: middle;
 }
@@ -276,7 +359,7 @@
 }
 
 .menu-table tbody tr:hover {
-  background-color: #FFF8F3;
+  background-color: #fff8f3;
 }
 
 .menu-table tbody tr.selected {
@@ -285,7 +368,7 @@
 
 .menu-item-name {
   font-weight: 600;
-  color: #2C1810;
+  color: #2c1810;
 }
 
 /* ─── Price & Variants Stack ─── */
@@ -299,7 +382,7 @@
   font-size: 0.8125rem;
   font-style: italic !important;
   text-transform: lowercase;
-  color: #2C1810;
+  color: #2c1810;
 }
 
 /* ─── Status Chips ─── */
@@ -314,33 +397,33 @@
 }
 
 .menu-chip--instock {
-  background-color: #E8F5E9;
-  color: #2E7D32;
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
 .menu-chip--lowstock {
-  background-color: #FFF8E1;
-  color: #F9A825;
+  background-color: #fff8e1;
+  color: #f9a825;
 }
 
 .menu-chip--outofstock {
   background-color: #ffebee;
-  color: #C62828;
+  color: #c62828;
 }
 
 .menu-chip--good {
-  background-color: #E8F5E9;
-  color: #2E7D32;
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
 .menu-chip--expiring {
-  background-color: #FFF8E1;
-  color: #F9A825;
+  background-color: #fff8e1;
+  color: #f9a825;
 }
 
 .menu-chip--expired {
   background-color: #ffebee;
-  color: #C62828;
+  color: #c62828;
 }
 
 /* ─── Expiry Column ─── */
@@ -375,7 +458,7 @@
 /* ─── Last Updated Column ─── */
 .menu-updated-date {
   font-weight: 600;
-  color: #2C1810;
+  color: #2c1810;
   margin: 0;
   font-size: 0.75rem;
 }
@@ -414,30 +497,30 @@
 }
 
 .menu-action-btn:hover {
-  background-color: #FFF8F3;
-  color: #2C1810;
+  background-color: #fff8f3;
+  color: #2c1810;
   border-color: #d9c0ae;
 }
 
 .menu-action-btn--view {
-  color: #7A4B35;
+  color: #7a4b35;
   border-color: #d9c0ae;
 }
 
 .menu-action-btn--view:hover {
-  color: #5A2D15;
-  border-color: #5A2D15;
-  background-color: #FFF8F3;
+  color: #5a2d15;
+  border-color: #5a2d15;
+  background-color: #fff8f3;
 }
 
 .menu-action-btn--history {
-  color: #F9A825;
+  color: #f9a825;
   border-color: #ffe082;
 }
 
 .menu-action-btn--history:hover {
-  color: #E6A817;
-  border-color: #E6A817;
+  color: #e6a817;
+  border-color: #e6a817;
   background-color: #fffde7;
 }
 
@@ -453,13 +536,13 @@
 }
 
 .menu-action-btn--archive {
-  color: #C62828;
+  color: #c62828;
   border-color: #ef9a9a;
 }
 
 .menu-action-btn--archive:hover {
-  color: #8E1600;
-  border-color: #8E1600;
+  color: #8e1600;
+  border-color: #8e1600;
   background-color: #ffebee;
 }
 
@@ -530,11 +613,11 @@
 
 /* --- POS Status Chips --- */
 .menu-chip--available {
-  background-color: #2E7D32;
+  background-color: #2e7d32;
   color: white;
 }
 
 .menu-chip--unavailable {
-  background-color: #A83232;
+  background-color: #a83232;
   color: white;
 }

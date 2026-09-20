@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import {
@@ -22,6 +23,21 @@ const Breadcrumbs = () => {
     return null;
   }
 
+  const breadcrumbRoutes = [];
+  let routeToAdd = currentRoute;
+
+  while (routeToAdd !== undefined) {
+    breadcrumbRoutes.unshift(routeToAdd);
+
+    if (routeToAdd.parentPath === undefined) {
+      break;
+    }
+
+    routeToAdd = APP_ROUTE_METADATA.find((item) => {
+      return item.path === routeToAdd.parentPath;
+    });
+  }
+
   return (
     <Breadcrumb className="mb-4">
       <BreadcrumbList className="text-sm text-[var(--app-color-text-subtle)]">
@@ -34,15 +50,32 @@ const Breadcrumbs = () => {
           </BreadcrumbLink>
         </BreadcrumbItem>
 
-        <BreadcrumbSeparator className="text-[var(--app-color-text-subtle)]">
-          <i className="bi bi-chevron-right text-sm leading-none"></i>
-        </BreadcrumbSeparator>
+        {breadcrumbRoutes.map((route, index) => {
+          const isCurrentRoute = index === breadcrumbRoutes.length - 1;
 
-        <BreadcrumbItem>
-          <BreadcrumbPage className="font-bold text-[var(--app-color-text)]">
-            {currentRoute.label}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
+          return (
+            <Fragment key={route.path}>
+              <BreadcrumbSeparator className="text-[var(--app-color-text-subtle)]">
+                <i className="bi bi-chevron-right text-sm leading-none"></i>
+              </BreadcrumbSeparator>
+
+              <BreadcrumbItem>
+                {isCurrentRoute ? (
+                  <BreadcrumbPage className="font-bold text-[var(--app-color-text)]">
+                    {route.label}
+                  </BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink
+                    render={<Link to={route.path} />}
+                    className="text-[var(--app-color-text-subtle)] no-underline hover:text-[var(--app-color-brand)] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-color-brand)]"
+                  >
+                    {route.label}
+                  </BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
+          );
+        })}
       </BreadcrumbList>
     </Breadcrumb>
   );

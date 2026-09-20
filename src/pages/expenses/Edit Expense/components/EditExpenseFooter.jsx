@@ -1,5 +1,3 @@
-import React from "react";
-
 const EditExpenseFooter = ({ onClose, onSave, isSubmitting }) => (
   <div className="expense-modal-footer">
     <button

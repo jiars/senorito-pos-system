@@ -312,9 +312,9 @@
   .layout-sidebar,
   .layout-topbar,
   .layout-page-heading,
-  .orders-filters,
-  .orders-table-container,
-  .orders-pagination {
+  .orders-page-toolbar,
+  .orders-page-table,
+  .orders-page-pagination {
     display: none !important;
   }
 
@@ -322,7 +322,7 @@
   .layout-container,
   .layout-content-wrapper,
   .layout-main,
-  .orders-page {
+  .orders-page-layout {
     padding: 0 !important;
     margin: 0 !important;
     height: 0 !important;

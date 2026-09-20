@@ -1,352 +1,51 @@
-/* ═══════════════════════════════════════════════════
-   Inventory Audit Log Styles
-   Señorito Café POS
-═══════════════════════════════════════════════════ */
+/* Inventory Audit Log owns page layout and contained responsive table scrolling. */
 
-.audit-page {
+.audit-page-layout {
   display: flex;
+  min-width: 0;
+  overflow-x: hidden;
   flex-direction: column;
-  gap: 1.5rem;
-  font-family: 'Inter', sans-serif;
-  height: 100%;
+  gap: var(--app-gap-section);
 }
 
-/* ─── Header ─── */
-.audit-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+.audit-page-toolbar,
+.audit-page-table,
+.audit-page-pagination,
+.audit-table-scroll-area {
+  min-width: 0;
 }
 
-.audit-actions {
-  display: flex;
-  gap: 0.75rem;
+@media (min-width: 1024px) {
+  .audit-table-scroll-area {
+    height: clamp(22rem, 62svh, 40rem);
+  }
 }
 
-.audit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  height: 38px;
-  white-space: nowrap;
+@media (min-width: 1440px) {
+  .audit-table-scroll-area {
+    height: clamp(24rem, 64svh, 42rem);
+  }
 }
 
-.audit-btn-outline {
-  border: 1px solid #d9c0ae;
-  background-color: #ffffff;
-  color: #2C1810;
+@media (max-width: 1023px) {
+  .audit-table-scroll-area {
+    height: var(--app-panel-height-tablet-portrait);
+  }
 }
 
-.audit-btn-outline:hover {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
-}
-
-/* ─── Filter Bar ─── */
-.audit-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background-color: #faf6f3;
-  border-bottom: 1px solid #f0e0d8;
-  border-radius: 12px 12px 0 0;
-  flex-wrap: wrap;
-}
-
-.audit-search {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #f8f9fa;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
-  flex: 1;
-  min-width: 250px;
-}
-
-.audit-search input {
-  border: none;
-  background: transparent;
-  outline: none;
-  width: 100%;
-  font-size: 0.8125rem;
-  color: #2C1810;
-  font-family: 'Inter', sans-serif;
-}
-
-.audit-search i {
-  color: #6c757d;
-}
-
-.audit-date-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.audit-date-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #495057;
-}
-
-.audit-filter-date {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
-  background-color: #f8f9fa;
-  outline: none;
-  cursor: pointer;
-}
-
-.audit-select {
-  padding: 0.625rem 2.5rem 0.625rem 1rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
-  background-color: #f8f9fa;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M2.5 4.5l3.5 3.5 3.5-3.5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  cursor: pointer;
-  outline: none;
-}
-
-.audit-reset-btn {
-  padding: 0.625rem 1.25rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  background-color: #ffffff;
-  color: #2C1810;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: 'Inter', sans-serif;
-}
-
-.audit-reset-btn:hover {
-  background-color: #FFF8F3;
-}
-
-/* ─── Table ─── */
-.audit-panel {
-  background-color: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #d9c0ae;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-}
-
-.audit-table-wrapper {
-  overflow-x: auto;
-}
-
-.audit-empty-cell {
-  padding: 40px !important;
-  text-align: center !important;
-  color: #666666 !important;
-}
-
-.audit-align-left {
-  text-align: left !important;
-}
-
-.audit-date-value {
-  font-weight: 500;
-}
-
-.audit-time-value {
-  color: #6b7280;
-  font-size: 11px;
-}
-
-.audit-item-cell {
-  font-weight: 500;
-  text-align: left !important;
-  white-space: normal;
-}
-
-.audit-batch-cell {
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.audit-reference-cell {
-  color: #555555;
-  font-weight: 500;
-  text-align: left !important;
-}
-
-.audit-load-error {
-  margin: 0;
-  color: #C62828;
-}
-
-.audit-main-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.audit-main-table th {
-  text-align: center;
-  padding: 1rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #4E2C20;
-  background-color: #ffffff;
-  text-transform: uppercase;
-  border-bottom: 2px solid #d9c0ae;
-  white-space: nowrap;
-}
-
-.audit-main-table td {
-  text-align: center;
-  padding: 1rem 0.75rem;
-  font-size: 0.8125rem;
-  color: #2C1810;
-  border-bottom: 1px solid #f0e0d8;
-  vertical-align: middle;
-}
-
-.audit-main-table tr:hover {
-  background-color: #FFF8F3;
-}
-
-.audit-change-negative {
-  font-weight: 700;
-  color: #2C1810;
-}
-
-.audit-change-positive {
-  font-weight: 700;
-  color: #2C1810;
-}
-
-.audit-reason-col {
-  text-align: left !important;
-  width: 80px;
-  white-space: normal;
-}
-
-/* ─── Chips ─── */
-.audit-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.35rem 1rem;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #ffffff;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.audit-chip--teal {
-  background-color: #20c997;
-}
-
-.audit-chip--red {
-  background-color: #C62828;
-}
-
-.audit-chip--green {
-  background-color: #4A7A59; /* A darker green for inventory/batch added */
-}
-
-.audit-chip--yellow {
-  background-color: #F9A825;
-}
-
-/* Pagination placeholder (like order history) */
-.audit-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background-color: #f8f6f5;
-  border-top: 1px solid #f0e0d8;
-  font-size: 0.8125rem;
-  color: #6c757d;
-}
-
-.audit-pagination-btns {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.audit-page-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background-color: #e9e1db;
-  color: #6c757d;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.audit-page-btn.active {
-  background-color: #ffffff;
-  border: 1px solid #d9c0ae;
-  color: #2C1810;
-  font-weight: 600;
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Tablet Portrait & Mobile (≤ 1024px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 1024px) {
-  .audit-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+@media (max-width: 639px) {
+  .audit-page-layout {
+    --app-gap-section: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
   }
 
-  .audit-filter-bar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+  .audit-table-scroll-area {
+    height: var(--app-panel-height-phone);
   }
+}
 
-  .audit-search,
-  .audit-reset-btn {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .audit-date-group,
-  .audit-select {
-    width: 100%;
-  }
-
-  .audit-date-group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-  }
-
-  .audit-date-group input {
-    width: 100%;
+@media (min-width: 1024px) and (max-height: 720px) {
+  .audit-table-scroll-area {
+    height: clamp(18rem, 48svh, 24rem);
   }
 }

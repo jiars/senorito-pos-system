@@ -20,6 +20,7 @@ export const useInventoryManagement = () => {
     archivedInventoryItems: data?.archivedItems || [],
     categories: data?.categories || [],
     units: data?.units || [],
+    purchaseHistory: data?.purchaseHistory || [],
     isLoading,
     error: error ? error.message : null,
     refetchInventoryManagement: refetch,

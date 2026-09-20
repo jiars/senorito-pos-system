@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { archiveExpense } from "../../../services/expenses/expenseService";
 import ArchiveExpenseFooter from "./components/ArchiveExpenseFooter";
 import ArchiveExpenseHeader from "./components/ArchiveExpenseHeader";

@@ -1,0 +1,163 @@
+.val-print-layout {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 4mm 0;
+  }
+
+  body:has(.val-page),
+  html:has(.val-page),
+  body:has(.val-page) #root {
+    display: block !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    position: static !important;
+  }
+
+  body:has(.val-page) .layout-sidebar,
+  body:has(.val-page) .layout-topbar,
+  body:has(.val-page) [data-slot="breadcrumb"],
+  body:has(.val-page) .valuation-page-shell > header,
+  .val-page > *:not(.val-print-layout) {
+    display: none !important;
+  }
+
+  body:has(.val-page) .layout-container,
+  body:has(.val-page) .layout-content-wrapper,
+  body:has(.val-page) .layout-main {
+    display: block !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .val-print-layout,
+  .val-print-layout * {
+    visibility: visible !important;
+  }
+
+  .val-print-layout {
+    display: block !important;
+    box-sizing: border-box;
+    width: 100%;
+    padding: 0 5mm 40px;
+    color: #2c1810;
+    font-family: var(--app-font-family);
+  }
+
+  .print-val-header-container,
+  .print-val-section {
+    margin-bottom: 20px;
+  }
+
+  .print-val-title-row,
+  .print-val-filters-box {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .print-val-title-row {
+    align-items: flex-end;
+    margin-bottom: 15px;
+  }
+
+  .print-val-title-row h2 {
+    margin: 0;
+    color: #3a1a0a;
+    font-size: 24px;
+  }
+
+  .print-val-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    color: #6c757d;
+    font-size: 11px;
+  }
+
+  .print-brand {
+    margin-bottom: 2px;
+    color: #3a1a0a;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .print-val-filters-box {
+    padding: 10px 15px;
+    border: 1px solid #d9c0ae;
+    background: #fff;
+    color: #495057;
+    font-size: 11px;
+  }
+
+  .print-val-section h3 {
+    margin-bottom: 8px;
+    color: #000;
+    font-size: 12pt;
+  }
+
+  .val-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #000;
+    font-size: 9pt;
+  }
+
+  .val-print-table th,
+  .val-print-table td {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+
+  .val-print-table th {
+    border-bottom: 2px solid #000;
+    background: #f2f2f2 !important;
+    font-weight: 700;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-align-right,
+  .print-total-label,
+  .print-total-value {
+    text-align: right !important;
+  }
+
+  .print-empty-cell {
+    padding: 20px !important;
+    text-align: center !important;
+  }
+
+  .print-value-cell {
+    font-weight: 600;
+  }
+
+  .print-total-label,
+  .print-total-value {
+    font-weight: 700;
+  }
+
+  .val-print-table-grand td {
+    border-top: 2px solid #000;
+    font-size: 10pt;
+  }
+
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px 0 15px;
+    border-top: 1px solid #d9c0ae;
+    background: #fff;
+    color: #6c757d;
+    font-size: 9px;
+    text-align: center;
+  }
+}

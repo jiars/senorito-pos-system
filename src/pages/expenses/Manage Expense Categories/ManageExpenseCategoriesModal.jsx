@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   addExpenseCategory,
   deleteExpenseCategory,
@@ -9,8 +9,7 @@ import ExpenseCategoryHeader from "./components/ExpenseCategoryHeader";
 import ExpenseCategoryList from "./components/ExpenseCategoryList";
 import "./manageExpenseCategoriesModal.css";
 
-const ManageExpenseCategoriesModal = ({
-  isOpen,
+const ManageExpenseCategoriesModalContent = ({
   onClose,
   categories,
   refetch,
@@ -20,17 +19,6 @@ const ManageExpenseCategoriesModal = ({
   const [editName, setEditName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setNewCategory("");
-    setEditingId(null);
-    setEditName("");
-    setError("");
-  }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const isDuplicate = (name, excludedId = null) => {
     const normalizedName = name.trim().toLowerCase();
@@ -124,6 +112,25 @@ const ManageExpenseCategoriesModal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+const ManageExpenseCategoriesModal = ({
+  isOpen,
+  onClose,
+  categories,
+  refetch,
+}) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <ManageExpenseCategoriesModalContent
+      onClose={onClose}
+      categories={categories}
+      refetch={refetch}
+    />
   );
 };
 

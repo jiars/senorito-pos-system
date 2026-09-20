@@ -35,6 +35,13 @@ export const APP_ROUTE_METADATA = [
     showInSidebar: true,
   },
   {
+    path: "/expenses/archive",
+    label: "Expense Archive",
+    parentPath: "/expenses",
+    group: "Sales & Reports",
+    showInSidebar: false,
+  },
+  {
     path: "/inventory",
     label: "Inventory Management",
     icon: "bi-box-seam",
@@ -44,6 +51,7 @@ export const APP_ROUTE_METADATA = [
   {
     path: "/inventory/archive",
     label: "Inventory Archive",
+    parentPath: "/inventory",
     group: "Inventory & Menu",
     showInSidebar: false,
   },
@@ -71,6 +79,13 @@ export const APP_ROUTE_METADATA = [
   {
     path: "/menu/addons",
     label: "Manage Add-ons",
+    group: "Inventory & Menu",
+    showInSidebar: false,
+  },
+  {
+    path: "/menu/archive",
+    label: "Menu Archive",
+    parentPath: "/menu",
     group: "Inventory & Menu",
     showInSidebar: false,
   },

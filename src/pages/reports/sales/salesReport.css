@@ -1,651 +1,173 @@
-/* ─── Page Container ─── */
-.sales-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  font-family: 'Inter', sans-serif;
-}
-
-/* ─── Page Header: Title + Actions ─── */
-.sales-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.sales-header-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.sales-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #d9c0ae;
-  background-color: #ffffff;
-  color: #2C1810;
-  height: 38px;
-  white-space: nowrap;
-}
-
-.sales-btn:hover:not(:disabled) {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
-}
-
-.sales-btn--primary {
-  background-color: #3A1A0A;
-  color: #ffffff;
-  border-color: #3A1A0A;
-}
-
-.sales-btn--primary:hover:not(:disabled) {
-  background-color: #5A2D15;
-  border-color: #5A2D15;
-  color: #ffffff;
-}
-
-/* ─── Filter Bar ─── */
-.sales-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background-color: #faf6f3;
-  border-radius: 20px;
-  border: 1px solid #d9c0ae;
-  flex-wrap: wrap;
-}
-
-.sales-filter-select,
-.sales-filter-date {
-  padding: 0.625rem 2.5rem 0.625rem 1rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
-  background-color: #ffffff;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M2.5 4.5l3.5 3.5 3.5-3.5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  cursor: pointer;
-  transition: border-color 0.2s;
-  outline: none;
-}
-
-.sales-filter-date {
-  background-image: none;
-  padding-right: 1rem;
-}
-
-.sales-date-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.sales-date-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: #6c757d;
-}
-
-.sales-reset-btn {
-  padding: 0.625rem 1.25rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  background-color: #ffffff;
-  color: #2C1810;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sales-reset-btn:hover {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
-}
-
-/* ═══════════════════════════════════════════════════
-   Summary Cards — identical to Dashboard pattern
-═══════════════════════════════════════════════════ */
-.sales-summary-cards {
+/* Sales module layout. Local component styling stays in JSX/Tailwind. */
+.sales-page-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.875rem;
-}
-
-.sales-summary-card {
-  border-radius: 12px;
-  padding: 1.125rem;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
   min-width: 0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "summary"
+    "profitability"
+    "performance"
+    "distribution";
+  gap: var(--app-gap-section);
 }
 
-.sales-summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+.sales-page-summary,
+.sales-page-profitability,
+.sales-page-performance,
+.sales-page-distribution {
+  min-width: 0;
 }
 
-.sales-summary-card-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.125rem;
-}
-
-.sales-summary-card-value {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.sales-summary-card-label {
-  font-size: 0.7rem;
-  margin: 0;
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-/* Card colors — matching dashboard gradient pattern */
-.sales-card--brown {
-  background: linear-gradient(135deg, #5A2D15, #3A1A0A);
-}
-
-.sales-card--green {
-  background: linear-gradient(135deg, #2E7D32, #4A7A5A);
-}
-
-.sales-card--gray {
-  background: linear-gradient(135deg, #546E7A, #37474F);
-}
-
-.sales-card--yellow {
-  background: linear-gradient(135deg, #E6A817, #F9A825);
-}
-
-.sales-card--blue {
-  background: linear-gradient(135deg, #1565C0, #42A5F5);
-}
-
-.sales-card--red {
-  background: linear-gradient(135deg, #C62828, #dc3545);
-}
-
-/* ═══════════════════════════════════════════════════
-   Panel 
-═══════════════════════════════════════════════════ */
-.sales-panel {
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
+.sales-page-summary,
+.sales-page-profitability {
   display: flex;
   flex-direction: column;
+  gap: var(--app-gap-section);
 }
 
-.sales-panel-header {
-  display: flex;
-  align-items: center;
-  padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid #f0e0d8;
-  flex-shrink: 0;
+.sales-page-summary {
+  grid-area: summary;
 }
 
-.sales-panel-header--accent {
-  background-color: #5A2D15;
-  border-bottom: none;
+.sales-page-profitability {
+  grid-area: profitability;
 }
 
-.sales-panel-header--accent .sales-panel-title {
-  color: #ffffff;
-}
-
-.sales-panel-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.sales-panel-body {
-  padding: 1.25rem;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ═══════════════════════════════════════════════════
-   Section Grid — 2-column layout
-═══════════════════════════════════════════════════ */
-.sales-section-grid {
+.sales-page-performance {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  align-items: stretch;
+  grid-area: performance;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1.85fr) minmax(18rem, 1fr);
+  gap: var(--app-gap-section);
 }
 
-/* ═══════════════════════════════════════════════════
-   Interactive Donut Chart
-═══════════════════════════════════════════════════ */
-.sales-chart-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  flex: 1;
+.sales-page-distribution {
+  display: grid;
+  grid-area: distribution;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-gap-section);
 }
 
-.donut-chart-container {
+.sales-page-performance > *,
+.sales-page-distribution > * {
+  min-width: 0;
+}
+
+.sales-hourly-chart {
+  min-height: clamp(18rem, 42svh, 22rem);
+}
+
+/* Direct children of the two-column row: one capped height, then internal scrolling. */
+@media (min-width: 1024px) {
+  .sales-performance-panel {
+    height: clamp(28rem, 58svh, 34rem);
+    min-height: 0;
+  }
+
+  .sales-hourly-chart {
+    min-height: 0;
+  }
+}
+
+/* Complex SVG chart rendering. */
+.donut-chart-container,
+.pie-chart-container {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 12.5rem;
+  height: 12.5rem;
+  flex: none;
 }
 
-.donut-chart-svg {
+.donut-chart-svg,
+.pie-chart-svg {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
 }
 
-.donut-segment {
-  transition: opacity 0.2s ease, filter 0.2s ease;
-  cursor: pointer;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+.pie-chart-svg {
+  border-radius: 50%;
 }
 
-.donut-segment:hover {
+.donut-segment,
+.pie-segment {
+  cursor: pointer;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 10%));
+}
+
+.donut-segment:hover,
+.pie-segment:hover {
   opacity: 0.85;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 3px 6px rgb(0 0 0 / 20%));
 }
 
 .donut-center-text {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
   text-align: center;
+  transform: translate(-50%, -50%);
 }
 
 .donut-center-value {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #2C1810;
   display: block;
+  color: var(--app-color-text);
+  font-size: var(--app-font-size-body);
+  font-weight: 700;
 }
 
 .donut-center-label {
-  font-size: 0.65rem;
-  color: #6c757d;
   display: block;
+  color: var(--app-color-text-subtle);
+  font-size: var(--app-font-size-caption);
 }
 
-/* Interactive Pie Chart */
-.pie-chart-container {
-  position: relative;
-  width: 200px;
-  height: 200px;
-}
-
-.pie-chart-svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-  border-radius: 50%;
-}
-
-.pie-segment {
-  transition: opacity 0.2s ease, filter 0.2s ease;
-  cursor: pointer;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
-
-.pie-segment:hover {
-  opacity: 0.85;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
-}
-
-/* ─── Source Boxes ─── */
-.source-boxes {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0;
-}
-
-.source-box {
-  flex: 1;
-  padding: 0.75rem 0.5rem;
-  border-radius: 8px;
-  text-align: center;
-  color: white;
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.source-box.s-instore {
-  background-color: #424242;
-}
-
-.source-box.s-grab {
-  background-color: #4CAF50;
-}
-
-.source-box.s-foodpanda {
-  background-color: #E91E63;
-}
-
-.s-val {
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.s-label {
-  font-size: 0.65rem;
-  opacity: 0.9;
-}
-
-/* ─── Chart Legend ─── */
-.sales-chart-legend {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: #6c757d;
-  margin-top: 1rem;
-}
-
-.sales-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.sales-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-
-/* ═══════════════════════════════════════════════════
-   Top Selling — matching dashboard pattern exactly
-═══════════════════════════════════════════════════ */
-.sales-topselling-list {
-  padding: 0.75rem 1.25rem 1.25rem;
-  max-height: 380px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.sales-topselling-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.sales-topselling-list::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.sales-topselling-list::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.sales-topselling-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background-color: #FFF8F3;
-  border-radius: 8px;
-  border: 1px solid #f0e0d8;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.sales-topselling-item:hover {
-  transform: translateX(3px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.sales-topselling-rank {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.sales-topselling-rank--1 {
-  background-color: #2E7D32;
-}
-
-.sales-topselling-rank--2 {
-  background-color: #4A7A5A;
-}
-
-.sales-topselling-rank--3 {
-  background-color: #F9A825;
-}
-
-.sales-topselling-rank--4 {
-  background-color: #E6A817;
-}
-
-.sales-topselling-rank--5 {
-  background-color: #7A4B35;
-}
-
-.sales-topselling-rank--6 {
-  background-color: #5A2D15;
-}
-
-.sales-topselling-item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.sales-topselling-category {
-  font-size: 0.625rem;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.sales-topselling-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0.125rem 0 0 0;
-}
-
-.sales-topselling-item-stats {
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.sales-topselling-revenue {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #2C1810;
-  margin: 0;
-}
-
-.sales-topselling-sold {
-  font-size: 0.65rem;
-  color: #6c757d;
-  margin: 0.125rem 0 0 0;
-}
-
-/* ═══════════════════════════════════════════════════
-   Quadrant Legend — Premium Cards
-═══════════════════════════════════════════════════ */
-.quadrant-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  flex: 1;
-  align-content: center;
-  padding: 0.5rem;
-}
-
-.quadrant-item {
-  padding: 1.25rem 1rem;
-  border-radius: 12px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  border: 1px solid transparent;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.quadrant-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.q-star {
-  background-color: #E8F5E9;
-  border-color: #A5D6A7;
-}
-
-.q-potential {
-  background-color: #E0F7FA;
-  border-color: #80DEEA;
-}
-
-.q-cashcow {
-  background-color: #FFF8E1;
-  border-color: #FFE082;
-}
-
-.q-dog {
-  background-color: #FFEBEE;
-  border-color: #EF9A9A;
-}
-
-.q-icon {
-  font-size: 1.25rem;
-  margin-bottom: 0.25rem;
-}
-
-.q-star .q-icon {
-  color: #2E7D32;
-}
-
-.q-potential .q-icon {
-  color: #0277BD;
-}
-
-.q-cashcow .q-icon {
-  color: #F57C00;
-}
-
-.q-dog .q-icon {
-  color: #C62828;
-}
-
-.q-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2C1810;
-}
-
-.q-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: #495057;
-  line-height: 1.3;
-}
-
-.q-sublabel {
-  font-size: 0.6rem;
-  color: #6c757d;
-  font-weight: 400;
-}
-
-/* ═══════════════════════════════════════════════════
-   Scatter Plot (CSS-based placeholder)
-═══════════════════════════════════════════════════ */
+/* Complex profitability heatmap. */
 .scatter-plot-container {
-  height: 250px;
-  border-left: 2px solid #e9e1db;
-  border-bottom: 2px solid #e9e1db;
   position: relative;
-  margin: 0 1rem 1.5rem 2rem;
-  background-size: 40px 40px;
+  flex: 1;
+  min-height: 16rem;
+  border-bottom: 2px solid var(--app-color-border-subtle);
+  border-left: 2px solid var(--app-color-border-subtle);
   background-image:
-    linear-gradient(to right, #f5f5f5 1px, transparent 1px),
-    linear-gradient(to bottom, #f5f5f5 1px, transparent 1px);
+    linear-gradient(to right, var(--app-color-canvas) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--app-color-canvas) 1px, transparent 1px);
+  background-size: 2.5rem 2.5rem;
 }
 
-/* Quadrant dividers */
-.scatter-plot-container::before {
-  content: '';
+.scatter-plot-container::before,
+.scatter-plot-container::after {
   position: absolute;
-  left: 50%;
+  content: "";
+}
+
+.scatter-plot-container::before {
   top: 0;
   bottom: 0;
-  border-left: 1px dashed #d9c0ae;
+  left: 50%;
+  border-left: 1px dashed var(--app-color-brand-border);
 }
 
 .scatter-plot-container::after {
-  content: '';
-  position: absolute;
   top: 50%;
-  left: 0;
   right: 0;
-  border-top: 1px dashed #d9c0ae;
+  left: 0;
+  border-top: 1px dashed var(--app-color-brand-border);
 }
 
 .scatter-bubble {
   position: absolute;
+  cursor: pointer;
   border-radius: 50%;
   opacity: 0.8;
   transform: translate(-50%, 50%);
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .scatter-bubble:hover {
@@ -654,385 +176,69 @@
 }
 
 .b-green {
-  background-color: #4CAF50;
+  background-color: #4caf50;
 }
-
 .b-blue {
-  background-color: #03A9F4;
+  background-color: #03a9f4;
 }
-
 .b-yellow {
-  background-color: #FFC107;
+  background-color: #ffc107;
+}
+.b-red {
+  background-color: #f44336;
 }
 
-.b-red {
-  background-color: #F44336;
+.profitability-metric-icon {
+  background-color: transparent;
+}
+.profitability-metric-icon.b-green {
+  color: #4caf50;
+}
+.profitability-metric-icon.b-blue {
+  color: #03a9f4;
+}
+.profitability-metric-icon.b-yellow {
+  color: #ffc107;
+}
+.profitability-metric-icon.b-red {
+  color: #f44336;
 }
 
 .scatter-axis-label {
   position: absolute;
-  font-size: 0.75rem;
-  color: #6c757d;
+  color: var(--app-color-text-subtle);
   font-weight: 500;
 }
 
-/* ═══════════════════════════════════════════════════
-   Tables — matching expense-table pattern exactly
-═══════════════════════════════════════════════════ */
-.sales-table-container {
-  background-color: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #d9c0ae;
-  overflow: hidden;
-}
-
-.sales-table-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #2C1810;
-  margin: 0;
-  padding: 1rem;
-  text-align: center;
-  background-color: #faf6f3;
-  border-bottom: 1px solid #d9c0ae;
-}
-
-.sales-table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.25rem;
-  background-color: #faf6f3;
-  border-bottom: 1px solid #d9c0ae;
-}
-
-.sales-table-header-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #2C1810;
-  margin: 0;
-}
-
-.sales-table-wrapper {
-  overflow-x: auto;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.sales-table-wrapper::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-.sales-table-wrapper::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.sales-table-wrapper::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.sales-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.sales-table thead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.sales-table thead th {
-  text-align: left;
-  padding: 1rem 1.25rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6c757d;
-  border-bottom: 2px solid #f0e0d8;
-  white-space: nowrap;
-  background-color: #ffffff;
-}
-
-.sales-table tbody td {
-  padding: 0.875rem 1.25rem;
-  font-size: 0.8125rem;
-  color: #2C1810;
-  border-bottom: 1px solid #f5ebe5;
-  vertical-align: middle;
-}
-
-.sales-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.sales-table tbody tr:hover {
-  background-color: #FFF8F3;
-}
-
-/* Quadrant badges */
-.quad-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.quad-badge--star {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-}
-
-.quad-badge--promote {
-  background-color: #E0F7FA;
-  color: #0277BD;
-}
-
-.quad-badge--pricing {
-  background-color: #FFF8E1;
-  color: #F57C00;
-}
-
-.quad-badge--remove {
-  background-color: #FFEBEE;
-  color: #C62828;
-}
-
-/* Row colors for profitability quadrant */
-.row-star {
-  background-color: #F1F8F2;
-}
-
-.row-star:hover {
-  background-color: #E8F5E9 !important;
-}
-
-.row-potential {
-  background-color: #EDF9FB;
-}
-
-.row-potential:hover {
-  background-color: #E0F7FA !important;
-}
-
-.row-cashcow {
-  background-color: #FFFCF0;
-}
-
-.row-cashcow:hover {
-  background-color: #FFF8E1 !important;
-}
-
-.row-dog {
-  background-color: #FFF5F5;
-}
-
-.row-dog:hover {
-  background-color: #FFEBEE !important;
-}
-
-/* ═══════════════════════════════════════════════════
-   Bar Chart — matching dashboard pattern exactly
-═══════════════════════════════════════════════════ */
-.sales-chart-area {
-  display: flex;
-  padding: 1.25rem;
-  gap: 0.75rem;
-  min-height: 280px;
-}
-
-.sales-chart-yaxis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-bottom: 28px;
-  min-width: 36px;
-  text-align: right;
-}
-
-.sales-chart-ylabel {
-  font-size: 0.7rem;
-  color: #6c757d;
-  line-height: 1;
-}
-
-.sales-chart-bars {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  gap: 0.5rem;
-  border-left: 1px solid #e9e1db;
-  border-bottom: 1px solid #e9e1db;
-  padding: 0 0.5rem;
-  position: relative;
-}
-
-.sales-chart-bar-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  height: 100%;
-}
-
-.sales-chart-bar-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  width: 100%;
-}
-
-.sales-chart-bar {
-  width: 60%;
-  max-width: 44px;
-  background: linear-gradient(180deg, #7A4B35 0%, #d9c0ae 100%);
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  transition: height 0.5s ease, background 0.2s ease;
-  cursor: pointer;
-  min-height: 4px;
-}
-
-.sales-chart-bar:hover {
-  background: linear-gradient(180deg, #5A2D15 0%, #b89b82 100%);
-}
-
-.sales-chart-bar-tooltip {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #3A1A0A;
-  color: #ffffff;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.sales-chart-bar:hover .sales-chart-bar-tooltip {
-  opacity: 1;
-}
-
-.sales-chart-xlabel {
-  font-size: 0.7rem;
-  color: #6c757d;
-  margin-top: 0.5rem;
-  font-weight: 500;
-}
-
-/* ═══════════════════════════════════════════════════
-   Insight Box
-═══════════════════════════════════════════════════ */
-.sales-insight-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background-color: #FFF8F3;
-  border-top: 1px solid #f0e0d8;
-}
-
-.sales-insight-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.sales-insight-text {
-  font-size: 0.8125rem;
-  color: #495057;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.sales-insight-text strong {
-  color: #2C1810;
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Tablet (≤ 1200px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 1200px) {
-  .sales-summary-cards {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Small Tablet (≤ 992px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 992px) {
-  .sales-section-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Mobile (≤ 768px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .sales-page-header {
-    flex-direction: column;
-  }
-
-  .sales-header-actions {
-    justify-content: flex-start;
-  }
-
-  .sales-filter-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .sales-summary-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Small Mobile (≤ 480px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 480px) {
-  .sales-summary-cards {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .quadrant-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .source-boxes {
-    flex-direction: column;
-  }
-}
-
-/* =========================================
-   PRINT LAYOUT (Rule #8)
-   ========================================= */
+/* Print-only presentation. */
 .sales-print-layout {
   display: none;
+}
+
+@media (max-width: 1023px) {
+  .sales-page-performance,
+  .sales-page-distribution {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-top-selling-panel,
+  .sales-hourly-chart {
+    height: var(--app-panel-height-tablet-portrait);
+    min-height: var(--app-panel-height-tablet-portrait);
+  }
+}
+
+@media (max-width: 639px) {
+  .sales-page-layout {
+    --app-gap-section: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
+  }
+
+  .sales-top-selling-panel,
+  .sales-hourly-chart {
+    height: var(--app-panel-height-phone);
+    min-height: var(--app-panel-height-phone);
+  }
 }
 
 @media print {
@@ -1040,367 +246,251 @@
     margin: 4mm 0;
   }
 
-  /* Allow multi-page flow only when on sales page */
   body:has(.sales-page),
   html:has(.sales-page),
   body:has(.sales-page) #root {
-    background-color: #ffffff !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    height: auto !important;
-    position: static !important;
-    overflow: visible !important;
     display: block !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
   }
 
-  /* Override any global visibility: hidden from other components */
+  body:has(.sales-page) .layout-sidebar,
+  body:has(.sales-page) .layout-topbar,
+  body:has(.sales-page) .layout-header,
+  body:has(.sales-page) [data-slot="breadcrumb"],
+  body:has(.sales-page) .sales-page-shell > header,
+  .sales-page-layout {
+    display: none !important;
+  }
+
+  body:has(.sales-page) .layout-container,
+  body:has(.sales-page) .layout-content-wrapper,
+  body:has(.sales-page) .layout-main,
+  body:has(.sales-page) .sales-page-shell {
+    display: block !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
   .sales-print-layout,
   .sales-print-layout * {
     visibility: visible !important;
   }
 
-  /* Hide main app containers (scoped) */
-  body:has(.sales-page) .layout-sidebar,
-  body:has(.sales-page) .layout-topbar,
-  body:has(.sales-page) .layout-header {
-    display: none !important;
-  }
-
-  /* Hide everything in sales-page EXCEPT print layout */
-  .sales-page>*:not(.sales-print-layout) {
-    display: none !important;
-  }
-
-  /* Show the print layout in normal document flow */
   .sales-print-layout {
     display: block !important;
-    position: static !important;
     width: 100%;
-    height: auto !important;
-    padding: 0 5mm 40px 5mm;
-    /* Zero top padding (using @page margin), small side padding, bottom padding for footer */
-    box-sizing: border-box;
-    color: #2C1810;
-    font-family: 'Inter', sans-serif;
+    padding: 0 5mm 40px;
+    color: var(--app-color-brand-deep);
+    font-family: var(--app-font-family);
   }
 
-  .print-sales-header-container {
-    margin-bottom: 20px;
+  .print-sales-header-container,
+  .print-sales-summary-cards,
+  .print-source-section,
+  .print-profit-cards,
+  .print-bottom-grid {
+    margin-bottom: 1.25rem;
+  }
+
+  .print-sales-title-row,
+  .print-sales-filters-box,
+  .print-source-list li,
+  .print-sales-table tr,
+  .print-bottom-grid {
+    display: flex;
+    justify-content: space-between;
   }
 
   .print-sales-title-row {
-    display: flex;
-    justify-content: space-between;
     align-items: flex-end;
-    margin-bottom: 15px;
+    margin-bottom: 1rem;
+  }
+
+  .print-sales-title-row h2,
+  .print-section-title {
+    margin: 0;
+    color: var(--app-color-brand-deep);
+    font-weight: 700;
   }
 
   .print-sales-title-row h2 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    color: #3A1A0A;
+    font-size: 1.5rem;
+  }
+  .print-section-title {
+    margin-bottom: 0.625rem;
+    padding-bottom: 0.3125rem;
+    border-bottom: 2px solid var(--app-color-brand-border);
+    font-size: 0.875rem;
   }
 
   .print-sales-meta {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    font-size: 11px;
-    color: #6c757d;
+    color: var(--app-color-text-subtle);
+    font-size: 0.6875rem;
   }
 
   .print-brand {
-    font-size: 14px;
+    color: var(--app-color-brand-deep);
+    font-size: 0.875rem;
     font-weight: 700;
-    color: #3A1A0A;
-    margin-bottom: 2px;
   }
 
   .print-sales-filters-box {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 15px;
-    border: 1px solid #d9c0ae;
-    background-color: #ffffff;
-    font-size: 11px;
-    color: #495057;
+    gap: 0.75rem;
+    padding: 0.625rem 0.9375rem;
+    border: 1px solid var(--app-color-border-subtle);
+    font-size: 0.6875rem;
   }
 
-  .print-sales-summary-cards {
+  .print-sales-summary-cards,
+  .print-profit-cards {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 0.625rem;
   }
 
-  .print-card {
+  .print-card,
+  .print-profit-card {
     flex: 1;
-    padding: 15px 10px;
+    padding: 0.75rem;
     text-align: center;
-    color: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .print-card h3 {
-    margin: 0 0 5px 0;
-    font-size: 16px;
-    font-weight: 700;
+  .print-card {
+    color: white;
   }
-
-  .print-card p {
-    margin: 0;
-    font-size: 9px;
-    font-weight: 600;
-  }
-
   .print-card--brown {
-    background-color: #4E2C1D !important;
+    background: var(--app-color-brand) !important;
   }
-
   .print-card--green {
-    background-color: #388E3C !important;
+    background: var(--app-color-success) !important;
   }
-
   .print-card--gray {
-    background-color: #455A64 !important;
+    background: var(--app-color-text-muted) !important;
   }
-
   .print-card--yellow {
-    background-color: #F59E0B !important;
-  }
-
-  .print-card--red {
-    background-color: #E53935 !important;
-  }
-
-  .print-section-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #3A1A0A;
-    margin: 0 0 10px 0;
-    padding-bottom: 5px;
-    border-bottom: 2px solid #d9c0ae;
-    text-transform: uppercase;
+    background: var(--app-color-accent) !important;
   }
 
   .print-source-section {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 20px;
   }
 
   .print-chart-wrapper {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto 15px auto;
+    width: 12.5rem;
+    height: 12.5rem;
+    margin-bottom: 0.9375rem;
   }
 
   .print-source-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
     width: 100%;
-    font-size: 11px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.6875rem;
   }
 
   .print-source-list li {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px dashed #d9c0ae;
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed var(--app-color-border-subtle);
   }
 
   .print-source-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0.5rem;
     font-weight: 600;
   }
 
   .print-source-color {
-    width: 10px;
-    height: 10px;
+    width: 0.625rem;
+    height: 0.625rem;
     border-radius: 50%;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 
   .print-sales-table {
     width: 100%;
+    margin-bottom: 1.25rem;
     border-collapse: collapse;
-    font-size: 11px;
-    margin-bottom: 20px;
+    font-size: 0.6875rem;
+  }
+
+  .print-sales-table th,
+  .print-sales-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--app-color-border-subtle);
+    text-align: left;
   }
 
   .print-sales-table th {
-    background-color: #faf6f3 !important;
-    padding: 8px;
+    background: var(--app-color-canvas) !important;
     font-weight: 700;
-    border-bottom: 2px solid #d9c0ae;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .print-sales-table td {
-    padding: 8px;
-    border-bottom: 1px solid #f5ebe5;
-    vertical-align: middle;
-  }
-
-  .print-rank span {
-    display: inline-block;
-    width: 18px;
-    height: 18px;
-    line-height: 18px;
-    text-align: center;
-    background-color: #4E2C1D !important;
-    color: white;
-    border-radius: 50%;
-    font-size: 10px;
-    font-weight: 700;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
 
   .print-page-break {
-    page-break-before: always;
-    display: block;
-    height: 15mm;
-    /* Forces a gap at the top of the new page */
-  }
-
-  .print-profit-cards {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-  }
-
-  .print-profit-card {
-    flex: 1;
-    padding: 15px 10px;
-    text-align: center;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .print-profit-card.p-green {
-    background-color: #E8F5E9 !important;
-    border-color: #81C784 !important;
-    color: #2E7D32 !important;
-  }
-
-  .print-profit-card.p-blue {
-    background-color: #E3F2FD !important;
-    border-color: #64B5F6 !important;
-    color: #1565C0 !important;
-  }
-
-  .print-profit-card.p-yellow {
-    background-color: #FFF8E1 !important;
-    border-color: #FFD54F !important;
-    color: #F57F17 !important;
-  }
-
-  .print-profit-card.p-red {
-    background-color: #FFEBEE !important;
-    border-color: #E57373 !important;
-    color: #C62828 !important;
-  }
-
-  .print-profit-card .p-icon {
-    font-size: 20px;
-    margin-bottom: 5px;
-  }
-
-  .print-profit-card h3 {
-    margin: 0 0 5px 0;
-    font-size: 18px;
-    color: #000;
-  }
-
-  .print-profit-card .p-title {
-    margin: 0 0 2px 0;
-    font-weight: 700;
-    font-size: 11px;
-    color: #000;
-  }
-
-  .print-profit-card .p-sub {
-    margin: 0;
-    font-size: 9px;
-  }
-
-  .print-profit-table td {
-    padding: 6px;
+    break-before: page;
   }
 
   .print-bottom-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    margin-bottom: 30px;
+    gap: 1.875rem;
   }
 
   .print-hourly-chart {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    height: 120px;
-    border-bottom: 1px solid #d9c0ae;
-    padding-bottom: 5px;
-    margin-bottom: 10px;
-    margin-top: 20px;
+    height: 7.5rem;
+    margin: 1.25rem 0 0.625rem;
+    border-bottom: 1px solid var(--app-color-border-subtle);
   }
 
   .print-hourly-bar {
     display: flex;
+    width: 1.5625rem;
+    height: 100%;
     flex-direction: column;
     align-items: center;
-    width: 25px;
-    height: 100%;
     justify-content: flex-end;
   }
 
   .p-bar-fill {
     width: 100%;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
-
   .p-bar-label {
-    font-size: 9px;
-    margin-top: 5px;
-    color: #6c757d;
+    margin-top: 0.3125rem;
+    font-size: 0.5625rem;
   }
 
   .print-insight-box {
-    background-color: #F0F4EC !important;
-    padding: 10px;
-    border-radius: 4px;
-    font-size: 10px;
     display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    gap: 0.5rem;
+    padding: 0.625rem;
+    border-radius: 0.25rem;
+    background: var(--app-color-control-hover) !important;
+    font-size: 0.625rem;
   }
 
   .print-footer {
     position: fixed;
     bottom: 0;
-    left: 0;
     width: 100%;
-    background-color: white;
+    padding: 0.625rem;
+    border-top: 1px solid var(--app-color-border-subtle);
+    background: white;
+    color: var(--app-color-text-subtle);
+    font-size: 0.5625rem;
     text-align: center;
-    font-size: 9px;
-    color: #6c757d;
-    border-top: 1px solid #d9c0ae;
-    padding-top: 10px;
-    padding-bottom: 15px;
-    margin-top: 0;
   }
 }

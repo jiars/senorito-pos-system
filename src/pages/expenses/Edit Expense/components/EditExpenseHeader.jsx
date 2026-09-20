@@ -1,5 +1,3 @@
-import React from "react";
-
 const EditExpenseHeader = ({ onClose, isSubmitting }) => (
   <div className="expense-modal-header">
     <h3>Edit Expense</h3>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import { useInventoryManagement } from "../../../hooks/useInventoryManagement";
 import { useRefreshInventoryAuditLogs } from "../../../hooks/useInventoryAuditLogs";
 import { useRefreshInventoryValuation } from "../../../hooks/useInventoryValuation";
@@ -25,7 +25,7 @@ const emptyForm = {
   expiration_date: "",
 };
 
-const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
+const AddExpenseModalContent = ({ onClose, categories, refetch }) => {
   const {
     inventoryItems,
     refetchInventoryManagement,
@@ -50,15 +50,6 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
   );
   const errors = validateExpenseForm(formData, { isPurchase, selectedItem });
   const isFormValid = Object.keys(errors).length === 0;
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    setApiError("");
-    setHasAttemptedSubmit(false);
-  }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const resetAndClose = () => {
     setFormData(emptyForm);
@@ -186,6 +177,20 @@ const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
         />
       </div>
     </div>
+  );
+};
+
+const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <AddExpenseModalContent
+      onClose={onClose}
+      categories={categories}
+      refetch={refetch}
+    />
   );
 };
 

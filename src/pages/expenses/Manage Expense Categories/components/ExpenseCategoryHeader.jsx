@@ -1,5 +1,3 @@
-import React from "react";
-
 const ExpenseCategoryHeader = ({ onClose, isSubmitting }) => (
   <div className="ec-modal-header">
     <h3>Manage Expense Categories</h3>

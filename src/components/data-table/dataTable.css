@@ -1,0 +1,31 @@
+/* Keep native table scrolling reliable while showing its scrollbar only in use. */
+.data-table-scroll-viewport {
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+}
+
+.data-table-scroll-viewport::-webkit-scrollbar {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.data-table-scroll-viewport::-webkit-scrollbar-track,
+.data-table-scroll-viewport::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.data-table-scroll-viewport::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+  transition: background-color 200ms ease;
+}
+
+.data-table-scroll-viewport[data-scrolling="true"] {
+  scrollbar-color: var(--app-color-border-subtle) transparent;
+}
+
+.data-table-scroll-viewport[data-scrolling="true"]::-webkit-scrollbar-thumb {
+  background-color: var(--app-color-border-subtle);
+}

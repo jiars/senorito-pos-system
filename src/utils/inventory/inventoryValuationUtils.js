@@ -89,12 +89,12 @@ export const calculateInventoryValuation = (rawItems = []) => {
 
 export const filterInventoryValuationItems = (
   processedItems,
-  { searchTerm, category, sort },
+  { searchTerm, categories = [], sort },
 ) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
   const categoryItems = processedItems.filter((item) => {
-    return category === 'All Categories' || item.category === category;
+    return categories.length === 0 || categories.includes(item.category);
   });
 
   const filteredItems = categoryItems.filter((item) => {
@@ -105,8 +105,13 @@ export const filterInventoryValuationItems = (
     filteredItems.sort((a, b) => b.value - a.value);
   } else if (sort === 'Sort: Lowest Value First') {
     filteredItems.sort((a, b) => a.value - b.value);
-  } else if (sort === 'Sort: A-Z') {
-    filteredItems.sort((a, b) => a.item.localeCompare(b.item));
+  } else if (sort === 'Sort: 0-Z') {
+    filteredItems.sort((a, b) =>
+      a.item.localeCompare(b.item, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      }),
+    );
   }
 
   return { categoryItems, filteredItems };
