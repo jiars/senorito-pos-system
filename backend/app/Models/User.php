@@ -2,37 +2,74 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
-    protected $table = 'profiles';
-    public $timestamps = false;
+    protected $table = 'users';
     protected $keyType = 'string';
     public $incrementing = false;
+    public $timestamps = false;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    protected $fillable = [
+        'username',
+        'first_name',
+        'last_name',
+        'contact_number',
+        'status',
+        'role_id',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'requires_password_setup' => 'boolean',
+            'created_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'last_password_change_at' => 'datetime',
+            'last_system_activity_at' => 'datetime',
         ];
+    }
+
+    // Get the role assigned to this user.
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id', 'id');
+    }
+
+    // Password-reset requests submitted by this user.
+    public function passwordResetRequests(): HasMany
+    {
+        return $this->hasMany(
+            PasswordResetRequest::class,
+            'user_id',
+            'id'
+        );
+    }
+
+    // Password-reset requests reviewed by this Owner.
+    public function reviewedPasswordResetRequests(): HasMany
+    {
+        return $this->hasMany(
+            PasswordResetRequest::class,
+            'reviewed_by',
+            'id'
+        );
     }
 }

@@ -37,9 +37,16 @@ export const validateEditInventoryItem = ({
     errors.reorderLevel = 'Minimum level must be at least 1.';
   }
 
-  const conversionsValid = conversions.every((conversion) => {
+  const conversionsValid = conversions.every((conversion, index) => {
     const equivalent = Number(conversion.equivalent);
-    return conversion.unit.trim() !== '' && equivalent > 0;
+    const hasUnit = conversion.unit.trim() !== '';
+    const hasEquivalent = conversion.equivalent !== '';
+
+    // Keep one optional placeholder row, matching Add Inventory. Any row the
+    // user explicitly adds after it must be completed or removed.
+    if (!hasUnit && !hasEquivalent) return index === 0;
+
+    return hasUnit && Number.isFinite(equivalent) && equivalent > 0;
   });
 
   return {

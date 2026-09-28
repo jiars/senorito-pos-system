@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Send password-reset links to the React application.
+        ResetPassword::createUrlUsing(
+            function (object $user, string $token): string {
+                $query = http_build_query([
+                    'token' => $token,
+                    'email' => $user->getEmailForPasswordReset(),
+                ]);
+
+                return rtrim(
+                    (string) config('app.frontend_url'),
+                    '/'
+                ) . "/reset-password?{$query}";
+            }
+        );
     }
 }

@@ -1,6 +1,6 @@
 # Frontend Figma Migration Task List
 
-Updated: September 18, 2026
+Updated: September 25, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferred
 
@@ -53,9 +53,12 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Let the agent create and refactor frontend layout, JSX, and styling files.
 - [x] Keep the current sidebar background color.
 - [x] Plan sidebar group labels without changing route paths.
+
 - [-] Final shared button styling — waiting for its dedicated design.
+
 - [x] Receive the shared category, status, and sort filter visual reference.
 - [ ] Define and test the shared filter interaction and responsive behavior from the approved reference.
+
 - [-] Modal redesigns — waiting for dedicated references.
 
 ## Figma Reference Checklist
@@ -74,8 +77,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Employee Management
 - [ ] Point of Sale
 - [ ] Profile
-- [ ] Forgot Password
-- [ ] Reset Password
+- [x] Forgot Password
+- [x] Reset Password
 - [ ] Store Settings, if included in the product scope
 - [ ] Shared button variants and states
 - [x] Shared filter visual direction for category, status, and sorting controls
@@ -89,7 +92,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Run baseline frontend lint — completed with documented pre-existing failures.
 - [x] Run baseline frontend production build — passed.
 - [ ] Review the six dependency audit findings without applying automatic breaking upgrades.
-- [ ] Record a later code-splitting task for the existing large production bundle.
+- [x] Record a later code-splitting task for the large production bundle. The current 2.1 MB main chunk also exceeds Workbox's default 2 MB precache limit.
 - [x] Review current global styles and custom UI components for migration conflicts.
 - [ ] Create `temporary/figma-references/` with module folders and `REFERENCE_INDEX.md`.
 - [ ] Save original screenshot exports using descriptive screen, device, width, and scroll-aware filenames.
@@ -115,7 +118,9 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [ ] Remove Vite starter/demo global styles only after proving they have no required consumers.
 - [ ] Update the existing component preview page into a basic UI catalog.
 - [ ] Create shared Loading, Error, Empty, and Skeleton states.
+
 - [-] Final shared EmptyState visual design — the current reusable EmptyState is functional placeholder copy/styles until its approved design is ready; then update it centrally and review every consumer.
+
 - [ ] Build the shared customized table foundation from shadcn Table primitives when the first table module begins.
 - [ ] Keep column definitions inside their modules so the shared table does not become an oversized universal component.
 - [x] Make shared DataTable cells wrap long content, preserve automatic row growth, and provide reliable native two-axis scrolling with temporary auto-hiding scrollbars.
@@ -131,17 +136,37 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Create the reusable Auth layout.
 - [x] Split the Login screen into clear presentational sections.
 - [x] Apply and approve the tablet Login design.
+
 - [-] Defer desktop Login screenshot review to final responsive QA.
 - [-] Defer mobile Login screenshot review to final responsive QA.
+
 - [x] Implement the three-slide Login carousel with manual controls and an automatic five-second infinite loop.
 - [x] Keep the current authentication service and payload unchanged.
 - [x] Preserve the existing validation, loading, error, and forgot-password behavior.
 - [x] Add the Remember Me checkbox and local UI state.
+
 - [-] Connect Remember Me to token persistence — it requires a service-layer decision by the user.
+
 - [x] Implement and review the reusable full-screen loading design.
 - [x] Verify optimized transparent bean assets and graceful text-only fallback behavior.
 - [x] Run focused lint and production build.
 - [x] Visually review and approve Authentication at the tablet reference size.
+- [x] Migrate Forgot Password into the shared animated Auth flow while preserving its dedicated form state and visual-only resend behavior pending backend integration.
+- [x] Keep Reset Password as a standalone focused form route with no visible navigation link; preserve client validation and defer email-token validation/submission to the backend contract.
+- [x] Remove the zero-reference legacy `auth.css` after Forgot Password and Reset Password stopped depending on it.
+- [~] Connect Forgot Password and Reset Password to the Laravel recovery API.
+  - [x] Add a dedicated Axios password-recovery service and TanStack mutation hook.
+  - [x] Replace the Forgot Password placeholder with real submission, generic feedback, loading, and a 60-second resend cooldown.
+  - [x] Read the reset token and email from the URL and submit them to Laravel.
+  - [x] Match Laravel password rules: 8+ characters, uppercase, lowercase, number, and symbol.
+  - [x] Reuse the Add Employee password-rule visual behavior through a Tailwind-based shared component without copying its legacy CSS.
+  - [x] Keep Reset Password restricted to logged-out Users through `PublicOnlyRoute`; signed-in Users must log out first.
+  - [x] Redirect successful resets to Login and show a safe success message.
+  - [~] Run focused Auth lint/build and test Owner plus approved-employee recovery. Focused lint and approved Cashier recovery pass; the PWA build is blocked by the existing 2.1 MB main-bundle precache limit.
+
+- [-] Add Owner approval and resend controls to Employee Management — deferred until its Laravel Employee Management integration.
+
+- [x] Show the Pending Setup employee-card state and setup-link resend cooldown.
 
 ## Phase 3: Shared App Shell and Sidebar
 
@@ -172,7 +197,9 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 ## Phase 4: Dashboard
 
 - [x] Keep the current Dashboard service response unchanged during the current UI migration.
+
 - [-] Defer the Dashboard API Error state and Retry action to final Dashboard checks. With explicit service authorization, make request failures reject with a meaningful error instead of returning an empty array, without changing the successful response shape.
+
 - [x] Migrate Dashboard sections component-by-component with Tailwind-first JSX styling. Do not adjust legacy `dashboard.css` values while a section still uses its selectors.
 - [x] Keep reusable colors, gradients, number colors, and shadows in `src/styles/theme.css`; keep only genuinely complex Dashboard behavior (for example, chart internals or custom scrolling) in local CSS if still needed after migration.
 - [x] Establish shared tablet typography, 8pt spacing, radius, and touch-target tokens; apply and verify the standard in Expiry Alerts.
@@ -217,7 +244,9 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Build the line-variant shadcn Tabs workspace: Stock Overview (default), Batches, Wastage, and Purchase History. Keep focused tab content components rather than nesting a complete page layout inside every tab.
 - [x] Extract Inventory Stock Insights with reusable summary cards and approved Quick Action visuals.
 - [x] Make Stock Overview summary cards interactive: selecting a metric applies the matching existing stock filter without changing Inventory data behavior.
-- [~] Reconnect Receive Stock, Log Wastage, and Correction to the existing Stock Log flow after the modal phase adds the required item-selection step.
+
+- [x] Reconnect Receive Stock, Log Wastage, and Correction through dedicated item-aware modal flows from Inventory Quick Actions and the table Stock Log submenu.
+
 - [x] Build the Inventory Items view on the shared customized table foundation with stable Inventory-only column widths, badges, row-action menu, and pagination.
 - [x] Consolidate Stock Overview to the same focused composition as Batches and Wastage: one Insights component plus one self-contained table component that owns its toolbar, columns, and pagination.
 - [x] Build Batches with one-row clickable Overall Batches, Expiring in 7 Days, Expired, and placeholder Value at Risk summary cards, followed by the Item Batches shared table section.
@@ -237,7 +266,9 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Visually review and approve Inventory Archive at tablet, desktop, portrait, phone, and short-height viewports.
 - [x] Preserve expiry and stock-status indicators with shadcn badges.
 - [x] Apply the approved shared sidebar-filter direction to Stock Overview.
+
 - [-] Defer visual modal redesigns and page-level Quick Action item selection until the full Inventory tab layout is approved; preserve current modal behavior meanwhile.
+
 - [x] Run focused lint and production build for Stock Overview.
 - [x] Visually review and approve Stock Overview before continuing.
 - [x] Run focused lint and production build for the Batches tab.
@@ -311,36 +342,82 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Phase 9: Menu Management
 
-- [ ] Keep the current Menu CBA structure as the functional reference.
-- [ ] Restyle the page header and Menu/Add-ons tabs.
-- [ ] Create reusable menu product cards.
-- [ ] Preserve variants, recipes, prices, add-ons, categories, and archive behavior.
-- [ ] Preserve image fallbacks and loading states.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Menu Management before continuing.
+- [x] Keep the current Menu CBA structure as the functional reference.
+- [x] Restyle the page header and Menu/Add-ons tabs.
+- [x] Create reusable menu product cards.
+- [x] Preserve variants, recipes, prices, add-ons, categories, and archive behavior.
+- [x] Preserve image fallbacks and loading states.
+- [x] Apply the approved shared filter direction where needed; final button styling remains deferred.
+- [x] Run focused lint and production build.
+- [x] Visually review and approve Menu Management before continuing.
 
 ## Phase 10: Employee Management
 
-- [ ] Preserve current employee data and role behavior.
-- [ ] Restyle the page header and content shell.
-- [ ] Create reusable Employee cards.
-- [ ] Preserve masked personal information and account-status display.
-- [ ] Preserve existing Add and Edit modal behavior.
-- [ ] Apply the approved shared filter direction where needed; final button styling remains deferred.
-- [ ] Run focused lint and production build.
-- [ ] Visually review and approve Employee Management before continuing.
+- [x] Preserve current employee data and role behavior.
+- [x] Restyle the page header and content shell with the shared `PageLayout` and a layout-only Employee module stylesheet.
+- [x] Split the visible module into `EmployeeDirectory`, `EmployeeToolbar`, and reusable `EmployeeCard` responsibilities.
+- [x] Create responsive Employee cards with shared typography/tokens, shadcn role/status badges, masked personal information, accessible edit actions, skeletons, and an empty state.
+- [x] Preserve existing Add and Edit modal behavior and employee-service response handling.
+- [x] Apply the approved shared search and multi-select Role/Status filter direction; final shared button styling remains deferred.
+- [x] Implement the approved responsive grid: three columns on desktop/tablet landscape, two on tablet portrait, and one on phone, with short-height density adjustments.
+- [x] Remove the zero-reference legacy Employee card stylesheet after visual approval.
+- [x] Run focused Employee lint and the production/PWA build.
+- [x] Visually review and approve Employee Management before continuing.
+
+## Phase 11: Shared Modal System
+
+### Shared Foundation
+
+- [x] Create composable shared modal primitives: `Modal`, `ModalHeader`, `ModalBody`, and `ModalContent`.
+- [x] Add reusable `ModalFooter` for Variant 2; module modals import only the pieces they need.
+- [x] Add reusable `ModalStepper` for Variant 1 flows with a configurable number of steps.
+- [ ] Keep fields, state, validation, service calls, payloads, permissions, and refetch behavior inside their current module modal containers.
+- [ ] Standardize modal layering above Sidebar/Topbar, internal scrolling, responsive width and height, accessible title/close behavior, keyboard focus, reduced motion, and tablet touch targets.
+
+### Variant 3 — Category Management
+
+- [x] Migrate Inventory Manage Categories and approve it as the Variant 3 reference.
+- [x] Migrate Menu Manage Categories using the approved Variant 3 structure.
+- [ ] Migrate Expense Manage Categories using the approved Variant 3 structure.
+- [ ] Keep each Variant 3 category workflow inside its module modal file; remove redundant one-use category Add/List component files after their markup is consolidated and references are cleared.
+- [ ] Preserve duplicate-name validation, inline editing, usage counts, delete restrictions, submitting states, and empty states in all three category modals.
+
+### Variant 2 — Standard and Conditional Forms
+
+- [x] Migrate Restock into its dedicated searchable/prefilled Variant 2 modal while preserving its service payload and refresh behavior.
+- [x] Migrate Log Wastage into its dedicated searchable/prefilled Variant 2 modal while preserving batch selection, service payload, and refresh behavior.
+- [x] Migrate Item Correction into its dedicated searchable/prefilled Variant 2 modal while preserving batch correction, service payload, and refresh behavior.
+- [x] Migrate Edit Inventory Item into one Variant 2 modal file with searchable category selection, preserved immutable item/base-unit behavior, cost and supplier fields, editable recipe conversions, existing payload/refetch behavior, and zero-reference legacy component/CSS cleanup.
+- [x] Migrate Add Expense, including its conditional/custom additional input fields and Inventory Purchase flow.
+- [x] Migrate Edit Expense with predefined values while preserving its service payload and refresh behavior.
+- [ ] Migrate Edit Add-on.
+- [ ] Migrate Edit Menu Item.
+- [x] Migrate Add Employee.
+- [ ] Migrate Edit Employee.
+
+### Variant 1 — Multi-step Forms
+
+- [x] Migrate Add Inventory Item with General, Initial Purchase, and optional Recipe Conversion steps; add compatible-unit automatic conversion with manual packaging fallback.
+- [ ] Migrate Add Menu Item using the approved multi-step structure while preserving variants, prices, and recipes.
+- [ ] Migrate Add Add-on using the approved multi-step structure while preserving its ingredient behavior.
+
+### Modal Migration Verification
+
+- [ ] Test every migrated modal at `1194x834`, `1440x900`, `390x844`, and `390x600`, including short-height internal scrolling.
+- [ ] Verify open, close, outside-click, Escape, reopen/reset, validation, duplicate, disabled, submitting, success, failure, keyboard, and focus behavior where applicable.
+- [ ] Remove each legacy modal stylesheet or component only after confirming zero remaining references and receiving visual approval.
+- [ ] Run focused modal lint and the production/PWA build after every approved variant batch.
 
 ## Waiting for References
 
 - [ ] Migrate Point of Sale after its approved reference is supplied.
 - [ ] Migrate Profile after its approved reference is supplied.
-- [ ] Migrate Forgot Password after its approved reference is supplied.
-- [ ] Migrate Reset Password after its approved reference is supplied.
+- [x] Migrate Forgot Password from its approved reference.
+- [x] Migrate Reset Password as an approved standalone token-reset form.
 - [ ] Decide whether Store Settings is a real module or visual placeholder.
 - [ ] Implement final shared button variants after approval.
 - [ ] Implement additional complex filter variants only after their references and interactions are approved.
-- [ ] Redesign modals only after their references are supplied.
+- [x] Modal Variant 1, Variant 2, and Variant 3 references are supplied; migration is tracked in Phase 11.
 
 ## Final Cleanup
 
@@ -348,7 +425,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Remove the obsolete `/preview` route, legacy PageHeader CSS, and zero-reference legacy UI primitives after confirming no remaining consumers.
 - [ ] Re-check and ask before deleting the current zero-reference candidates: `src/App.css`, `src/assets/hero.png`, `src/assets/react.svg`, `src/assets/vite.svg`, and unused alternate logo exports.
 - [x] Move the reusable PageHeader into `src/components/layout/` and remove its obsolete UI-folder copy after updating consumers.
-- [ ] Keep `auth.css` until Forgot Password and Reset Password no longer depend on it.
+- [x] Remove `auth.css` after confirming Forgot Password and Reset Password no longer depend on it.
 - [ ] Resolve unused imports separately without touching user-owned service behavior.
 - [ ] Replace the visual-only Topbar sync placeholder with a real shared connection and pending-offline-order indicator after all page UI work is approved.
 - [ ] Standardize folder names containing spaces during a dedicated low-risk cleanup.
@@ -363,4 +440,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Current Next Task
 
-Start the Menu Management layout audit using the approved module-first layout workflow.
+Migrate Add Menu Item as the next Variant 1 modal while preserving variants, prices, recipes, image handling, services, validation, and payloads. Keep complete cross-viewport and keyboard/focus modal verification in the Phase 11 verification pass.

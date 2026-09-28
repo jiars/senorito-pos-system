@@ -22,6 +22,7 @@ class Addon extends Model
         'profit',
         'margin',
         'pos_status',
+        'recipe_status',
         'archived'
     ];
 

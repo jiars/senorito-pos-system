@@ -28,6 +28,7 @@ function TooltipTrigger({
 
 function TooltipContent({
   className,
+  positionerClassName,
   side = "top",
   sideOffset = 4,
   align = "center",
@@ -42,7 +43,7 @@ function TooltipContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-50"
+        className={cn("isolate z-50", positionerClassName)}
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"

@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { cn } from "cn";
 
@@ -12,6 +11,7 @@ function PopoverTrigger({ ...props }) {
 
 function PopoverContent({
   className,
+  positionerClassName,
   align = "center",
   alignOffset = 0,
   side = "bottom",
@@ -25,7 +25,7 @@ function PopoverContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-[120]"
+        className={cn("isolate z-[120]", positionerClassName)}
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"

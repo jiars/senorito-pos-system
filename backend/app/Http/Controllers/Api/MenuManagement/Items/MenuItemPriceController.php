@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\MenuManagement\Items;
 
 use App\Http\Controllers\Api\MenuManagement\Items\MenuRecipeController;
+use App\Http\Controllers\Api\MenuManagement\RecipeStatuses\RecipeStatusController;
 use App\Http\Controllers\Controller;
 use App\Models\MenuManagement\MenuItemPrice;
 use App\Models\MenuManagement\MenuRecipe;
@@ -13,6 +14,7 @@ class MenuItemPriceController extends Controller
 {
     public function storeMany(array $prices, string $menuItemId)
     {
+        $statusController = app(RecipeStatusController::class);
         $recipeController = app(MenuRecipeController::class);
         foreach ($prices as $priceData) {
             $newPrice = MenuItemPrice::create([
@@ -27,13 +29,21 @@ class MenuItemPriceController extends Controller
             ]);
             // Pass the recipes down to the Recipe Controller!
             if (!empty($priceData['recipes'])) {
-                $recipeController->storeMany($priceData['recipes'], $menuItemId, $newPrice->id);
+                $recipeController->storeMany(
+                    $priceData['recipes'],
+                    $menuItemId,
+                    $newPrice->id
+                );
             }
+
+            // Recalculate after all recipes are saved.
+            $statusController->syncMenuPrice($newPrice->id);
         }
     }
 
     public function updateMany(array $prices, string $menuItemId)
     {
+        $statusController = app(RecipeStatusController::class);
         $recipeController = app(MenuRecipeController::class);
         foreach ($prices as $priceData) {
             MenuItemPrice::where('id', $priceData['id'])->update([
@@ -68,6 +78,8 @@ class MenuItemPriceController extends Controller
                 $recipeController->updateMany($recipesToUpdate);
             if (!empty($recipesToDelete))
                 $recipeController->destroyMany($recipesToDelete);
+
+            $statusController->syncMenuPrice($priceData['id']);
         }
     }
 

@@ -37,6 +37,8 @@ const formatChartDate = (value) =>
 const ExpenseOverview = ({
   isLoading,
   expenseDistributionData,
+  onPayEmployee,
+  onPurchaseInventory,
   onManageCategories,
   onViewArchive,
 }) => {
@@ -56,14 +58,14 @@ const ExpenseOverview = ({
       label: "Pay Employee",
       description: "Record an employee wage expense.",
       icon: payEmployeeIcon,
-      onClick: null,
+      onClick: onPayEmployee,
     },
     {
       id: "purchase-inventory",
       label: "Purchase Inventory",
       description: "Create and record an inventory purchase.",
       icon: purchaseInventoryIcon,
-      onClick: null,
+      onClick: onPurchaseInventory,
     },
     {
       id: "manage-categories",

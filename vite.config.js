@@ -6,6 +6,11 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Compatibility bridge for older CommonJS browser dependencies such as
+  // convert-units@2, whose Lodash dependency still references Node's `global`.
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     react(),
     tailwindcss(),

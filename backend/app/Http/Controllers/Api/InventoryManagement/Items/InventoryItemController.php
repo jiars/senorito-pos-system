@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api\InventoryManagement\Items;
 
-use App\Http\Controllers\Controller;
-use App\Models\InventoryManagement\InventoryItem;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryArchiveOrchestrator;
+use App\Models\InventoryManagement\InventoryItem;
 use App\Models\MenuManagement\AddonRecipe;
 use App\Models\MenuManagement\MenuRecipe;
 
@@ -12,32 +13,23 @@ class InventoryItemController extends Controller
 {
     public function destroy(Request $request, string $id)
     {
-        $item = InventoryItem::findOrFail($id);
-
-        // Archive and remember who performed it.
-        $item->update([
-            'archived' => true,
-            'archived_by' => $request->user()->id,
-            'archived_at' => now(),
-        ]);
+        $item = app(InventoryArchiveOrchestrator::class)
+            ->archive($request, $id);
 
         return response()->json([
-            'message' => 'Inventory item archived successfully.'
+            'message' => 'Inventory item archived successfully.',
+            'item' => $item,
         ]);
     }
 
     public function unarchive(string $id)
     {
-        $item = InventoryItem::findOrFail($id);
-
-        $item->update([
-            'archived' => false,
-            'archived_by' => null,
-            'archived_at' => null,
-        ]);
+        $item = app(InventoryArchiveOrchestrator::class)
+            ->unarchive($id);
 
         return response()->json([
-            'message' => 'Inventory item restored successfully.'
+            'message' => 'Inventory item restored successfully.',
+            'item' => $item,
         ]);
     }
 

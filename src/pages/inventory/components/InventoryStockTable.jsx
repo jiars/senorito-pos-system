@@ -12,6 +12,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -223,7 +226,9 @@ const InventoryStockTable = ({
   toggleVisibleItems,
   toggleItem,
   onPrintQRCode,
-  onOpenStockLog,
+  onOpenRestock,
+  onOpenWastage,
+  onOpenCorrection,
   onOpenHistory,
   onOpenEdit,
   onOpenArchive,
@@ -400,8 +405,35 @@ const InventoryStockTable = ({
               }
             />
             <DropdownMenuContent align="end" className="z-[100] w-44">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <i aria-hidden="true" className="bi bi-card-list" />
+                  Stock Log
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="z-[110] min-w-40">
+                  <DropdownMenuItem onClick={() => onOpenRestock(row.original)}>
+                    <i aria-hidden="true" className="bi bi-box-seam" />
+                    Restock
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onOpenWastage(row.original)}
+                  >
+                    <i aria-hidden="true" className="bi bi-droplet" />
+                    Wastage
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onOpenCorrection(row.original)}
+                  >
+                    <i
+                      aria-hidden="true"
+                      className="bi bi-arrow-counterclockwise"
+                    />
+                    Correction
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
               {[
-                ["Stock Log", "bi-card-list", onOpenStockLog],
                 ["History", "bi-clock-history", onOpenHistory],
                 ["Edit item", "bi-pencil", onOpenEdit],
                 ["Archive item", "bi-archive", onOpenArchive],
@@ -424,7 +456,9 @@ const InventoryStockTable = ({
       onOpenArchive,
       onOpenEdit,
       onOpenHistory,
-      onOpenStockLog,
+      onOpenCorrection,
+      onOpenRestock,
+      onOpenWastage,
       selectedItems,
       toggleItem,
       toggleVisibleItems,

@@ -8,6 +8,7 @@ const LoginForm = ({
   password,
   showPassword,
   errorMessage,
+  successMessage,
   isLoggingIn,
   rememberMe,
   onEmailChange,
@@ -77,6 +78,15 @@ const LoginForm = ({
             Forgot Password?
           </Link>
         </div>
+
+        {successMessage !== "" && (
+          <div
+            className="mt-1 rounded-lg border border-[var(--app-color-success)]/30 bg-[var(--app-color-success-surface)] px-4 py-3 text-sm text-[var(--app-color-success)]"
+            role="status"
+          >
+            {successMessage}
+          </div>
+        )}
 
         {errorMessage !== "" && (
           <div

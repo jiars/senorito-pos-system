@@ -1,299 +1,367 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 
-import { useRefreshInventoryAuditLogs } from '../../../../hooks/useInventoryAuditLogs';
-import { useRefreshInventoryValuation } from '../../../../hooks/useInventoryValuation';
-import { addInventoryItem } from '../../../../services/inventory/inventoryItemsService';
-import { validateAddInventoryItem } from '../../../../utils/validation/inventory/addInventoryValidation';
-import AddInventoryBaseInfo from './components/AddInventoryBaseInfo';
-import InitialPurchaseSection from './components/InitialPurchaseSection';
-import ConversionUnitsSection from './components/ConversionUnitsSection';
-import ExpiryAndNoteSection from './components/ExpiryAndNoteSection';
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import ModalStepper from "@/components/modals/ModalStepper";
+import { Button } from "@/components/ui/button";
+import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
+import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
+import { addInventoryItem } from "@/services/inventory/inventoryItemsService";
+import { getStandardUnitMultiplier } from "@/utils/inventory/unitConversion";
+import { validateAddInventoryItem } from "@/utils/validation/inventory/addInventoryValidation";
 
-import './addInventoryItemModal.css';
+import GeneralStep from "./steps/GeneralStep";
+import InitialPurchaseStep from "./steps/InitialPurchaseStep";
+import RecipeConversionStep from "./steps/RecipeConversionStep";
 
-const AddInventoryItemModal = ({ isOpen, onClose, existingItems = [], categories = [], units = [], refetchInventory }) => {
+const steps = [
+  { id: "general", label: "General" },
+  { id: "purchase", label: "Initial Purchase" },
+  { id: "conversion", label: "Recipe Conversion" },
+];
+
+const emptyForm = {
+  itemName: "",
+  unit: "",
+  category: "",
+  trackExpiry: false,
+  expiryDate: "",
+  supplier: "",
+  qtyPurchased: "",
+  purchaseUnit: "",
+  purchaseMultiplier: "",
+  totalCost: "",
+  minLevel: "",
+  note: "",
+};
+
+const createEmptyConversion = () => ({
+  id: `${Date.now()}-${Math.random()}`,
+  unit: "",
+  equivalent: "",
+});
+
+const AddInventoryItemModalContent = ({
+  onClose,
+  existingItems = [],
+  categories = [],
+  units = [],
+  refetchInventory,
+}) => {
   const refreshAuditLogs = useRefreshInventoryAuditLogs();
   const refreshValuation = useRefreshInventoryValuation();
+  const [formData, setFormData] = useState(emptyForm);
+  const [conversions, setConversions] = useState(() => [
+    createEmptyConversion(),
+  ]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [attemptedSteps, setAttemptedSteps] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
 
-  const [itemName, setItemName] = useState('');
-  const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState('');
-  const [qtyPurchased, setQtyPurchased] = useState('');
-  const [purchaseUnit, setPurchaseUnit] = useState('');
-  const [purchaseMultiplier, setPurchaseMultiplier] = useState('1'); // Default to 1
-  const [totalCost, setTotalCost] = useState('');
-  const [minLevel, setMinLevel] = useState('');
-  const [supplier, setSupplier] = useState('');
+  const validation = validateAddInventoryItem({
+    itemName: formData.itemName,
+    existingItems,
+    unit: formData.unit,
+    category: formData.category,
+    qtyPurchased: formData.qtyPurchased,
+    purchaseUnit: formData.purchaseUnit,
+    purchaseMultiplier: formData.purchaseMultiplier,
+    totalCost: formData.totalCost,
+    minLevel: formData.minLevel,
+    conversions,
+    trackExpiry: formData.trackExpiry,
+    expiryDate: formData.expiryDate,
+  });
 
-  const [conversions, setConversions] = useState([]);
+  const stepValidity = [
+    !validation.isNameEmpty &&
+      !validation.isDuplicateName &&
+      Boolean(formData.unit) &&
+      Boolean(formData.category) &&
+      validation.isExpiryValid,
+    validation.isQtyValid &&
+      Boolean(formData.purchaseUnit.trim()) &&
+      validation.isMultiplierValid &&
+      validation.isCostValid &&
+      validation.isMinValid,
+    validation.conversionsValid,
+  ];
 
-  const [trackExpiry, setTrackExpiry] = useState(false);
-  const [expiryDate, setExpiryDate] = useState('');
-  const [note, setNote] = useState('');
+  const standardMultiplier = getStandardUnitMultiplier(
+    formData.unit,
+    formData.purchaseUnit,
+  );
+  const showCurrentStepErrors = Boolean(attemptedSteps[currentStep]);
 
-  // Track if user attempted to submit
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const updateField = (fieldName, value) => {
+    setApiError("");
+    setFormData((currentForm) => {
+      const nextForm = { ...currentForm, [fieldName]: value };
 
-  // Reset form when modal opens
-  React.useEffect(() => {
-    if (isOpen) {
-      setItemName('');
-      setUnit('');
-      setCategory('');
-      setQtyPurchased('');
-      setPurchaseUnit('');
-      setPurchaseMultiplier('1');
-      setTotalCost('');
-      setMinLevel('');
-      setSupplier('');
-      setConversions([]);
-      setTrackExpiry(false);
-      setExpiryDate('');
-      setNote('');
-      setHasAttemptedSubmit(false);
-    }
-  }, [isOpen]);
+      if (fieldName === "unit" && currentForm.purchaseUnit) {
+        nextForm.purchaseMultiplier =
+          getStandardUnitMultiplier(value, currentForm.purchaseUnit) || "";
+      }
 
-  const getStandardMultiplier = (base, purchase) => {
-    if (!base || !purchase) return null;
-    const b = base.toLowerCase();
-    const p = purchase.toLowerCase();
-
-    if (b === p || p === b + 's' || p === b + 'es') return '1';
-    if (b === 'ml' && (p === 'l' || p === 'liter' || p === 'liters')) return '1000';
-    if (b === 'g' && (p === 'kg' || p === 'kilo' || p === 'kilos' || p === 'kilogram')) return '1000';
-
-    return null;
+      return nextForm;
+    });
   };
 
-  React.useEffect(() => {
-    const std = getStandardMultiplier(unit, purchaseUnit);
-    if (std) {
-      setPurchaseMultiplier(std);
-    }
-  }, [unit, purchaseUnit]);
-
-  if (!isOpen) return null;
-
-  const handleExpiryToggle = (e) => {
-    const isChecked = e.target.checked;
-    setTrackExpiry(isChecked);
-    if (!isChecked) {
-      setExpiryDate('');
-    }
+  const handlePurchaseUnitChange = (value) => {
+    setApiError("");
+    setFormData((currentForm) => ({
+      ...currentForm,
+      purchaseUnit: value,
+      purchaseMultiplier:
+        getStandardUnitMultiplier(currentForm.unit, value) || "",
+    }));
   };
 
   const handleAddConversion = () => {
-    setConversions([...conversions, { id: Date.now(), unit: '', equivalent: '' }]);
+    setApiError("");
+    setConversions((currentConversions) => [
+      ...currentConversions,
+      createEmptyConversion(),
+    ]);
   };
 
-  const handleRemoveConversion = (id) => {
-    setConversions(conversions.filter(c => c.id !== id));
+  const handleRemoveConversion = (conversionId) => {
+    setApiError("");
+    setConversions((currentConversions) => {
+      if (currentConversions.length === 1) {
+        return [createEmptyConversion()];
+      }
+
+      return currentConversions.filter(
+        (conversion) => conversion.id !== conversionId,
+      );
+    });
   };
 
-  const handleConversionChange = (id, field, value) => {
-    setConversions(conversions.map(c => c.id === id ? { ...c, [field]: value } : c));
+  const handleConversionChange = (conversionId, fieldName, value) => {
+    setApiError("");
+    setConversions((currentConversions) => {
+      return currentConversions.map((conversion) => {
+        if (conversion.id !== conversionId) return conversion;
+        return { ...conversion, [fieldName]: value };
+      });
+    });
   };
 
-  // ─── Validation Logic ───
-  const validation = validateAddInventoryItem({
-    itemName,
-    existingItems,
-    unit,
-    category,
-    qtyPurchased,
-    purchaseUnit,
-    purchaseMultiplier,
-    totalCost,
-    minLevel,
-    conversions,
-    trackExpiry,
-    expiryDate
-  });
-
-  const {
-    isNameEmpty,
-    isDuplicateName,
-    parsedQty,
-    isQtyValid,
-    parsedCost,
-    isCostValid,
-    isMinValid,
-    parsedMultiplier,
-    isMultiplierValid,
-    isExpiryEmpty,
-    hasValidFutureDate,
-    isExpiryValid,
-    isFormValid
-  } = validation;
-
-  // ─── Helpers for Computed Costs ───
   const getBaseQuantity = () => {
-    if (!isQtyValid || !isMultiplierValid) return parsedQty;
-    return parsedQty * parsedMultiplier;
+    if (!validation.isQtyValid || !validation.isMultiplierValid) return null;
+    return validation.parsedQty * validation.parsedMultiplier;
   };
 
   const getBaseUnitCost = () => {
-    if (!isQtyValid || !isCostValid || !isMultiplierValid) return null;
-    const costPerPurchaseUnit = parsedCost / parsedQty;
-    return costPerPurchaseUnit / parsedMultiplier;
+    const baseQuantity = getBaseQuantity();
+    if (!baseQuantity || !validation.isCostValid) return null;
+    return validation.parsedCost / baseQuantity;
+  };
+
+  const markStepAttempted = (stepIndex) => {
+    setAttemptedSteps((currentSteps) => ({
+      ...currentSteps,
+      [stepIndex]: true,
+    }));
+  };
+
+  const clearStepAttempt = (stepIndex) => {
+    setAttemptedSteps((currentSteps) => {
+      const nextSteps = { ...currentSteps };
+      delete nextSteps[stepIndex];
+      return nextSteps;
+    });
+  };
+
+  const handleNext = () => {
+    markStepAttempted(currentStep);
+    if (!stepValidity[currentStep]) return;
+
+    clearStepAttempt(currentStep);
+    setApiError("");
+    setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
+  };
+
+  const handlePrevious = () => {
+    clearStepAttempt(currentStep);
+    setApiError("");
+    setCurrentStep((step) => Math.max(step - 1, 0));
   };
 
   const handleSubmit = async () => {
-    setHasAttemptedSubmit(true);
-    if (!isFormValid || isSubmitting) return;
+    markStepAttempted(currentStep);
+    if (!validation.isFormValid || isSubmitting) return;
+
     setIsSubmitting(true);
+    setApiError("");
 
     try {
-      const computedCostPerUnit = parseFloat((parseFloat(totalCost) / getBaseQuantity()).toFixed(2));
+      const baseQuantity = getBaseQuantity();
+      const computedCostPerUnit = Number(
+        (validation.parsedCost / baseQuantity).toFixed(2),
+      );
+      const conversionsData = conversions
+        .filter((conversion) => {
+          return conversion.unit.trim() || conversion.equivalent;
+        })
+        .map((conversion) => ({
+          converted_unit: conversion.unit.trim(),
+          equivalent_base_amount: Number(conversion.equivalent),
+        }));
 
-      const validConversions = conversions.filter(c => c.unit !== '' && c.equivalent !== '');
-      const conversionsData = validConversions.map(c => ({
-        converted_unit: c.unit,
-        equivalent_base_amount: parseFloat(c.equivalent)
-      }));
-
-      // Build one nested payload, like the Menu Add flow.
-      const payload = {
+      await addInventoryItem({
         itemData: {
-          item_name: itemName.trim(),
-          category_id: category,
-          base_unit: unit,
-          minimum_level: parseFloat(minLevel),
-          supplier: supplier.trim() || null,
+          item_name: formData.itemName.trim(),
+          category_id: formData.category,
+          base_unit: formData.unit,
+          minimum_level: Number(formData.minLevel),
+          supplier: formData.supplier.trim() || null,
           cost_per_unit: computedCostPerUnit,
-          current_stock: getBaseQuantity(),
-          track_expiry: trackExpiry
+          current_stock: baseQuantity,
+          track_expiry: formData.trackExpiry,
         },
         purchaseData: {
-          quantity_purchased: parseFloat(qtyPurchased),
-          purchase_unit: purchaseUnit,
-          purchase_multiplier: parsedMultiplier,
-          total_cost: parseFloat(totalCost),
+          quantity_purchased: validation.parsedQty,
+          purchase_unit: formData.purchaseUnit.trim(),
+          purchase_multiplier: validation.parsedMultiplier,
+          total_cost: validation.parsedCost,
           cost_per_unit: computedCostPerUnit,
-          supplier: supplier.trim() || null,
-          expiration_date: trackExpiry ? expiryDate : null,
-          note: note.trim() || null
+          supplier: formData.supplier.trim() || null,
+          expiration_date: formData.trackExpiry ? formData.expiryDate : null,
+          note: formData.note.trim() || null,
         },
-        conversionsData
-      };
+        conversionsData,
+      });
 
-      await addInventoryItem(payload);
-
-      // Refresh the current Inventory page before closing the modal.
       if (refetchInventory) {
         await refetchInventory();
       }
 
       onClose();
-
-      // Refresh secondary pages without delaying the Inventory modal.
-      Promise.allSettled([
-        refreshAuditLogs(),
-        refreshValuation(),
-      ]);
+      Promise.allSettled([refreshAuditLogs(), refreshValuation()]);
     } catch (error) {
-      console.error("Error adding item:", error);
-      alert(error.message);
+      setApiError(error.message || "Failed to add inventory item.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="inventory-modal-overlay">
-      <div className="inventory-modal-content">
-        <div className="inventory-modal-header">
-          <h3>Add Inventory Item</h3>
-          <button className="inventory-modal-close" onClick={onClose}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="42rem"
+      maxHeight="min(90svh, 48rem)"
+    >
+      <ModalHeader
+        title="Add Inventory Item"
+        description="Register a new ingredient or packaging item in your inventory."
+        iconClassName="bi bi-box-seam"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="inventory-modal-body">
-          <AddInventoryBaseInfo
-            itemName={itemName}
-            setItemName={setItemName}
-            unit={unit}
-            setUnit={setUnit}
-            category={category}
-            setCategory={setCategory}
-            units={units}
-            categories={categories}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-            isNameEmpty={isNameEmpty}
-            isDuplicateName={isDuplicateName}
-          />
+      <ModalBody
+        className="bg-[var(--app-color-canvas)]"
+        viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]"
+      >
+        <ModalContent className="gap-[var(--app-gap-section)]">
+          <ModalStepper steps={steps} currentStep={currentStep} />
 
-          <InitialPurchaseSection
-            qtyPurchased={qtyPurchased}
-            setQtyPurchased={setQtyPurchased}
-            purchaseUnit={purchaseUnit}
-            setPurchaseUnit={setPurchaseUnit}
-            totalCost={totalCost}
-            setTotalCost={setTotalCost}
-            purchaseMultiplier={purchaseMultiplier}
-            setPurchaseMultiplier={setPurchaseMultiplier}
-            minLevel={minLevel}
-            setMinLevel={setMinLevel}
-            supplier={supplier}
-            setSupplier={setSupplier}
-            unit={unit}
-            getStandardMultiplier={getStandardMultiplier}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-            isQtyValid={isQtyValid}
-            isCostValid={isCostValid}
-            isMinValid={isMinValid}
-            isMultiplierValid={isMultiplierValid}
-            getBaseUnitCost={getBaseUnitCost}
-            parsedCost={parsedCost}
-            parsedQty={parsedQty}
-          />
+          {apiError && (
+            <p
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+              role="alert"
+            >
+              {apiError}
+            </p>
+          )}
 
-          <ConversionUnitsSection
-            conversions={conversions}
-            handleAddConversion={handleAddConversion}
-            handleRemoveConversion={handleRemoveConversion}
-            handleConversionChange={handleConversionChange}
-            unit={unit}
-            getBaseUnitCost={getBaseUnitCost}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-          />
+          {currentStep === 0 && (
+            <GeneralStep
+              formData={formData}
+              categories={categories}
+              units={units}
+              showErrors={showCurrentStepErrors}
+              validation={validation}
+              onFieldChange={updateField}
+            />
+          )}
 
-          <ExpiryAndNoteSection
-            trackExpiry={trackExpiry}
-            handleExpiryToggle={handleExpiryToggle}
-            expiryDate={expiryDate}
-            setExpiryDate={setExpiryDate}
-            note={note}
-            setNote={setNote}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-            isExpiryValid={isExpiryValid}
-            isExpiryEmpty={isExpiryEmpty}
-            hasValidFutureDate={hasValidFutureDate}
-          />
-        </div>
+          {currentStep === 1 && (
+            <InitialPurchaseStep
+              formData={formData}
+              showErrors={showCurrentStepErrors}
+              validation={validation}
+              standardMultiplier={standardMultiplier}
+              onFieldChange={updateField}
+              onPurchaseUnitChange={handlePurchaseUnitChange}
+              getBaseUnitCost={getBaseUnitCost}
+            />
+          )}
 
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
+          {currentStep === 2 && (
+            <RecipeConversionStep
+              conversions={conversions}
+              baseUnit={formData.unit}
+              showErrors={showCurrentStepErrors}
+              getBaseUnitCost={getBaseUnitCost}
+              onAddConversion={handleAddConversion}
+              onRemoveConversion={handleRemoveConversion}
+              onConversionChange={handleConversionChange}
+            />
+          )}
+        </ModalContent>
+      </ModalBody>
+
+      <ModalFooter>
+        {currentStep === 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={onClose}
+            className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
+          >
+            Cancel
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={handlePrevious}
+            className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
+          >
+            Previous
+          </Button>
         )}
 
-        <div className="inventory-modal-footer">
-          <button className="inventory-modal-btn-cancel" onClick={onClose}>Cancel</button>
-          <button
-            className="inventory-modal-btn-save"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : 'Add Item'}
-          </button>
-        </div>
-      </div>
-    </div>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          onClick={currentStep === steps.length - 1 ? handleSubmit : handleNext}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting
+            ? "Saving..."
+            : currentStep === steps.length - 1
+              ? "Add Item"
+              : "Next"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
+};
+
+const AddInventoryItemModal = ({ isOpen, ...modalProps }) => {
+  if (!isOpen) return null;
+
+  return <AddInventoryItemModalContent {...modalProps} />;
 };
 
 export default AddInventoryItemModal;

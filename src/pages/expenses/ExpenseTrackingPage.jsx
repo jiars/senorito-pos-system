@@ -39,12 +39,6 @@ const ExpenseTrackingPage = () => {
     refetchExpenseManagement,
   } = useExpenseManagement();
 
-  // Wastage remains in Inventory and is excluded from cash Expenses.
-  const visibleExpenses = expenses.filter(
-    (expense) =>
-      expense.expense_categories?.category_name !== "Inventory Wastage",
-  );
-
   const [searchTerm, setSearchTerm] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -53,6 +47,8 @@ const ExpenseTrackingPage = () => {
 
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [addExpenseInitialCategory, setAddExpenseInitialCategory] =
+    useState(null);
   const [isEditExpenseOpen, setIsEditExpenseOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState(null);
   const [isArchiveExpenseOpen, setIsArchiveExpenseOpen] = useState(false);
@@ -74,7 +70,7 @@ const ExpenseTrackingPage = () => {
 
   // --- 1. Filter Logic ---
   const filteredExpenseRecords = filterExpenseRecords(
-    visibleExpenses,
+    expenses,
     searchTerm,
     fromDate,
     toDate,
@@ -134,6 +130,16 @@ const ExpenseTrackingPage = () => {
     setIsArchiveExpenseOpen(true);
   };
 
+  const handleOpenAddExpense = (initialCategoryName = null) => {
+    setAddExpenseInitialCategory(initialCategoryName);
+    setIsAddExpenseOpen(true);
+  };
+
+  const handleCloseAddExpense = () => {
+    setIsAddExpenseOpen(false);
+    setAddExpenseInitialCategory(null);
+  };
+
   // Create a color map for all categories coming from the database
   const categoryColorMap = buildCategoryColorMap(categories);
 
@@ -161,7 +167,7 @@ const ExpenseTrackingPage = () => {
       onManageCategories={() => setIsManageCategoriesOpen(true)}
       onExport={handleExportExcel}
       onViewArchive={() => navigate("/expenses/archive")}
-      onAddExpense={() => setIsAddExpenseOpen(true)}
+      onAddExpense={() => handleOpenAddExpense()}
     />
   );
 
@@ -190,6 +196,10 @@ const ExpenseTrackingPage = () => {
           <ExpenseOverview
             isLoading={isLoading}
             expenseDistributionData={expenseDistributionData}
+            onPayEmployee={() => handleOpenAddExpense("salary")}
+            onPurchaseInventory={() =>
+              handleOpenAddExpense("inventory purchase")
+            }
             onManageCategories={() => setIsManageCategoriesOpen(true)}
             onViewArchive={() => navigate("/expenses/archive")}
           />
@@ -229,9 +239,10 @@ const ExpenseTrackingPage = () => {
 
       <AddExpenseModal
         isOpen={isAddExpenseOpen}
-        onClose={() => setIsAddExpenseOpen(false)}
+        onClose={handleCloseAddExpense}
         categories={categories}
         refetch={refetchExpenseManagement}
+        initialCategoryName={addExpenseInitialCategory}
       />
 
       <EditExpenseModal

@@ -38,11 +38,22 @@ export const validateAddInventoryItem = ({
   // Every visible conversion row must be complete and positive.
   let conversionsValid = true;
 
-  conversions.forEach((conversion) => {
+  conversions.forEach((conversion, index) => {
     const parsedEquivalent = parseFloat(conversion.equivalent);
+    const hasUnit = conversion.unit.trim() !== '';
+    const hasEquivalent = conversion.equivalent !== '';
+
+    if (!hasUnit && !hasEquivalent) {
+      // The first row is an optional placeholder. Any row explicitly added
+      // after it must be completed or removed before submission.
+      if (index > 0) {
+        conversionsValid = false;
+      }
+      return;
+    }
 
     if (
-      conversion.unit === '' ||
+      !hasUnit ||
       isNaN(parsedEquivalent) ||
       parsedEquivalent <= 0
     ) {
@@ -95,6 +106,7 @@ export const validateAddInventoryItem = ({
     isMinValid,
     parsedMultiplier,
     isMultiplierValid,
+    conversionsValid,
     isExpiryEmpty,
     hasValidFutureDate,
     isExpiryValid,

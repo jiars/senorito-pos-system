@@ -3,6 +3,8 @@ import { lazy, Suspense, useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventoryManagement } from "@/hooks/useInventoryManagement";
+import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
+import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 
 // Components
 import InventoryHeader from "./components/InventoryHeader";
@@ -13,11 +15,13 @@ import InventoryWorkspace from "./components/InventoryWorkspace";
 // Modals
 import AddInventoryItemModal from "./modals/Add Inventory Item/AddInventoryItemModal";
 import ArchiveItemModal from "./modals/Archive Item/ArchiveItemModal";
+import CorrectionModal from "./modals/Correction/CorrectionModal";
 import EditItemModal from "./modals/Edit Item/EditItemModal";
 import ManageCategoriesModal from "./modals/Manage Categories/ManageCategoriesModal";
 import PrintQRCodeModal from "./modals/Print QR/PrintQRCodeModal";
+import RestockModal from "./modals/Restock/RestockModal";
 import StockHistoryModal from "./modals/Stock History/StockHistoryModal";
-import StockLogModal from "./modals/Stock Log/StockLogModal";
+import WastageModal from "./modals/Wastage/WastageModal";
 
 import "./inventory.css";
 
@@ -36,7 +40,6 @@ const InventoryWastageTable = lazy(
 const InventoryPurchaseHistoryTable = lazy(
   () => import("./components/InventoryPurchaseHistoryTable"),
 );
-
 const InventoryTabLoadingFallback = () => (
   <div className="grid gap-[var(--app-gap-section)]">
     <Skeleton className="h-36 w-full rounded-[var(--app-radius-panel-standard)]" />
@@ -71,6 +74,8 @@ const useIdSelection = () => {
 };
 
 const InventoryPage = () => {
+  const refreshMenuManagement = useRefreshMenuManagement();
+  const refreshPosManagement = useRefreshPosManagement();
   const {
     inventoryItems,
     categories,
@@ -139,6 +144,9 @@ const InventoryPage = () => {
                 isLoading={isLoading}
                 selectedStatuses={stockStatusFilters}
                 onSelectedStatusesChange={setStockStatusFilters}
+                onOpenRestock={() => openItemModal("restock")}
+                onOpenWastage={() => openItemModal("wastage")}
+                onOpenCorrection={() => openItemModal("correction")}
               />
 
               <InventoryStockTable
@@ -152,7 +160,11 @@ const InventoryPage = () => {
                 toggleVisibleItems={itemSelection.toggleVisible}
                 toggleItem={itemSelection.toggleOne}
                 onPrintQRCode={openStockPrintQr}
-                onOpenStockLog={(item) => openItemModal("stock-log", item)}
+                onOpenRestock={(item) => openItemModal("restock", item)}
+                onOpenWastage={(item) => openItemModal("wastage", item)}
+                onOpenCorrection={(item) =>
+                  openItemModal("correction", item)
+                }
                 onOpenHistory={(item) => openItemModal("history", item)}
                 onOpenEdit={(item) => openItemModal("edit-item", item)}
                 onOpenArchive={(item) => openItemModal("archive-item", item)}
@@ -251,6 +263,8 @@ const InventoryPage = () => {
         onClose={closeModal}
         item={modal.item}
         refetchInventory={refetchInventoryManagement}
+        refreshMenuManagement={refreshMenuManagement}
+        refreshPosManagement={refreshPosManagement}
       />
 
       <EditItemModal
@@ -268,10 +282,27 @@ const InventoryPage = () => {
         item={modal.item}
       />
 
-      <StockLogModal
-        isOpen={modal.type === "stock-log"}
+      <RestockModal
+        isOpen={modal.type === "restock"}
         onClose={closeModal}
         refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
+        item={modal.item}
+      />
+
+      <WastageModal
+        isOpen={modal.type === "wastage"}
+        onClose={closeModal}
+        refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
+        item={modal.item}
+      />
+
+      <CorrectionModal
+        isOpen={modal.type === "correction"}
+        onClose={closeModal}
+        refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
         item={modal.item}
       />
     </PageLayout>

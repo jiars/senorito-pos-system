@@ -1,41 +1,9 @@
-import { useState } from "react";
-
-import loginHeroPlaceholder1 from "../../assets/images/hero-slides/hero-slides-1.jpg";
-import loginHeroPlaceholder2 from "../../assets/images/hero-slides/hero-slides-2.jpg";
-import loginHeroPlaceholder3 from "../../assets/images/hero-slides/hero-slides-3.jpg";
-import loginHeroPlaceholder4 from "../../assets/images/hero-slides/hero-slides-4.jpg";
+import { useEffect, useState } from "react";
 
 import { useAuth } from "../../hooks/useAuth";
 
 import AuthBrand from "./components/AuthBrand";
-import AuthLayout from "./components/AuthLayout";
 import LoginForm from "./components/LoginForm";
-
-import "./login.css";
-
-// Replace these placeholders with the three exported Figma photos when available.
-const loginHeroSlides = [
-  {
-    id: "login-hero-one",
-    src: loginHeroPlaceholder1,
-    alt: "A Señorito Café drink displayed on a wooden counter",
-  },
-  {
-    id: "login-hero-two",
-    src: loginHeroPlaceholder2,
-    alt: "A featured Señorito Café product",
-  },
-  {
-    id: "login-hero-three",
-    src: loginHeroPlaceholder3,
-    alt: "A selection from Señorito Café",
-  },
-  {
-    id: "login-hero-four",
-    src: loginHeroPlaceholder4,
-    alt: "A featured Señorito Café product",
-  },
-];
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -44,13 +12,23 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [successMessage, setSuccessMessage] = useState(() => {
+    return sessionStorage.getItem("password_reset_message") || "";
+  });
 
   const { login } = useAuth();
+
+  useEffect(() => {
+    if (successMessage !== "") {
+      sessionStorage.removeItem("password_reset_message");
+    }
+  }, [successMessage]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     setErrorMessage("");
+    setSuccessMessage("");
     setIsLoggingIn(true);
 
     try {
@@ -66,24 +44,23 @@ const LoginPage = () => {
   };
 
   return (
-    <AuthLayout heroSlides={loginHeroSlides}>
-      <div className="w-full max-w-[420px] md:-translate-y-3">
-        <AuthBrand />
-        <LoginForm
-          email={email}
-          password={password}
-          showPassword={showPassword}
-          errorMessage={errorMessage}
-          isLoggingIn={isLoggingIn}
-          rememberMe={rememberMe}
-          onEmailChange={(event) => setEmail(event.target.value)}
-          onPasswordChange={(event) => setPassword(event.target.value)}
-          onRememberMeChange={(event) => setRememberMe(event.target.checked)}
-          onTogglePassword={() => setShowPassword(!showPassword)}
-          onSubmit={handleSubmit}
-        />
-      </div>
-    </AuthLayout>
+    <div className="w-full max-w-[420px] md:-translate-y-3">
+      <AuthBrand />
+      <LoginForm
+        email={email}
+        password={password}
+        showPassword={showPassword}
+        errorMessage={errorMessage}
+        successMessage={successMessage}
+        isLoggingIn={isLoggingIn}
+        rememberMe={rememberMe}
+        onEmailChange={(event) => setEmail(event.target.value)}
+        onPasswordChange={(event) => setPassword(event.target.value)}
+        onRememberMeChange={(event) => setRememberMe(event.target.checked)}
+        onTogglePassword={() => setShowPassword(!showPassword)}
+        onSubmit={handleSubmit}
+      />
+    </div>
   );
 };
 

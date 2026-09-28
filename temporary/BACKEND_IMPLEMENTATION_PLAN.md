@@ -33,7 +33,7 @@ Move all backend work to Laravel safely, one module at a time. Keep the current 
 
 1. Return Profile with Role from Laravel `/user`.
 2. Remove React's fallback to Owner.
-3. Rename Laravel `User` model to `Profile` later.
+3. Safely rename the application `profiles` table to `users` and keep Laravel's `User` model.
 4. Add Laravel role middleware or policies.
 5. Add login throttling.
 6. Create consistent Axios handling for 401, 403, and 422 errors.

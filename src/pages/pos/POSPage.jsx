@@ -29,7 +29,7 @@ import {
 import { formatCurrency } from "../../utils/currencyFormatters";
 import {
   calculateInventoryDeductions,
-  getInventoryStockStatus,
+  getRecipeAvailabilityStatus,
   hasEnoughInventoryStock,
 } from "../../utils/pos/checkoutCalculations";
 import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
@@ -48,7 +48,12 @@ const applyInventoryStock = (records, recipeKey, stockById) => {
         if (inventoryItem) {
           inventoryItem = {
             ...inventoryItem,
-            current_stock: Number(stock?.current_stock) || 0,
+            current_stock:
+              Number(stock?.usable_stock ?? stock?.current_stock) || 0,
+            usable_stock:
+              Number(stock?.usable_stock ?? stock?.current_stock) || 0,
+            minimum_level: Number(stock?.minimum_level) || 0,
+            archived: Boolean(stock?.archived ?? inventoryItem.archived),
           };
         }
 
@@ -138,7 +143,10 @@ const POSPage = () => {
             id: item.id,
             item_name: item.item_name,
             base_unit: item.base_unit,
-            current_stock: Number(item.usable_stock) || 0,
+            current_stock: Number(item.current_stock) || 0,
+            usable_stock:
+              Number(item.usable_stock ?? item.current_stock) || 0,
+            minimum_level: Number(item.minimum_level) || 0,
             archived: Boolean(item.archived),
           }));
 
@@ -210,6 +218,8 @@ const POSPage = () => {
           let displayPrice = formatCurrency(0);
           let variants = [];
           let defaultPriceId = null;
+          let defaultPricePosStatus = "Available";
+          let defaultRecipeStatus = "Incomplete";
           const itemPrices = item.menu_prices || [];
           const itemRecipes = item.menu_recipes || [];
 
@@ -220,6 +230,9 @@ const POSPage = () => {
             basePrice = Number(regularPriceObj?.selling_price) || 0;
             displayPrice = formatCurrency(basePrice);
             defaultPriceId = regularPriceObj?.id || null;
+            defaultPricePosStatus = regularPriceObj?.pos_status || "Available";
+            defaultRecipeStatus =
+              regularPriceObj?.recipe_status || "Incomplete";
           } else {
             // Sort variants by price (lowest to highest) for display
             const sortedPrices = [...itemPrices].sort(
@@ -242,7 +255,8 @@ const POSPage = () => {
                 id: p.id,
                 name: p.variant_name,
                 price: Number(p.selling_price) || 0,
-                isAvailable: p.pos_status !== "Unavailable",
+                posStatus: p.pos_status || "Unavailable",
+                recipeStatus: p.recipe_status || "Incomplete",
               }));
             }
           }
@@ -255,6 +269,9 @@ const POSPage = () => {
             price: displayPrice,
             basePrice,
             defaultPriceId,
+            defaultPricePosStatus,
+            defaultRecipeStatus,
+            posStatus: item.pos_status,
             imageURL: item.image_url || imgDefault,
             variants,
             rawRecipes: itemRecipes,
@@ -589,10 +606,12 @@ const POSPage = () => {
               const stock = await db.inventoryStock.get(
                 deduction.inventory_item_id,
               );
-              const availableStock = Number(stock?.current_stock) || 0;
+              const currentStock = Number(stock?.current_stock) || 0;
+              const usableStock =
+                Number(stock?.usable_stock ?? stock?.current_stock) || 0;
               const quantityToDeduct = Number(deduction.quantity) || 0;
 
-              if (!stock || availableStock < quantityToDeduct) {
+              if (!stock || usableStock < quantityToDeduct) {
                 const itemName = stock
                   ? stock.item_name
                   : "an inventory ingredient";
@@ -601,7 +620,8 @@ const POSPage = () => {
               }
 
               await db.inventoryStock.update(deduction.inventory_item_id, {
-                current_stock: availableStock - quantityToDeduct,
+                current_stock: Math.max(0, currentStock - quantityToDeduct),
+                usable_stock: usableStock - quantityToDeduct,
               });
             }
 
@@ -641,53 +661,66 @@ const POSPage = () => {
     }
   };
 
-  // Reuse the same stock calculation used by the cart and customization modal.
+  // Recalculate product and variant availability against the current cart.
   const displayProducts = React.useMemo(() => {
     if (!posProducts || posProducts.length === 0) return [];
 
-    const hasStockForRecipes = (recipes) => {
-      const previewItem = {
-        cartId: "product-stock-preview",
-        qty: 1,
-        recipeIngredients: recipes,
-        addOns: [],
-      };
-
-      return getInventoryStockStatus([...cartItems, previewItem])
-        .hasEnoughStock;
-    };
-
     return posProducts.map((product) => {
       const variants = product.variants.map((variant) => {
-        if (!variant.isAvailable) return variant;
-
         const recipes = product.rawRecipes.filter(
           (recipe) =>
             recipe.menu_item_price_id === variant.id ||
             recipe.menu_item_price_id === null,
         );
 
+        const availability = getRecipeAvailabilityStatus({
+          recipes,
+          cartItems,
+          posStatus:
+            product.posStatus === "Available"
+              ? variant.posStatus
+              : "Unavailable",
+          recipeStatus: variant.recipeStatus,
+        });
+
         return {
           ...variant,
-          isAvailable: hasStockForRecipes(recipes),
+          ...availability,
         };
       });
 
-      const hasStock =
-        variants.length > 0
-          ? variants.some((variant) => variant.isAvailable)
-          : hasStockForRecipes(
-              product.rawRecipes.filter(
-                (recipe) =>
-                  recipe.menu_item_price_id === product.defaultPriceId ||
-                  recipe.menu_item_price_id === null,
-              ),
-            );
+      let availability;
+
+      if (variants.length > 0) {
+        availability =
+          variants.find((variant) => variant.status === "Available") ||
+          variants.find((variant) => variant.isAvailable) ||
+          variants[0];
+      } else {
+        const recipes = product.rawRecipes.filter(
+          (recipe) =>
+            recipe.menu_item_price_id === product.defaultPriceId ||
+            recipe.menu_item_price_id === null,
+        );
+
+        availability = getRecipeAvailabilityStatus({
+          recipes,
+          cartItems,
+          posStatus:
+            product.posStatus === "Available"
+              ? product.defaultPricePosStatus
+              : "Unavailable",
+          recipeStatus: product.defaultRecipeStatus,
+        });
+      }
 
       return {
         ...product,
         variants,
-        isAvailable: product.isAvailable && hasStock,
+        status: availability.status,
+        isAvailable: availability.isAvailable,
+        blockingIngredients: availability.blockingIngredients,
+        lowStockIngredients: availability.lowStockIngredients,
       };
     });
   }, [posProducts, cartItems]);

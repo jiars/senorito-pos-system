@@ -33,6 +33,9 @@ const InventoryStockInsights = ({
   isLoading,
   selectedStatuses,
   onSelectedStatusesChange,
+  onOpenRestock,
+  onOpenWastage,
+  onOpenCorrection,
 }) => {
   const stats = useMemo(() => {
     const totalItemsCount = inventoryItems.length;
@@ -155,14 +158,23 @@ const InventoryStockInsights = ({
             </h2>
 
             <div className="flex flex-1 flex-col gap-[var(--app-space-2)]">
-              {quickActions.map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  disabled
-                  title="The existing modal will be connected after layout approval."
-                  className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left shadow-[var(--app-shadow-card)] disabled:cursor-not-allowed"
-                >
+              {quickActions.map((action) => {
+                const actionHandlers = {
+                  "receive-stock": onOpenRestock,
+                  "log-wastage": onOpenWastage,
+                  correction: onOpenCorrection,
+                };
+                const actionHandler = actionHandlers[action.id];
+
+                return (
+                  <button
+                    key={action.id}
+                    type="button"
+                    disabled={!actionHandler}
+                    onClick={actionHandler}
+                    title={action.label}
+                    className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left shadow-[var(--app-shadow-card)] transition-colors hover:bg-[var(--app-color-control-hover)] disabled:cursor-not-allowed"
+                  >
                   <img
                     src={action.icon}
                     alt=""
@@ -179,8 +191,9 @@ const InventoryStockInsights = ({
                       {action.description}
                     </span>
                   </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}

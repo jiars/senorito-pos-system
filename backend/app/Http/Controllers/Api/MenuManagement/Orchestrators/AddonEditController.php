@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\MenuManagement\Orchestrators;
 
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonRecipeController;
+use App\Http\Controllers\Api\MenuManagement\RecipeStatuses\RecipeStatusController;
 use App\Http\Controllers\Controller;
 use App\Models\MenuManagement\Addon;
 use App\Models\MenuManagement\AddonCategory;
@@ -39,12 +40,9 @@ class AddonEditController extends Controller
 
             $categoryController = app(AddonCategoryController::class);
 
-            if (!empty($categoriesToInsert)) {
-                $categoryController->storeMany($categoriesToInsert, $id);
-            }
-            if (!empty($categoriesToDelete)) {
-                $categoryController->destroyMany($categoriesToDelete, $id);
-            }
+            if (!empty($categoriesToInsert))  $categoryController->storeMany($categoriesToInsert, $id);
+            if (!empty($categoriesToDelete)) $categoryController->destroyMany($categoriesToDelete, $id);
+
 
             // 3. SORT RECIPES INTO BUCKETS
             $recipes = $request->input('recipes', []);
@@ -56,9 +54,7 @@ class AddonEditController extends Controller
                 if (isset($recipe['id']) && Str::isUuid($recipe['id'])) {
                     $recipesToUpdate[] = $recipe;
                     $providedRecipeIds[] = $recipe['id'];
-                } else {
-                    $recipesToInsert[] = $recipe;
-                }
+                } else $recipesToInsert[] = $recipe;
             }
 
             $recipesToDelete = AddonRecipe::where('addon_id', $id)
@@ -68,15 +64,13 @@ class AddonEditController extends Controller
 
             // 4. CALL RECIPE CONTROLLER
             $recipeController = app(AddonRecipeController::class);
-            if (!empty($recipesToInsert)) {
-                $recipeController->storeMany($recipesToInsert, $id);
-            }
-            if (!empty($recipesToUpdate)) {
-                $recipeController->updateMany($recipesToUpdate);
-            }
-            if (!empty($recipesToDelete)) {
-                $recipeController->destroyMany($recipesToDelete);
-            }
+            if (!empty($recipesToInsert)) $recipeController->storeMany($recipesToInsert, $id);
+            if (!empty($recipesToUpdate)) $recipeController->updateMany($recipesToUpdate);
+            if (!empty($recipesToDelete)) $recipeController->destroyMany($recipesToDelete);
+
+            // Recalculate after recipe synchronization is complete.
+            app(RecipeStatusController::class)
+                ->syncAddon($id);
         });
 
         return response()->json(['message' => 'Add-on Synced via Orchestrator!']);

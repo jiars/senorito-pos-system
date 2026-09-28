@@ -23,7 +23,8 @@ class MenuItemPrice extends Model
         'profit',
         'margin',
         'item_code',
-        'pos_status'
+        'pos_status',
+        'recipe_status'
     ];
 
     public function menu_item()

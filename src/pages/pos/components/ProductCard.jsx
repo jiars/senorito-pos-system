@@ -1,12 +1,8 @@
-import React from 'react';
 import defaultImage from '../../../assets/images/default_menu_picture.jpg';
 
 const ProductCard = ({ product, onAdd }) => {
-  // If product has variants, display min-max price. Otherwise, display single price.
-  const isVariants = product.price && product.price.includes('-');
-
-  // Extract variants if provided, otherwise default to what's in the design mock for coffee
   const variants = product.variants || [];
+  const showStatus = product.status && product.status !== 'Available';
 
   return (
     <div 
@@ -26,6 +22,10 @@ const ProductCard = ({ product, onAdd }) => {
         <h4 className="pos-product-name">{product.name}</h4>
         <p className="pos-product-cat">{product.category}</p>
 
+        {product.isAvailable && showStatus && (
+          <span className="pos-product-status-note">{product.status}</span>
+        )}
+
         {variants.length > 0 && (
           <div className="pos-product-variants">
             {variants.map(v => (
@@ -41,7 +41,7 @@ const ProductCard = ({ product, onAdd }) => {
 
       {!product.isAvailable && (
         <div className="pos-unavailable-glass-full">
-          <span>Not Available</span>
+          <span>{product.status || 'Not Available'}</span>
         </div>
       )}
     </div>

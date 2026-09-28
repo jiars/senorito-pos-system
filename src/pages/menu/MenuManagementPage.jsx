@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 import PageLayout from "@/components/layout/PageLayout";
 import { useMenuManagement } from "../../hooks/useMenuManagement";
-import { useInventoryManagement } from "../../hooks/useInventoryManagement";
 
 import {
   filterAndSortAddons,
@@ -34,11 +33,15 @@ const MenuManagementPage = () => {
     menuItems,
     addons,
     categories,
+    ingredients,
     isLoading,
     refetch: refetchMenu,
   } = useMenuManagement();
 
-  const { inventoryItems } = useInventoryManagement();
+  const activeIngredients = useMemo(
+    () => ingredients.filter((ingredient) => !ingredient.archived),
+    [ingredients],
+  );
 
   const [activeTab, setActiveTab] = useState("menu");
 
@@ -201,7 +204,7 @@ const MenuManagementPage = () => {
         onClose={() => setIsAddMenuItemModalOpen(false)}
         refetchMenu={refetchMenu}
         categories={categories}
-        inventoryItems={inventoryItems}
+        inventoryItems={activeIngredients}
       />
 
       <EditMenuItemModal
@@ -213,7 +216,7 @@ const MenuManagementPage = () => {
         item={selectedMenuItem}
         refetchMenu={refetchMenu}
         categories={categories}
-        inventoryItems={inventoryItems}
+        inventoryItems={ingredients}
       />
 
       <ConfirmDeleteMenuItemModal
@@ -231,7 +234,7 @@ const MenuManagementPage = () => {
         onClose={() => setIsAddAddonModalOpen(false)}
         refetchAddons={refetchMenu}
         categories={categories}
-        inventoryItems={inventoryItems}
+        inventoryItems={activeIngredients}
       />
 
       <EditAddonModal
@@ -243,7 +246,7 @@ const MenuManagementPage = () => {
         addon={selectedAddon}
         refetchAddons={refetchMenu}
         categories={categories}
-        inventoryItems={inventoryItems}
+        inventoryItems={ingredients}
       />
 
       <ConfirmDeleteAddonModal

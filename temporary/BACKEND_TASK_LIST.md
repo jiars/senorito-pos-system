@@ -1,6 +1,6 @@
 # Temporary Task List
 
-Updated: September 15, 2026
+Updated: September 26, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skipped
 
@@ -21,17 +21,18 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 - [x] Confirm Inventory Category rule: no archive; permanent deletion is allowed only when unused.
 - [x] Decide archive/delete rules: archive Expense records; hard-delete Expense Categories only when unused.
 - [ ] Review UUIDs, foreign keys, unique fields, and decimal constraints.
-- [ ] Fix Laravel users/profile migration mismatches.
+- [~] Fix Laravel users/profile migration mismatches.
 - [ ] Review and reduce unsafe Supabase RLS policies.
 
 ## Authentication and Authorization
 
-- [ ] Return Profile with Role from `/user`.
-- [ ] Remove the React default-to-Owner behavior.
+- [x] Return User with Role from `/user`.
+- [x] Remove the React default-to-Owner behavior.
 - [ ] Add Laravel role authorization.
-- [ ] Add login throttling.
-- [ ] Hide password hashes and private fields.
-- [ ] Plan the `User` to `Profile` model rename.
+- [x] Add login throttling with separate normalized-email and IP limits.
+- [x] Hide password hashes and private authentication fields.
+- [~] Migrate `profiles` to `users` and complete password recovery using `USER_PASSWORD_RECOVERY_TASK_LIST.md`.
+- [x] Connect the existing React Forgot Password and Reset Password pages to the completed Laravel recovery endpoints.
 - [ ] Add standard Axios handling for 401, 403, and 422.
 
 ## Secure Menu Reference
@@ -231,16 +232,20 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
   - [-] Keep all categories in the init response so Inventory Wastage can be managed and deleted later.
   - [x] Hide Inventory Wastage only from Add Expense and cash-expense records.
   - [x] Hide category delete actions when Menu, Inventory, or Expense records use them.
-- [-] Migrate Employees and remove the frontend service-role key — paused for team discussion about account creation and login design.
+- [~] Migrate Employees and remove the frontend service-role key using the approved account setup and password recovery design.
   - [x] Review the `profiles` and `roles` schema, current modals, and frontend payloads.
-  - [ ] Detach `profiles.id` from Supabase `auth.users.id` and add automatic UUID generation.
-  - [ ] Confirm profile email/username uniqueness and status values before creating employees through Laravel.
-  - [ ] Fix the Laravel User/Profile model fields and add its Role relationship.
-  - [ ] Create the Employee Management init endpoint for employees and roles.
-  - [ ] Create separate store, update, activate, and deactivate backend operations.
-  - [ ] Hash staff passwords in Laravel and reject login for deactivated profiles.
-  - [ ] Replace the Employee Supabase service with Axios and TanStack Query.
-  - [ ] Refactor the Employee page and modals while keeping the current UI behavior.
+  - [x] Detach the application User ID from Supabase `auth.users.id` and add automatic UUID generation.
+  - [x] Confirm User email/username uniqueness and status values before creating employees through Laravel.
+  - [x] Fix the Laravel User model fields and add its Role relationship.
+  - [x] Create the Owner-protected Employee Management init endpoint for employees, roles, and open password-reset requests; verified through the React page.
+  - [~] Create separate store, update, activate, and deactivate backend operations.
+    - [x] Create the Laravel Add Employee operation and first-password setup flow.
+    - [x] Create the Update Employee operation.
+    - [x] Create the Activate Employee operation.
+    - [x] Create the Deactivate Employee operation.
+  - [x] Hash staff passwords in Laravel and reject login for deactivated Users.
+  - [x] Replace active Employee Supabase operations with Axios and the Laravel Employee Management init query.
+  - [x] Refactor the Employee page and modals while keeping the current UI behavior.
   - [ ] Remove `supabaseAdmin.js` and its frontend service-role environment variable after testing.
 - [ ] Rotate the Supabase service-role key.
 - [x] Migrate Order History.
@@ -266,7 +271,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
     - [x] Verify that Wastage updates the cached Sales Report in the browser.
   - [x] Keep reusable report calculations in JavaScript until the final backend-hardening phase.
   - [x] Test filters, cards, charts, tables, empty states, and print layout.
-- [ ] Complete Profile and password management.
+- [~] Complete User and password management using `USER_PASSWORD_RECOVERY_TASK_LIST.md`.
 - [x] Migrate online POS checkout.
   - [x] Review the current POS flow, services, payloads, and database relationships.
   - [x] Define a POS-specific Laravel init response.
@@ -328,21 +333,47 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 - [x] Populate and use one Dexie `inventoryStock` source of truth.
 - [x] Match online and offline Menu plus Add-on conversion calculations.
 - [x] Deduct local shadow stock atomically with the queued order.
+  - [x] Reduce both cached `current_stock` and `usable_stock` after an offline checkout.
 - [x] Keep failed or unauthorized sync records safely queued.
 - [x] Refresh Laravel data and the local cache after successful sync.
+- [ ] Add daily offline POS cache freshness protection.
+  - [ ] Save the date of the last successful POS cache refresh.
+  - [ ] Block offline checkout when the cache was created before the current Philippine date.
+  - [ ] Ask the user to connect once to refresh the current day's Inventory and expiry data.
 - [ ] Test failed and repeated sync.
 - [x] Test Cash and GCash offline behavior.
 
 ## Final Checks
 
+- [x] Review current hosting limits and document the zero-cost pilot architecture.
+- [x] Select Cloudflare Pages for the React/Vite PWA, Render Free Singapore for the Laravel pilot, and Supabase for PostgreSQL, Storage, and scheduled maintenance.
+- [ ] Create and verify the production Laravel Dockerfile and web-server configuration.
+- [ ] Configure Cloudflare Pages, the React Router SPA fallback, and production frontend environment variables.
+- [ ] Configure Render health checks, production environment variables, CORS, Sanctum, database SSL, mail, logs, and controlled migrations.
+- [ ] Remove Vercel-only analytics packages and `vercel.json` after the Cloudflare deployment is verified.
+- [ ] Remove the frontend Supabase service-role key and verified unused direct-Supabase legacy paths before production use.
+- [ ] Implement Supabase Cron plus the idempotent first-POS-request fallback; do not use artificial Render keep-alive requests.
+- [ ] Document and test a Supabase backup and restore procedure.
 - [ ] Test two simultaneous cashiers against the same remaining stock and verify complete checkout rollback.
 - [ ] Review remaining large React pages and extract focused hooks only where state or lifecycle logic is complex.
 - [ ] Standardize remaining server mutations with TanStack Query where it improves cache refresh and loading behavior.
 - [ ] Group POS Sale Audit Logs by `transaction_reference` in an expandable row.
   - [ ] Show the related order number, cashier, date, ingredients, affected batches, quantity changes, and stock before/after.
   - [ ] Keep one Audit Log row per affected batch while sharing one transaction reference for the complete checkout.
-- [ ] Configure and verify the Laravel scheduler runner for local use and production hosting.
+- [ ] Configure and verify the Laravel scheduler runner for local use.
 - [ ] Review Menu, Inventory, and Expense init payload sizes; move large secondary details to cached on-demand queries only where beneficial.
+- [ ] Run a final API performance audit using warm-request timings for `/up`, authentication, init, checkout, and report endpoints.
+  - [ ] Verify that normal warm API requests do not consistently take 5–10 seconds.
+  - [ ] Check duplicate development requests caused by React Strict Mode and confirm behavior using a production frontend build.
+  - [ ] Review duplicate fetches, sequential database queries, N+1 queries, missing indexes, oversized payloads, and unnecessary refetches.
+- [ ] Benchmark the Supabase Session Pooler connection against the current Transaction Pooler connection.
+  - [ ] Prefer the Session Pooler connection for the persistent Laravel backend when the benchmark and deployment environment support it.
+- [ ] Finalize production cache storage.
+  - [ ] Keep the file cache for fast local development.
+  - [ ] Use a shared Redis-compatible cache for production rate limits when available; do not rely on the remote database cache if it causes high latency.
+- [ ] Deploy the Laravel service in Render Singapore and compare cold-start and warm-request timings against local development.
+  - [ ] Confirm the backend, database, and user regions are reasonably close.
+  - [ ] Decide whether Render Free cold starts are acceptable for real café operations or whether an always-on service is required.
 - [ ] Refactor the large Dashboard controller into separated data providers while preserving one Dashboard endpoint.
 - [ ] Review backend folder structure and move non-HTTP business logic from Controllers into Actions or Services.
 - [ ] Classify frontend utilities as presentation helpers, live previews, or trusted business calculations.
@@ -357,4 +388,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Next Task
 
-Add the offline lock screen and restrict offline access to the POS.
+Follow `temporary/DEPLOYMENT_TASK_LIST.md`. Start with its three-item Next Batch and keep the current Vercel deployment unchanged until Cloudflare is verified.

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currencyFormatters';
-import { getInventoryStockStatus } from '../../../utils/pos/checkoutCalculations';
+import {
+  getInventoryStockStatus,
+  getRecipeAvailabilityStatus,
+} from '../../../utils/pos/checkoutCalculations';
 import './CustomizeOrderModal.css';
 const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose, onAddToCart }) => {
   // State for selected size variant. Default to the first variant if available.
@@ -29,8 +32,13 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
       );
 
       setAddOns(validAddons.map(ao => {
-        const isAvailable = ao.pos_status === 'Available';
-        const unavailableReason = isAvailable ? '' : 'Not Available';
+        const recipes = ao.addon_recipes || [];
+        const availability = getRecipeAvailabilityStatus({
+          recipes,
+          cartItems,
+          posStatus: ao.pos_status,
+          recipeStatus: ao.recipe_status,
+        });
 
         return {
           id: ao.id,
@@ -38,13 +46,12 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
           price: Number(ao.selling_price) || 0,
           selected: false,
           qty: 1,
-          recipes: ao.addon_recipes || [],
-          isAvailable,
-          unavailableReason
+          recipes,
+          ...availability,
         };
       }));
     }
-  }, [product, allAddons]);
+  }, [product, allAddons, cartItems]);
 
   if (!product) return null;
 
@@ -191,7 +198,14 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
                       if (v.isAvailable) setSelectedVariantIndex(idx);
                     }}
                   >
-                    <h3>{v.name} {!v.isAvailable && <span className="pos-customize-not-available">Not Available</span>}</h3>
+                    <h3>
+                      {v.name}
+                      {v.status !== 'Available' && (
+                        <span className={`pos-customize-status ${v.isAvailable ? 'warning' : 'error'}`}>
+                          {v.status}
+                        </span>
+                      )}
+                    </h3>
                     <p>{formatCurrency(v.price)}</p>
                   </div>
                 ))}
@@ -254,7 +268,12 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
                     onChange={() => handleToggleAddOn(ao.id)}
                   />
                   <span className="pos-customize-addon-name">
-                    {ao.name} {!ao.isAvailable && <span className="pos-customize-not-available">{ao.unavailableReason || 'Not Available'}</span>}
+                    {ao.name}
+                    {ao.status !== 'Available' && (
+                      <span className={`pos-customize-status ${ao.isAvailable ? 'warning' : 'error'}`}>
+                        {ao.status}
+                      </span>
+                    )}
                   </span>
 
                   {ao.selected && (
@@ -279,6 +298,12 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
                   )}
 
                   <span className="pos-customize-addon-price">+ {formatCurrency(ao.price)}</span>
+
+                  {!ao.isAvailable && ao.blockingIngredients.length > 0 && (
+                    <p className="pos-customize-addon-stock-note">
+                      Affected: {ao.blockingIngredients.join(', ')}.
+                    </p>
+                  )}
 
                   {ao.isAvailable && isAddOnActionBlocked && (
                     <p className="pos-customize-addon-stock-note">

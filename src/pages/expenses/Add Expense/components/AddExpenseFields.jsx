@@ -26,7 +26,11 @@ const AddExpenseFields = ({
           >
             <option value="" disabled>Select category...</option>
             {categories.map((category) => (
-              <option key={category.id} value={category.id}>
+              <option
+                key={category.id}
+                value={category.id}
+                disabled={category.category_name === "Inventory Wastage"}
+              >
                 {category.category_name}
               </option>
             ))}

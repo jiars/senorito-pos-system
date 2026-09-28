@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\MenuManagement\Addons;
 
+use App\Http\Controllers\Api\MenuManagement\RecipeStatuses\RecipeStatusController;
 use App\Http\Controllers\Controller;
 use App\Models\MenuManagement\Addon;
 

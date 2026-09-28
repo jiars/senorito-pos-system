@@ -448,6 +448,14 @@
   margin: 0;
 }
 
+.pos-product-status-note {
+  align-self: center;
+  margin-top: 0.25rem;
+  color: #9a6700;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
 .pos-cart-item-addons {
   margin-top: 0.2rem;
   color: #9C6C55;

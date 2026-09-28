@@ -7,6 +7,7 @@ import { validateAddonForm } from '../../../../../utils/validation/menuValidatio
 
 import EditAddonBaseInfo from './components/EditAddonBaseInfo';
 import EditAddonIngredientRow from './components/EditAddonIngredientRow';
+import RecipeStatusBadge from '../../../components/RecipeStatusBadge';
 
 const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [], inventoryItems: dbIngredients = [] }) => {
   const [addonName, setAddonName] = useState('');
@@ -198,8 +199,16 @@ const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = []
 
           <div className="eao-bottom-section">
             <div className="eao-section">
-              <label className="eao-label" style={{ fontSize: '1rem' }}>Recipe / Ingredient Deductions</label>
-              <p className="eao-subtext">Select ingredients that will be deducted from inventory when sold.</p>
+              <div className="menu-recipe-heading">
+                <div>
+                  <label className="eao-label" style={{ fontSize: '1rem' }}>Recipe / Ingredient Deductions</label>
+                  <p className="eao-subtext">Select ingredients that will be deducted from inventory when sold.</p>
+                </div>
+                <RecipeStatusBadge
+                  ingredients={ingredients}
+                  inventoryItems={dbIngredients}
+                />
+              </div>
 
               <div className="eao-ingredients-table">
                 <div className="eao-ingredient-row" style={{ marginBottom: '-0.25rem' }}>

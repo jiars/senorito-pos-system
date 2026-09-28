@@ -25,7 +25,9 @@ const ArchiveItemModal = ({
   isOpen,
   onClose,
   item,
-  refetchInventory
+  refetchInventory,
+  refreshMenuManagement,
+  refreshPosManagement
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
@@ -71,7 +73,16 @@ const ArchiveItemModal = ({
 
     try {
       await archiveInventoryItem(item.id);
-      if (refetchInventory) await refetchInventory();
+
+      // Refresh every page affected by the archived ingredient.
+      const refreshTasks = [];
+      if (refetchInventory) refreshTasks.push(refetchInventory());
+      if (refreshMenuManagement) {
+        refreshTasks.push(refreshMenuManagement());
+      }
+      if (refreshPosManagement) refreshTasks.push(refreshPosManagement());
+
+      await Promise.all(refreshTasks);
       onClose();
     } catch (error) {
       setApiError(error.message || 'Failed to archive item.');

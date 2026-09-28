@@ -1,6 +1,7 @@
 import React from 'react';
 import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
 import EditMenuIngredientRow from './EditMenuIngredientRow';
+import RecipeStatusBadge from '../../../components/RecipeStatusBadge';
 
 const EditMenuVariants = ({
   variants,
@@ -167,8 +168,16 @@ const EditMenuVariants = ({
             </div>
 
             <div className="emi-section">
-              <label className="emi-label">Recipe / Ingredient Deductions</label>
-              <p className="emi-subtext">Select ingredients that will be deducted from inventory when sold.</p>
+              <div className="menu-recipe-heading">
+                <div>
+                  <label className="emi-label">Recipe / Ingredient Deductions</label>
+                  <p className="emi-subtext">Select ingredients that will be deducted from inventory when sold.</p>
+                </div>
+                <RecipeStatusBadge
+                  ingredients={v.ingredients}
+                  inventoryItems={inventoryItems}
+                />
+              </div>
 
               <div className="emi-ingredients-table">
                 <div className="emi-ingredient-row" style={{ marginBottom: '-0.25rem' }}>

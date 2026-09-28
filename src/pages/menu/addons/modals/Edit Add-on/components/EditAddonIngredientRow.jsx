@@ -1,12 +1,17 @@
-import React from 'react';
+import IngredientStockNotice from '../../../../components/IngredientStockNotice';
 
 const EditAddonIngredientRow = ({ ing, dbIngredients, updateIngredient, removeIngredient, errors, hasAttemptedSubmit }) => {
   let rowCost = 0;
   let availableUnits = [];
-  let selectedUnitData = null;
+  const selectedIngredient = dbIngredients.find(i => i.id === ing.ingredientId);
+
+  // Keep the row's archived ingredient visible, but hide other archived choices.
+  const selectableIngredients = dbIngredients.filter(
+    i => !i.archived || i.id === ing.ingredientId
+  );
 
   if (ing.ingredientId) {
-    const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+    const ref = selectedIngredient;
     if (ref) {
       availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
       if (ref.inventory_conversion_units) {
@@ -15,7 +20,7 @@ const EditAddonIngredientRow = ({ ing, dbIngredients, updateIngredient, removeIn
         });
       }
       
-      selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
+      const selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
 
       if (ing.qty) {
         const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
@@ -33,12 +38,17 @@ const EditAddonIngredientRow = ({ ing, dbIngredients, updateIngredient, removeIn
           onChange={(e) => updateIngredient(ing.id, 'ingredientId', e.target.value)}
         >
           <option value="">Select ingredient</option>
-          {dbIngredients.map(i => (
-            <option key={i.id} value={i.id}>
-              {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
+          {selectableIngredients.map(i => (
+            <option key={i.id} value={i.id} disabled={i.archived}>
+              {i.item_name}{i.archived ? ' (Archived)' : ''} - ₱{i.cost_per_unit}/{i.base_unit}
             </option>
           ))}
         </select>
+        <IngredientStockNotice
+          ingredient={selectedIngredient}
+          quantity={ing.qty}
+          unit={ing.unit}
+        />
         {hasAttemptedSubmit && errors[`ing_${ing.id}_id`] && <p className="eao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_id`]}</p>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>

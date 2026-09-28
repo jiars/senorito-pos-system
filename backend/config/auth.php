@@ -96,8 +96,14 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
-            'throttle' => 60,
+            'expire' => (int) env('AUTH_PASSWORD_RESET_EXPIRE', 30),
+            'throttle' => (int) env('AUTH_PASSWORD_RESET_THROTTLE', 60),
+        ],
+        'employee_setup' => [
+            'provider' => 'users',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => (int) env('AUTH_PASSWORD_SETUP_EXPIRE', 1440),
+            'throttle' => (int) env('AUTH_PASSWORD_SETUP_THROTTLE', 60),
         ],
     ],
 

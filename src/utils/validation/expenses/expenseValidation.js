@@ -12,18 +12,18 @@ export const validateExpenseForm = (formData, options = {}) => {
 
   if (!formData.category_id) errors.category_id = "Category is required.";
   if (!formData.expense_date) errors.expense_date = "Date is required.";
-  if (!formData.description?.trim()) errors.description = "Description is required.";
-  
+
   if (!formData.amount || Number(formData.amount) <= 0) {
     errors.amount = "Amount must be greater than 0.";
   }
-  
-  if (!formData.payment_method) {
-    errors.payment_method = "Payment method is required.";
-  }
 
-  // Inventory Purchase specific validations
   if (isPurchase) {
+    if (!formData.description?.trim()) {
+      errors.description = "Description is required.";
+    }
+    if (!formData.reason?.trim()) {
+      errors.reason = "Reason is required.";
+    }
     if (!formData.inventory_item_id) {
       errors.inventory_item_id = "Inventory item is required.";
     }
@@ -33,6 +33,16 @@ export const validateExpenseForm = (formData, options = {}) => {
     if (selectedItem?.track_expiry && !formData.expiration_date) {
       errors.expiration_date = "Expiration date is required.";
     }
+
+    return errors;
+  }
+
+  if (!formData.description?.trim()) {
+    errors.description = "Description is required.";
+  }
+
+  if (!formData.payment_method) {
+    errors.payment_method = "Payment method is required.";
   }
 
   return errors;

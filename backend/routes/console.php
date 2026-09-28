@@ -12,3 +12,7 @@ Schedule::command('inventory:cleanup-expired')
     ->dailyAt('00:05')
     ->timezone('Asia/Manila')
     ->withoutOverlapping();
+
+Schedule::command('auth:clear-resets')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();

@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
@@ -61,6 +60,7 @@ function SelectTrigger({
 
 function SelectContent({
   className,
+  positionerClassName,
   children,
   side = "bottom",
   sideOffset = 4,
@@ -77,7 +77,7 @@ function SelectContent({
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
-        className="isolate z-[120]"
+        className={cn("isolate z-[120]", positionerClassName)}
       >
         <SelectPrimitive.Popup
           data-slot="select-content"

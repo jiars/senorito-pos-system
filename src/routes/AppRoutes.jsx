@@ -1,8 +1,12 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
+import { lazy, Suspense } from "react";
+
 import LoginPage from "../pages/auth/LoginPage";
 import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
+import SetupPasswordPage from "../pages/auth/SetupPasswordPage";
+import AuthFlowLayout from "../pages/auth/components/AuthFlowLayout";
 import MainLayout from "../components/layout/MainLayout";
 
 import DashboardPage from "../pages/dashboard/DashboardPage";
@@ -27,31 +31,56 @@ import EmployeeManagementPage from "../pages/employees/EmployeeManagementPage";
 import ProtectedRoute from "./ProtectedRoute";
 import PublicOnlyRoute from "./PublicOnlyRoute";
 
+// Load the temporary deployment page only during local development.
+const DeploymentReviewPage = import.meta.env.DEV
+  ? lazy(() => import("../pages/deployment-review/DeploymentReviewPage"))
+  : null;
+
 const AppRoutes = () => {
   return (
     <Routes>
+      {/* Temporary local deployment review */}
+      {import.meta.env.DEV && DeploymentReviewPage && (
+        <Route
+          path="/deployment-review"
+          element={
+            <Suspense
+              fallback={
+                <div className="flex min-h-screen items-center justify-center">
+                  Loading deployment review...
+                </div>
+              }
+            >
+              <DeploymentReviewPage />
+            </Suspense>
+          }
+        />
+      )}
+
       {/* ── Public Auth Routes (Protected from logged-in users!) ── */}
       <Route
-        path="/login"
         element={
           <PublicOnlyRoute>
-            <LoginPage />
+            <AuthFlowLayout />
           </PublicOnlyRoute>
         }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <PublicOnlyRoute>
-            <ForgotPasswordPage />
-          </PublicOnlyRoute>
-        }
-      />
+      >
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      </Route>
       <Route
         path="/reset-password"
         element={
           <PublicOnlyRoute>
             <ResetPasswordPage />
+          </PublicOnlyRoute>
+        }
+      />
+      <Route
+        path="/setup-password"
+        element={
+          <PublicOnlyRoute>
+            <SetupPasswordPage />
           </PublicOnlyRoute>
         }
       />

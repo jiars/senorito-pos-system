@@ -1,12 +1,14 @@
 import React from 'react';
+import IngredientStockNotice from '../../../../components/IngredientStockNotice';
 
 const AddAddonIngredientRow = ({ ing, dbIngredients, updateIngredient, removeIngredient, errors, hasAttemptedSubmit }) => {
   let rowCost = 0;
   let availableUnits = [];
   let selectedUnitData = null;
+  const selectedIngredient = dbIngredients.find(i => i.id === ing.ingredientId);
 
   if (ing.ingredientId) {
-    const ref = dbIngredients.find(i => i.id === ing.ingredientId);
+    const ref = selectedIngredient;
     if (ref) {
       availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
       if (ref.inventory_conversion_units) {
@@ -37,8 +39,13 @@ const AddAddonIngredientRow = ({ ing, dbIngredients, updateIngredient, removeIng
             <option key={i.id} value={i.id}>
               {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
             </option>
-          ))}
+        ))}
         </select>
+        <IngredientStockNotice
+          ingredient={selectedIngredient}
+          quantity={ing.qty}
+          unit={ing.unit}
+        />
         {hasAttemptedSubmit && errors[`ing_${ing.id}_id`] && <p className="aao-error-text" style={{ fontSize: '0.65rem' }}>{errors[`ing_${ing.id}_id`]}</p>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>

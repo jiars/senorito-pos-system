@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { useInventoryManagement } from "@/hooks/useInventoryManagement";
+import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
+import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 
 import UnarchiveItemModal from "../modals/Unarchive Item/UnarchiveItemModal";
 import InventoryArchiveTable from "./components/InventoryArchiveTable";
@@ -12,6 +14,8 @@ import "./inventoryArchive.css";
 
 const InventoryArchivePage = () => {
   const navigate = useNavigate();
+  const refreshMenuManagement = useRefreshMenuManagement();
+  const refreshPosManagement = useRefreshPosManagement();
   const [selectedUnarchiveItem, setSelectedUnarchiveItem] = useState(null);
   const {
     archivedInventoryItems,
@@ -53,6 +57,8 @@ const InventoryArchivePage = () => {
         onClose={() => setSelectedUnarchiveItem(null)}
         item={selectedUnarchiveItem}
         refetchInventory={refetchInventoryManagement}
+        refreshMenuManagement={refreshMenuManagement}
+        refreshPosManagement={refreshPosManagement}
       />
     </PageLayout>
   );

@@ -112,6 +112,21 @@
   font-weight: 500;
 }
 
+.pos-customize-status {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pos-customize-status.warning {
+  color: #ffe08a;
+}
+
+.pos-customize-status.error {
+  color: #ffd4d4;
+}
+
 /* ─── Main Drink Quantity ─── */
 .pos-customize-main-qty {
   display: flex;
@@ -211,6 +226,19 @@
 .pos-customize-addon .pos-customize-not-available {
   display: inline;
   margin: 0 0 0 0.25rem;
+  color: #b42318;
+}
+
+.pos-customize-addon .pos-customize-status {
+  display: inline;
+  margin: 0 0 0 0.35rem;
+}
+
+.pos-customize-addon .pos-customize-status.warning {
+  color: #9a6700;
+}
+
+.pos-customize-addon .pos-customize-status.error {
   color: #b42318;
 }
 

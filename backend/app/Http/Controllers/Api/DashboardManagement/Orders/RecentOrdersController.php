@@ -12,15 +12,15 @@ class RecentOrdersController extends Controller
     public function fetch()
     {
         return DB::table('orders')
-            ->leftJoin('profiles', 'orders.cashier_id', '=', 'profiles.id')
+            ->leftJoin('users', 'orders.cashier_id', '=', 'users.id')
             ->select(
                 'orders.order_number',
                 'orders.order_datetime',
                 'orders.total',
                 'orders.payment_method',
                 'orders.status',
-                'profiles.first_name',
-                'profiles.last_name'
+                'users.first_name',
+                'users.last_name'
             )
             ->orderByDesc('orders.order_datetime')
             ->limit(6)

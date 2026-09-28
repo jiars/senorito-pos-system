@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\MenuManagement\Orchestrators;
 
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonCategoryController;
 use App\Http\Controllers\Api\MenuManagement\Addons\AddonRecipeController;
+use App\Http\Controllers\Api\MenuManagement\RecipeStatuses\RecipeStatusController;
 use App\Http\Controllers\Controller;
 use App\Models\MenuManagement\Addon;
 use Illuminate\Http\Request;
@@ -37,6 +38,10 @@ class AddonAddController extends Controller
                 $recipeController = app(AddonRecipeController::class);
                 $recipeController->storeMany($recipes, $newId);
             }
+
+            // Recalculate after the Add-on recipes are saved.
+            app(RecipeStatusController::class)
+                ->syncAddon($newId);
         });
 
         return response()->json(['message' => 'Add-on Created Perfectly!'], 201);

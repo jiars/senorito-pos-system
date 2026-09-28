@@ -34,6 +34,11 @@
 
   --app-color-danger: #9a3f3f;
   --app-color-danger-foreground: #8b3030;
+
+  /* Confirmation action colors use the approved 75% opacity. */
+  --app-color-confirm-danger: rgb(230 57 70 / 75%);
+  --app-color-confirm-success: rgb(83 142 85 / 75%);
+
   --app-color-danger-surface: rgb(154 63 63 / 10%);
   --app-color-danger-border: rgb(154 63 63 / 30%);
   --app-color-accent: #d37a63;

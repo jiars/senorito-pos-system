@@ -499,6 +499,13 @@ Completed September 20, 2026:
 3. Match the supplied card-based layout.
 4. Pause for approval.
 
+Completed September 25, 2026:
+
+5. Migrated Employee Management to the shared `PageLayout` with `EmployeeDirectory`, `EmployeeToolbar`, and reusable `EmployeeCard` boundaries while preserving the existing employee service and Add/Edit modal flows.
+6. Added shared search plus multi-select Role/Status filters, structured card skeletons, the reusable placeholder empty state, shadcn role/status badges, masked personal details, and an accessible compact edit control.
+7. Kept `employeeManagement.css` layout-only and implemented the approved three/two/one-column responsive grid with module-scoped phone and short-height density adjustments.
+8. Completed the Employee zero-reference cleanup, removed the obsolete card stylesheet, passed focused Employee lint and the production/PWA build, and received visual approval.
+
 ### Phase 11: Remaining Screens
 
 Wait for approved Figma references before migrating:

@@ -4,33 +4,35 @@ import { AuthContext } from "./authContext";
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkActiveSession = async () => {
       try {
-        // 1. Check if the user has a VIP Token saved in their browser
         const token = localStorage.getItem("auth_token");
 
         if (token) {
-          // 2. If they have a token, show it to Laravel to get their Profile data
           const response = await fetch(
             `${import.meta.env.VITE_API_BASE_URL}/user`,
             {
               method: "GET",
               headers: {
                 Accept: "application/json",
-                Authorization: `Bearer ${token}`, // This is how you show the VIP Ticket!
+                Authorization: `Bearer ${token}`,
               },
             },
           );
+
           if (response.ok) {
             const userData = await response.json();
-            setUser(userData);
-            setProfile(userData); // For now, the user and profile data are the same
+
+            // A valid application user must always have a known role.
+            if (userData?.role?.role_name) {
+              setUser(userData);
+            } else {
+              localStorage.removeItem("auth_token");
+            }
           } else {
-            // If Laravel rejects the token (expired or fake), delete it
             localStorage.removeItem("auth_token");
           }
         }
@@ -43,20 +45,14 @@ export const AuthProvider = ({ children }) => {
     checkActiveSession();
   }, []);
 
-  let userRole = null;
-  if (profile !== null) {
-    if (profile.role !== undefined && profile.role !== null) {
-      userRole = profile.role.role_name;
-    } else {
-      userRole = "Owner";
-    }
-  }
+  const userRole = user?.role?.role_name ?? null;
 
   const contextValue = {
-    user: user,
-    profile: profile,
+    user,
+    // Temporary alias while older profile page components are migrated.
+    profile: user,
     role: userRole,
-    loading: loading,
+    loading,
   };
 
   if (loading === true) return <LoadingState message="Loading..." />;

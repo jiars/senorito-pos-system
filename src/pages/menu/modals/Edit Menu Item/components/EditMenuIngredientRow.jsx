@@ -1,4 +1,4 @@
-import React from 'react';
+import IngredientStockNotice from '../../../components/IngredientStockNotice';
 
 const EditMenuIngredientRow = ({ 
   ing, 
@@ -11,10 +11,15 @@ const EditMenuIngredientRow = ({
 }) => {
   let rowCost = 0;
   let availableUnits = [];
-  let selectedUnitData = null;
+  const selectedIngredient = inventoryItems.find(i => i.id === ing.ingredientId);
+
+  // Keep the row's archived ingredient visible, but hide other archived choices.
+  const selectableIngredients = inventoryItems.filter(
+    i => !i.archived || i.id === ing.ingredientId
+  );
 
   if (ing.ingredientId) {
-    const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+    const ref = selectedIngredient;
     if (ref) {
       // Collect available units
       availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
@@ -29,7 +34,7 @@ const EditMenuIngredientRow = ({
       }
 
       // Find selected unit for calculation
-      selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
+      const selectedUnitData = availableUnits.find(u => u.unit === ing.unit) || availableUnits[0];
 
       if (ing.qty) {
         const baseQty = (parseFloat(ing.qty) || 0) * (selectedUnitData ? selectedUnitData.equivalent : 1);
@@ -47,12 +52,17 @@ const EditMenuIngredientRow = ({
           onChange={(e) => onUpdate('ingredientId', e.target.value)}
         >
           <option value="">Select ingredient</option>
-          {inventoryItems.map(i => (
-            <option key={i.id} value={i.id}>
-              {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
+          {selectableIngredients.map(i => (
+            <option key={i.id} value={i.id} disabled={i.archived}>
+              {i.item_name}{i.archived ? ' (Archived)' : ''} - ₱{i.cost_per_unit}/{i.base_unit}
             </option>
           ))}
         </select>
+        <IngredientStockNotice
+          ingredient={selectedIngredient}
+          quantity={ing.qty}
+          unit={ing.unit}
+        />
         {hasAttemptedSubmit && errors[idPrefix + '_id'] && <p className="emi-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_id']}</p>}
       </div>
       <div className="emi-section">

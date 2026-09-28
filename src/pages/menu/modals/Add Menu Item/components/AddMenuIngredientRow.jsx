@@ -1,12 +1,14 @@
 import React from 'react';
+import IngredientStockNotice from '../../../components/IngredientStockNotice';
 
 const AddMenuIngredientRow = ({ ing, onUpdate, onRemove, idPrefix, inventoryItems, hasAttemptedSubmit, errors }) => {
   let rowCost = 0;
   let availableUnits = [];
   let selectedUnitData = null;
+  const selectedIngredient = inventoryItems.find(i => i.id === ing.ingredientId);
 
   if (ing.ingredientId) {
-    const ref = inventoryItems.find(i => i.id === ing.ingredientId);
+    const ref = selectedIngredient;
     if (ref) {
       // Collect available units
       availableUnits.push({ unit: ref.base_unit, equivalent: 1, label: `${ref.base_unit} (Base)` });
@@ -35,12 +37,17 @@ const AddMenuIngredientRow = ({ ing, onUpdate, onRemove, idPrefix, inventoryItem
           onChange={(e) => onUpdate('ingredientId', e.target.value)}
         >
           <option value="">Select ingredient</option>
-          {inventoryItems.map(i => (
+        {inventoryItems.map(i => (
             <option key={i.id} value={i.id}>
               {i.item_name} - ₱{i.cost_per_unit}/{i.base_unit}
             </option>
-          ))}
+        ))}
         </select>
+        <IngredientStockNotice
+          ingredient={selectedIngredient}
+          quantity={ing.qty}
+          unit={ing.unit}
+        />
         {hasAttemptedSubmit && errors[idPrefix + '_id'] && <p className="ami-error-text" style={{ fontSize: '0.65rem' }}>{errors[idPrefix + '_id']}</p>}
       </div>
       <div className="ami-section">

@@ -1,7 +1,13 @@
 <?php
 
 //auth
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Api\AuthManagement\AuthController;
+use App\Http\Controllers\Api\AuthManagement\Orchestrators\ForgotPasswordController;
+use App\Http\Controllers\Api\AuthManagement\Orchestrators\ResetPasswordController;
+use App\Http\Controllers\Api\AuthManagement\Orchestrators\SetupPasswordController;
+use App\Http\Controllers\Api\AuthManagement\Orchestrators\ApprovePasswordResetRequestController;
+use App\Http\Controllers\Api\AuthManagement\Orchestrators\ResendPasswordResetLinkController;
+use App\Http\Controllers\Api\AuthManagement\PasswordResetRequests\CancelPasswordResetRequestController;
 
 // dashboard
 use App\Http\Controllers\Api\DashboardManagement\InitDashboardController;
@@ -46,18 +52,34 @@ use App\Http\Controllers\Api\ReportManagement\InitSalesReportController;
 use App\Http\Controllers\Api\PosManagement\InitPosManagementController;
 use App\Http\Controllers\Api\PosManagement\Orchestrators\CheckoutOrchestrator;
 
-use Illuminate\Http\Request;
+// employees
+use App\Http\Controllers\Api\EmployeeManagement\InitEmployeeManagementController;
+use App\Http\Controllers\Api\EmployeeManagement\AccountSetup\ResendSetupPasswordController;
+use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeAddController;
+use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeEditController;
+use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeDeactivateController;
+use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeReactivateController;
+
 use Illuminate\Support\Facades\Route;
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+
+Route::prefix('auth/password')->group(function () {
+    Route::post('/forgot', [ForgotPasswordController::class, 'store'])->middleware('throttle:password-request');
+    Route::post('/reset', [ResetPasswordController::class, 'store'])->middleware('throttle:password-reset');
+    Route::post('/setup', [SetupPasswordController::class, 'store'])->middleware('throttle:password-reset');
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth related
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
-
+    Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::prefix('auth/password/requests')->middleware('role:Owner')->group(function () {
+        Route::post('{id}/approve', [ApprovePasswordResetRequestController::class, 'store',]);
+        Route::patch('{id}/cancel', [CancelPasswordResetRequestController::class, 'update',]);
+        Route::post('{id}/resend', [ResendPasswordResetLinkController::class, 'store',])->middleware('throttle:password-resend');
+    });
 
     // Dashboard
     Route::get('/dashboard', [InitDashboardController::class, 'index']);
@@ -145,5 +167,22 @@ Route::middleware('auth:sanctum')->group(function () {
         // Fetch everything required by the POS page.
         Route::get('/init', [InitPosManagementController::class, 'index']);
         Route::post('/checkout', [CheckoutOrchestrator::class, 'store',]);
+    });
+
+    Route::prefix('employee-management')->middleware('role:Owner')->group(function () {
+        // Fetch everything required by Employee Management.
+        Route::get('/init', [InitEmployeeManagementController::class, 'index',]);
+
+        // Create an employee and send the setup-password link.
+        Route::post('/employees', [EmployeeAddController::class, 'store']);
+
+        // Resend setup for an active employee without a password.
+        Route::post('/employees/{id}/setup-password/resend', [ResendSetupPasswordController::class, 'store']);
+
+        // Update an employee's role and contact information.
+        Route::put('/employees/{id}/sync', [EmployeeEditController::class, 'sync']);
+
+        Route::patch('/employees/{id}/deactivate', [EmployeeDeactivateController::class, 'update']);
+        Route::patch('/employees/{id}/reactivate', [EmployeeReactivateController::class, 'update']);
     });
 });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\MenuManagement;
 
 use App\Http\Controllers\Controller;
+use App\Models\InventoryManagement\InventoryItem;
 use App\Models\MenuManagement\MenuCategory;
 use App\Models\MenuManagement\MenuItem;
 use App\Models\MenuManagement\Addon;
@@ -47,12 +48,31 @@ class InitMenuManagementController extends Controller
             ->orderBy('addon_name', 'asc')
             ->get();
 
+        // Ingredients required by Menu and Add-on recipe forms.
+        $ingredients = InventoryItem::select([
+            'id',
+            'item_name',
+            'base_unit',
+            'minimum_level',
+            'cost_per_unit',
+            'current_stock',
+            'track_expiry',
+            'archived',
+        ])
+            ->with([
+                'inventory_batches:id,inventory_item_id,quantity,expiration_date',
+                'inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
+            ])
+            ->orderBy('item_name')
+            ->get();
+
         return response()->json([
             'categories' => $categories,
             'items' => $menuItems,
             'addons' => $addons,
             'archivedMenuItems' => $archivedMenuItems,
             'archivedAddons' => $archivedAddons,
+            'ingredients' => $ingredients,
         ]);
     }
 }
