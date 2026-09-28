@@ -23,3 +23,20 @@ export const formatTime = (dateString) => {
   }
   return '';
 };
+
+export const formatDateTime = (dateString) => {
+  if (dateString) {
+    const dateObj = new Date(dateString);
+
+    return dateObj.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+
+  return 'Unknown Date';
+};

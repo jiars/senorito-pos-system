@@ -1,626 +1,948 @@
-import React, { useState, useEffect } from 'react';
-import './addExpenseModal.css';
-import { addExpense } from '../../../services/expenses/expenseService';
-import { fetchInventoryItems } from '../../../services/inventory/inventoryItemsService';
-import { logStockAdjustment, fetchItemBatches } from '../../../services/inventory/inventoryStockService';
-import { useAuth } from '../../../hooks/useAuth';
+import { useMemo, useState } from "react";
 
-const AddExpenseModal = ({ isOpen, onClose, categories, refetch }) => {
-  const { user } = useAuth();
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import DatePicker from "@/components/ui/date-picker";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { useInventoryManagement } from "@/hooks/useInventoryManagement";
+import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
+import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
+import { addExpense } from "@/services/expenses/expenseService";
+import { restockInventoryItem } from "@/services/inventory/stock/restockService";
+import { validateExpenseForm } from "@/utils/validation/expenses/expenseValidation";
 
-  const [formData, setFormData] = useState({
-    category_id: '',
-    expense_date: '',
-    description: '',
-    amount: '',
-    vendor: '',
-    payment_method: '',
-    receipt_reference: '',
-    // New inventory fields
-    inventory_item_id: '',
-    quantity_to_add: '',
-    expiration_date: '',
-    quantity_to_deduct: '',
-    wastage_reason: 'Expired',
-    other_wastage_reason: '',
-    selected_batch_id: ''
-  });
+const emptyForm = {
+  category_id: "",
+  expense_date: "",
+  description: "",
+  amount: "",
+  vendor: "",
+  payment_method: "",
+  receipt_reference: "",
+  inventory_item_id: "",
+  quantity_to_add: "",
+  expiration_date: "",
+  notes: "",
+  reason: "",
+};
 
-  const [inventoryItems, setInventoryItems] = useState([]);
-  const [batches, setBatches] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [errors, setErrors] = useState({});
+const vendorCategoryNames = new Set([
+  "cleaning supplies",
+  "equipment",
+  "utilities",
+  "maintenance",
+]);
+
+const paymentMethods = ["Cash", "GCash", "Bank Transfer", "Credit Card"];
+const restockReasons = [
+  "Initial Stock",
+  "Supplier Delivery",
+  "Manual Stock Addition",
+  "Owner Adjustment",
+];
+
+const labelClassName =
+  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+const controlClassName =
+  "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
+const readonlyClassName =
+  "bg-[var(--app-color-canvas)] text-[var(--app-color-text-muted)]";
+
+const findInitialCategory = (categories, requestedCategoryName) => {
+  const normalizedRequest = requestedCategoryName?.trim().toLowerCase();
+  if (!normalizedRequest) return null;
+
+  return (
+    categories.find((category) => {
+      const normalizedCategory = category.category_name.trim().toLowerCase();
+
+      if (normalizedRequest === "salary") {
+        return ["salary", "salaries"].includes(normalizedCategory);
+      }
+
+      return normalizedCategory === normalizedRequest;
+    }) || null
+  );
+};
+
+const AddExpenseModalContent = ({
+  onClose,
+  categories,
+  refetch,
+  initialCategoryName,
+}) => {
+  const { inventoryItems, refetchInventoryManagement } =
+    useInventoryManagement();
+  const refreshAuditLogs = useRefreshInventoryAuditLogs();
+  const refreshValuation = useRefreshInventoryValuation();
+
+  const initialCategory = findInitialCategory(
+    categories,
+    initialCategoryName,
+  );
+  const [formData, setFormData] = useState(() => ({
+    ...emptyForm,
+    category_id: initialCategory?.id || "",
+  }));
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [isCustomReason, setIsCustomReason] = useState(false);
 
-  // Check if selected category is Inventory Purchase or Wastage
-  const selectedCategoryName = categories.find(c => c.id === formData.category_id)?.category_name;
-  const isInventoryPurchase = selectedCategoryName === 'Inventory Purchase';
-  const isInventoryWastage = selectedCategoryName === 'Inventory Wastage';
+  const selectedCategory = categories.find((category) => {
+    return category.id === formData.category_id;
+  });
+  const normalizedCategoryName = selectedCategory
+    ? selectedCategory.category_name.trim().toLowerCase()
+    : "";
+  const isPurchase = normalizedCategoryName === "inventory purchase";
+  const showVendor = vendorCategoryNames.has(normalizedCategoryName);
+  const selectedItem = inventoryItems.find((inventoryItem) => {
+    return inventoryItem.id === formData.inventory_item_id;
+  });
+  const currentStock = Number(selectedItem?.current_stock || 0);
+  const quantityToAdd = Number(formData.quantity_to_add) || 0;
+  const finalStock = currentStock + quantityToAdd;
+  const unit = selectedItem?.base_unit || "pcs";
 
-  // Get selected inventory item for preview calculations
-  const selectedInventoryItem = inventoryItems.find(item => item.id === formData.inventory_item_id);
+  const errors = useMemo(() => {
+    return validateExpenseForm(formData, { isPurchase, selectedItem });
+  }, [formData, isPurchase, selectedItem]);
+  const isFormValid = Object.keys(errors).length === 0;
 
-  useEffect(() => {
-    if (isOpen) {
-      const loadInventoryItems = async () => {
-        try {
-          const items = await fetchInventoryItems();
-          setInventoryItems(items);
-        } catch (err) {
-          console.error("Failed to load inventory items", err);
-        }
-      };
-      loadInventoryItems();
-
-      // Clear error when opening
-      setError(null);
-      setErrors({});
-      setHasAttemptedSubmit(false);
-    }
-  }, [isOpen]);
-
-  // Fetch batches when item is selected for wastage
-  useEffect(() => {
-    if (isInventoryWastage && formData.inventory_item_id) {
-      fetchItemBatches(formData.inventory_item_id)
-        .then(data => {
-          const sorted = [...(data || [])].sort((a, b) => {
-            if ((a.quantity > 0 && b.quantity > 0) || (a.quantity <= 0 && b.quantity <= 0)) return 0;
-            return a.quantity > 0 ? -1 : 1;
-          });
-          setBatches(sorted);
-          if (sorted.length > 0 && !formData.selected_batch_id) {
-            setFormData(prev => ({ ...prev, selected_batch_id: sorted[0].id }));
-          }
-        })
-        .catch(err => console.error("Error fetching batches:", err));
-    } else {
-      setBatches([]);
-    }
-  }, [formData.inventory_item_id, isInventoryWastage]);
-
-  // Auto-calculate amount for Wastage
-  useEffect(() => {
-    if (isInventoryWastage && formData.selected_batch_id && formData.quantity_to_deduct) {
-      const batch = batches.find(b => b.id === formData.selected_batch_id);
-      const qty = Number(formData.quantity_to_deduct);
-      if (batch && !isNaN(qty)) {
-        const cost = Number(batch.unit_cost) || Number(selectedInventoryItem?.cost_per_unit) || 0;
-        const loss = (qty * cost).toFixed(2);
-        if (formData.amount !== loss) {
-          setFormData(prev => ({ ...prev, amount: loss }));
-        }
-      }
-    } else if (isInventoryWastage && (!formData.quantity_to_deduct || !formData.selected_batch_id)) {
-      if (formData.amount !== '') {
-        setFormData(prev => ({ ...prev, amount: '' }));
-      }
-    }
-  }, [isInventoryWastage, formData.selected_batch_id, formData.quantity_to_deduct, batches, selectedInventoryItem]);
-
-  // Validation hook
-  useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = {};
-
-    if (!formData.category_id) newErrors.category_id = 'Category is required.';
-    if (!formData.expense_date) newErrors.expense_date = 'Date is required.';
-    if (!formData.description.trim()) newErrors.description = 'Description is required.';
-    
-    if (!isInventoryWastage) {
-      if (!formData.amount) {
-        newErrors.amount = 'Amount is required.';
-      } else if (Number(formData.amount) <= 0) {
-        newErrors.amount = 'Amount must be > 0.';
-      }
-      if (!formData.payment_method) {
-        newErrors.payment_method = 'Payment method is required.';
-      }
-    }
-
-    if (isInventoryWastage || isInventoryPurchase) {
-      if (!formData.inventory_item_id) newErrors.inventory_item_id = 'Inventory item is required.';
-    }
-
-    if (isInventoryPurchase) {
-      if (!formData.quantity_to_add || Number(formData.quantity_to_add) <= 0) {
-        newErrors.quantity_to_add = 'Quantity must be > 0.';
-      }
-      if (selectedInventoryItem?.track_expiry && !formData.expiration_date) {
-        newErrors.expiration_date = 'Expiration date is required.';
-      }
-    }
-
-    if (isInventoryWastage) {
-      if (!formData.selected_batch_id) newErrors.selected_batch_id = 'Batch is required.';
-      const qtyToDeduct = Number(formData.quantity_to_deduct);
-      if (!formData.quantity_to_deduct || qtyToDeduct <= 0) {
-        newErrors.quantity_to_deduct = 'Quantity must be > 0.';
-      } else {
-        const selectedBatch = batches.find(b => b.id === formData.selected_batch_id);
-        if (selectedBatch && qtyToDeduct > Number(selectedBatch.quantity)) {
-          newErrors.quantity_to_deduct = `Exceeds batch stock (${selectedBatch.quantity}).`;
-        }
-      }
-      if (formData.wastage_reason === 'Other' && !formData.other_wastage_reason.trim()) {
-        newErrors.other_wastage_reason = 'Reason is required.';
-      }
-    }
-
-    setErrors(newErrors);
-  }, [formData, isInventoryWastage, isInventoryPurchase, isOpen, batches, selectedInventoryItem]);
-
-  if (!isOpen) return null;
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const errorFor = (fieldName) => {
+    if (!hasAttemptedSubmit) return "";
+    return errors[fieldName] || "";
   };
 
-  const isFormValid = Object.keys(errors).length === 0;
+  const updateField = (fieldName, value) => {
+    setFormData((currentForm) => {
+      return {
+        ...currentForm,
+        [fieldName]: value,
+      };
+    });
+  };
+
+  const handleCategoryChange = (category) => {
+    const nextCategoryId = category ? category.id : "";
+
+    setFormData((currentForm) => {
+      return {
+        ...emptyForm,
+        category_id: nextCategoryId,
+        expense_date: currentForm.expense_date,
+      };
+    });
+    setHasAttemptedSubmit(false);
+    setApiError("");
+    setIsCustomReason(false);
+  };
+
+  const handleItemChange = (inventoryItem) => {
+    const inventoryItemId = inventoryItem ? inventoryItem.id : "";
+    updateField("inventory_item_id", inventoryItemId);
+  };
+
+  const handleReasonChange = (nextReason) => {
+    if (nextReason === "Others") {
+      setIsCustomReason(true);
+      updateField("reason", "");
+      return;
+    }
+
+    updateField("reason", nextReason);
+  };
+
+  const resetAndClose = () => {
+    setFormData(emptyForm);
+    setHasAttemptedSubmit(false);
+    setApiError("");
+    setIsCustomReason(false);
+    onClose();
+  };
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
+
     if (!isFormValid || isSubmitting) return;
 
     try {
-      setError(null);
       setIsSubmitting(true);
+      setApiError("");
 
-      if (isInventoryPurchase) {
-        const quantityChange = Number(formData.quantity_to_add);
-        const currentStock = Number(selectedInventoryItem.current_stock || 0);
-        const newTotalStock = currentStock + quantityChange;
+      if (isPurchase) {
+        const purchaseNotes = [
+          `Description: ${formData.description.trim()}`,
+          formData.notes.trim() ? `Note: ${formData.notes.trim()}` : "",
+        ]
+          .filter(Boolean)
+          .join(" | ");
 
-        await logStockAdjustment({
-          item: selectedInventoryItem,
-          actionType: 'restock',
-          quantityChange: quantityChange,
-          newTotalStock: newTotalStock,
-          userId: user.id,
-          reason: "Purchase via Expense Module",
-          notes: formData.description,
-          totalCost: Number(formData.amount),
-          supplier: formData.vendor || null,
-          expirationDate: formData.expiration_date || null,
-          expenseDate: formData.expense_date,
-          paymentMethod: formData.payment_method,
-          receiptReference: formData.receipt_reference || null,
-          source: 'Expense Page'
+        await restockInventoryItem(selectedItem.id, {
+          stockData: {
+            quantity: Number(formData.quantity_to_add),
+            reason: formData.reason.trim(),
+            notes: purchaseNotes,
+          },
+          purchaseData: {
+            total_cost: Number(formData.amount),
+            supplier: formData.vendor.trim() || null,
+            expiration_date: formData.expiration_date || null,
+            expense_date: formData.expense_date,
+          },
         });
 
-      } else if (isInventoryWastage) {
-        const quantityChange = -Math.abs(Number(formData.quantity_to_deduct));
-        const currentStock = Number(selectedInventoryItem.current_stock || 0);
-        const newTotalStock = Math.max(0, currentStock + quantityChange);
+        await refetch();
+        resetAndClose();
 
-        await logStockAdjustment({
-          item: selectedInventoryItem,
-          actionType: 'wastage',
-          quantityChange: quantityChange,
-          newTotalStock: newTotalStock,
-          userId: user.id,
-          reason: formData.wastage_reason === 'Other' ? formData.other_wastage_reason.trim() : formData.wastage_reason,
-          notes: formData.description,
-          totalCost: Number(formData.amount), // Automatically calculated earlier
-          supplier: formData.vendor || null,
-          expirationDate: null,
-          selectedBatchId: formData.selected_batch_id,
-          expenseDate: formData.expense_date,
-          paymentMethod: 'N/A (Loss)',
-          receiptReference: null,
-          source: 'Expense Page'
-        });
-
-      } else {
-        await addExpense({
-          category_id: formData.category_id,
-          description: formData.description,
-          amount: Number(formData.amount),
-          vendor: formData.vendor || null,
-          payment_method: formData.payment_method,
-          receipt_reference: formData.receipt_reference || null,
-          expense_date: formData.expense_date,
-          recorded_by: user.id
-        });
+        Promise.allSettled([
+          refetchInventoryManagement(),
+          refreshAuditLogs(),
+          refreshValuation(),
+        ]);
+        return;
       }
 
-      // Reset form
-      setFormData({
-        category_id: '',
-        expense_date: '',
-        description: '',
-        amount: '',
-        vendor: '',
-        payment_method: '',
-        receipt_reference: '',
-        inventory_item_id: '',
-        quantity_to_add: '',
-        expiration_date: '',
-        quantity_to_deduct: '',
-        wastage_reason: 'Expired',
-        other_wastage_reason: '',
-        selected_batch_id: ''
+      await addExpense({
+        category_id: formData.category_id,
+        expense_date: formData.expense_date,
+        description: formData.description.trim(),
+        amount: Number(formData.amount),
+        vendor: formData.vendor.trim() || null,
+        payment_method: formData.payment_method,
+        receipt_reference: formData.receipt_reference.trim() || null,
       });
-
       await refetch();
-      onClose();
-    } catch (err) {
-      setError(err.message);
+      resetAndClose();
+    } catch (error) {
+      setApiError(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Calculations for previews
-  const quantityAdded = Number(formData.quantity_to_add) || 0;
-  const quantityDeducted = Number(formData.quantity_to_deduct) || 0;
-  const currentStock = selectedInventoryItem ? Number(selectedInventoryItem.current_stock) : 0;
-  const newStockPreview = currentStock + quantityAdded;
-  const newStockPreviewWastage = Math.max(0, currentStock - quantityDeducted);
-  const baseUnit = selectedInventoryItem ? selectedInventoryItem.base_unit : '';
-
-  const amountVal = Number(formData.amount) || 0;
-  const newCostPerUnit = quantityAdded > 0 ? (amountVal / quantityAdded).toFixed(2) : '0.00';
-
   return (
-    <div className="expense-modal-overlay">
-      <div className="expense-modal-content">
-        <div className="expense-modal-header">
-          <h3>Add Expense</h3>
-          <button className="expense-modal-close" onClick={onClose} title="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={resetAndClose}
+      maxWidth="32rem"
+      maxHeight="min(90svh, 48rem)"
+    >
+      <ModalHeader
+        title="Add Expense"
+        description="Record a business expense or inventory purchase."
+        iconClassName="bi bi-wallet2"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="expense-modal-body">
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
+        <ModalContent>
+          {apiError && (
+            <p
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+              role="alert"
+            >
+              {apiError}
+            </p>
+          )}
 
-          <div className="expense-form-grid expense-form-grid--2">
-            <div className="expense-form-group">
-              <label className="expense-form-label">Category *</label>
-              <select
-                className={`expense-form-select ${hasAttemptedSubmit && errors.category_id ? 'is-invalid' : ''}`}
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleChange}
-                disabled={isSubmitting}
+          <div className="flex flex-col gap-[var(--app-gap-related)]">
+            <Field data-invalid={Boolean(errorFor("category_id"))}>
+              <FieldLabel className={labelClassName}>
+                Category
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+
+              <Combobox
+                items={categories}
+                value={selectedCategory || null}
+                onValueChange={handleCategoryChange}
+                itemToStringLabel={(category) => {
+                  return category?.category_name || "";
+                }}
+                itemToStringValue={(category) => {
+                  return String(category?.id || "");
+                }}
+                isItemEqualToValue={(category, value) => {
+                  return category?.id === value?.id;
+                }}
               >
-                <option value="" disabled>Select category...</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                ))}
-              </select>
-              {hasAttemptedSubmit && errors.category_id && <p className="expense-modal-error-msg">{errors.category_id}</p>}
-            </div>
-            <div className="expense-form-group">
-              <label className="expense-form-label">Date *</label>
-              <input
-                type="date"
-                className={`expense-form-input ${hasAttemptedSubmit && errors.expense_date ? 'is-invalid' : ''}`}
-                name="expense_date"
-                value={formData.expense_date}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-              {hasAttemptedSubmit && errors.expense_date && <p className="expense-modal-error-msg">{errors.expense_date}</p>}
-            </div>
-          </div>
-
-          <div className="expense-form-group">
-            <label className="expense-form-label">Description *</label>
-            <input
-              type="text"
-              className={`expense-form-input ${hasAttemptedSubmit && errors.description ? 'is-invalid' : ''}`}
-              placeholder="e.g. Monthly Rent"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            />
-            {hasAttemptedSubmit && errors.description && <p className="expense-modal-error-msg">{errors.description}</p>}
-          </div>
-
-          <div className="expense-form-grid expense-form-grid--2">
-            {!isInventoryPurchase && (
-              <div className="expense-form-group">
-                <label className="expense-form-label">Amount *</label>
-                <div className="expense-amount-wrapper">
-                  <span className="expense-amount-symbol">₱</span>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    step="0.01"
-                    name="amount"
-                    className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
-                    value={formData.amount}
-                    onChange={handleChange}
-                    disabled={isSubmitting || isInventoryWastage}
-                    title={isInventoryWastage ? "Amount is automatically calculated from batch cost" : ""}
-                  />
-                </div>
-                {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
-                {isInventoryWastage && (
-                  <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                    Auto-calculated from batch cost
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="expense-form-group" style={isInventoryPurchase ? { gridColumn: 'span 2' } : {}}>
-              <label className="expense-form-label">Vendor/Supplier</label>
-              <input
-                type="text"
-                className="expense-form-input"
-                placeholder="Optional"
-                name="vendor"
-                value={formData.vendor}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          {/* DYNAMIC INVENTORY FIELDS */}
-          {(isInventoryPurchase || isInventoryWastage) && (
-            <div className="expense-inventory-section" style={{ borderLeft: '4px solid #D9C0AE', paddingLeft: '1.25rem', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-              <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
-                <label className="expense-form-label">Inventory Item *</label>
-                <select
-                  className={`expense-form-select ${hasAttemptedSubmit && errors.inventory_item_id ? 'is-invalid' : ''}`}
-                  name="inventory_item_id"
-                  value={formData.inventory_item_id}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
+                <ComboboxInput
+                  placeholder="Select an expense category"
+                  aria-invalid={Boolean(errorFor("category_id"))}
+                  className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
+                />
+                <ComboboxContent
+                  positionerClassName="!z-[1100]"
+                  className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
                 >
-                  <option value="" disabled>
-                    {isInventoryWastage ? 'Select item to waste...' : 'Select item to restock...'}
-                  </option>
-                  {inventoryItems.map(item => (
-                    <option key={item.id} value={item.id}>{item.item_name}</option>
-                  ))}
-                </select>
-                {hasAttemptedSubmit && errors.inventory_item_id && <p className="expense-modal-error-msg">{errors.inventory_item_id}</p>}
-                {selectedInventoryItem && (
-                  <div style={{ fontSize: '0.85rem', color: '#6c757d', marginTop: '0.35rem' }}>
-                    Current stock: <strong style={{ color: '#2C1810' }}>{selectedInventoryItem.current_stock} {selectedInventoryItem.base_unit}</strong>
-                  </div>
-                )}
-              </div>
+                  <ComboboxEmpty>No expense category found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(category) => {
+                      const isInventoryWastage =
+                        category.category_name === "Inventory Wastage";
 
-              {/* WASTAGE SPECIFIC FIELDS */}
-              {isInventoryWastage ? (
-                <>
-                  <div className="expense-form-group" style={{ marginBottom: '1rem' }}>
-                    <label className="expense-form-label">Select Batch *</label>
-                    <select
-                      className={`expense-form-select ${hasAttemptedSubmit && errors.selected_batch_id ? 'is-invalid' : ''}`}
-                      name="selected_batch_id"
-                      value={formData.selected_batch_id}
-                      onChange={handleChange}
-                      disabled={isSubmitting || batches.length === 0}
+                      return (
+                        <ComboboxItem
+                          key={category.id}
+                          value={category}
+                          disabled={isInventoryWastage}
+                          className="min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {category.category_name}
+                          </span>
+                          {isInventoryWastage && (
+                            <em className="shrink-0 text-[length:var(--app-font-size-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                              Unavailable
+                            </em>
+                          )}
+                        </ComboboxItem>
+                      );
+                    }}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+
+              {errorFor("category_id") && (
+                <FieldError className="text-[length:var(--app-font-size-caption)]">
+                  {errorFor("category_id")}
+                </FieldError>
+              )}
+            </Field>
+
+            {isPurchase ? (
+              <>
+                <Field data-invalid={Boolean(errorFor("description"))}>
+                  <FieldLabel
+                    htmlFor="add-expense-purchase-description"
+                    className={labelClassName}
+                  >
+                    Description
+                    <span className="text-[var(--app-color-danger)]">*</span>
+                  </FieldLabel>
+                  <Input
+                    id="add-expense-purchase-description"
+                    value={formData.description}
+                    onChange={(event) => {
+                      updateField("description", event.target.value);
+                    }}
+                    placeholder="Describe the inventory purchase"
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(errorFor("description"))}
+                    className={controlClassName}
+                  />
+                  {errorFor("description") && (
+                    <FieldError className="text-[length:var(--app-font-size-caption)]">
+                      {errorFor("description")}
+                    </FieldError>
+                  )}
+                </Field>
+
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-purchase-note"
+                      className={labelClassName}
                     >
-                      {batches.map(b => (
-                        <option key={b.id} value={b.id}>
-                          {b.batch_number} ({b.quantity} left) {b.expiration_date ? `- Exp: ${b.expiration_date}` : ''}
-                        </option>
-                      ))}
-                      {batches.length === 0 && (
-                        <option value="" disabled>No batches available</option>
-                      )}
-                    </select>
-                    {hasAttemptedSubmit && errors.selected_batch_id && <p className="expense-modal-error-msg">{errors.selected_batch_id}</p>}
-                  </div>
+                      Note
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-purchase-note"
+                      value={formData.notes}
+                      onChange={(event) => {
+                        updateField("notes", event.target.value);
+                      }}
+                      placeholder="Optional note"
+                      disabled={isSubmitting}
+                      className={controlClassName}
+                    />
+                  </Field>
 
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Quantity to Remove *</label>
-                      <input
-                        type="number"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_deduct ? 'is-invalid' : ''}`}
-                        name="quantity_to_deduct"
-                        value={formData.quantity_to_deduct}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder="0"
-                        min="0.01"
-                        step="0.01"
-                      />
-                      {hasAttemptedSubmit && errors.quantity_to_deduct && <p className="expense-modal-error-msg">{errors.quantity_to_deduct}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Stock (preview)</label>
-                      <input
-                        type="text"
-                        className="expense-form-input"
-                        value={`${newStockPreviewWastage} ${baseUnit}`}
-                        disabled
-                        style={{ backgroundColor: '#FAFAFA', color: '#6c757d', cursor: 'not-allowed' }}
-                      />
-                    </div>
-                  </div>
+                  <Field data-invalid={Boolean(errorFor("expense_date"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-date"
+                      className={labelClassName}
+                    >
+                      Date
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <DatePicker
+                      id="add-expense-date"
+                      value={formData.expense_date}
+                      onValueChange={(value) => {
+                        updateField("expense_date", value);
+                      }}
+                      placeholder="MM/DD/YYYY"
+                      disabled={isSubmitting}
+                      invalid={Boolean(errorFor("expense_date"))}
+                      triggerClassName={controlClassName}
+                    />
+                    {errorFor("expense_date") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("expense_date")}
+                      </FieldError>
+                    )}
+                  </Field>
+                </div>
 
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Reason *</label>
-                      <select
-                        className="expense-form-select"
-                        name="wastage_reason"
-                        value={formData.wastage_reason}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                      >
-                        <option value="Expired">Expired</option>
-                        <option value="Spilled">Spilled</option>
-                        <option value="Spoiled/Damaged">Spoiled/Damaged</option>
-                        <option value="Quality Issue">Quality Issue</option>
-                        <option value="Theft/Lost">Theft/Lost</option>
-                        <option value="Other">Other (Please specify)</option>
-                      </select>
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">
-                        {formData.wastage_reason === 'Other' ? 'Specify Reason *' : 'Notes (Optional)'}
-                      </label>
-                      <input
-                        type="text"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.other_wastage_reason ? 'is-invalid' : ''}`}
-                        name={formData.wastage_reason === 'Other' ? "other_wastage_reason" : "description"}
-                        value={formData.wastage_reason === 'Other' ? formData.other_wastage_reason : formData.description}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder={formData.wastage_reason === 'Other' ? "Specify reason..." : "Enter details..."}
-                      />
-                      {hasAttemptedSubmit && errors.other_wastage_reason && <p className="expense-modal-error-msg">{errors.other_wastage_reason}</p>}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* RESTOCK SPECIFIC FIELDS */
-                <>
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Quantity to Add *</label>
-                      <input
+                <div className="relative pl-[var(--app-space-6)]">
+                  <span
+                    className="absolute inset-y-[var(--app-space-2)] left-0 w-1 rounded-full bg-[var(--app-color-brand-soft)]"
+                    aria-hidden="true"
+                  />
+                  <div className="flex flex-col gap-[var(--app-gap-related)]">
+                    <Field
+                      data-invalid={Boolean(errorFor("inventory_item_id"))}
+                    >
+                  <FieldLabel className={labelClassName}>
+                    Item Name
+                    <span className="text-[var(--app-color-danger)]">*</span>
+                  </FieldLabel>
+                  <Combobox
+                    items={inventoryItems}
+                    value={selectedItem || null}
+                    onValueChange={handleItemChange}
+                    itemToStringLabel={(inventoryItem) => {
+                      return inventoryItem?.item_name || "";
+                    }}
+                    itemToStringValue={(inventoryItem) => {
+                      return String(inventoryItem?.id || "");
+                    }}
+                    isItemEqualToValue={(inventoryItem, value) => {
+                      return inventoryItem?.id === value?.id;
+                    }}
+                  >
+                    <ComboboxInput
+                      placeholder="Select an inventory item"
+                      aria-invalid={Boolean(errorFor("inventory_item_id"))}
+                      className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
+                    />
+                    <ComboboxContent
+                      positionerClassName="!z-[1100]"
+                      className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+                    >
+                      <ComboboxEmpty>No inventory item found.</ComboboxEmpty>
+                      <ComboboxList>
+                        {(inventoryItem) => (
+                          <ComboboxItem
+                            key={inventoryItem.id}
+                            value={inventoryItem}
+                            className="min-h-[var(--app-touch-target-min)] gap-[var(--app-space-2)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              {inventoryItem.item_name}
+                            </span>
+                            <em className="shrink-0 text-[length:var(--app-font-size-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                              {Number(inventoryItem.current_stock || 0)}{" "}
+                              {inventoryItem.base_unit || "pcs"} available
+                            </em>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
+                  {errorFor("inventory_item_id") && (
+                    <FieldError className="text-[length:var(--app-font-size-caption)]">
+                      {errorFor("inventory_item_id")}
+                    </FieldError>
+                  )}
+                    </Field>
+
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-vendor"
+                      className={labelClassName}
+                    >
+                      Vendor / Supplier
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-vendor"
+                      value={formData.vendor}
+                      onChange={(event) => {
+                        updateField("vendor", event.target.value);
+                      }}
+                      placeholder="e.g., Local supplier"
+                      disabled={isSubmitting}
+                      className={controlClassName}
+                    />
+                  </Field>
+
+                  <Field data-invalid={Boolean(errorFor("amount"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-purchase-cost"
+                      className={labelClassName}
+                    >
+                      Total Cost
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
+                      <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] !px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
+                        ₱
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="add-expense-purchase-cost"
                         type="number"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.quantity_to_add ? 'is-invalid' : ''}`}
-                        name="quantity_to_add"
-                        value={formData.quantity_to_add}
-                        onChange={handleChange}
-                        disabled={isSubmitting}
-                        placeholder="0"
                         min="1"
                         step="0.01"
-                      />
-                      {hasAttemptedSubmit && errors.quantity_to_add && <p className="expense-modal-error-msg">{errors.quantity_to_add}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Stock (preview)</label>
-                      <input
-                        type="text"
-                        className="expense-form-input"
-                        value={`${newStockPreview} ${baseUnit}`}
-                        disabled
-                        style={{ backgroundColor: '#FAFAFA', color: '#6c757d', cursor: 'not-allowed' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2" style={{ marginBottom: '1rem' }}>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">Total Purchase Cost *</label>
-                      <div className="expense-amount-wrapper">
-                        <span className="expense-amount-symbol">₱</span>
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          step="0.01"
-                          name="amount"
-                          className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
-                          value={formData.amount}
-                          onChange={handleChange}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                      {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
-                    </div>
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">New Cost per Unit</label>
-                      <div className="expense-amount-wrapper" style={{ backgroundColor: '#FAFAFA', cursor: 'not-allowed' }}>
-                        <span className="expense-amount-symbol" style={{ backgroundColor: '#FAFAFA' }}>₱</span>
-                        <input
-                          type="text"
-                          value={newCostPerUnit}
-                          disabled
-                          style={{ color: '#6c757d', cursor: 'not-allowed' }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="expense-form-grid expense-form-grid--2">
-                    <div className="expense-form-group">
-                      <label className="expense-form-label">
-                        Expiration Date {selectedInventoryItem?.track_expiry ? '*' : '(Optional)'}
-                      </label>
-                      <input
-                        type="date"
-                        className={`expense-form-input ${hasAttemptedSubmit && errors.expiration_date ? 'is-invalid' : ''}`}
-                        name="expiration_date"
-                        value={formData.expiration_date}
-                        onChange={handleChange}
+                        value={formData.amount}
+                        onChange={(event) => {
+                          updateField("amount", event.target.value);
+                        }}
+                        placeholder="0.00"
                         disabled={isSubmitting}
+                        aria-invalid={Boolean(errorFor("amount"))}
+                        className="h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
                       />
-                      {hasAttemptedSubmit && errors.expiration_date && <p className="expense-modal-error-msg">{errors.expiration_date}</p>}
-                      {!errors.expiration_date && (
-                        <small style={{ fontSize: '0.7rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                          {selectedInventoryItem?.track_expiry ? 'Required for expiry-tracked items' : 'Optional'}
-                        </small>
+                    </InputGroup>
+                    {errorFor("amount") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("amount")}
+                      </FieldError>
+                    )}
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errorFor("reason"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-purchase-reason"
+                      className={labelClassName}
+                    >
+                      Reason
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+
+                    {isCustomReason ? (
+                      <div className="flex gap-[var(--app-space-2)]">
+                        <Input
+                          id="add-expense-purchase-reason"
+                          value={formData.reason}
+                          onChange={(event) => {
+                            updateField("reason", event.target.value);
+                          }}
+                          placeholder="Please specify"
+                          autoFocus
+                          disabled={isSubmitting}
+                          aria-invalid={Boolean(errorFor("reason"))}
+                          className={controlClassName}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-[var(--app-touch-target-min)] shrink-0 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)]"
+                          onClick={() => {
+                            setIsCustomReason(false);
+                            updateField("reason", "");
+                          }}
+                          disabled={isSubmitting}
+                          aria-label="Choose a predefined reason"
+                        >
+                          <i className="bi bi-arrow-left" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Select
+                        value={formData.reason || null}
+                        onValueChange={handleReasonChange}
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger
+                          id="add-expense-purchase-reason"
+                          aria-invalid={Boolean(errorFor("reason"))}
+                          className={`data-[size=default]:!h-[var(--app-touch-target-min)] w-full ${controlClassName}`}
+                        >
+                          <span>{formData.reason || "Select reason"}</span>
+                        </SelectTrigger>
+                        <SelectContent
+                          positionerClassName="!z-[1100]"
+                          className="z-[1100]"
+                        >
+                          {restockReasons.map((restockReason) => (
+                            <SelectItem
+                              key={restockReason}
+                              value={restockReason}
+                            >
+                              {restockReason}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Others">Others</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    {errorFor("reason") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("reason")}
+                      </FieldError>
+                    )}
+                  </Field>
+
+                  <Field data-invalid={Boolean(errorFor("expiration_date"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-expiration-date"
+                      className={labelClassName}
+                    >
+                      Expiration Date
+                      {selectedItem?.track_expiry ? (
+                        <span className="text-[var(--app-color-danger)]">
+                          *
+                        </span>
+                      ) : (
+                        <span className="font-normal text-[var(--app-color-text-subtle)]">
+                          (Optional)
+                        </span>
                       )}
-                    </div>
+                    </FieldLabel>
+                    <DatePicker
+                      id="add-expense-expiration-date"
+                      value={formData.expiration_date}
+                      onValueChange={(value) => {
+                        updateField("expiration_date", value);
+                      }}
+                      placeholder="MM/DD/YYYY"
+                      disabled={isSubmitting || !selectedItem}
+                      invalid={Boolean(errorFor("expiration_date"))}
+                      triggerClassName={controlClassName}
+                    />
+                    {errorFor("expiration_date") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("expiration_date")}
+                      </FieldError>
+                    )}
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-3">
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-stock-on-hand"
+                      className={labelClassName}
+                    >
+                      Stock on Hand
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-stock-on-hand"
+                      value={selectedItem ? `${currentStock} ${unit}` : "—"}
+                      readOnly
+                      aria-readonly="true"
+                      className={`${controlClassName} ${readonlyClassName}`}
+                    />
+                  </Field>
+
+                  <Field data-invalid={Boolean(errorFor("quantity_to_add"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-quantity"
+                      className={labelClassName}
+                    >
+                      Qty Added
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-quantity"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={formData.quantity_to_add}
+                      onChange={(event) => {
+                        updateField("quantity_to_add", event.target.value);
+                      }}
+                      placeholder="0"
+                      disabled={isSubmitting || !selectedItem}
+                      aria-invalid={Boolean(errorFor("quantity_to_add"))}
+                      className={controlClassName}
+                    />
+                    {errorFor("quantity_to_add") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("quantity_to_add")}
+                      </FieldError>
+                    )}
+                  </Field>
+
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-final-stock"
+                      className={labelClassName}
+                    >
+                      Final Stock
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-final-stock"
+                      value={selectedItem ? `${finalStock} ${unit}` : "—"}
+                      readOnly
+                      aria-readonly="true"
+                      className={`${controlClassName} ${readonlyClassName} ${quantityToAdd > 0 ? "font-semibold !text-[var(--app-color-success)]" : ""}`}
+                    />
+                  </Field>
+                </div>
+
+                <div className="flex items-start gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] p-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+                  <i
+                    className="bi bi-info-circle-fill shrink-0 text-[var(--app-color-brand)]"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    This expense will also create a new inventory batch and
+                    update the selected item&apos;s stock.
+                  </span>
+                </div>
                   </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <Field data-invalid={Boolean(errorFor("description"))}>
+                  <FieldLabel
+                    htmlFor="add-expense-description"
+                    className={labelClassName}
+                  >
+                    Description
+                    <span className="text-[var(--app-color-danger)]">*</span>
+                  </FieldLabel>
+                  <Input
+                    id="add-expense-description"
+                    value={formData.description}
+                    onChange={(event) => {
+                      updateField("description", event.target.value);
+                    }}
+                    placeholder="Describe the expense"
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(errorFor("description"))}
+                    className={controlClassName}
+                  />
+                  {errorFor("description") && (
+                    <FieldError className="text-[length:var(--app-font-size-caption)]">
+                      {errorFor("description")}
+                    </FieldError>
+                  )}
+                </Field>
 
-                  <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#FAFAFA', border: '1px solid #E9ECEF', borderRadius: '8px', fontSize: '0.8rem', color: '#495057', display: 'flex', gap: '0.5rem', alignItems: 'start' }}>
-                    <i className="bi bi-info-circle-fill" style={{ color: '#7A4B35', marginTop: '0.1rem' }}></i>
-                    <span>Recording an inventory purchase expense will automatically update the inventory with a new restock. The updated cost per unit will take effect once the new batch is utilized.</span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errorFor("amount"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-amount"
+                      className={labelClassName}
+                    >
+                      Amount
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
+                      <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] !px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
+                        ₱
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id="add-expense-amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={formData.amount}
+                        onChange={(event) => {
+                          updateField("amount", event.target.value);
+                        }}
+                        placeholder="0.00"
+                        disabled={isSubmitting}
+                        aria-invalid={Boolean(errorFor("amount"))}
+                        className="h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
+                      />
+                    </InputGroup>
+                    {errorFor("amount") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("amount")}
+                      </FieldError>
+                    )}
+                  </Field>
 
-          {!isInventoryWastage && (
-            <>
-              <div className="expense-form-group">
-                <label className="expense-form-label">Payment Method *</label>
-                <select
-                  className={`expense-form-select ${hasAttemptedSubmit && errors.payment_method ? 'is-invalid' : ''}`}
-                  name="payment_method"
-                  value={formData.payment_method}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                >
-                  <option value="" disabled>Select payment method...</option>
-                  <option value="Cash">Cash</option>
-                  <option value="GCash">GCash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Credit Card">Credit Card</option>
-                </select>
-                {hasAttemptedSubmit && errors.payment_method && <p className="expense-modal-error-msg">{errors.payment_method}</p>}
-              </div>
+                  <Field data-invalid={Boolean(errorFor("expense_date"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-date"
+                      className={labelClassName}
+                    >
+                      Date
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <DatePicker
+                      id="add-expense-date"
+                      value={formData.expense_date}
+                      onValueChange={(value) => {
+                        updateField("expense_date", value);
+                      }}
+                      placeholder="MM/DD/YYYY"
+                      disabled={isSubmitting}
+                      invalid={Boolean(errorFor("expense_date"))}
+                      triggerClassName={controlClassName}
+                    />
+                    {errorFor("expense_date") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("expense_date")}
+                      </FieldError>
+                    )}
+                  </Field>
+                </div>
 
-              <div className="expense-form-group">
-                <label className="expense-form-label">Receipt Reference</label>
-                <input
-                  type="text"
-                  className="expense-form-input"
-                  placeholder="Receipt # or URL"
-                  name="receipt_reference"
-                  value={formData.receipt_reference}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </>
-          )}
+                <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errorFor("payment_method"))}>
+                    <FieldLabel
+                      htmlFor="add-expense-payment-method"
+                      className={labelClassName}
+                    >
+                      Payment Method
+                      <span className="text-[var(--app-color-danger)]">*</span>
+                    </FieldLabel>
+                    <Select
+                      value={formData.payment_method || null}
+                      onValueChange={(value) => {
+                        updateField("payment_method", value);
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger
+                        id="add-expense-payment-method"
+                        aria-invalid={Boolean(errorFor("payment_method"))}
+                        className={`data-[size=default]:!h-[var(--app-touch-target-min)] w-full ${controlClassName}`}
+                      >
+                        <span>
+                          {formData.payment_method || "Select payment method"}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent
+                        positionerClassName="!z-[1100]"
+                        className="z-[1100]"
+                      >
+                        {paymentMethods.map((paymentMethod) => (
+                          <SelectItem key={paymentMethod} value={paymentMethod}>
+                            {paymentMethod}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errorFor("payment_method") && (
+                      <FieldError className="text-[length:var(--app-font-size-caption)]">
+                        {errorFor("payment_method")}
+                      </FieldError>
+                    )}
+                  </Field>
 
-          {error && <div style={{ color: '#dc3545', marginTop: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
-        </div>
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-receipt"
+                      className={labelClassName}
+                    >
+                      Receipt
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-receipt"
+                      value={formData.receipt_reference}
+                      onChange={(event) => {
+                        updateField("receipt_reference", event.target.value);
+                      }}
+                      placeholder="Receipt number or reference"
+                      disabled={isSubmitting}
+                      className={controlClassName}
+                    />
+                  </Field>
+                </div>
 
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
+                {showVendor && (
+                  <Field>
+                    <FieldLabel
+                      htmlFor="add-expense-vendor"
+                      className={labelClassName}
+                    >
+                      Vendor / Supplier
+                    </FieldLabel>
+                    <Input
+                      id="add-expense-vendor"
+                      value={formData.vendor}
+                      onChange={(event) => {
+                        updateField("vendor", event.target.value);
+                      }}
+                      placeholder="Optional"
+                      disabled={isSubmitting}
+                      className={controlClassName}
+                    />
+                  </Field>
+                )}
+              </>
+            )}
+
+            {hasAttemptedSubmit && !isFormValid && (
+              <p
+                className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                role="alert"
+              >
+                Please fill in all required fields (*).
+              </p>
+            )}
           </div>
-        )}
+        </ModalContent>
+      </ModalBody>
 
-        <div className="expense-modal-footer">
-          <button className="expense-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
-          <button className="expense-modal-btn-save" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Expense'}
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          onClick={resetAndClose}
+          className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          onClick={handleSubmit}
+          className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting ? "Saving..." : "Add Expense"}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+};
+
+const AddExpenseModal = ({
+  isOpen,
+  onClose,
+  categories = [],
+  refetch,
+  initialCategoryName,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <AddExpenseModalContent
+      onClose={onClose}
+      categories={categories}
+      refetch={refetch}
+      initialCategoryName={initialCategoryName}
+    />
   );
 };
 

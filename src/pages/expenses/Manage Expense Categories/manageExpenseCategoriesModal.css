@@ -264,3 +264,9 @@
     border-radius: 0;
   }
 }
+.ec-empty-state {
+  padding: 1rem;
+  color: #6c757d;
+  font-size: 0.875rem;
+  text-align: center;
+}

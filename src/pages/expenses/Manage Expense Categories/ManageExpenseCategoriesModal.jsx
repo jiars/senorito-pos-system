@@ -1,204 +1,287 @@
-import React, { useState, useEffect } from 'react';
-import './manageExpenseCategoriesModal.css';
-import { addExpenseCategory, updateExpenseCategory, deleteExpenseCategory } from '../../../services/expenses/expenseService';
+import { useState } from "react";
 
-const ManageExpenseCategoriesModal = ({ isOpen, onClose, categories, expenses = [], refetch }) => {
-  const [newCategory, setNewCategory] = useState('');
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  addExpenseCategory,
+  deleteExpenseCategory,
+  updateExpenseCategory,
+} from "../../../services/expenses/expenseCategoriesService";
+
+const ManageExpenseCategoriesModalContent = ({
+  onClose,
+  categories,
+  refetch,
+}) => {
+  const [newCategory, setNewCategory] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editName, setEditName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
-  // Reset inputs when modal opens or closes
-  useEffect(() => {
-    if (isOpen) {
-      setNewCategory('');
-      setEditingId(null);
-      setEditName('');
-      setIsSubmitting(false);
-      setError(null);
-    }
-  }, [isOpen]);
+  const isDuplicate = (name, excludedId = null) => {
+    const normalizedName = name.trim().toLowerCase();
 
-  if (!isOpen) return null;
-
-  // Validation helpers
-  const checkDuplicate = (name, excludeId = null) => {
-    const trimmed = name.trim().toLowerCase();
-    return categories.some(
-      (cat) => cat.id !== excludeId && cat.category_name.toLowerCase() === trimmed
-    );
+    return categories.some((category) => {
+      return category.id !== excludedId
+        && category.category_name.toLowerCase() === normalizedName;
+    });
   };
 
-  const isNewEmpty = newCategory.trim() === '';
-  const isNewDuplicate = !isNewEmpty && checkDuplicate(newCategory);
-  const isAddDisabled = isNewEmpty || isNewDuplicate || isSubmitting;
+  const isNewDuplicate = Boolean(newCategory.trim()) && isDuplicate(newCategory);
+  const isAddDisabled = !newCategory.trim() || isNewDuplicate || isSubmitting;
+  const isEditDuplicate = Boolean(editName.trim())
+    && isDuplicate(editName, editingId);
+  const isSaveDisabled = !editName.trim() || isEditDuplicate || isSubmitting;
 
-  const handleAddCategory = async () => {
+  const runRequest = async (request) => {
+    try {
+      setIsSubmitting(true);
+      setError("");
+      await request();
+      await refetch();
+      return true;
+    } catch (requestError) {
+      setError(requestError.message);
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAdd = async () => {
     if (isAddDisabled) return;
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      await addExpenseCategory(newCategory.trim());
-      await refetch();
-      setNewCategory('');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
+
+    const saved = await runRequest(() => {
+      return addExpenseCategory(newCategory.trim());
+    });
+
+    if (saved) {
+      setNewCategory("");
     }
   };
 
-  const isEditEmpty = editName.trim() === '';
-  const isEditDuplicate = !isEditEmpty && checkDuplicate(editName, editingId);
-  const isSaveDisabled = isEditEmpty || isEditDuplicate || isSubmitting;
-
-  const handleSaveEdit = async (id) => {
+  const handleSaveEdit = async (categoryId) => {
     if (isSaveDisabled) return;
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      await updateExpenseCategory(id, editName.trim());
-      await refetch();
+
+    const saved = await runRequest(() => {
+      return updateExpenseCategory(categoryId, editName.trim());
+    });
+
+    if (saved) {
       setEditingId(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
+      setEditName("");
     }
   };
 
-  const handleDeleteCategory = async (id) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-      await deleteExpenseCategory(id);
-      await refetch();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleDelete = async (categoryId) => {
+    if (isSubmitting) return;
+
+    await runRequest(() => {
+      return deleteExpenseCategory(categoryId);
+    });
   };
 
   return (
-    <div className="ec-modal-overlay">
-      <div className="ec-modal-content">
-        <div className="ec-modal-header">
-          <h3>Manage Expense Categories</h3>
-          <button className="ec-modal-close" onClick={onClose} title="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="32rem"
+      maxHeight="min(85svh, 42rem)"
+    >
+      <ModalHeader
+        title="Manage Expense Categories"
+        iconClassName="bi bi-tags"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="ec-modal-body">
-          {error && <div style={{ color: '#C62828', fontSize: '0.875rem' }}>{error}</div>}
+      <ModalBody>
+        <ModalContent>
+          {error && (
+            <p
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
 
-          {/* Add Category Row */}
-          <div className="ec-add-row">
-            <div className="ec-input-wrapper">
-              <input
+          <div className="flex items-start gap-[var(--app-space-2)] max-sm:flex-col">
+            <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)] max-sm:w-full">
+              <Input
                 type="text"
-                className={`ec-input ${isNewDuplicate ? 'ec-input--error' : ''}`}
+                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isNewDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
                 placeholder="New Category Name"
                 value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
+                onChange={(event) => setNewCategory(event.target.value)}
                 disabled={isSubmitting}
+                aria-invalid={isNewDuplicate}
+                aria-describedby={isNewDuplicate ? "expense-category-add-error" : undefined}
               />
-              {isNewDuplicate && <span className="ec-error-text">Category already exists</span>}
+              {isNewDuplicate && (
+                <small
+                  id="expense-category-add-error"
+                  className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                >
+                  Category already exists.
+                </small>
+              )}
             </div>
-            <button
-              className="ec-btn-add"
+
+            <Button
+              type="button"
+              className="h-[var(--app-touch-target-min)] shrink-0 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)] max-sm:w-full"
               disabled={isAddDisabled}
-              onClick={handleAddCategory}
+              onClick={handleAdd}
             >
               + Add Category
-            </button>
+            </Button>
           </div>
 
-          <div className="ec-separator"></div>
+          <div
+            className="h-px w-full bg-[var(--app-color-border-subtle)]"
+            aria-hidden="true"
+          />
 
-          {/* Categories List */}
-          <div className="ec-list">
-            {categories.map((cat) => {
-              const isEditing = editingId === cat.id;
-              const usedByCount = expenses.filter((e) => e.category_id === cat.id).length;
+          {categories.length === 0 ? (
+            <div className="py-[var(--app-space-6)] text-center text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-subtle)]">
+              No categories found.
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {categories.map((category) => {
+                const isEditing = editingId === category.id;
+                const usedByCount = Number(category.expenses_count || 0);
 
-              return (
-                <div className="ec-list-item" key={cat.id}>
-                  {isEditing ? (
-                    <>
-                      <div className="ec-edit-container">
-                        <input
-                          type="text"
-                          className={`ec-edit-input ${isEditDuplicate ? 'ec-edit-input--error' : ''}`}
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          autoFocus
-                          disabled={isSubmitting}
-                        />
-                        {isEditDuplicate && <span className="ec-error-text">Category already exists</span>}
-                      </div>
-                      <div className="ec-list-item-actions">
-                        <button
-                          className="ec-action-btn ec-action-btn--save"
-                          disabled={isSaveDisabled}
-                          onClick={() => handleSaveEdit(cat.id)}
-                          title="Save"
-                        >
-                          <i className="bi bi-check-lg"></i>
-                        </button>
-                        <button
-                          className="ec-action-btn ec-action-btn--edit"
-                          onClick={() => setEditingId(null)}
-                          title="Cancel"
-                          disabled={isSubmitting}
-                        >
-                          <i className="bi bi-x-lg"></i>
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className="ec-list-item-name">
-                        {cat.category_name} {usedByCount > 0 && <small style={{ color: '#6c757d' }}>({usedByCount} expenses)</small>}
-                      </span>
-                      <div className="ec-list-item-actions">
-                        <button
-                          className="ec-action-btn ec-action-btn--edit"
-                          onClick={() => {
-                            setEditingId(cat.id);
-                            setEditName(cat.category_name);
-                          }}
-                          title="Edit"
-                          disabled={isSubmitting}
-                        >
-                          <i className="bi bi-pencil"></i>
-                        </button>
-                        <button
-                          className="ec-action-btn ec-action-btn--delete"
-                          disabled={usedByCount > 0 || isSubmitting}
-                          title={usedByCount > 0 ? "Cannot delete category while expenses are using it." : "Delete"}
-                          onClick={() => handleDeleteCategory(cat.id)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    className="flex min-h-[var(--app-table-row-height)] items-center justify-between gap-[var(--app-space-2)] border-b border-[var(--app-color-border-subtle)] py-[var(--app-space-2)] last:border-b-0"
+                    key={category.id}
+                  >
+                    {isEditing ? (
+                      <>
+                        <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)]">
+                          <Input
+                            type="text"
+                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isEditDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            autoFocus
+                            disabled={isSubmitting}
+                            aria-invalid={isEditDuplicate}
+                            aria-describedby={isEditDuplicate ? `expense-category-edit-error-${category.id}` : undefined}
+                          />
+                          {isEditDuplicate && (
+                            <small
+                              id={`expense-category-edit-error-${category.id}`}
+                              className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                            >
+                              Category already exists.
+                            </small>
+                          )}
+                        </div>
 
-            {categories.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '1rem', color: '#6C757D', fontSize: '0.875rem' }}>
-                No categories found.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+                        <div className="flex shrink-0 gap-[var(--app-space-1)]">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-success)] hover:bg-[var(--app-color-success-surface)] hover:text-[var(--app-color-success)]"
+                            disabled={isSaveDisabled}
+                            onClick={() => handleSaveEdit(category.id)}
+                            aria-label={`Save ${category.category_name}`}
+                          >
+                            <i className="bi bi-check-lg" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-text)]"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditName("");
+                            }}
+                            disabled={isSubmitting}
+                            aria-label={`Cancel editing ${category.category_name}`}
+                          >
+                            <i className="bi bi-x-lg" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="min-w-0 flex-1 break-words text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-medium text-[var(--app-color-text)]">
+                          {category.category_name}
+                          {usedByCount > 0 && (
+                            <small className="ml-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                              ({usedByCount} expenses)
+                            </small>
+                          )}
+                        </span>
+
+                        <div className="flex shrink-0 gap-[var(--app-space-1)]">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)]"
+                            onClick={() => {
+                              setEditingId(category.id);
+                              setEditName(category.category_name);
+                            }}
+                            disabled={isSubmitting}
+                            aria-label={`Edit ${category.category_name}`}
+                          >
+                            <i className="bi bi-pencil" aria-hidden="true" />
+                          </Button>
+                          {usedByCount === 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-danger)] hover:bg-[var(--app-color-danger-surface)] hover:text-[var(--app-color-danger)]"
+                              disabled={isSubmitting}
+                              onClick={() => handleDelete(category.id)}
+                              aria-label={`Delete ${category.category_name}`}
+                            >
+                              <i className="bi bi-trash" aria-hidden="true" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ModalContent>
+      </ModalBody>
+    </Modal>
+  );
+};
+
+const ManageExpenseCategoriesModal = ({
+  isOpen,
+  onClose,
+  categories,
+  refetch,
+}) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <ManageExpenseCategoriesModalContent
+      onClose={onClose}
+      categories={categories}
+      refetch={refetch}
+    />
   );
 };
 

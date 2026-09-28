@@ -1,359 +1,560 @@
-import React, { useState, useEffect } from 'react';
-import './editItemModal.css';
-import { updateInventoryItem } from '../../../../services/inventory/inventoryItemsService';
+import { useState } from "react";
 
-const EditItemModal = ({ isOpen, onClose, item, existingItems = [], categories = [], refetchInventory }) => {
-  const [name, setName] = useState('');
-  const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState('');
-  const [cost, setCost] = useState('');
-  const [reorderLevel, setReorderLevel] = useState('');
-  const [supplier, setSupplier] = useState('');
-  const [conversions, setConversions] = useState([]);
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFieldLabel from "@/components/modals/ModalFieldLabel";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { updateInventoryItem } from "@/services/inventory/inventoryItemsService";
+import { formatCurrency } from "@/utils/currencyFormatters";
+import { validateEditInventoryItem } from "@/utils/validation/inventory/editInventoryValidation";
 
-  const [errors, setErrors] = useState({});
+const labelClassName =
+  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+const controlClassName =
+  "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] shadow-none focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
+const errorClassName =
+  "text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)]";
+const disabledControlClassName =
+  "disabled:cursor-not-allowed disabled:bg-[var(--app-color-canvas)] disabled:text-[var(--app-color-text-muted)] disabled:opacity-100";
+
+const recipeConversionTooltip =
+  "Map a custom serving size to the Base Unit so the system deducts stock correctly. For example, if the Base Unit is 'ml', 1 'Pump' can equal 15 ml.";
+
+const createEmptyConversion = () => ({
+  id: null,
+  clientId: `new-${Date.now()}-${Math.random()}`,
+  unit: "",
+  equivalent: "",
+});
+
+const createInitialConversions = (item) => {
+  const savedConversions = (item.inventory_conversion_units || []).map(
+    (conversion) => ({
+      id: conversion.id,
+      clientId: `saved-${conversion.id}`,
+      unit: conversion.converted_unit,
+      equivalent: conversion.equivalent_base_amount.toString(),
+    }),
+  );
+
+  return savedConversions.length > 0
+    ? savedConversions
+    : [createEmptyConversion()];
+};
+
+const EditItemModalContent = ({
+  onClose,
+  item,
+  existingItems = [],
+  categories = [],
+  refetchInventory,
+}) => {
+  const name = item.item_name || "";
+  const unit = item.base_unit || "";
+  const reorderLevel = item.minimum_level?.toString() || "0";
+  const hasBatches = (item.inventory_batches || []).length > 0;
+
+  const [category, setCategory] = useState(item.category_id || "");
+  const [cost, setCost] = useState(item.cost_per_unit?.toString() || "");
+  const [supplier, setSupplier] = useState(item.supplier || "");
+  const [conversions, setConversions] = useState(() =>
+    createInitialConversions(item),
+  );
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState('');
+  const [apiError, setApiError] = useState("");
 
-  // Reset form when modal opens or item changes
-  useEffect(() => {
-    if (isOpen && item) {
-      setName(item.item_name || '');
-      setUnit(item.base_unit || '');
-      setCategory(item.category_id || '');
-      setCost(item.cost_per_unit ? item.cost_per_unit.toString() : '');
-      setReorderLevel(item.minimum_level !== undefined ? item.minimum_level.toString() : '');
-      setSupplier(item.supplier || '');
-      
-      // Initialize conversions
-      if (item.inventory_conversion_units && item.inventory_conversion_units.length > 0) {
-        setConversions(item.inventory_conversion_units.map(c => ({
-          id: c.id,
-          unit: c.converted_unit,
-          equivalent: c.equivalent_base_amount.toString()
-        })));
-      } else {
-        setConversions([]);
-      }
+  const { errors, conversionsValid, isFormValid } =
+    validateEditInventoryItem({
+      name,
+      originalName: item.item_name || "",
+      existingItems,
+      unit,
+      category,
+      cost,
+      reorderLevel,
+      conversions,
+    });
 
-      setErrors({});
-      setHasAttemptedSubmit(false);
-      setApiError('');
-      setIsSubmitting(false);
-    }
-  }, [isOpen, item]);
+  const selectedCategory =
+    categories.find(
+      (currentCategory) => String(currentCategory.id) === String(category),
+    ) || null;
+
+  const handleCategoryChange = (value) => {
+    setApiError("");
+    setCategory(value ? String(value.id) : "");
+  };
+
+  const handleCostChange = (value) => {
+    setApiError("");
+    setCost(value);
+  };
+
+  const handleSupplierChange = (value) => {
+    setApiError("");
+    setSupplier(value);
+  };
 
   const handleAddConversion = () => {
-    setConversions([...conversions, { id: Date.now().toString(), unit: '', equivalent: '' }]);
+    setApiError("");
+    setConversions((current) => [...current, createEmptyConversion()]);
   };
 
-  const handleRemoveConversion = (id) => {
-    setConversions(conversions.filter(c => c.id !== id));
+  const handleRemoveConversion = (clientId) => {
+    setApiError("");
+    setConversions((current) => {
+      if (current.length === 1) return [createEmptyConversion()];
+      return current.filter((conversion) => conversion.clientId !== clientId);
+    });
   };
 
-  const handleConversionChange = (id, field, value) => {
-    setConversions(conversions.map(c => c.id === id ? { ...c, [field]: value } : c));
+  const handleConversionChange = (clientId, field, value) => {
+    setApiError("");
+    setConversions((current) =>
+      current.map((conversion) =>
+        conversion.clientId === clientId
+          ? { ...conversion, [field]: value }
+          : conversion,
+      ),
+    );
   };
-
-  // Real-time validation
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const newErrors = {};
-
-    if (!name.trim()) {
-      newErrors.name = 'Item name is required.';
-    } else if (
-      existingItems.some(
-        (existingName) =>
-          existingName.toLowerCase() === name.trim().toLowerCase() &&
-          existingName.toLowerCase() !== (item?.item_name || '').toLowerCase()
-      )
-    ) {
-      newErrors.name = 'An item with this name already exists.';
-    }
-
-    if (!unit) {
-      newErrors.unit = 'Unit is required.';
-    }
-
-    if (!category) {
-      newErrors.category = 'Category is required.';
-    }
-
-    if (cost === '') {
-      newErrors.cost = 'Cost is required.';
-    } else if (Number(cost) <= 0) {
-      newErrors.cost = 'Cost must be greater than 0.';
-    }
-
-    if (reorderLevel === '') {
-      newErrors.reorderLevel = 'Reorder level is required.';
-    } else if (Number(reorderLevel) < 0) {
-      newErrors.reorderLevel = 'Reorder level cannot be negative.';
-    }
-
-    setErrors(newErrors);
-  }, [name, unit, category, cost, reorderLevel, existingItems, isOpen, item]);
-
-  if (!isOpen || !item) return null;
-
-  let conversionsValid = true;
-  conversions.forEach(c => {
-    const eq = parseFloat(c.equivalent);
-    if (c.unit.trim() === '' || isNaN(eq) || eq <= 0) {
-      conversionsValid = false;
-    }
-  });
-
-  const isFormValid = Object.keys(errors).length === 0 && name.trim() !== '' && unit !== '' && category !== '' && cost !== '' && reorderLevel !== '' && conversionsValid;
 
   const handleSave = async () => {
     setHasAttemptedSubmit(true);
     if (!isFormValid || isSubmitting) return;
 
     setIsSubmitting(true);
-    setApiError('');
+    setApiError("");
 
     try {
-      const updatePayload = {
-        item_name: name.trim(),
-        base_unit: unit,
-        category_id: category,
-        cost_per_unit: Number(cost),
-        minimum_level: Number(reorderLevel),
-        supplier: supplier.trim()
-      };
+      await updateInventoryItem(item.id, {
+        itemData: {
+          item_name: name.trim(),
+          base_unit: unit,
+          category_id: category,
+          cost_per_unit: Number(cost),
+          minimum_level: Number(reorderLevel),
+          supplier: supplier.trim() || null,
+        },
+        conversionsData: conversions
+          .filter((conversion) => {
+            return conversion.unit.trim() || conversion.equivalent;
+          })
+          .map((conversion) => ({
+            ...(conversion.id ? { id: conversion.id } : {}),
+            converted_unit: conversion.unit.trim(),
+            equivalent_base_amount: Number(conversion.equivalent),
+          })),
+      });
 
-      const conversionsData = conversions.map(c => ({
-        id: c.id,
-        converted_unit: c.unit.trim(),
-        equivalent_base_amount: parseFloat(c.equivalent)
-      }));
-
-      await updateInventoryItem(item.id, updatePayload, conversionsData);
-
-      if (refetchInventory) {
-        await refetchInventory();
-      }
-
+      if (refetchInventory) await refetchInventory();
       onClose();
     } catch (error) {
-      setApiError(error.message || 'Failed to update inventory item.');
+      setApiError(error.message || "Failed to update inventory item.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="edit-modal-overlay">
-      <div className="edit-modal-content">
-        <div className="edit-modal-header">
-          <h3>Edit Item</h3>
-          <span className="edit-modal-subtitle">{item.name}</span>
-          <button className="edit-modal-close" onClick={onClose} aria-label="Close">
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="38rem"
+      maxHeight="min(90svh, 46rem)"
+    >
+      <ModalHeader
+        title="Edit Inventory Item"
+        description="Update the item details and recipe conversion units."
+        iconClassName="bi bi-pencil-square"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="edit-modal-body">
-          <div className="edit-modal-form-grid">
-            {/* Name */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Name *</label>
-              <input
-                type="text"
-                className={`edit-modal-input ${hasAttemptedSubmit && errors.name ? 'is-invalid' : ''}`}
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
+        <ModalContent>
+          {apiError && (
+            <p
+              role="alert"
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+            >
+              {apiError}
+            </p>
+          )}
+
+          <section
+            aria-labelledby="edit-inventory-details"
+            className="flex flex-col gap-[var(--app-gap-related)]"
+          >
+            <h2 id="edit-inventory-details" className="sr-only">
+              Inventory item details
+            </h2>
+
+            <Field data-invalid={hasAttemptedSubmit && Boolean(errors.name)}>
+              <FieldLabel
+                htmlFor="edit-inventory-name"
+                className={labelClassName}
+              >
+                Item Name
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+              <Input
+                id="edit-inventory-name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter item name"
-                disabled // Name should not be editable to prevent recipe breakage
-                title="Name cannot be changed after creation"
+                disabled
+                title="Item name cannot be changed after creation."
+                className={`${controlClassName} ${disabledControlClassName}`}
               />
-              {hasAttemptedSubmit && errors.name && <p className="edit-modal-error-msg">{errors.name}</p>}
-            </div>
-
-            {/* Unit */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Unit *</label>
-              <select
-                className={`edit-modal-select ${hasAttemptedSubmit && errors.unit ? 'is-invalid' : ''}`}
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                disabled // Unit should not be editable to prevent recipe cost calculation breakage
-                title="Base unit cannot be changed after creation"
-              >
-                <option value="" disabled>Select unit</option>
-                <option value="g">g</option>
-                <option value="kg">kg</option>
-                <option value="ml">ml</option>
-                <option value="L">L</option>
-                <option value="pcs">pcs</option>
-                <option value="pack">pack</option>
-                <option value="bottle">bottle</option>
-                <option value="tbsp">tbsp</option>
-                <option value="cup">cup</option>
-              </select>
-              {hasAttemptedSubmit && errors.unit && <p className="edit-modal-error-msg">{errors.unit}</p>}
-            </div>
-
-            {/* Category */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Category *</label>
-              <select
-                className={`edit-modal-select ${hasAttemptedSubmit && errors.category ? 'is-invalid' : ''}`}
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                <option value="" disabled>Select category</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.category_name}
-                  </option>
-                ))}
-              </select>
-              {hasAttemptedSubmit && errors.category && <p className="edit-modal-error-msg">{errors.category}</p>}
-            </div>
-
-            {/* Cost/Unit */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Cost/Unit (₱) *</label>
-              <input
-                type="number"
-                className={`edit-modal-input ${hasAttemptedSubmit && errors.cost ? 'is-invalid' : ''}`}
-                value={cost}
-                onChange={(e) => setCost(e.target.value)}
-                placeholder="0.00"
-                min="0.01"
-                step="0.01"
-                disabled={item?.inventory_batches?.length > 0}
-                title={item?.inventory_batches?.length > 0 ? "Cost is automatically calculated based on your active batches (FIFO)" : ""}
-              />
-              {item?.inventory_batches?.length > 0 && (
-                <small style={{ color: '#666', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                  Managed automatically by batches.
-                </small>
+              {hasAttemptedSubmit && errors.name && (
+                <FieldError className={errorClassName}>
+                  {errors.name}
+                </FieldError>
               )}
-              {hasAttemptedSubmit && errors.cost && !item?.inventory_batches?.length > 0 && <p className="edit-modal-error-msg">{errors.cost}</p>}
+            </Field>
+
+            <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field
+                data-invalid={
+                  hasAttemptedSubmit && Boolean(errors.category)
+                }
+              >
+                <FieldLabel
+                  htmlFor="edit-inventory-category"
+                  className={labelClassName}
+                >
+                  Category
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <Combobox
+                  items={categories}
+                  value={selectedCategory}
+                  onValueChange={handleCategoryChange}
+                  itemToStringLabel={(value) => value?.category_name || ""}
+                  itemToStringValue={(value) => String(value?.id || "")}
+                  isItemEqualToValue={(option, value) =>
+                    String(option?.id) === String(value?.id)
+                  }
+                >
+                  <ComboboxInput
+                    id="edit-inventory-category"
+                    placeholder="Select category"
+                    aria-invalid={
+                      hasAttemptedSubmit && Boolean(errors.category)
+                    }
+                    className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] shadow-none has-aria-invalid:border-[var(--app-color-danger)]"
+                  />
+                  <ComboboxContent
+                    positionerClassName="!z-[1100]"
+                    className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+                  >
+                    <ComboboxEmpty>No category found.</ComboboxEmpty>
+                    <ComboboxList>
+                      {(currentCategory) => (
+                        <ComboboxItem
+                          key={currentCategory.id}
+                          value={currentCategory}
+                          className="min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
+                        >
+                          {currentCategory.category_name}
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+                {hasAttemptedSubmit && errors.category && (
+                  <FieldError className={errorClassName}>
+                    {errors.category}
+                  </FieldError>
+                )}
+              </Field>
+
+              <Field
+                data-invalid={hasAttemptedSubmit && Boolean(errors.unit)}
+              >
+                <FieldLabel
+                  htmlFor="edit-inventory-base-unit"
+                  className={labelClassName}
+                >
+                  Base Unit
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <Input
+                  id="edit-inventory-base-unit"
+                  value={unit}
+                  disabled
+                  title="Base unit cannot be changed after creation."
+                  className={`${controlClassName} ${disabledControlClassName}`}
+                />
+                {hasAttemptedSubmit && errors.unit && (
+                  <FieldError className={errorClassName}>
+                    {errors.unit}
+                  </FieldError>
+                )}
+              </Field>
             </div>
 
-            {/* Reorder Level */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Reorder Level *</label>
-              <input
-                type="number"
-                className={`edit-modal-input ${hasAttemptedSubmit && errors.reorderLevel ? 'is-invalid' : ''}`}
-                value={reorderLevel}
-                onChange={(e) => setReorderLevel(e.target.value)}
-                placeholder="0"
-                min="0"
+            <div className="grid grid-cols-1 items-start gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field
+                data-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
+              >
+                <FieldLabel
+                  htmlFor="edit-inventory-cost"
+                  className={labelClassName}
+                >
+                  Cost Per {unit || "Unit"}
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
+                  <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
+                    ₱
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="edit-inventory-cost"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={cost}
+                    disabled={hasBatches}
+                    onChange={(event) => handleCostChange(event.target.value)}
+                    placeholder="0.00"
+                    aria-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
+                    className={`h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] ${disabledControlClassName}`}
+                  />
+                </InputGroup>
+                {hasBatches && (
+                  <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                    Cost is calculated automatically from the item&apos;s
+                    batches.
+                  </p>
+                )}
+                {hasAttemptedSubmit && errors.cost && (
+                  <FieldError className={errorClassName}>
+                    {errors.cost}
+                  </FieldError>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="edit-inventory-supplier"
+                  className={labelClassName}
+                >
+                  Supplier Name
+                </FieldLabel>
+                <Input
+                  id="edit-inventory-supplier"
+                  value={supplier}
+                  onChange={(event) =>
+                    handleSupplierChange(event.target.value)
+                  }
+                  placeholder="Optional supplier name"
+                  className={controlClassName}
+                />
+              </Field>
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="edit-inventory-recipe-conversion"
+            className="flex flex-col gap-[var(--app-gap-related)]"
+          >
+            <div>
+              <h2
+                id="edit-inventory-recipe-conversion"
+                className="text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
+              >
+                Recipe Conversion
+              </h2>
+              <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                Add only the alternate units used when preparing menu recipes.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_var(--app-touch-target-min)] gap-[var(--app-space-2)]">
+              <ModalFieldLabel
+                htmlFor={`edit-inventory-converted-unit-${conversions[0]?.clientId || "first"}`}
+                label="Converted Unit"
+                tooltip={recipeConversionTooltip}
+                className={labelClassName}
               />
-              {hasAttemptedSubmit && errors.reorderLevel && <p className="edit-modal-error-msg">{errors.reorderLevel}</p>}
+              <span className={labelClassName}>
+                Equivalent Amount in {unit || "Base Unit"}
+              </span>
+              <span aria-hidden="true" />
             </div>
 
-            {/* Supplier */}
-            <div className="edit-modal-group">
-              <label className="edit-modal-label">Supplier</label>
-              <input
-                type="text"
-                className="edit-modal-input"
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-          </div>
-
-          <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #e9ecef' }} />
-
-          <div className="edit-modal-section">
-            <h4 style={{ fontSize: '0.95rem', color: '#2C1810', marginBottom: '1rem' }}>Recipe Conversion Units</h4>
-            
-            {conversions.length > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', marginBottom: '0.5rem', alignItems: 'end' }}>
-                <label className="edit-modal-label" style={{ marginBottom: 0 }}>Converted Unit *</label>
-                <label className="edit-modal-label" style={{ marginBottom: 0 }}>
-                  Equivalent Amount in {unit || 'base unit'} *
-                </label>
-                <div style={{ width: '32px' }}></div>
-              </div>
-            )}
-
-            {conversions.map((conv) => {
-              const eq = parseFloat(conv.equivalent);
-              const isConvUnitEmpty = conv.unit.trim() === '';
-              const isEqInvalid = isNaN(eq) || eq <= 0;
-              const hasInput = !isConvUnitEmpty || conv.equivalent !== '';
-              const showError = hasAttemptedSubmit && hasInput && (isConvUnitEmpty || isEqInvalid);
-              const showEmptyError = hasAttemptedSubmit && (isConvUnitEmpty || isEqInvalid);
+            {conversions.map((conversion, index) => {
+              const equivalent = Number(conversion.equivalent);
+              const hasUnit = Boolean(conversion.unit.trim());
+              const hasEquivalent = conversion.equivalent !== "";
+              const isBlankAddedRow =
+                index > 0 && !hasUnit && !hasEquivalent;
+              const isUnitInvalid =
+                isBlankAddedRow || (hasEquivalent && !hasUnit);
+              const isEquivalentInvalid =
+                isBlankAddedRow ||
+                (hasUnit &&
+                  (!hasEquivalent ||
+                    !Number.isFinite(equivalent) ||
+                    equivalent <= 0));
+              const numericCost = Number(cost);
+              const conversionCost =
+                Number.isFinite(numericCost) &&
+                numericCost > 0 &&
+                hasUnit &&
+                !isEquivalentInvalid
+                  ? numericCost * equivalent
+                  : null;
 
               return (
-                <div key={conv.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                  <div className="edit-modal-group" style={{ marginBottom: 0 }}>
-                    <input
-                      type="text"
-                      className={`edit-modal-input ${showEmptyError && isConvUnitEmpty ? 'is-invalid' : ''}`}
-                      placeholder="e.g. shot, tbsp"
-                      value={conv.unit}
-                      onChange={(e) => handleConversionChange(conv.id, 'unit', e.target.value)}
-                    />
-                    {showEmptyError && isConvUnitEmpty && <p className="edit-modal-error-msg">Required.</p>}
-                  </div>
-                  <div className="edit-modal-group" style={{ marginBottom: 0 }}>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      className={`edit-modal-input ${showEmptyError && isEqInvalid ? 'is-invalid' : ''}`}
-                      placeholder="Enter amount"
-                      value={conv.equivalent}
-                      onChange={(e) => handleConversionChange(conv.id, 'equivalent', e.target.value)}
-                    />
-                    {showEmptyError && isEqInvalid && <p className="edit-modal-error-msg">Must be &gt; 0.</p>}
-                  </div>
-                  <button
-                    style={{ background: 'none', border: 'none', color: '#dc3545', cursor: 'pointer', marginTop: '0', padding: '0.6rem' }}
-                    onClick={() => handleRemoveConversion(conv.id)}
-                    title="Remove"
+                <div
+                  key={conversion.clientId}
+                  className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_var(--app-touch-target-min)] items-start gap-[var(--app-space-2)]"
+                >
+                  <Field
+                    data-invalid={hasAttemptedSubmit && isUnitInvalid}
                   >
-                    <i className="bi bi-trash"></i>
-                  </button>
+                    <Input
+                      id={`edit-inventory-converted-unit-${conversion.clientId}`}
+                      aria-label={`Converted unit ${index + 1}`}
+                      value={conversion.unit}
+                      onChange={(event) =>
+                        handleConversionChange(
+                          conversion.clientId,
+                          "unit",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="e.g. shot, tbsp"
+                      aria-invalid={hasAttemptedSubmit && isUnitInvalid}
+                      className={controlClassName}
+                    />
+                    {hasAttemptedSubmit && isUnitInvalid && (
+                      <FieldError className={errorClassName}>
+                        Converted unit is required.
+                      </FieldError>
+                    )}
+                  </Field>
+
+                  <Field
+                    data-invalid={hasAttemptedSubmit && isEquivalentInvalid}
+                  >
+                    <Input
+                      id={`edit-inventory-equivalent-${conversion.clientId}`}
+                      aria-label={`Equivalent amount in ${unit || "base unit"} for converted unit ${index + 1}`}
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      value={conversion.equivalent}
+                      onChange={(event) =>
+                        handleConversionChange(
+                          conversion.clientId,
+                          "equivalent",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Enter amount"
+                      aria-invalid={
+                        hasAttemptedSubmit && isEquivalentInvalid
+                      }
+                      className={controlClassName}
+                    />
+                    {conversionCost !== null && (
+                      <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                        Estimated cost: {formatCurrency(conversionCost)} per{" "}
+                        {conversion.unit}
+                      </p>
+                    )}
+                    {hasAttemptedSubmit && isEquivalentInvalid && (
+                      <FieldError className={errorClassName}>
+                        Equivalent amount must be greater than 0.
+                      </FieldError>
+                    )}
+                  </Field>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveConversion(conversion.clientId)
+                    }
+                    className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-danger)] hover:bg-[var(--app-color-danger-surface)]"
+                    aria-label={`Remove converted unit ${index + 1}`}
+                  >
+                    <i className="bi bi-trash" aria-hidden="true" />
+                  </Button>
                 </div>
               );
             })}
 
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={handleAddConversion}
-              style={{ background: 'none', border: '1px dashed #ced4da', borderRadius: '6px', color: '#2C1810', padding: '0.5rem 1rem', cursor: 'pointer', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+              className="min-h-[var(--app-touch-target-min)] w-fit rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-brand)] hover:bg-[var(--app-color-control-hover)]"
             >
-              <i className="bi bi-plus"></i> Add conversion unit
-            </button>
-          </div>
-        </div>
+              <i className="bi bi-plus-lg" aria-hidden="true" />
+              Add Converted Unit
+            </Button>
+          </section>
 
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
+          {hasAttemptedSubmit && (!isFormValid || !conversionsValid) && (
+            <p
+              role="alert"
+              className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+            >
+              Please complete all required fields.
+            </p>
+          )}
+        </ModalContent>
+      </ModalBody>
 
-        <div className="edit-modal-footer">
-          {apiError && <p className="edit-modal-error-msg" style={{ marginRight: 'auto', marginBottom: 0 }}>{apiError}</p>}
-          <button className="edit-btn-cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            className="edit-btn-save"
-            onClick={handleSave}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting ? "Saving..." : "Save Changes"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
+};
+
+const EditItemModal = ({ isOpen, item, ...modalProps }) => {
+  if (!isOpen || !item) return null;
+
+  return <EditItemModalContent item={item} {...modalProps} />;
 };
 
 export default EditItemModal;

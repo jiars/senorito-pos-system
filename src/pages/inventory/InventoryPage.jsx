@@ -1,198 +1,311 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useInventory } from '../../hooks/useInventory';
-import { useAuth } from '../../hooks/useAuth';
-import { cleanupExpiredBatches } from '../../services/inventory/inventoryStockService';
-import { getExpiryInfo } from '../../utils/inventoryExpiryUtils';
+import { lazy, Suspense, useState } from "react";
+
+import PageLayout from "@/components/layout/PageLayout";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useInventoryManagement } from "@/hooks/useInventoryManagement";
+import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
+import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 
 // Components
-import InventoryHeader from './components/InventoryHeader';
-import InventorySummaryCards from './components/InventorySummaryCards';
-import InventoryTable from './components/InventoryTable';
+import InventoryHeader from "./components/InventoryHeader";
+import InventoryStockInsights from "./components/InventoryStockInsights";
+import InventoryStockTable from "./components/InventoryStockTable";
+import InventoryWorkspace from "./components/InventoryWorkspace";
 
 // Modals
-import AddInventoryItemModal from './modals/Add Inventory Item/AddInventoryItemModal';
-import ManageCategoriesModal from './modals/Manage Categories/ManageCategoriesModal';
-import PrintQRCodeModal from './modals/Print QR/PrintQRCodeModal';
-import ArchiveItemModal from './modals/Archive Item/ArchiveItemModal';
-import EditItemModal from './modals/Edit Item/EditItemModal';
-import BatchesModal from './modals/Batches/BatchesModal';
-import StockHistoryModal from './modals/Stock History/StockHistoryModal';
-import StockLogModal from './modals/Stock Log/StockLogModal';
+import AddInventoryItemModal from "./modals/Add Inventory Item/AddInventoryItemModal";
+import ArchiveItemModal from "./modals/Archive Item/ArchiveItemModal";
+import CorrectionModal from "./modals/Correction/CorrectionModal";
+import EditItemModal from "./modals/Edit Item/EditItemModal";
+import ManageCategoriesModal from "./modals/Manage Categories/ManageCategoriesModal";
+import PrintQRCodeModal from "./modals/Print QR/PrintQRCodeModal";
+import RestockModal from "./modals/Restock/RestockModal";
+import StockHistoryModal from "./modals/Stock History/StockHistoryModal";
+import WastageModal from "./modals/Wastage/WastageModal";
 
-import './inventory.css';
+import "./inventory.css";
+
+const InventoryBatchInsights = lazy(
+  () => import("./components/InventoryBatchInsights"),
+);
+const InventoryBatchTable = lazy(
+  () => import("./components/InventoryBatchTable"),
+);
+const InventoryWastageInsights = lazy(
+  () => import("./components/InventoryWastageInsights"),
+);
+const InventoryWastageTable = lazy(
+  () => import("./components/InventoryWastageTable"),
+);
+const InventoryPurchaseHistoryTable = lazy(
+  () => import("./components/InventoryPurchaseHistoryTable"),
+);
+const InventoryTabLoadingFallback = () => (
+  <div className="grid gap-[var(--app-gap-section)]">
+    <Skeleton className="h-36 w-full rounded-[var(--app-radius-panel-standard)]" />
+    <Skeleton className="h-80 w-full rounded-[var(--app-radius-panel-standard)]" />
+  </div>
+);
+
+const useIdSelection = () => {
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const toggleOne = (id) => {
+    setSelectedIds((currentIds) =>
+      currentIds.includes(id)
+        ? currentIds.filter((currentId) => currentId !== id)
+        : [...currentIds, id],
+    );
+  };
+
+  const toggleVisible = (visibleIds) => {
+    const areAllVisibleSelected = visibleIds.every((id) =>
+      selectedIds.includes(id),
+    );
+
+    setSelectedIds((currentIds) =>
+      areAllVisibleSelected
+        ? currentIds.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...currentIds, ...visibleIds])],
+    );
+  };
+
+  return { selectedIds, toggleOne, toggleVisible };
+};
 
 const InventoryPage = () => {
-  const { user } = useAuth();
-  const { inventoryItems, categories, units, isLoading, refetchInventory } = useInventory();
-  const hasCleanedUp = useRef(false);
+  const refreshMenuManagement = useRefreshMenuManagement();
+  const refreshPosManagement = useRefreshPosManagement();
+  const {
+    inventoryItems,
+    categories,
+    units,
+    purchaseHistory,
+    isLoading,
+    error,
+    refetchInventoryManagement,
+  } = useInventoryManagement();
 
-  // Auto-cleanup expired batches on mount
-  useEffect(() => {
-    const runCleanup = async () => {
-      if (user?.id && !hasCleanedUp.current) {
-        hasCleanedUp.current = true;
-        const cleanedCount = await cleanupExpiredBatches(user.id);
-        if (cleanedCount > 0) {
-          refetchInventory(); // Reload data if any batches were zeroed out
-        }
-      }
-    };
-    runCleanup();
-  }, [user?.id, refetchInventory]);
+  const itemSelection = useIdSelection();
+  const batchSelection = useIdSelection();
+  const [stockStatusFilters, setStockStatusFilters] = useState([]);
+  const [batchStatusFilters, setBatchStatusFilters] = useState([]);
+  const [wastageQuickFilter, setWastageQuickFilter] = useState(null);
+  const [modal, setModal] = useState({ type: null, item: null });
+  const closeModal = () => setModal({ type: null, item: null });
+  const openItemModal = (type, item = null) => setModal({ type, item });
 
-  // Selected Items State
-  const [selectedItems, setSelectedItems] = useState([]);
-
-  // Modal States
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
-  const [isPrintQRModalOpen, setIsPrintQRModalOpen] = useState(false);
-  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [selectedArchiveItem, setSelectedArchiveItem] = useState(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedEditItem, setSelectedEditItem] = useState(null);
-  const [isBatchesModalOpen, setIsBatchesModalOpen] = useState(false);
-  const [selectedBatchesItem, setSelectedBatchesItem] = useState(null);
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-  const [selectedLogItem, setSelectedLogItem] = useState(null);
-
-  const navigate = useNavigate();
-
-  // Dynamic Computations
-  const totalItemsCount = inventoryItems.length;
-  const inStockCount = inventoryItems.filter(item => item.current_stock > item.minimum_level).length;
-  const lowStockCount = inventoryItems.filter(item => item.current_stock > 0 && item.current_stock <= item.minimum_level).length;
-  const outOfStockCount = inventoryItems.filter(item => item.current_stock === 0).length;
-
-  const expiringSoonCount = inventoryItems.filter(item => getExpiryInfo(item).status === 'Expiring Soon').length;
-  const expiredCount = inventoryItems.filter(item => getExpiryInfo(item).status === 'Expired').length;
-
-  // Toggle Handlers
-  const toggleSelectAll = () => {
-    if (selectedItems.length === inventoryItems.length) setSelectedItems([]);
-    else setSelectedItems(inventoryItems.map(item => item.id));
+  const openStockPrintQr = () => {
+    setModal({
+      type: "print-qr",
+      itemIds: itemSelection.selectedIds,
+      batchIds: [],
+      selectItemsByDefault: true,
+    });
   };
 
-  const toggleItem = (id) => {
-    if (selectedItems.includes(id)) setSelectedItems(selectedItems.filter(itemId => itemId !== id));
-    else setSelectedItems([...selectedItems, id]);
+  const openBatchPrintQr = () => {
+    const ownerItemIds = inventoryItems
+      .filter((item) =>
+        (item.inventory_batches ?? []).some((batch) =>
+          batchSelection.selectedIds.includes(batch.id),
+        ),
+      )
+      .map((item) => item.id);
+
+    setModal({
+      type: "print-qr",
+      itemIds: ownerItemIds,
+      batchIds: batchSelection.selectedIds,
+      selectItemsByDefault: false,
+    });
   };
+
+  const pageActions = (
+    <InventoryHeader
+      onOpenManageCategories={() => openItemModal("manage-categories")}
+      onOpenAddItem={() => openItemModal("add-item")}
+    />
+  );
 
   return (
-    <div className="inventory-page">
-      <InventoryHeader
-        setIsPrintQRModalOpen={setIsPrintQRModalOpen}
-        setIsArchiveModalOpen={setIsArchiveModalOpen}
-        setIsManageCategoriesOpen={setIsManageCategoriesOpen}
-        setIsAddModalOpen={setIsAddModalOpen}
-        selectedItemsCount={selectedItems.length}
-      />
+    <PageLayout
+      title="Inventory"
+      subtitle="Manage and monitor your products, ingredients, and packaging materials."
+      actions={pageActions}
+      className="inventory-page-shell flex flex-col gap-[var(--app-gap-section)]"
+    >
+      <div className="inventory-page-layout inventory-page">
+        <InventoryWorkspace
+          stockOverviewContent={
+            <div className="inventory-stock-overview-layout">
+              <InventoryStockInsights
+                inventoryItems={inventoryItems}
+                isLoading={isLoading}
+                selectedStatuses={stockStatusFilters}
+                onSelectedStatusesChange={setStockStatusFilters}
+                onOpenRestock={() => openItemModal("restock")}
+                onOpenWastage={() => openItemModal("wastage")}
+                onOpenCorrection={() => openItemModal("correction")}
+              />
 
-      <InventorySummaryCards
-        totalItemsCount={totalItemsCount}
-        inStockCount={inStockCount}
-        lowStockCount={lowStockCount}
-        outOfStockCount={outOfStockCount}
-        expiringSoonCount={expiringSoonCount}
-        expiredCount={expiredCount}
-      />
+              <InventoryStockTable
+                inventoryItems={inventoryItems}
+                categories={categories}
+                isLoading={isLoading}
+                error={error}
+                selectedStatuses={stockStatusFilters}
+                onSelectedStatusesChange={setStockStatusFilters}
+                selectedItems={itemSelection.selectedIds}
+                toggleVisibleItems={itemSelection.toggleVisible}
+                toggleItem={itemSelection.toggleOne}
+                onPrintQRCode={openStockPrintQr}
+                onOpenRestock={(item) => openItemModal("restock", item)}
+                onOpenWastage={(item) => openItemModal("wastage", item)}
+                onOpenCorrection={(item) =>
+                  openItemModal("correction", item)
+                }
+                onOpenHistory={(item) => openItemModal("history", item)}
+                onOpenEdit={(item) => openItemModal("edit-item", item)}
+                onOpenArchive={(item) => openItemModal("archive-item", item)}
+              />
+            </div>
+          }
+          batchesContent={
+            <Suspense fallback={<InventoryTabLoadingFallback />}>
+              <div className="inventory-batches-layout">
+                <InventoryBatchInsights
+                  inventoryItems={inventoryItems}
+                  isLoading={isLoading}
+                  selectedStatuses={batchStatusFilters}
+                  onSelectedStatusesChange={setBatchStatusFilters}
+                />
 
-      <InventoryTable
-        inventoryItems={inventoryItems}
-        categories={categories}
-        isLoading={isLoading}
-        selectedItems={selectedItems}
-        toggleSelectAll={toggleSelectAll}
-        toggleItem={toggleItem}
-        setSelectedLogItem={setSelectedLogItem}
-        setIsLogModalOpen={setIsLogModalOpen}
-        setSelectedBatchesItem={setSelectedBatchesItem}
-        setIsBatchesModalOpen={setIsBatchesModalOpen}
-        setSelectedHistoryItem={setSelectedHistoryItem}
-        setIsHistoryModalOpen={setIsHistoryModalOpen}
-        setSelectedEditItem={setSelectedEditItem}
-        setIsEditModalOpen={setIsEditModalOpen}
-        setSelectedArchiveItem={setSelectedArchiveItem}
-        setIsArchiveModalOpen={setIsArchiveModalOpen}
-      />
+                <InventoryBatchTable
+                  inventoryItems={inventoryItems}
+                  categories={categories}
+                  isLoading={isLoading}
+                  error={error}
+                  selectedStatuses={batchStatusFilters}
+                  onSelectedStatusesChange={setBatchStatusFilters}
+                  selectedBatchIds={batchSelection.selectedIds}
+                  onToggleVisibleBatches={batchSelection.toggleVisible}
+                  onToggleBatch={batchSelection.toggleOne}
+                  onPrintQRCode={openBatchPrintQr}
+                />
+              </div>
+            </Suspense>
+          }
+          wastageContent={
+            <Suspense fallback={<InventoryTabLoadingFallback />}>
+              <div className="inventory-wastage-layout">
+                <InventoryWastageInsights
+                  inventoryItems={inventoryItems}
+                  isLoading={isLoading}
+                  quickFilter={wastageQuickFilter}
+                  onQuickFilterChange={setWastageQuickFilter}
+                />
+
+                <InventoryWastageTable
+                  inventoryItems={inventoryItems}
+                  categories={categories}
+                  isLoading={isLoading}
+                  error={error}
+                  quickFilter={wastageQuickFilter}
+                  onQuickFilterChange={setWastageQuickFilter}
+                />
+              </div>
+            </Suspense>
+          }
+          purchaseHistoryContent={
+            <Suspense fallback={<InventoryTabLoadingFallback />}>
+              <div className="inventory-purchase-history-layout">
+                <InventoryPurchaseHistoryTable
+                  purchaseHistory={purchaseHistory}
+                  isLoading={isLoading}
+                  error={error}
+                />
+              </div>
+            </Suspense>
+          }
+        />
+      </div>
 
       {/* ───── Modals ───── */}
       <AddInventoryItemModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        existingItems={inventoryItems.map(item => item.item_name)}
+        isOpen={modal.type === "add-item"}
+        onClose={closeModal}
+        existingItems={inventoryItems.map((item) => item.item_name)}
         categories={categories}
         units={units}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <ManageCategoriesModal
-        isOpen={isManageCategoriesOpen}
-        onClose={() => setIsManageCategoriesOpen(false)}
+        isOpen={modal.type === "manage-categories"}
+        onClose={closeModal}
         categories={categories}
-        inventoryItems={inventoryItems}
-        refetchInventory={refetchInventory}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <PrintQRCodeModal
-        isOpen={isPrintQRModalOpen}
-        onClose={() => setIsPrintQRModalOpen(false)}
-        selectedItems={inventoryItems.filter(item => selectedItems.includes(item.id))}
+        isOpen={modal.type === "print-qr"}
+        onClose={closeModal}
+        selectedItems={inventoryItems.filter((item) =>
+          (modal.itemIds ?? []).includes(item.id),
+        )}
+        initialSelectedBatchIds={modal.batchIds ?? []}
+        selectItemsByDefault={modal.selectItemsByDefault ?? true}
       />
 
       <ArchiveItemModal
-        isOpen={isArchiveModalOpen}
-        onClose={() => {
-          setIsArchiveModalOpen(false);
-          setSelectedArchiveItem(null);
-        }}
-        item={selectedArchiveItem}
-        refetchInventory={refetchInventory}
+        isOpen={modal.type === "archive-item"}
+        onClose={closeModal}
+        item={modal.item}
+        refetchInventory={refetchInventoryManagement}
+        refreshMenuManagement={refreshMenuManagement}
+        refreshPosManagement={refreshPosManagement}
       />
 
       <EditItemModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedEditItem(null);
-        }}
-        item={selectedEditItem}
-        existingItems={inventoryItems.map(item => item.item_name)}
+        isOpen={modal.type === "edit-item"}
+        onClose={closeModal}
+        item={modal.item}
+        existingItems={inventoryItems.map((item) => item.item_name)}
         categories={categories}
-        refetchInventory={refetchInventory}
-      />
-
-      <BatchesModal
-        isOpen={isBatchesModalOpen}
-        onClose={() => {
-          setIsBatchesModalOpen(false);
-          setSelectedBatchesItem(null);
-        }}
-        item={selectedBatchesItem}
+        refetchInventory={refetchInventoryManagement}
       />
 
       <StockHistoryModal
-        isOpen={isHistoryModalOpen}
-        onClose={() => {
-          setIsHistoryModalOpen(false);
-          setSelectedHistoryItem(null);
-        }}
-        item={selectedHistoryItem}
+        isOpen={modal.type === "history"}
+        onClose={closeModal}
+        item={modal.item}
       />
 
-      <StockLogModal
-        isOpen={isLogModalOpen}
-        onClose={() => {
-          setIsLogModalOpen(false);
-          setSelectedLogItem(null);
-        }}
-        refetchInventory={refetchInventory}
-        item={selectedLogItem}
+      <RestockModal
+        isOpen={modal.type === "restock"}
+        onClose={closeModal}
+        refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
+        item={modal.item}
       />
-    </div>
+
+      <WastageModal
+        isOpen={modal.type === "wastage"}
+        onClose={closeModal}
+        refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
+        item={modal.item}
+      />
+
+      <CorrectionModal
+        isOpen={modal.type === "correction"}
+        onClose={closeModal}
+        refetchInventory={refetchInventoryManagement}
+        inventoryItems={inventoryItems}
+        item={modal.item}
+      />
+    </PageLayout>
   );
 };
 

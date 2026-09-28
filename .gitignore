@@ -28,8 +28,9 @@ dist-ssr
 
 # Database Backups
 *.sql
-
+.cursor/
 .agents/
 supabase/
+temporary/
 docs/
-backend/
+.intern/

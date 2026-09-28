@@ -1,179 +1,50 @@
-.employee-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+/* Employee module layout only. Component presentation stays in JSX/Tailwind. */
 
-.employee-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.employee-header-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.employee-btn-add {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #3A1A0A;
-  background-color: #3A1A0A;
-  color: #ffffff;
-  height: 38px;
-  white-space: nowrap;
-}
-
-.employee-btn-add:hover {
-  background-color: #5A2D15;
-  border-color: #5A2D15;
-}
-
-/* ─── Main Panel & Filters ─── */
-.employee-panel {
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-}
-
-.employee-filters-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  border-bottom: 1px solid #f0e0d8;
-  background-color: #faf6f3;
-  border-radius: 12px 12px 0 0;
-  flex-wrap: wrap;
-}
-
-.employee-search {
-  flex: 1;
-  position: relative;
-  min-width: 200px;
-}
-
-.employee-search i {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6c757d;
-}
-
-.employee-search input {
-  width: 100%;
-  padding: 0.625rem 1rem 0.625rem 2.5rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.employee-search input:focus {
-  outline: none;
-  border-color: #7A4B35;
-  box-shadow: 0 0 0 3px rgba(122, 75, 53, 0.1);
-}
-
-.employee-filter-select {
-  padding: 0.625rem 2.5rem 0.625rem 1rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  font-size: 0.8125rem;
-  font-family: 'Inter', sans-serif;
-  color: #2C1810;
-  background-color: #ffffff;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M2.5 4.5l3.5 3.5 3.5-3.5z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.employee-filter-select:focus {
-  outline: none;
-  border-color: #7A4B35;
-}
-
-.employee-reset-btn {
-  padding: 0.625rem 1.25rem;
-  border: 1px solid #d9c0ae;
-  border-radius: 20px;
-  background-color: #ffffff;
-  color: #2C1810;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.employee-reset-btn:hover {
-  background-color: #FFF8F3;
-  border-color: #7A4B35;
-}
-
-.employee-grid {
+.employee-page-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
-  padding: 1.5rem;
+  min-width: 0;
+  gap: var(--app-gap-section);
 }
 
-@media (max-width: 992px) {
-  .employee-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .employee-page-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .employee-header-actions {
-    justify-content: flex-start;
+.employee-table-scroll-area {
+  min-width: 0;
+}
+
+/* Tablet landscape and desktop. */
+@media (min-width: 1024px) {
+  .employee-table-scroll-area {
+    height: clamp(22rem, 58svh, 38rem);
   }
 }
 
-@media (max-width: 768px) {
-  .employee-grid {
-    grid-template-columns: 1fr;
+@media (min-width: 1440px) {
+  .employee-table-scroll-area {
+    height: clamp(24rem, 60svh, 40rem);
   }
-  
-  .employee-header-actions {
-    flex-direction: column;
-    align-items: stretch;
+}
+
+/* Tablet portrait. */
+@media (max-width: 1023px) {
+  .employee-table-scroll-area {
+    height: var(--app-panel-height-tablet-portrait);
+  }
+}
+
+/* Phone. */
+@media (max-width: 639px) {
+  .employee-page-shell {
+    --app-gap-section: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
   }
 
-  .employee-filters-bar {
-    flex-direction: column;
-    align-items: stretch;
+  .employee-table-scroll-area {
+    height: var(--app-panel-height-phone);
   }
-  
-  .employee-filter-select,
-  .employee-reset-btn {
-    width: 100%;
-  }
+}
 
-  .employee-btn-add {
-    width: 100%;
-    justify-content: center;
+/* Short landscape viewports. */
+@media (min-width: 1024px) and (max-height: 720px) {
+  .employee-table-scroll-area {
+    height: clamp(18rem, 48svh, 24rem);
   }
 }

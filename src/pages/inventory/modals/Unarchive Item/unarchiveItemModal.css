@@ -136,7 +136,7 @@
 /* ─── Premium Stat Cards ─── */
 .unarchive-stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
 }
 
@@ -225,6 +225,17 @@
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 500;
+}
+
+.unarchive-affected-pill small {
+  color: #6C757D;
+  font-size: 0.7rem;
+}
+
+.unarchive-error-msg {
+  margin: 0 auto 0 0;
+  color: #CB4B4B;
+  font-size: 0.85rem;
 }
 
 /* ─── High-Visibility Warning Box ─── */

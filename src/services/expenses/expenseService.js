@@ -1,146 +1,69 @@
-import { supabase } from '../supabaseClient';
-import { formatDecimal } from '../../utils/numberFormatters';
-import { logSystemActivity } from '../authService';
+import api from "../../utils/axios/axiosInstance";
 
-// --- EXPENSES ---
-export const fetchExpenses = async () => {
-    const { data, error } = await supabase
-        .from('expenses')
-        .select(`
-            *,
-            expense_categories (
-                category_name
-            ),
-            profiles:recorded_by (
-                first_name,
-                last_name
-            )
-        `)
-        .order('expense_date', { ascending: false })
-        .order('created_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
-    return data;
-};
-
+// Create one Expense record.
 export const addExpense = async (expenseData) => {
-    const formattedData = {
-        ...expenseData,
-        amount: formatDecimal(expenseData.amount)
-    };
+  try {
+    const response = await api.post(
+      "/expense-management/expenses",
+      expenseData,
+    );
 
-    const { data, error } = await supabase
-        .from('expenses')
-        .insert([formattedData])
-        .select()
-        .single();
+    return response.data;
+  } catch (error) {
+    console.error("Error adding expense:", error.message);
 
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return data;
+    throw new Error(error.response?.data?.message || "Failed to add expense");
+  }
 };
 
-export const updateExpense = async (id, expenseData) => {
-    const formattedData = {
-        ...expenseData,
-        amount: expenseData.amount !== undefined ? formatDecimal(expenseData.amount) : expenseData.amount
-    };
+// Update one active Expense record.
+export const updateExpense = async (expenseId, expenseData) => {
+  try {
+    const response = await api.put(
+      `/expense-management/expenses/${expenseId}/sync`,
+      expenseData,
+    );
 
-    const { data, error } = await supabase
-        .from('expenses')
-        .update(formattedData)
-        .eq('id', id)
-        .select()
-        .single();
+    return response.data;
+  } catch (error) {
+    console.error("Error updating expense:", error.message);
 
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return data;
+    throw new Error(
+      error.response?.data?.message || "Failed to update expense",
+    );
+  }
 };
 
-export const deleteExpense = async (id) => {
-    const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id);
+// Archive without deleting the financial record.
+export const archiveExpense = async (expenseId) => {
+  try {
+    const response = await api.delete(
+      `/expense-management/expenses/${expenseId}`,
+    );
 
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return true;
+    return response.data;
+  } catch (error) {
+    console.error("Error archiving expense:", error.message);
+
+    throw new Error(
+      error.response?.data?.message || "Failed to archive expense",
+    );
+  }
 };
 
-// --- EXPENSE CATEGORIES ---
-export const fetchExpenseCategories = async () => {
-    const { data, error } = await supabase
-        .from('expense_categories')
-        .select('*')
-        .order('category_name', { ascending: true });
+// Restore an archived Expense record.
+export const unarchiveExpense = async (expenseId) => {
+  try {
+    const response = await api.patch(
+      `/expense-management/expenses/${expenseId}/unarchive`,
+    );
 
-    if (error) throw new Error(error.message);
-    return data;
-};
+    return response.data;
+  } catch (error) {
+    console.error("Error restoring expense:", error.message);
 
-export const addExpenseCategory = async (category_name) => {
-    const { data, error } = await supabase
-        .from('expense_categories')
-        .insert([{ category_name }])
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return data;
-};
-
-export const updateExpenseCategory = async (id, category_name) => {
-    const { data, error } = await supabase
-        .from('expense_categories')
-        .update({ category_name })
-        .eq('id', id)
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return data;
-};
-
-export const deleteExpenseCategory = async (id) => {
-    const { error } = await supabase
-        .from('expense_categories')
-        .delete()
-        .eq('id', id);
-
-    if (error) throw new Error(error.message);
-    await logSystemActivity();
-    return true;
-};
-
-// --- WASTAGE & INVENTORY PURCHASES (For Dashboard) ---
-export const fetchWastage = async () => {
-    const { data, error } = await supabase
-        .from('wastage')
-        .select(`
-            *,
-            inventory_items ( item_name ),
-            profiles:recorded_by ( first_name, last_name )
-        `)
-        .order('created_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
-    return data;
-};
-
-export const fetchInventoryPurchases = async () => {
-    const { data, error } = await supabase
-        .from('inventory_purchase_history')
-        .select(`
-            *,
-            inventory_items ( item_name ),
-            profiles:created_by ( first_name, last_name )
-        `)
-        .order('purchased_at', { ascending: false });
-
-    if (error) throw new Error(error.message);
-    return data;
+    throw new Error(
+      error.response?.data?.message || "Failed to restore expense",
+    );
+  }
 };

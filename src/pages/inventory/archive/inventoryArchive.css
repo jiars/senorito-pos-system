@@ -1,0 +1,37 @@
+/* Inventory Archive page-level layout only. Component visuals use Tailwind. */
+.inventory-archive-page-layout,
+.inventory-archive-table-section,
+.inventory-archive-toolbar-region {
+  min-width: 0;
+}
+
+.inventory-archive-page-layout {
+  display: grid;
+  gap: var(--app-gap-section);
+}
+
+.inventory-archive-table-scroll-area {
+  max-height: min(38rem, calc(100svh - 18rem));
+}
+
+@media (max-width: 639px) {
+  .inventory-archive-page-shell {
+    --app-gap-section: var(--app-space-4);
+    --app-gap-columns: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
+  }
+
+  .inventory-archive-toolbar-region {
+    align-items: stretch;
+  }
+
+  .inventory-archive-table-scroll-area {
+    max-height: var(--app-panel-height-phone);
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .inventory-archive-table-scroll-area {
+    max-height: var(--app-panel-height-tablet-portrait);
+  }
+}

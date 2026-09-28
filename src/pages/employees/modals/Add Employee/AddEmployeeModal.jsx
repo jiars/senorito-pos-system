@@ -1,326 +1,395 @@
-import React, { useState } from 'react';
-import './addEmployeeModal.css';
-import CustomSelect from '../../../../components/ui/CustomSelect/CustomSelect';
-import { createEmployee } from '../../../../services/employees/employeeService';
+import { useState } from "react";
+
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+
+import { addEmployee } from "../../../../services/employees/employeeAccountsService";
+import { generateEmployeeUsername } from "../../../../utils/employee/employeeUsernameUtils";
 
 const ROLE_ACCESS_MAP = {
-  'Owner': "Dashboard, POS, Orders, Inventory, Inventory Valuation, Inventory Audit, Sales Report, Expenses, Menu, Employees, and Profile",
-  'Cashier': "Dashboard, POS, Order History, and Profile",
-  'Inventory Clerk': "Dashboard, Inventory Management, Inventory Valuation, Inventory Audit Log, and Profile"
+  Cashier: "Dashboard, POS, Order History, and Profile",
+  "Inventory Clerk":
+    "Dashboard, Inventory Management, Inventory Valuation, Inventory Audit Log, and Profile",
 };
 
-const AddEmployeeModal = ({ isOpen, onClose }) => {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
-    contactNumber: '',
-    email: '',
-    role: 'Cashier'
+const labelClassName =
+  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+
+const controlClassName =
+  "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] shadow-none focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
+
+const errorClassName =
+  "text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)]";
+
+const getFormErrors = (formData) => {
+  const errors = {};
+
+  if (!formData.roleId) {
+    errors.roleId = "Role is required.";
+  }
+
+  if (!formData.firstName.trim()) {
+    errors.firstName = "First Name is required.";
+  }
+
+  if (!formData.lastName.trim()) {
+    errors.lastName = "Last Name is required.";
+  }
+
+  if (!formData.email.trim()) {
+    errors.email = "Email is required.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (!formData.contactNumber.trim()) {
+    errors.contactNumber = "Contact Number is required.";
+  }
+
+  return errors;
+};
+
+const AddEmployeeModal = ({
+  onClose,
+  roles,
+  employees,
+  refetchEmployeeManagement,
+}) => {
+  const allowedRoles = roles.filter((role) => {
+    return ["Cashier", "Inventory Clerk"].includes(role.role_name);
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const defaultRoleId = allowedRoles.length > 0 ? allowedRoles[0].id : "";
+
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    contactNumber: "",
+    email: "",
+    roleId: defaultRoleId,
+  });
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const getPasswordStrength = (password) => {
-    return {
-      length: password.length >= 8,
-      lowercase: /[a-z]/.test(password),
-      uppercase: /[A-Z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    };
-  };
+  const selectedRole = allowedRoles.find((role) => {
+    return role.id === formData.roleId;
+  });
 
-  const pwdRules = getPasswordStrength(formData.password);
-  const isPasswordValid = Object.values(pwdRules).every(Boolean);
-
-  React.useEffect(() => {
-    if (isOpen) {
-      setHasAttemptedSubmit(false);
-      setErrors({});
-      setErrorMessage('');
-      setFormData({
-        firstName: '', lastName: '', username: '', password: '', confirmPassword: '', contactNumber: '', email: '', role: 'Cashier'
-      });
-    }
-  }, [isOpen]);
-
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = {};
-
-    if (!formData.firstName.trim()) newErrors.firstName = 'First Name is required.';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last Name is required.';
-    if (!formData.username.trim()) newErrors.username = 'Username is required.';
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required.';
-    } else if (!formData.email.toLowerCase().endsWith('@gmail.com')) {
-      newErrors.email = 'Must be a valid @gmail.com address.';
-    }
-
-    if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required.';
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required.';
-    } else if (!isPasswordValid) {
-      newErrors.password = 'Please meet all password requirements.';
-    }
-
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Confirm Password is required.';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match.';
-    }
-
-    setErrors(newErrors);
-  }, [formData, isOpen, isPasswordValid]);
-
+  const selectedRoleName = selectedRole ? selectedRole.role_name : "";
+  const accessDescription = ROLE_ACCESS_MAP[selectedRoleName] || "";
+  const generatedUsername = generateEmployeeUsername(
+    selectedRoleName,
+    formData.firstName,
+    formData.lastName,
+    employees,
+  );
+  const errors = getFormErrors(formData);
   const isFormValid = Object.keys(errors).length === 0;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleChange = (event) => {
+    const fieldName = event.target.name;
+    const fieldValue = event.target.value;
+    setErrorMessage("");
+
+    setFormData((current) => ({
+      ...current,
+      [fieldName]: fieldValue,
+    }));
   };
 
-  const getAccessString = (roleValue) => {
-    return ROLE_ACCESS_MAP[roleValue] || "";
+  const handleRoleChange = (role) => {
+    setErrorMessage("");
+    setFormData((current) => ({
+      ...current,
+      roleId: role?.id || "",
+    }));
   };
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true);
-    if (isSubmitting || !isFormValid) return;
 
-    setErrorMessage('');
+    if (isSubmitting || !isFormValid) {
+      return;
+    }
 
+    setErrorMessage("");
     setIsSubmitting(true);
+
     try {
-      await createEmployee({
-        roleName: formData.role,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+      await addEmployee({
+        role_id: formData.roleId,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
         email: formData.email,
-        contactNumber: formData.contactNumber,
-        username: formData.username,
-        password: formData.password
+        contact_number: formData.contactNumber,
+        username: generatedUsername,
       });
 
-      // Clear form and close on success
-      setFormData({
-        firstName: '', lastName: '', username: '', password: '', confirmPassword: '', contactNumber: '', email: '', role: 'Cashier'
-      });
-      onClose(); // In the future we will call refetch() here
-    } catch (err) {
-      setErrorMessage(err.message || "An error occurred while creating the employee.");
-    } finally {
+      await refetchEmployeeManagement();
+      onClose();
+    } catch (error) {
+      setErrorMessage(error.message);
       setIsSubmitting(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="employee-modal-overlay">
-      <div className="employee-modal-content">
-        <div className="employee-modal-header">
-          <h2>Add Employee</h2>
-          <button className="employee-modal-close" onClick={onClose}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="38rem"
+      maxHeight="min(90svh, 44rem)"
+    >
+      <ModalHeader
+        title="Add Employee"
+        description="Create an employee account and assign its system role."
+        iconClassName="bi bi-person-plus"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="employee-modal-body">
-          {/* Role Default Access Info Box at the very top */}
-          <div className="employee-role-info-box">
-            <div className="employee-role-info-title">Role Default Access</div>
-            <p className="employee-role-info-text">
-              This role will have access to <br />
-              <i>{getAccessString(formData.role)}.</i>
-            </p>
-          </div>
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
+        <ModalContent>
+          <Field data-invalid={hasAttemptedSubmit && Boolean(errors.roleId)}>
+            <FieldLabel htmlFor="add-employee-role" className={labelClassName}>
+              Role
+              <span className="text-[var(--app-color-danger)]">*</span>
+            </FieldLabel>
 
-          <div className="employee-form-group">
-            <label className="employee-form-label">Role *</label>
-            <CustomSelect
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              options={[
-                { value: 'Cashier', label: 'Cashier' },
-                { value: 'Inventory Clerk', label: 'Inventory Clerk' },
-                { value: 'Owner', label: 'Owner' }
-              ]}
-            />
-          </div>
+            <Combobox
+              items={allowedRoles}
+              value={selectedRole || null}
+              onValueChange={handleRoleChange}
+              itemToStringLabel={(role) => role?.role_name || ""}
+              itemToStringValue={(role) => String(role?.id || "")}
+              isItemEqualToValue={(option, value) =>
+                String(option?.id) === String(value?.id)
+              }
+            >
+              <ComboboxInput
+                id="add-employee-role"
+                placeholder="Select role"
+                className={controlClassName}
+                aria-invalid={hasAttemptedSubmit && Boolean(errors.roleId)}
+              />
 
-          <div className="employee-form-row-2col">
-            <div className="employee-form-group">
-              <label className="employee-form-label">First Name *</label>
-              <input
-                type="text"
+              <ComboboxContent
+                positionerClassName="!z-[1100]"
+                className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+              >
+                <ComboboxEmpty>No role found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(role) => (
+                    <ComboboxItem
+                      key={role.id}
+                      value={role}
+                      className="min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)]"
+                    >
+                      {role.role_name}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+
+            {accessDescription && (
+              <p className="text-[length:var(--app-font-size-caption)] italic leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+                Access: {accessDescription}
+              </p>
+            )}
+
+            {hasAttemptedSubmit && errors.roleId && (
+              <FieldError className={errorClassName}>
+                {errors.roleId}
+              </FieldError>
+            )}
+          </Field>
+
+          <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+            <Field
+              data-invalid={hasAttemptedSubmit && Boolean(errors.firstName)}
+            >
+              <FieldLabel
+                htmlFor="add-employee-first-name"
+                className={labelClassName}
+              >
+                First Name
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+              <Input
+                id="add-employee-first-name"
                 name="firstName"
-                className={`employee-form-input ${hasAttemptedSubmit && errors.firstName ? 'is-invalid' : ''}`}
                 value={formData.firstName}
                 onChange={handleChange}
                 placeholder="e.g. Juan"
                 autoComplete="off"
+                className={controlClassName}
+                aria-invalid={hasAttemptedSubmit && Boolean(errors.firstName)}
               />
-              {hasAttemptedSubmit && errors.firstName && <p className="employee-error-text">{errors.firstName}</p>}
-            </div>
-            
-            <div className="employee-form-group">
-              <label className="employee-form-label">Last Name *</label>
-              <input
-                type="text"
+              {hasAttemptedSubmit && errors.firstName && (
+                <FieldError className={errorClassName}>
+                  {errors.firstName}
+                </FieldError>
+              )}
+            </Field>
+
+            <Field
+              data-invalid={hasAttemptedSubmit && Boolean(errors.lastName)}
+            >
+              <FieldLabel
+                htmlFor="add-employee-last-name"
+                className={labelClassName}
+              >
+                Last Name
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+              <Input
+                id="add-employee-last-name"
                 name="lastName"
-                className={`employee-form-input ${hasAttemptedSubmit && errors.lastName ? 'is-invalid' : ''}`}
                 value={formData.lastName}
                 onChange={handleChange}
                 placeholder="e.g. Santos"
                 autoComplete="off"
+                className={controlClassName}
+                aria-invalid={hasAttemptedSubmit && Boolean(errors.lastName)}
               />
-              {hasAttemptedSubmit && errors.lastName && <p className="employee-error-text">{errors.lastName}</p>}
-            </div>
+              {hasAttemptedSubmit && errors.lastName && (
+                <FieldError className={errorClassName}>
+                  {errors.lastName}
+                </FieldError>
+              )}
+            </Field>
           </div>
 
-          <div className="employee-form-group">
-            <label className="employee-form-label">Username *</label>
-            <input
-              type="text"
-              name="username"
-              className={`employee-form-input ${hasAttemptedSubmit && errors.username ? 'is-invalid' : ''}`}
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="e.g. cashier_juan"
-              autoComplete="off"
-            />
-            {hasAttemptedSubmit && errors.username && <p className="employee-error-text">{errors.username}</p>}
+          <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+            <Field>
+              <FieldLabel
+                htmlFor="add-employee-username"
+                className={labelClassName}
+              >
+                Username
+              </FieldLabel>
+              <Input
+                id="add-employee-username"
+                value={generatedUsername}
+                disabled
+                placeholder="Generated automatically"
+                className={`${controlClassName} disabled:cursor-not-allowed disabled:bg-[var(--app-color-canvas)] disabled:text-[var(--app-color-text-muted)] disabled:opacity-100`}
+              />
+              <p className="text-[length:var(--app-font-size-caption)] italic leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+                Generated automatically from the employee role and name.
+              </p>
+            </Field>
+
+            <Field
+              data-invalid={hasAttemptedSubmit && Boolean(errors.contactNumber)}
+            >
+              <FieldLabel
+                htmlFor="add-employee-contact"
+                className={labelClassName}
+              >
+                Contact Number
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+              <Input
+                id="add-employee-contact"
+                name="contactNumber"
+                value={formData.contactNumber}
+                onChange={handleChange}
+                placeholder="e.g. 09123456789"
+                autoComplete="tel"
+                className={controlClassName}
+                aria-invalid={
+                  hasAttemptedSubmit && Boolean(errors.contactNumber)
+                }
+              />
+              {hasAttemptedSubmit && errors.contactNumber && (
+                <FieldError className={errorClassName}>
+                  {errors.contactNumber}
+                </FieldError>
+              )}
+            </Field>
           </div>
 
-          <div className="employee-form-group">
-            <label className="employee-form-label">Email *</label>
-            <input
-              type="email"
+          <Field data-invalid={hasAttemptedSubmit && Boolean(errors.email)}>
+            <FieldLabel htmlFor="add-employee-email" className={labelClassName}>
+              Email
+              <span className="text-[var(--app-color-danger)]">*</span>
+            </FieldLabel>
+            <Input
+              id="add-employee-email"
               name="email"
-              className={`employee-form-input ${hasAttemptedSubmit && errors.email ? 'is-invalid' : ''}`}
+              type="email"
               value={formData.email}
               onChange={handleChange}
               placeholder="e.g. juansantos@gmail.com"
-              autoComplete="off"
+              autoComplete="email"
+              className={controlClassName}
+              aria-invalid={hasAttemptedSubmit && Boolean(errors.email)}
             />
-            {hasAttemptedSubmit && errors.email && <p className="employee-error-text">{errors.email}</p>}
-          </div>
-
-          <div className="employee-form-group">
-            <label className="employee-form-label">Contact Number *</label>
-            <input
-              type="text"
-              name="contactNumber"
-              className={`employee-form-input ${hasAttemptedSubmit && errors.contactNumber ? 'is-invalid' : ''}`}
-              value={formData.contactNumber}
-              onChange={handleChange}
-              placeholder="e.g. 09123456789"
-              autoComplete="off"
-            />
-            {hasAttemptedSubmit && errors.contactNumber && <p className="employee-error-text">{errors.contactNumber}</p>}
-          </div>
-
-          <div className="employee-form-group">
-            <label className="employee-form-label">Password *</label>
-            <div className={`employee-password-wrapper ${hasAttemptedSubmit && errors.password ? 'is-invalid-border' : ''}`}>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                className={`employee-form-input ${hasAttemptedSubmit && errors.password ? 'is-invalid' : ''}`}
-                value={formData.password}
-                onChange={handleChange}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="employee-password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-              </button>
-            </div>
-            {hasAttemptedSubmit && errors.password && <p className="employee-error-text">{errors.password}</p>}
-            
-            {formData.password.length > 0 && (
-              <div className="employee-password-rules">
-                <div className={pwdRules.length ? 'rule-passed' : 'rule-failed'}>
-                  <i className={`bi ${pwdRules.length ? 'bi-check-circle-fill' : 'bi-x-circle'}`}></i> 8+ characters
-                </div>
-                <div className={pwdRules.uppercase ? 'rule-passed' : 'rule-failed'}>
-                  <i className={`bi ${pwdRules.uppercase ? 'bi-check-circle-fill' : 'bi-x-circle'}`}></i> Uppercase letter
-                </div>
-                <div className={pwdRules.lowercase ? 'rule-passed' : 'rule-failed'}>
-                  <i className={`bi ${pwdRules.lowercase ? 'bi-check-circle-fill' : 'bi-x-circle'}`}></i> Lowercase letter
-                </div>
-                <div className={pwdRules.number ? 'rule-passed' : 'rule-failed'}>
-                  <i className={`bi ${pwdRules.number ? 'bi-check-circle-fill' : 'bi-x-circle'}`}></i> At least 1 number
-                </div>
-                <div className={pwdRules.special ? 'rule-passed' : 'rule-failed'}>
-                  <i className={`bi ${pwdRules.special ? 'bi-check-circle-fill' : 'bi-x-circle'}`}></i> Special character
-                </div>
-              </div>
+            <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              The employee will receive a secure password setup link.
+            </p>
+            {hasAttemptedSubmit && errors.email && (
+              <FieldError className={errorClassName}>{errors.email}</FieldError>
             )}
-          </div>
-
-          <div className="employee-form-group">
-            <label className="employee-form-label">Confirm Password *</label>
-            <div className={`employee-password-wrapper ${hasAttemptedSubmit && errors.confirmPassword ? 'is-invalid-border' : ''}`}>
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                name="confirmPassword"
-                className={`employee-form-input ${hasAttemptedSubmit && errors.confirmPassword ? 'is-invalid' : ''}`}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                className="employee-password-toggle"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-              </button>
-            </div>
-            {hasAttemptedSubmit && errors.confirmPassword && <p className="employee-error-text">{errors.confirmPassword}</p>}
-          </div>
+          </Field>
 
           {errorMessage && (
-            <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
-              <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
+            <p
+              role="alert"
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
+            >
               {errorMessage}
-            </div>
+            </p>
           )}
-        </div>
 
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
+          {hasAttemptedSubmit && !isFormValid && (
+            <p
+              role="alert"
+              className="text-right text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
+            >
+              Please complete all required fields.
+            </p>
+          )}
+        </ModalContent>
+      </ModalBody>
 
-        <div className="employee-modal-footer">
-          <button className="employee-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button className="employee-modal-btn-save" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Add Employee'}
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)]"
+        >
+          Cancel
+        </Button>
+
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting ? "Creating..." : "Add Employee"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };
 

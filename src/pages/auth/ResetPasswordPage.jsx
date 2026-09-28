@@ -1,133 +1,102 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import senoritoLogo from '../../assets/images/senorito_logo.png';
-import './auth.css';
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { useResetPassword } from "@/hooks/usePasswordRecovery";
+import { isPasswordValid } from "@/utils/validation/passwordValidation";
+
+import PasswordForm from "./components/PasswordForm";
+
+import "./login.css";
 
 const ResetPasswordPage = () => {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setError('');
+  const [searchParams] = useSearchParams();
+  const resetPasswordMutation = useResetPassword();
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
+  const token = searchParams.get("token") || "";
+  const email = searchParams.get("email") || "";
+  const isLinkValid = token !== "" && email !== "";
+  const isSubmitting = resetPasswordMutation.isPending;
+
+  let displayedErrorMessage = errorMessage;
+
+  if (!isLinkValid && displayedErrorMessage === "") {
+    displayedErrorMessage =
+      "This password reset link is incomplete or invalid.";
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setErrorMessage("");
+
+    if (!isLinkValid) {
+      setErrorMessage("This password reset link is incomplete or invalid.");
+      return;
+    }
+
+    if (!isPasswordValid(newPassword)) {
+      setErrorMessage("Please meet all password requirements.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
+      setErrorMessage("Passwords do not match.");
       return;
     }
 
-    console.log('Reset password submitted:', { newPassword, confirmPassword });
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      const response = await resetPasswordMutation.mutateAsync({
+        email: email.trim().toLowerCase(),
+        token: token,
+        password: newPassword,
+        password_confirmation: confirmPassword,
+      });
+
+      // Reset requires a fresh login after Laravel revokes old tokens.
+      localStorage.removeItem("auth_token");
+      sessionStorage.setItem("password_reset_message", response.message);
+      window.location.replace("/login");
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
   };
 
   return (
-    <div className="auth-page auth-page--slid">
-      {/* ── Left: Form Panel ── */}
-      <div className="auth-panel auth-panel--form">
-        <div className="auth-form-inner">
-          <div className="auth-brand">
-            <h1 className="auth-brand__title">Señorito Café</h1>
-            <p className="auth-brand__subtitle">Point of Sale and Inventory System</p>
-          </div>
-
-          <div className="auth-card">
-            <h2 className="auth-card__heading">Reset your password</h2>
-            <p className="auth-card__description">
-              Enter your new password below. Make sure it's at least 6 characters long.
-            </p>
-
-            {error && (
-              <div className="auth-error-msg">
-                <i className="bi bi-exclamation-circle-fill"></i>
-                <span>{error}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} id="reset-form">
-              <div className="auth-field">
-                <label className="auth-field__label" htmlFor="reset-new-password">
-                  New Password
-                </label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="reset-new-password"
-                    className="auth-input auth-input--password"
-                    type={showNew ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    className="auth-toggle-pw"
-                    onClick={() => setShowNew(!showNew)}
-                    aria-label={showNew ? 'Hide password' : 'Show password'}
-                  >
-                    <i className={`bi ${showNew ? 'bi-eye' : 'bi-eye-slash'}`}></i>
-                  </button>
-                </div>
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-field__label" htmlFor="reset-confirm-password">
-                  Confirm Password
-                </label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="reset-confirm-password"
-                    className="auth-input auth-input--password"
-                    type={showConfirm ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    className="auth-toggle-pw"
-                    onClick={() => setShowConfirm(!showConfirm)}
-                    aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                  >
-                    <i className={`bi ${showConfirm ? 'bi-eye' : 'bi-eye-slash'}`}></i>
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" className="auth-submit-btn" id="reset-submit">
-                Reset Password
-              </button>
-            </form>
-
-            <div className="auth-secondary-links">
-              <Link to="/login" className="auth-link">
-                ← Back to Login
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Right: Logo Panel ── */}
-      <div className="auth-panel auth-panel--logo">
-        <div className="auth-logo-content">
-          <div className="auth-logo-circle">
-            <img
-              className="auth-logo-circle__img"
-              src={senoritoLogo}
-              alt="Señorito Café Logo"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <main className="flex min-h-svh w-full items-center justify-center bg-[var(--app-color-canvas)] p-[var(--app-space-4)]">
+      <PasswordForm
+        title="Reset Password"
+        description="Enter and confirm your new password."
+        formId="reset-form"
+        idPrefix="reset"
+        submitLabel="Reset Password"
+        submittingLabel="Resetting..."
+        newPassword={newPassword}
+        confirmPassword={confirmPassword}
+        showNewPassword={showNewPassword}
+        showConfirmPassword={showConfirmPassword}
+        errorMessage={displayedErrorMessage}
+        isLinkValid={isLinkValid}
+        isSubmitting={isSubmitting}
+        onNewPasswordChange={(event) => setNewPassword(event.target.value)}
+        onConfirmPasswordChange={(event) =>
+          setConfirmPassword(event.target.value)
+        }
+        onToggleNewPassword={() => setShowNewPassword((current) => !current)}
+        onToggleConfirmPassword={() =>
+          setShowConfirmPassword((current) => !current)
+        }
+        onSubmit={handleSubmit}
+      />
+    </main>
   );
 };
 

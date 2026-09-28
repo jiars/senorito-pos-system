@@ -1,7 +1,7 @@
 import React from 'react';
 import './confirmLogoutModal.css';
 
-const ConfirmLogoutModal = ({ isOpen, onClose, onConfirm }) => {
+const ConfirmLogoutModal = ({ isOpen, onClose, onConfirm, isLoggingOut }) => {
   if (!isOpen) return null;
 
   return (
@@ -35,9 +35,17 @@ const ConfirmLogoutModal = ({ isOpen, onClose, onConfirm }) => {
           <button className="clm-btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="clm-btn-confirm" onClick={onConfirm}>
-            <i className="bi bi-box-arrow-left"></i>
-            Logout
+          <button className="clm-btn-confirm" onClick={onConfirm} disabled={isLoggingOut}>
+            {isLoggingOut ? (
+              <>
+                <span className="pos-spinner"></span>
+              </>
+            ) : (
+              <>
+                <i className="bi bi-box-arrow-left"></i>
+                Logout
+              </>
+            )}
           </button>
         </div>
       </div>

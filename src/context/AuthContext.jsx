@@ -1,125 +1,63 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
-import { getUserProfile } from '../services/authService';
-
-export const AuthContext = createContext();
+import { useState, useEffect } from "react";
+import LoadingState from "@/components/feedback/LoadingState";
+import { AuthContext } from "./authContext";
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const checkActiveSession = async () => {
-            try {
-                // Prevent Supabase from hanging if there's no network adapter at all
-                if (!navigator.onLine) {
-                    throw new Error("Device is offline");
-                }
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
 
-                const { data, error } = await supabase.auth.getSession();
-                if (error) throw error;
-                
-                const session = data?.session;
+        if (token) {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_BASE_URL}/user`,
+            {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
 
-                if (session) {
-                    const loggedInUser = session.user;
-                    const userProfile = await getUserProfile(loggedInUser.id);
-                    
-                    if (userProfile && userProfile.status === 'Deactivated') {
-                        await supabase.auth.signOut();
-                        localStorage.removeItem('offline_user');
-                        localStorage.removeItem('offline_profile');
-                        setUser(null);
-                        setProfile(null);
-                        setLoading(false);
-                        return;
-                    }
+          if (response.ok) {
+            const userData = await response.json();
 
-                    setUser(loggedInUser);
-                    setProfile(userProfile);
-                    
-                    // -- INDUSTRY STANDARD: Cache the user for Offline Mode --
-                    localStorage.setItem('offline_user', JSON.stringify(loggedInUser));
-                    localStorage.setItem('offline_profile', JSON.stringify(userProfile));
-                } else {
-                    localStorage.removeItem('offline_user');
-                    localStorage.removeItem('offline_profile');
-                }
-            } catch (error) {
-                console.warn("Auth check failed (likely offline):", error.message);
-                // -- OFFLINE MODE: Load the cached user so POS knows who the cashier is --
-                const cachedUser = localStorage.getItem('offline_user');
-                const cachedProfile = localStorage.getItem('offline_profile');
-                if (cachedUser && cachedProfile) {
-                    console.log("Loading offline cached user...");
-                    setUser(JSON.parse(cachedUser));
-                    setProfile(JSON.parse(cachedProfile));
-                }
-            } finally {
-                setLoading(false);
+            // A valid application user must always have a known role.
+            if (userData?.role?.role_name) {
+              setUser(userData);
+            } else {
+              localStorage.removeItem("auth_token");
             }
-        };
-
-        checkActiveSession();
-
-        const listener = supabase.auth.onAuthStateChange(async (event, session) => {
-            try {
-                if (!navigator.onLine) return; // Skip online logic if offline
-
-                if (session) {
-                    const loggedInUser = session.user;
-                    const userProfile = await getUserProfile(loggedInUser.id);
-
-                    if (userProfile && userProfile.status === 'Deactivated') {
-                        await supabase.auth.signOut();
-                        setUser(null);
-                        setProfile(null);
-                        localStorage.removeItem('offline_user');
-                        localStorage.removeItem('offline_profile');
-                        return;
-                    }
-
-                    setUser(loggedInUser);
-                    setProfile(userProfile);
-                    
-                    localStorage.setItem('offline_user', JSON.stringify(loggedInUser));
-                    localStorage.setItem('offline_profile', JSON.stringify(userProfile));
-                } else {
-                    setUser(null);
-                    setProfile(null);
-                    localStorage.removeItem('offline_user');
-                    localStorage.removeItem('offline_profile');
-                }
-            } catch (error) {
-                console.warn("Auth state change failed:", error.message);
-            } finally {
-                setLoading(false);
-            }
-        });
-
-        return () => {
-            listener.data.subscription.unsubscribe();
-        };
-    }, []);
-
-    let userRole = null;
-    if (profile !== null && profile.role !== null)
-        userRole = profile.role.role_name;
-
-    const contextValue = {
-        user: user,
-        profile: profile,
-        role: userRole,
-        loading: loading
+          } else {
+            localStorage.removeItem("auth_token");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch session from Laravel:", error.message);
+      } finally {
+        setLoading(false);
+      }
     };
+    checkActiveSession();
+  }, []);
 
-    if (loading === true)
-        return <div>Loading System...</div>;
+  const userRole = user?.role?.role_name ?? null;
 
-    return (
-        <AuthContext.Provider value={contextValue}>
-            {children}
-        </AuthContext.Provider>
-    );
+  const contextValue = {
+    user,
+    // Temporary alias while older profile page components are migrated.
+    profile: user,
+    role: userRole,
+    loading,
+  };
+
+  if (loading === true) return <LoadingState message="Loading..." />;
+
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 };

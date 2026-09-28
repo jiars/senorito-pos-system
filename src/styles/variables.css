@@ -1,38 +1,38 @@
 :root {
   /* ─── Brand Colors ───────────────────────────────────────────── */
   /* Green palette — used for primary actions, chips, summary card */
-  --color-primary: #4A7A5A;          /* medium green (completed chip, icon) */
-  --color-primary-dark: #3A6049;     /* hover on green buttons */
-  --color-primary-light: #7EAD88;    /* focus rings */
-  --color-primary-card: #3A6849;     /* dark forest green — summary card bg */
+  --color-primary: #4a7a5a; /* medium green (completed chip, icon) */
+  --color-primary-dark: #3a6049; /* hover on green buttons */
+  --color-primary-light: #7ead88; /* focus rings */
+  --color-primary-card: #3a6849; /* dark forest green — summary card bg */
 
   /* Brown palette — used for "Add Item" button, Dashboard title */
-  --color-secondary: #3D1F10;        /* dark brown (Add Item button) */
-  --color-secondary-dark: #2B1509;   /* hover on dark brown buttons */
-  --color-secondary-title: #2C1810;  /* very dark brown for page title */
+  --color-secondary: #3d1f10; /* dark brown (Add Item button) */
+  --color-secondary-dark: #2b1509; /* hover on dark brown buttons */
+  --color-secondary-title: #2c1810; /* very dark brown for page title */
 
   /* ─── Status Colors ──────────────────────────────────────────── */
-  --color-success: #4A7A5A;          /* success chip / in-stock badge */
-  --color-success-dark: #2D5E3A;     /* darker success */
+  --color-success: #4a7a5a; /* success chip / in-stock badge */
+  --color-success-dark: #2d5e3a; /* darker success */
   --color-danger: #dc3545;
   --color-warning: #ffc107;
   --color-info: #0dcaf0;
 
   /* ─── Neutral / Text ─────────────────────────────────────────── */
-  --color-text-main: #1A1A1A;
-  --color-text-muted: #6B7280;
+  --color-text-main: #1a1a1a;
+  --color-text-muted: #6b7280;
   --color-text-inverse: #ffffff;
 
   /* ─── Surfaces & Borders ─────────────────────────────────────── */
-  --color-border: #E5E7EB;
-  --color-border-dark: #D1D5DB;
-  --color-bg-main: #F5F5F5;
+  --color-border: #e5e7eb;
+  --color-border-dark: #d1d5db;
+  --color-bg-main: #f5f5f7;
   --color-bg-card: #ffffff;
-  --color-bg-hover: #F3F4F6;
-  --color-bg-muted: #F9FAFB;
+  --color-bg-hover: #f3f4f6;
+  --color-bg-muted: #f9fafb;
 
   /* ─── Typography ─────────────────────────────────────────────── */
-  --font-family-base: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-family-base: var(--app-font-family);
 
   /* ─── Border Radius ──────────────────────────────────────────── */
   --radius-sm: 4px;
@@ -42,21 +42,23 @@
   --radius-pill: 9999px;
 
   /* ─── Spacing ────────────────────────────────────────────────── */
-  --space-xs: 0.25rem;   /*  4px */
-  --space-sm: 0.5rem;    /*  8px */
-  --space-md: 1rem;      /* 16px */
-  --space-lg: 1.5rem;    /* 24px */
-  --space-xl: 2rem;      /* 32px */
-  --space-2xl: 3rem;     /* 48px */
+  --space-xs: 0.25rem; /*  4px */
+  --space-sm: 0.5rem; /*  8px */
+  --space-md: 1rem; /* 16px */
+  --space-lg: 1.5rem; /* 24px */
+  --space-xl: 2rem; /* 32px */
+  --space-2xl: 3rem; /* 48px */
 
   /* ─── Control Heights (unified across buttons, dropdowns, inputs) ── */
-  --ctrl-height-sm: 30px;   /* compact / pagination controls  */
-  --ctrl-height-md: 36px;   /* standard row controls          */
-  --ctrl-height-lg: 42px;   /* prominent / primary CTA        */
+  --ctrl-height-sm: 30px; /* compact / pagination controls  */
+  --ctrl-height-md: 36px; /* standard row controls          */
+  --ctrl-height-lg: 42px; /* prominent / primary CTA        */
 
   /* ─── Shadows ────────────────────────────────────────────────── */
-  --shadow-sm:   0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md:   0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
-  --shadow-lg:   0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
-  --shadow-card: 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.1);
 }

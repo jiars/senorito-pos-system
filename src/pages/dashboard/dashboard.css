@@ -1,823 +1,95 @@
-/* ─── Page Container ─── */
-.dashboard-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+/* Dashboard-only outer arrangement. Component presentation stays in Tailwind. */
 
-/* ═══════════════════════════════════════════════════
-   Shared Panel Styles
-═══════════════════════════════════════════════════ */
-.dashboard-panel {
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-}
-
-.dashboard-panel-header {
-  display: flex;
-  align-items: center;
-  padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid #f0e0d8;
-}
-
-.dashboard-panel-header--danger {
-  background-color: #C62828;
-  border-bottom: none;
-}
-
-.dashboard-panel-header--danger .dashboard-panel-title {
-  color: #ffffff;
-}
-
-.dashboard-panel-header--accent {
-  background-color: #5A2D15;
-  border-bottom: none;
-}
-
-.dashboard-panel-header--accent .dashboard-panel-title {
-  color: #ffffff;
-}
-
-.dashboard-panel-title {
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-
-.dashboard-top-grid {
+.dashboard-overview-layout {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  grid-template-rows: auto 1fr;
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+  grid-template-areas:
+    "primary secondary"
+    "top-selling top-selling"
+    "recent-orders recent-orders";
   align-items: stretch;
-  height: 40rem;
+  column-gap: var(--app-gap-section);
+  row-gap: var(--app-gap-section);
 }
 
-/* Summary cards */
-.dashboard-summary-cards {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-/* Near Expiry */
-.dashboard-expiry-panel {
-  grid-column: 2 / 3;
-  grid-row: 1 / 3;
+.dashboard-overview-primary {
+  grid-area: primary;
   display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* Low Stock */
-.dashboard-lowstock-panel {
-  grid-column: 1 / 2;
-  grid-row: 2 / 3;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* ─── Summary Card Styles ─── */
-.dashboard-summary-card {
-  border-radius: 12px;
-  padding: 1.125rem;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
+  height: clamp(36.25rem, 74svh, 38.5rem);
+  max-height: none;
   min-width: 0;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.dashboard-summary-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-.dashboard-summary-card--green {
-  background: linear-gradient(135deg, #2E7D32, #4A7A5A);
-}
-
-.dashboard-summary-card--yellow {
-  background: linear-gradient(135deg, #E6A817, #F9A825);
-}
-
-.dashboard-summary-card--red {
-  background: linear-gradient(135deg, #C62828, #dc3545);
-}
-
-.dashboard-summary-card-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.125rem;
-}
-
-.dashboard-summary-card-value {
-  font-size: 1.375rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.dashboard-summary-card-label {
-  font-size: 0.7rem;
-  margin: 0;
-  opacity: 0.9;
-  font-weight: 500;
-}
-
-/* ─── Expiry Panel Content ─── */
-.dashboard-expiry-chips {
-  display: flex;
-  gap: 0.75rem;
-  padding: 1.25rem 1.25rem 0.75rem;
-}
-
-.dashboard-expiry-list {
-  padding: 0 1.25rem 1.25rem;
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
   min-height: 0;
-}
-
-.dashboard-expiry-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.dashboard-expiry-list::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.dashboard-expiry-list::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.dashboard-expiry-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background-color: #FFF8F3;
-  border-radius: 8px;
-  border: 1px solid #f0e0d8;
-  gap: 1rem;
-}
-
-.dashboard-expiry-item-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0;
-}
-
-.dashboard-expiry-item-meta {
-  font-size: 0.7rem;
-  color: #6c757d;
-  margin: 0.125rem 0 0 0;
-}
-
-/* ═══════════════════════════════════════════════════
-   Shared Chip Styles
-═══════════════════════════════════════════════════ */
-.dashboard-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.dashboard-chip--expired {
-  background-color: #dc3545;
-  color: #ffffff;
-}
-
-.dashboard-chip--expiring {
-  background-color: #F9A825;
-  color: #ffffff;
-}
-
-.dashboard-chip--completed {
-  background-color: #E8F5E9;
-  color: #2E7D32;
-}
-
-/* ═══════════════════════════════════════════════════
-   Low Stock Alert Panel Content
-═══════════════════════════════════════════════════ */
-.dashboard-lowstock-list {
-  padding: 1.25rem;
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--app-gap-section);
+}
+
+.dashboard-overview-secondary {
+  grid-area: secondary;
+  display: grid;
+  height: clamp(36.25rem, 74svh, 38.5rem);
+  max-height: none;
+  min-width: 0;
   min-height: 0;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--app-gap-section);
 }
 
-.dashboard-lowstock-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.dashboard-lowstock-list::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.dashboard-lowstock-list::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.dashboard-lowstock-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  gap: 0.5rem 1rem;
-  padding: 0.875rem 1rem;
-  background-color: #FFF8F3;
-  border-radius: 8px;
-  border: 1px solid #f0e0d8;
-}
-
-.dashboard-lowstock-item-info {
-  grid-column: 1 / 2;
-  grid-row: 1 / 2;
-}
-
-.dashboard-lowstock-item-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0;
-}
-
-.dashboard-lowstock-item-min {
-  font-size: 0.7rem;
-  color: #6c757d;
-  margin: 0.125rem 0 0 0;
-}
-
-.dashboard-lowstock-item-right {
-  grid-column: 2 / 3;
-  grid-row: 1 / 2;
-  display: flex;
-  align-items: center;
-}
-
-.dashboard-lowstock-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.dashboard-lowstock-badge--critical {
-  background-color: #dc3545;
-  color: #ffffff;
-}
-
-.dashboard-lowstock-badge--warning {
-  background-color: #F9A825;
-  color: #ffffff;
-}
-
-.dashboard-lowstock-bar-track {
-  grid-column: 1 / -1;
-  grid-row: 2 / 3;
-  height: 5px;
-  background-color: #e9e1db;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.dashboard-lowstock-bar-fill {
-  height: 100%;
-  border-radius: 6px;
-  transition: width 0.5s ease;
-}
-
-.dashboard-lowstock-bar-fill--critical {
-  background-color: #dc3545;
-}
-
-.dashboard-lowstock-bar-fill--warning {
-  background-color: #F9A825;
-}
-
-/* ═══════════════════════════════════════════════════
-   Middle Row — Weekly Sales + Top Selling
-   Desktop: clean 2-column grid
-═══════════════════════════════════════════════════ */
-.dashboard-middle-row {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 1.5rem;
-  align-items: stretch;
-}
-
-/* ─── Weekly Sales Chart ─── */
-.dashboard-chart-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard-chart-area {
-  display: flex;
-  padding: 1.25rem;
-  gap: 0.75rem;
-  flex: 1;
-  min-height: 360px;
-}
-
-.dashboard-chart-yaxis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding-bottom: 28px;
-  min-width: 36px;
-  text-align: right;
-}
-
-.dashboard-chart-ylabel {
-  font-size: 0.7rem;
-  color: #6c757d;
-  line-height: 1;
-}
-
-.dashboard-chart-bars {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-around;
-  gap: 0.5rem;
-  border-left: 1px solid #e9e1db;
-  border-bottom: 1px solid #e9e1db;
-  padding: 0 0.5rem;
-  position: relative;
-}
-
-.dashboard-chart-bar-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  height: 100%;
-}
-
-.dashboard-chart-bar-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  width: 100%;
-}
-
-.dashboard-chart-bar {
-  width: 60%;
-  max-width: 44px;
-  background: linear-gradient(180deg, #7A4B35 0%, #d9c0ae 100%);
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  transition: height 0.5s ease, background 0.2s ease;
-  cursor: pointer;
-  min-height: 4px;
-}
-
-.dashboard-chart-bar:hover {
-  background: linear-gradient(180deg, #5A2D15 0%, #b89b82 100%);
-}
-
-.dashboard-chart-bar-tooltip {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #3A1A0A;
-  color: #ffffff;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.dashboard-chart-bar:hover .dashboard-chart-bar-tooltip {
-  opacity: 1;
-}
-
-.dashboard-chart-xlabel {
-  font-size: 0.7rem;
-  color: #6c757d;
-  margin-top: 0.5rem;
-  font-weight: 500;
-}
-
-/* ─── Top Selling Panel ─── */
-.dashboard-topselling-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard-topselling-list {
-  padding: 0.75rem 1.25rem 1.25rem;
-  max-height: 420px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.dashboard-topselling-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.dashboard-topselling-list::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.dashboard-topselling-list::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.dashboard-topselling-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background-color: #FFF8F3;
-  border-radius: 8px;
-  border: 1px solid #f0e0d8;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.dashboard-topselling-item:hover {
-  transform: translateX(3px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.dashboard-topselling-rank {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.dashboard-topselling-rank--1 {
-  background-color: #2E7D32;
-}
-
-.dashboard-topselling-rank--2 {
-  background-color: #4A7A5A;
-}
-
-.dashboard-topselling-rank--3 {
-  background-color: #F9A825;
-}
-
-.dashboard-topselling-rank--4 {
-  background-color: #E6A817;
-}
-
-.dashboard-topselling-rank--5 {
-  background-color: #7A4B35;
-}
-
-.dashboard-topselling-rank--6 {
-  background-color: #5A2D15;
-}
-
-.dashboard-topselling-item-info {
-  flex: 1;
+.dashboard-overview-top-selling {
+  grid-area: top-selling;
   min-width: 0;
 }
 
-.dashboard-topselling-category {
-  font-size: 0.625rem;
-  color: #6c757d;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-  margin: 0;
+.dashboard-overview-recent-orders {
+  grid-area: recent-orders;
+  min-width: 0;
 }
 
-.dashboard-topselling-name {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #2C1810;
-  margin: 0.125rem 0 0 0;
+/* Wide desktop: use the available application content width. */
+@media (min-width: 1440px) {
+  .dashboard-overview-primary,
+  .dashboard-overview-secondary {
+    height: clamp(36.25rem, 74svh, 40rem);
+    max-height: none;
+  }
 }
 
-.dashboard-topselling-item-stats {
-  text-align: right;
-  flex-shrink: 0;
-}
+/* Portrait tablet and mobile: stack the two dashboard columns. */
+@media (max-width: 1023px) {
+  .dashboard-overview-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "primary"
+      "secondary"
+      "top-selling"
+      "recent-orders";
+  }
 
-.dashboard-topselling-price {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: #2C1810;
-  margin: 0;
-}
-
-.dashboard-topselling-sold {
-  font-size: 0.65rem;
-  color: #6c757d;
-  margin: 0.125rem 0 0 0;
-}
-
-/* ═══════════════════════════════════════════════════
-   Recent Orders Table 
-═══════════════════════════════════════════════════ */
-
-
-.dashboard-orders-table-wrapper {
-  overflow-x: auto;
-  padding: 0 1.25rem;
-}
-
-.dashboard-orders-table-wrapper::-webkit-scrollbar {
-  height: 5px;
-}
-
-.dashboard-orders-table-wrapper::-webkit-scrollbar-track {
-  background: #f5ebe5;
-  border-radius: 10px;
-}
-
-.dashboard-orders-table-wrapper::-webkit-scrollbar-thumb {
-  background: #d9c0ae;
-  border-radius: 10px;
-}
-
-.dashboard-orders-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 640px;
-}
-
-.dashboard-orders-table thead th {
-  text-align: left;
-  padding: 0.75rem 1rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6c757d;
-  border-bottom: 2px solid #f0e0d8;
-}
-
-.dashboard-orders-table tbody td {
-  padding: 0.75rem 1rem;
-  font-size: 0.8125rem;
-  color: #2C1810;
-  border-bottom: 1px solid #f5ebe5;
-  vertical-align: middle;
-}
-
-.dashboard-orders-table tbody tr {
-  transition: background-color 0.15s ease;
-}
-
-.dashboard-orders-table tbody tr:hover {
-  background-color: #FFF8F3;
-}
-
-.dashboard-orders-orderno {
-  font-weight: 600;
-}
-
-.dashboard-orders-total {
-  font-weight: 600;
-}
-
-.dashboard-orders-date {
-  color: #6c757d;
-  font-size: 0.75rem;
-}
-
-/* ─── Pagination ─── */
-.dashboard-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.875rem 1.25rem;
-  border-top: 1px solid #f0e0d8;
-}
-
-.dashboard-pagination-info {
-  font-size: 0.75rem;
-  color: #6c757d;
-}
-
-.dashboard-pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.dashboard-pagination-btn {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #e9e1db;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #2C1810;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.dashboard-pagination-btn:hover:not(:disabled) {
-  background-color: #FFF8F3;
-  border-color: #d9c0ae;
-}
-
-.dashboard-pagination-btn--active {
-  background-color: #5A2D15;
-  color: #ffffff;
-  border-color: #5A2D15;
-}
-
-.dashboard-pagination-btn--active:hover {
-  background-color: #3A1A0A;
-  border-color: #3A1A0A;
-}
-
-.dashboard-pagination-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Tablet (≤ 1024px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 1024px) {
-  .dashboard-top-grid {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
+  .dashboard-overview-secondary {
     height: auto;
+    max-height: none;
+    grid-template-rows: repeat(
+      2,
+      minmax(0, var(--app-panel-height-tablet-portrait))
+    );
   }
 
-  .dashboard-summary-cards {
-    grid-column: 1 / 2;
-    grid-row: 1 / 2;
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .dashboard-expiry-panel {
-    grid-column: 2 / 3;
-    grid-row: 1 / 3;
-  }
-
-  .dashboard-lowstock-panel {
-    grid-column: 1 / 2;
-    grid-row: 2 / 3;
-  }
-
-  .dashboard-middle-row {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .dashboard-chart-area {
-    min-height: 240px;
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive — Small Tablet (≤ 768px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .dashboard-top-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
+  .dashboard-overview-primary {
     height: auto;
-  }
-
-  .dashboard-summary-cards {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-  }
-
-  .dashboard-expiry-panel {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
-
-  .dashboard-lowstock-panel {
-    grid-column: 1 / -1;
-    grid-row: auto;
-  }
-
-  .dashboard-middle-row {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-expiry-list {
-    max-height: 250px;
-  }
-
-  .dashboard-lowstock-list {
-    max-height: 250px;
+    max-height: none;
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Responsive — Mobile (≤ 480px)
-═══════════════════════════════════════════════════ */
-@media (max-width: 480px) {
-  .dashboard-page {
-    gap: 1rem;
+/* Phone: keep related panels compact while component content remains scrollable. */
+@media (max-width: 639px) {
+  .dashboard-overview-layout {
+    --app-padding-panel: var(--app-space-4);
+    --app-gap-section: var(--app-space-4);
+    --app-font-size-h3: 1.125rem;
+
+    gap: var(--app-gap-related);
   }
 
-  .dashboard-summary-cards {
-    grid-template-columns: 1fr;
+  .dashboard-overview-secondary {
+    grid-template-rows: repeat(2, minmax(0, var(--app-panel-height-phone)));
   }
-
-  .dashboard-summary-card {
-    padding: 1rem;
-  }
-
-  .dashboard-summary-card-value {
-    font-size: 1.125rem;
-  }
-
-  .dashboard-chart-area {
-    min-height: 200px;
-    padding: 1rem;
-  }
-
-  .dashboard-chart-yaxis {
-    min-width: 28px;
-  }
-
-  .dashboard-chart-ylabel {
-    font-size: 0.6rem;
-  }
-
-  .dashboard-panel-header {
-    padding: 0.75rem 1rem;
-  }
-
-  .dashboard-lowstock-list,
-  .dashboard-expiry-list,
-  .dashboard-topselling-list {
-    padding: 0.875rem;
-  }
-
-  .dashboard-orders-table-wrapper {
-    padding: 0 0.75rem;
-  }
-
-  .dashboard-pagination {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-}
-
-.dashboard-orders-panel {
-  margin-bottom: 2rem;
 }

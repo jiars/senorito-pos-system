@@ -1,35 +1,69 @@
-import React, { useState, useEffect } from 'react';
-import './archiveItemModal.css';
-import { archiveInventoryItem } from '../../../../services/inventory/inventoryItemsService';
-import { fetchAffectedMenuItems } from '../../../../services/menu/menuRecipesService';
-import { useAuth } from '../../../../hooks/useAuth';
+import React, { useEffect, useState } from 'react';
 
-const ArchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
-  const { user } = useAuth();
+import {
+  archiveInventoryItem,
+  fetchAffectedMenuItems
+} from '../../../../services/inventory/inventoryItemsService';
+import ArchiveAffectedRecords from './components/ArchiveAffectedRecords';
+import ArchiveItemHeader from './components/ArchiveItemHeader';
+import ArchiveItemSummary from './components/ArchiveItemSummary';
+
+import './archiveItemModal.css';
+
+const emptyRecords = { menuItems: [], addons: [] };
+
+const normalizeAffectedRecords = (data) => {
+  if (Array.isArray(data)) return { menuItems: data, addons: [] };
+
+  return {
+    menuItems: data?.menuItems || data?.menu_items || [],
+    addons: data?.addons || []
+  };
+};
+
+const ArchiveItemModal = ({
+  isOpen,
+  onClose,
+  item,
+  refetchInventory,
+  refreshMenuManagement,
+  refreshPosManagement
+}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState('');
-  const [affectedMenuItems, setAffectedMenuItems] = useState([]);
+  const [records, setRecords] = useState(emptyRecords);
   const [isLoadingAffected, setIsLoadingAffected] = useState(false);
 
   useEffect(() => {
-    const loadAffectedItems = async () => {
-      if (isOpen && item) {
-        setIsLoadingAffected(true);
-        try {
-          const items = await fetchAffectedMenuItems(item.id);
-          setAffectedMenuItems(items);
-        } catch (error) {
-          console.error("Failed to load affected menu items", error);
-        } finally {
-          setIsLoadingAffected(false);
-        }
+    if (!isOpen || !item) return;
+
+    let isCurrent = true;
+    setApiError('');
+    setRecords(emptyRecords);
+    setIsLoadingAffected(true);
+
+    const loadAffectedRecords = async () => {
+      try {
+        const data = await fetchAffectedMenuItems(item.id);
+        if (isCurrent) setRecords(normalizeAffectedRecords(data));
+      } catch (error) {
+        console.error('Failed to load affected records:', error);
+      } finally {
+        if (isCurrent) setIsLoadingAffected(false);
       }
     };
-    
-    loadAffectedItems();
+
+    loadAffectedRecords();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [isOpen, item]);
 
   if (!isOpen || !item) return null;
+
+  const totalAffected =
+    records.menuItems.length + records.addons.length;
 
   const handleArchive = async () => {
     if (isSubmitting) return;
@@ -38,12 +72,17 @@ const ArchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
     setApiError('');
 
     try {
-      await archiveInventoryItem(item.id, user?.id);
+      await archiveInventoryItem(item.id);
 
-      if (refetchInventory) {
-        await refetchInventory();
+      // Refresh every page affected by the archived ingredient.
+      const refreshTasks = [];
+      if (refetchInventory) refreshTasks.push(refetchInventory());
+      if (refreshMenuManagement) {
+        refreshTasks.push(refreshMenuManagement());
       }
+      if (refreshPosManagement) refreshTasks.push(refreshPosManagement());
 
+      await Promise.all(refreshTasks);
       onClose();
     } catch (error) {
       setApiError(error.message || 'Failed to archive item.');
@@ -55,82 +94,54 @@ const ArchiveItemModal = ({ isOpen, onClose, item, refetchInventory }) => {
   return (
     <div className="archive-modal-overlay">
       <div className="archive-modal-content">
-        {/* Header */}
-        <div className="archive-modal-header">
-          <div className="archive-header-icon">
-            <i className="bi bi-archive-fill"></i>
-          </div>
-          <h3>Archive Item</h3>
-          <span className="archive-modal-subtitle">{item.item_name}</span>
-          <button className="archive-modal-close" onClick={onClose} aria-label="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+        <ArchiveItemHeader
+          itemName={item.item_name}
+          onClose={onClose}
+          isSubmitting={isSubmitting}
+        />
 
-        {/* Body */}
         <div className="archive-modal-body">
-
-          {/* Stat Cards */}
-          <div className="archive-stats-grid">
-            <div className="archive-stat-card">
-              <div className="archive-stat-icon">
-                <i className="bi bi-box-seam"></i>
-              </div>
-              <div className="archive-stat-details">
-                <span className="archive-stat-label">Current Stock</span>
-                <span className="archive-stat-value">{item.current_stock || 0} {item.base_unit}</span>
-              </div>
-            </div>
-            <div className="archive-stat-card">
-              <div className="archive-stat-icon archive-stat-icon--alt">
-                <i className="bi bi-diagram-3"></i>
-              </div>
-              <div className="archive-stat-details">
-                <span className="archive-stat-label">Used In</span>
-                <span className="archive-stat-value">{affectedMenuItems.length} recipes</span>
-              </div>
-            </div>
-          </div>
+          <ArchiveItemSummary
+            item={item}
+            totalAffected={totalAffected}
+          />
 
           <hr className="archive-divider" />
 
-          {/* Affected Items List */}
-          <div className="archive-affected-section">
-            <h4>Affected Menu Items</h4>
-            <div className="archive-affected-list">
-              {isLoadingAffected ? (
-                <div style={{ fontSize: '0.85rem', color: '#666' }}>Loading affected items...</div>
-              ) : affectedMenuItems.length > 0 ? (
-                affectedMenuItems.map((menuItem, idx) => (
-                  <div key={idx} className="archive-affected-pill">
-                    <span>{menuItem}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: '0.85rem', color: '#666' }}>No menu items currently use this ingredient.</div>
-              )}
-            </div>
-          </div>
+          <ArchiveAffectedRecords
+            records={records}
+            isLoading={isLoadingAffected}
+          />
 
-          {/* Warning Box */}
-          {affectedMenuItems.length > 0 && (
+          {totalAffected > 0 && (
             <div className="archive-warning-box">
-              <i className="bi bi-exclamation-triangle-fill archive-warning-icon"></i>
+              <i className="bi bi-exclamation-triangle-fill archive-warning-icon" />
               <p className="archive-warning-text">
-                <strong>Warning:</strong> This item is actively used in {affectedMenuItems.length} recipe{affectedMenuItems.length > 1 ? 's' : ''}. Archiving it may immediately disable the related menu items in the POS until updated.
+                <strong>Warning:</strong> This ingredient is used by{' '}
+                {totalAffected} Menu Item or Add-on recipe
+                {totalAffected > 1 ? 's' : ''}. Review them after archiving.
               </p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="archive-modal-footer">
-          {apiError && <p className="archive-error-msg" style={{ color: 'red', marginRight: 'auto', marginBottom: 0, fontSize: '0.85rem' }}>{apiError}</p>}
-          <button className="archive-btn-cancel" onClick={onClose} disabled={isSubmitting}>
+          {apiError && <p className="archive-error-msg">{apiError}</p>}
+          <button
+            type="button"
+            className="archive-btn-cancel"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
-          <button className="archive-btn-confirm" onClick={handleArchive} disabled={isSubmitting}>
-            <i className="bi bi-archive"></i>
+          <button
+            type="button"
+            className="archive-btn-confirm"
+            onClick={handleArchive}
+            disabled={isSubmitting}
+          >
+            <i className="bi bi-archive" />
             {isSubmitting ? 'Archiving...' : 'Archive Anyway'}
           </button>
         </div>

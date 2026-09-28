@@ -51,7 +51,7 @@ const ConfirmDeleteMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               </div>
               <div className="cdm-stat-details">
                 <span className="cdm-stat-label">Category</span>
-                <span className="cdm-stat-value">{item.category?.category_name || 'N/A'}</span>
+                <span className="cdm-stat-value">{item.menu_categories?.category_name || 'N/A'}</span>
               </div>
             </div>
             <div className="cdm-stat-card">
@@ -61,8 +61,8 @@ const ConfirmDeleteMenuItemModal = ({ isOpen, onClose, item, refetchMenu }) => {
               <div className="cdm-stat-details">
                 <span className="cdm-stat-label">Price</span>
                 <span className="cdm-stat-value">
-                  {item.prices && item.prices.length > 0
-                    ? formatCurrency(item.prices[0].selling_price)
+                  {item.menu_prices && item.menu_prices.length > 0
+                    ? formatCurrency(item.menu_prices[0].selling_price)
                     : 'N/A'}
                 </span>
               </div>

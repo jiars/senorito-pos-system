@@ -1,19 +1,18 @@
-/* responsive.css */
+/**
+ * Senorito responsive-layout reference.
+ *
+ * Breakpoint basis:
+ * - Desktop: 1440px and above — use the available content width beside Sidebar.
+ * - Tablet landscape: 1024px to 1439px — retain split dashboard columns.
+ * - Tablet portrait: 640px to 1023px — stack major columns; dense panels stay capped.
+ * - Phone: below 640px — stack content, tighten local spacing, preserve readable type.
+ * - Short viewports: use svh-based clamps so panels scroll internally instead of growing forever.
+ *
+ * Module CSS owns its grid and breakpoint layout. JSX/Tailwind owns local component density.
+ * Do not globally shrink typography at these breakpoints.
+ */
 
-/* Tablet breakpoint */
-@media (max-width: 768px) {
-  :root {
-    --space-2xl: 2rem;
-    --space-xl: 1.5rem;
-    --space-lg: 1rem;
-  }
-}
-
-/* Mobile breakpoint */
-@media (max-width: 576px) {
-  :root {
-    --space-2xl: 1.5rem;
-    --space-xl: 1rem;
-    --space-lg: 0.75rem;
-  }
+:root {
+  --app-panel-height-tablet-portrait: clamp(18rem, 36svh, 22rem);
+  --app-panel-height-phone: clamp(18rem, 40svh, 22rem);
 }

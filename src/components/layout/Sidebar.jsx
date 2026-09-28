@@ -1,20 +1,25 @@
-import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
 
-import { formatRoleKey } from '../../utils/stringFormatters';
+import { formatRoleKey } from "../../utils/stringFormatters";
 
-import senoritoLogo from '../../assets/images/senorito_logo.png';
-import ConfirmLogoutModal from './modals/Confirm Logout/ConfirmLogoutModal';
+import sidebarLogo from "../../assets/images/white - senorito.png";
 
-import { useAuth } from '../../hooks/useAuth';
-import { ROLE_ROUTES } from '../../routes/roleRoutes';
+import ConfirmLogoutModal from "./modals/Confirm Logout/ConfirmLogoutModal";
 
-import './layout.css';
+import { useAuth } from "../../hooks/useAuth";
+
+import { ROLE_ROUTES } from "../../routes/roleRoutes";
+import {
+  APP_ROUTE_METADATA,
+  SIDEBAR_GROUP_ORDER,
+} from "../../routes/routeMetadata";
+
+import "./sidebar.css";
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const navigate = useNavigate();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { logout, role } = useAuth();
 
   const handleLogoutClick = () => {
@@ -22,61 +27,68 @@ const Sidebar = ({ isOpen, onClose }) => {
   };
 
   const confirmLogout = async () => {
-    try {
-      await logout();
-
-      setIsLogoutModalOpen(false);
-
-      navigate('/login');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
+    setIsLoggingOut(true);
+    await logout();
+    window.location.href = "/login";
   };
-
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: 'bi-grid-1x2-fill' },
-    { name: 'Point of Sale', path: '/pos', icon: 'bi-calculator' },
-    { name: 'Order History', path: '/orders', icon: 'bi-clock-history' },
-    { name: 'Inventory Management', path: '/inventory', icon: 'bi-box-seam' },
-    { name: 'Inventory Valuation', path: '/inventory/valuation', icon: 'bi-clipboard-data' },
-    { name: 'Inventory Audit Log', path: '/inventory/audit', icon: 'bi-journal-check' },
-    { name: 'Sales Report', path: '/reports/sales', icon: 'bi-graph-up-arrow' },
-    { name: 'Expense Tracking', path: '/expenses', icon: 'bi-wallet2' },
-    { name: 'Menu Management', path: '/menu', icon: 'bi-journal-richtext' },
-    { name: 'Employee Management', path: '/employees', icon: 'bi-people' },
-  ];
 
   let userRoleKey = formatRoleKey(role);
 
   const allowedRoutes = ROLE_ROUTES[userRoleKey];
 
-  const visibleNavItems = navItems.filter((item) => allowedRoutes.includes(item.path));
+  const visibleNavItems = APP_ROUTE_METADATA.filter((item) => {
+    return item.showInSidebar === true && allowedRoutes.includes(item.path);
+  });
+
+  const visibleNavGroups = SIDEBAR_GROUP_ORDER.map((groupName) => {
+    const groupItems = visibleNavItems.filter((item) => {
+      return item.group === groupName;
+    });
+
+    return {
+      name: groupName,
+      items: groupItems,
+    };
+  }).filter((group) => {
+    return group.items.length > 0;
+  });
 
   return (
     <>
-      <aside className={`layout-sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`layout-sidebar ${isOpen ? "open" : ""}`}>
         <div className="layout-sidebar-header">
-
           <div className="layout-sidebar-brand">
-            <h2>Señorito Café</h2>
+            <img
+              className="layout-sidebar-logo"
+              src={sidebarLogo}
+              alt="Senorito Cafe"
+            />
             <p>POS & Inventory</p>
           </div>
         </div>
 
         <nav className="layout-sidebar-nav">
-          {visibleNavItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end
-              onClick={onClose}
-              className={({ isActive }) =>
-                `layout-sidebar-nav-item ${isActive ? 'active' : ''}`
-              }
-            >
-              <i className={`bi ${item.icon}`}></i>
-              {item.name}
-            </NavLink>
+          {visibleNavGroups.map((group) => (
+            <div className="layout-sidebar-nav-group" key={group.name}>
+              {group.name !== "Overview" && (
+                <p className="layout-sidebar-nav-group-label">{group.name}</p>
+              )}
+
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `layout-sidebar-nav-item ${isActive ? "active" : ""}`
+                  }
+                >
+                  <i className={`bi ${item.icon}`}></i>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -92,6 +104,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={confirmLogout}
+        isLoggingOut={isLoggingOut}
       />
     </>
   );

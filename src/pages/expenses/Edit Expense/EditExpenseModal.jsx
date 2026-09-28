@@ -1,68 +1,107 @@
-import React, { useState, useEffect, useRef } from 'react';
-import './editExpenseModal.css';
-import { updateExpense } from '../../../services/expenses/expenseService';
+import { useMemo, useState } from "react";
 
-const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch }) => {
-  const [formData, setFormData] = useState({
-    category_id: '',
-    expense_date: '',
-    description: '',
-    amount: '',
-    vendor: '',
-    payment_method: '',
-    receipt_reference: ''
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import DatePicker from "@/components/ui/date-picker";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { updateExpense } from "@/services/expenses/expenseService";
+import { validateExpenseForm } from "@/utils/validation/expenses/expenseValidation";
+
+const vendorCategoryNames = new Set([
+  "cleaning supplies",
+  "equipment",
+  "utilities",
+  "maintenance",
+]);
+
+const paymentMethods = ["Cash", "GCash", "Bank Transfer", "Credit Card"];
+
+const labelClassName =
+  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+const controlClassName =
+  "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
+
+const normalizeDateValue = (value) => {
+  const dateValue = String(value || "");
+  const dateMatch = dateValue.match(/^\d{4}-\d{2}-\d{2}/);
+  return dateMatch ? dateMatch[0] : "";
+};
+
+const createExpenseForm = (expenseData) => ({
+  category_id: expenseData.category_id || "",
+  expense_date: normalizeDateValue(expenseData.expense_date),
+  description: expenseData.description || "",
+  amount: expenseData.amount || "",
+  vendor: expenseData.vendor || "",
+  payment_method: expenseData.payment_method || "",
+  receipt_reference: expenseData.receipt_reference || "",
+});
+
+const EditExpenseModalContent = ({
+  onClose,
+  expenseData,
+  categories,
+  refetch,
+}) => {
+  const [formData, setFormData] = useState(() => {
+    return createExpenseForm(expenseData);
   });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState("");
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && expenseData) {
-      setFormData({
-        category_id: expenseData.category_id || '',
-        expense_date: expenseData.expense_date || '',
-        description: expenseData.description || '',
-        amount: expenseData.amount || '',
-        vendor: expenseData.vendor || '',
-        payment_method: expenseData.payment_method || '',
-        receipt_reference: expenseData.receipt_reference || ''
-      });
-      setError(null);
-      setErrors({});
-      setHasAttemptedSubmit(false);
-    }
-  }, [isOpen, expenseData]);
+  const selectedCategory = categories.find((category) => {
+    return String(category.id) === String(formData.category_id);
+  });
+  const normalizedCategoryName = selectedCategory
+    ? selectedCategory.category_name.trim().toLowerCase()
+    : "";
+  const showVendor =
+    vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = {};
-
-    if (!formData.category_id) newErrors.category_id = 'Category is required.';
-    if (!formData.expense_date) newErrors.expense_date = 'Date is required.';
-    if (!formData.description.trim()) newErrors.description = 'Description is required.';
-    
-    if (!formData.amount) {
-      newErrors.amount = 'Amount is required.';
-    } else if (Number(formData.amount) <= 0) {
-      newErrors.amount = 'Amount must be > 0.';
-    }
-
-    if (!formData.payment_method) {
-      newErrors.payment_method = 'Payment method is required.';
-    }
-
-    setErrors(newErrors);
-  }, [formData, isOpen]);
-
+  const errors = useMemo(() => {
+    return validateExpenseForm(formData);
+  }, [formData]);
   const isFormValid = Object.keys(errors).length === 0;
 
-  if (!isOpen) return null;
+  const errorFor = (fieldName) => {
+    if (!hasAttemptedSubmit) return "";
+    return errors[fieldName] || "";
+  };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const updateField = (fieldName, value) => {
+    setFormData((currentForm) => ({
+      ...currentForm,
+      [fieldName]: value,
+    }));
+  };
+
+  const handleCategoryChange = (category) => {
+    updateField("category_id", category?.id || "");
   };
 
   const handleSubmit = async () => {
@@ -70,165 +109,331 @@ const EditExpenseModal = ({ isOpen, onClose, expenseData, categories, refetch })
     if (!isFormValid || isSubmitting) return;
 
     try {
-      setError(null);
       setIsSubmitting(true);
+      setApiError("");
 
       await updateExpense(expenseData.id, {
         category_id: formData.category_id,
-        description: formData.description,
+        expense_date: formData.expense_date,
+        description: formData.description.trim(),
         amount: Number(formData.amount),
-        vendor: formData.vendor || null,
+        vendor: formData.vendor.trim() || null,
         payment_method: formData.payment_method,
-        receipt_reference: formData.receipt_reference || null,
-        expense_date: formData.expense_date
+        receipt_reference: formData.receipt_reference.trim() || null,
       });
 
       await refetch();
       onClose();
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      setApiError(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="expense-modal-overlay">
-      <div className="expense-modal-content">
-        <div className="expense-modal-header">
-          <h3>Edit Expense</h3>
-          <button className="expense-modal-close" onClick={onClose} title="Close" disabled={isSubmitting}>
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="32rem"
+      maxHeight="min(90svh, 48rem)"
+    >
+      <ModalHeader
+        title="Edit Expense"
+        description="Update the selected expense record."
+        iconClassName="bi bi-pencil-square"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="expense-modal-body">
-
-          <div className="expense-form-grid expense-form-grid--2">
-            <div className="expense-form-group">
-              <label className="expense-form-label">Category *</label>
-              <select
-                className={`expense-form-select ${hasAttemptedSubmit && errors.category_id ? 'is-invalid' : ''}`}
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              >
-                <option value="" disabled>Select category...</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.category_name}</option>
-                ))}
-              </select>
-              {hasAttemptedSubmit && errors.category_id && <p className="expense-modal-error-msg">{errors.category_id}</p>}
-            </div>
-            <div className="expense-form-group">
-              <label className="expense-form-label">Date *</label>
-              <input
-                type="date"
-                className={`expense-form-input ${hasAttemptedSubmit && errors.expense_date ? 'is-invalid' : ''}`}
-                name="expense_date"
-                value={formData.expense_date}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-              {hasAttemptedSubmit && errors.expense_date && <p className="expense-modal-error-msg">{errors.expense_date}</p>}
-            </div>
-          </div>
-
-          <div className="expense-form-group">
-            <label className="expense-form-label">Description *</label>
-            <input
-              type="text"
-              className={`expense-form-input ${hasAttemptedSubmit && errors.description ? 'is-invalid' : ''}`}
-              placeholder="e.g. Monthly Rent"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            />
-            {hasAttemptedSubmit && errors.description && <p className="expense-modal-error-msg">{errors.description}</p>}
-          </div>
-
-          <div className="expense-form-grid expense-form-grid--2">
-            <div className="expense-form-group">
-              <label className="expense-form-label">Amount *</label>
-              <div className="expense-amount-wrapper">
-                <span className="expense-amount-symbol">₱</span>
-                <input
-                  type="number"
-                  placeholder="0.00"
-                  step="0.01"
-                  name="amount"
-                  className={`${hasAttemptedSubmit && errors.amount ? 'is-invalid' : ''}`}
-                  value={formData.amount}
-                  onChange={handleChange}
-                  disabled={isSubmitting}
-                />
-              </div>
-              {hasAttemptedSubmit && errors.amount && <p className="expense-modal-error-msg">{errors.amount}</p>}
-            </div>
-            <div className="expense-form-group">
-              <label className="expense-form-label">Vendor/Supplier</label>
-              <input
-                type="text"
-                className="expense-form-input"
-                placeholder="Optional"
-                name="vendor"
-                value={formData.vendor}
-                onChange={handleChange}
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
-
-          <div className="expense-form-group">
-            <label className="expense-form-label">Payment Method *</label>
-            <select
-              className={`expense-form-select ${hasAttemptedSubmit && errors.payment_method ? 'is-invalid' : ''}`}
-              name="payment_method"
-              value={formData.payment_method}
-              onChange={handleChange}
-              disabled={isSubmitting}
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
+        <ModalContent>
+          {apiError && (
+            <p
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+              role="alert"
             >
-              <option value="" disabled>Select payment method...</option>
-              <option value="Cash">Cash</option>
-              <option value="GCash">GCash</option>
-              <option value="Bank Transfer">Bank Transfer</option>
-              <option value="Credit Card">Credit Card</option>
-            </select>
-            {hasAttemptedSubmit && errors.payment_method && <p className="expense-modal-error-msg">{errors.payment_method}</p>}
+              {apiError}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-[var(--app-gap-related)]">
+            <Field data-invalid={Boolean(errorFor("category_id"))}>
+              <FieldLabel className={labelClassName}>
+                Category
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+
+              <Combobox
+                items={categories}
+                value={selectedCategory || null}
+                onValueChange={handleCategoryChange}
+                itemToStringLabel={(category) => {
+                  return category?.category_name || "";
+                }}
+                itemToStringValue={(category) => {
+                  return String(category?.id || "");
+                }}
+                isItemEqualToValue={(category, value) => {
+                  return String(category?.id) === String(value?.id);
+                }}
+              >
+                <ComboboxInput
+                  placeholder="Select an expense category"
+                  aria-invalid={Boolean(errorFor("category_id"))}
+                  className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
+                />
+                <ComboboxContent
+                  positionerClassName="!z-[1100]"
+                  className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+                >
+                  <ComboboxEmpty>No expense category found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(category) => (
+                      <ComboboxItem
+                        key={category.id}
+                        value={category}
+                        className="min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {category.category_name}
+                        </span>
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+
+              {errorFor("category_id") && (
+                <FieldError className="text-[length:var(--app-font-size-caption)]">
+                  {errorFor("category_id")}
+                </FieldError>
+              )}
+            </Field>
+
+            <Field data-invalid={Boolean(errorFor("description"))}>
+              <FieldLabel
+                htmlFor="edit-expense-description"
+                className={labelClassName}
+              >
+                Description
+                <span className="text-[var(--app-color-danger)]">*</span>
+              </FieldLabel>
+              <Input
+                id="edit-expense-description"
+                value={formData.description}
+                onChange={(event) => {
+                  updateField("description", event.target.value);
+                }}
+                placeholder="Describe the expense"
+                disabled={isSubmitting}
+                aria-invalid={Boolean(errorFor("description"))}
+                className={controlClassName}
+              />
+              {errorFor("description") && (
+                <FieldError className="text-[length:var(--app-font-size-caption)]">
+                  {errorFor("description")}
+                </FieldError>
+              )}
+            </Field>
+
+            <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field data-invalid={Boolean(errorFor("amount"))}>
+                <FieldLabel
+                  htmlFor="edit-expense-amount"
+                  className={labelClassName}
+                >
+                  Amount
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
+                  <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] !px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
+                    ₱
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="edit-expense-amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={(event) => {
+                      updateField("amount", event.target.value);
+                    }}
+                    placeholder="0.00"
+                    disabled={isSubmitting}
+                    aria-invalid={Boolean(errorFor("amount"))}
+                    className="h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
+                  />
+                </InputGroup>
+                {errorFor("amount") && (
+                  <FieldError className="text-[length:var(--app-font-size-caption)]">
+                    {errorFor("amount")}
+                  </FieldError>
+                )}
+              </Field>
+
+              <Field data-invalid={Boolean(errorFor("expense_date"))}>
+                <FieldLabel
+                  htmlFor="edit-expense-date"
+                  className={labelClassName}
+                >
+                  Date
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <DatePicker
+                  id="edit-expense-date"
+                  value={formData.expense_date}
+                  onValueChange={(value) => {
+                    updateField("expense_date", value);
+                  }}
+                  placeholder="MM/DD/YYYY"
+                  disabled={isSubmitting}
+                  invalid={Boolean(errorFor("expense_date"))}
+                  triggerClassName={controlClassName}
+                />
+                {errorFor("expense_date") && (
+                  <FieldError className="text-[length:var(--app-font-size-caption)]">
+                    {errorFor("expense_date")}
+                  </FieldError>
+                )}
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field data-invalid={Boolean(errorFor("payment_method"))}>
+                <FieldLabel
+                  htmlFor="edit-expense-payment-method"
+                  className={labelClassName}
+                >
+                  Payment Method
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <Select
+                  value={formData.payment_method || null}
+                  onValueChange={(value) => {
+                    updateField("payment_method", value);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger
+                    id="edit-expense-payment-method"
+                    aria-invalid={Boolean(errorFor("payment_method"))}
+                    className={`data-[size=default]:!h-[var(--app-touch-target-min)] w-full ${controlClassName}`}
+                  >
+                    <span>
+                      {formData.payment_method || "Select payment method"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent
+                    positionerClassName="!z-[1100]"
+                    className="z-[1100]"
+                  >
+                    {paymentMethods.map((paymentMethod) => (
+                      <SelectItem key={paymentMethod} value={paymentMethod}>
+                        {paymentMethod}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errorFor("payment_method") && (
+                  <FieldError className="text-[length:var(--app-font-size-caption)]">
+                    {errorFor("payment_method")}
+                  </FieldError>
+                )}
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="edit-expense-receipt"
+                  className={labelClassName}
+                >
+                  Receipt
+                </FieldLabel>
+                <Input
+                  id="edit-expense-receipt"
+                  value={formData.receipt_reference}
+                  onChange={(event) => {
+                    updateField("receipt_reference", event.target.value);
+                  }}
+                  placeholder="Receipt number or reference"
+                  disabled={isSubmitting}
+                  className={controlClassName}
+                />
+              </Field>
+            </div>
+
+            {showVendor && (
+              <Field>
+                <FieldLabel
+                  htmlFor="edit-expense-vendor"
+                  className={labelClassName}
+                >
+                  Vendor / Supplier
+                </FieldLabel>
+                <Input
+                  id="edit-expense-vendor"
+                  value={formData.vendor}
+                  onChange={(event) => {
+                    updateField("vendor", event.target.value);
+                  }}
+                  placeholder="Optional"
+                  disabled={isSubmitting}
+                  className={controlClassName}
+                />
+              </Field>
+            )}
+
+            {hasAttemptedSubmit && !isFormValid && (
+              <p
+                className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                role="alert"
+              >
+                Please fill in all required fields (*).
+              </p>
+            )}
           </div>
+        </ModalContent>
+      </ModalBody>
 
-          <div className="expense-form-group">
-            <label className="expense-form-label">Receipt Reference</label>
-            <input
-              type="text"
-              className="expense-form-input"
-              placeholder="Receipt # or URL"
-              name="receipt_reference"
-              value={formData.receipt_reference}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            />
-          </div>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          onClick={onClose}
+          className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          onClick={handleSubmit}
+          className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting ? "Saving..." : "Save Changes"}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+};
 
-          {error && <div style={{ color: '#dc3545', marginTop: '1rem', fontSize: '0.875rem', fontWeight: '500' }}>{error}</div>}
-        </div>
+const EditExpenseModal = ({
+  isOpen,
+  onClose,
+  expenseData,
+  categories = [],
+  refetch,
+}) => {
+  if (!isOpen || !expenseData) return null;
 
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
-
-        <div className="expense-modal-footer">
-          <button className="expense-modal-btn-cancel" onClick={onClose} disabled={isSubmitting}>Cancel</button>
-          <button className="expense-modal-btn-save" onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-    </div>
+  return (
+    <EditExpenseModalContent
+      key={expenseData.id}
+      onClose={onClose}
+      expenseData={expenseData}
+      categories={categories}
+      refetch={refetch}
+    />
   );
 };
 

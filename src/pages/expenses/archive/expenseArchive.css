@@ -1,0 +1,37 @@
+/* Expense Archive page-level layout only. Component visuals use Tailwind. */
+.expense-archive-page-layout,
+.expense-archive-table-section,
+.expense-archive-toolbar-region {
+  min-width: 0;
+}
+
+.expense-archive-page-layout {
+  display: grid;
+  gap: var(--app-gap-section);
+}
+
+.expense-archive-table-scroll-area {
+  max-height: min(38rem, calc(100svh - 18rem));
+}
+
+@media (max-width: 639px) {
+  .expense-archive-page-shell {
+    --app-gap-section: var(--app-space-4);
+    --app-gap-columns: var(--app-space-4);
+    --app-padding-panel: var(--app-space-4);
+  }
+
+  .expense-archive-toolbar-region {
+    align-items: stretch;
+  }
+
+  .expense-archive-table-scroll-area {
+    max-height: var(--app-panel-height-phone);
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .expense-archive-table-scroll-area {
+    max-height: var(--app-panel-height-tablet-portrait);
+  }
+}

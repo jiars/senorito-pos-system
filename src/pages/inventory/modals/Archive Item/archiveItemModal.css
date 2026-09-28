@@ -345,3 +345,14 @@
     justify-content: center;
   }
 }
+
+.archive-affected-pill small {
+  color: #6C757D;
+  font-size: 0.7rem;
+}
+
+.archive-error-msg {
+  margin: 0 auto 0 0;
+  color: #CB4B4B;
+  font-size: 0.85rem;
+}

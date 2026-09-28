@@ -1,38 +1,66 @@
-import React from 'react';
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-const MenuHeader = ({ setIsCategoriesModalOpen, setIsAddMenuItemModalOpen, navigate }) => {
-    return (
-        <div className="menu-page-header">
-            <div className="layout-page-heading">
-                <h2>Menu Management</h2>
-                <p>Create, edit, and manage all your menu items, categories, and prices here.</p>
-            </div>
+const MenuHeader = ({
+  activeTab,
+  onViewArchive,
+  onManageCategories,
+  onAddMenuItem,
+  onAddAddon,
+}) => {
+  const isAddonsTab = activeTab === "addons";
+  const handlePrimaryAction = isAddonsTab ? onAddAddon : onAddMenuItem;
+  const primaryLabel = isAddonsTab ? "Add Add-on" : "Add Menu Item";
 
-            <div className="menu-header-actions">
-                <button
-                    className="menu-btn"
-                    title="Manage Categories"
-                    onClick={() => setIsCategoriesModalOpen(true)}
-                >
-                    <i className="bi bi-tag"></i>
-                    Manage Categories
-                </button>
-                <button
-                    className="menu-btn"
-                    title="Manage Add-ons"
-                    onClick={() => navigate('/menu/addons')}
-                >
-                    Manage Add-ons
-                </button>
-                <button
-                    className="menu-btn menu-btn--primary"
-                    onClick={() => setIsAddMenuItemModalOpen(true)}
-                >
-                    <i className="bi bi-plus-circle"></i> Add Menu Item
-                </button>
-            </div>
-        </div>
-    );
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-[var(--app-space-2)]">
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              aria-label="Open Menu Management actions"
+              className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] p-0 text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] hover:bg-[var(--app-color-control-hover)]"
+            >
+              <i aria-hidden="true" className="bi bi-three-dots-vertical" />
+            </Button>
+          }
+        />
+
+        <DropdownMenuContent align="end" className="z-[100] w-52">
+          <DropdownMenuItem disabled>
+            <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
+            Export
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={onViewArchive}>
+            <i aria-hidden="true" className="bi bi-archive" />
+            View Archive
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={onManageCategories}>
+            <i aria-hidden="true" className="bi bi-tags" />
+            Manage Categories
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Button
+        type="button"
+        onClick={handlePrimaryAction}
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+      >
+        <i aria-hidden="true" className="bi bi-plus-lg" />
+        {primaryLabel}
+      </Button>
+    </div>
+  );
 };
 
 export default MenuHeader;

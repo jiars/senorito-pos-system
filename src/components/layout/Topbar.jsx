@@ -1,49 +1,108 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { formatFullName, formatInitials } from '../../utils/stringFormatters';
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 
-import { useAuth } from '../../hooks/useAuth';
+import { formatFullName, formatInitials } from "../../utils/stringFormatters";
+import { useAuth } from "../../hooks/useAuth";
 
-import './layout.css';
+import ConfirmLogoutModal from "./modals/Confirm Logout/ConfirmLogoutModal";
 
+import "./topbar.css";
 
-const Topbar = ({ toggleSidebar }) => {
+const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const navigate = useNavigate();
-
-  const { profile, role } = useAuth();
+  const { profile, logout } = useAuth();
 
   let fullName = formatFullName(profile.first_name, profile.last_name);
   let initials = formatInitials(profile.first_name, profile.last_name);
 
-  return (
-    <header className="layout-topbar">
-      <div className="layout-topbar-left">
-        <button
-          className="layout-hamburger-btn"
-          onClick={toggleSidebar}
-          aria-label="Toggle Menu"
-        >
-          <i className="bi bi-list"></i>
-        </button>
-      </div>
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
 
-      <div className="layout-topbar-right">
-        <div
-          className="layout-user-profile"
-          onClick={() => window.location.href = '/profile'}
-          style={{ cursor: 'pointer' }}
-        >
-          <div className="layout-user-avatar">
-            {initials.toUpperCase()}
-          </div>
-          <div className="layout-user-info">
-            <p className="layout-user-name">{fullName}</p>
-            <p className="layout-user-role">{role}</p>
-          </div>
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
+    await logout();
+    window.location.href = "/login";
+  };
+
+  return (
+    <>
+      <header className="layout-topbar">
+        <div className="layout-topbar-left">
+          <Button
+            type="button"
+            size="icon-lg"
+            className={`layout-hamburger-btn ${isSidebarOpen ? "is-active" : ""}`}
+            onClick={toggleSidebar}
+            aria-label="Open navigation menu"
+          >
+            <i className="bi bi-list" aria-hidden="true"></i>
+          </Button>
         </div>
-      </div>
-    </header>
+
+        <div className="layout-topbar-right">
+          <Button
+            type="button"
+            size="sm"
+            disabled
+            className="bg-[var(--app-color-highlight)] text-[var(--app-color-synced)] disabled:opacity-100"
+          >
+            <i className="bi bi-wifi" aria-hidden="true"></i>
+            Synced
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="layout-user-profile"
+              aria-label={`Open account menu for ${fullName}`}
+            >
+              <Avatar size="lg" className="layout-user-avatar">
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+
+              <span className="layout-user-name">{fullName}</span>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => navigate("/profile")}>
+                <i className="bi bi-person" aria-hidden="true"></i>
+                Profile
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={handleLogoutClick}
+              >
+                <i className="bi bi-box-arrow-right" aria-hidden="true"></i>
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      <ConfirmLogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={confirmLogout}
+        isLoggingOut={isLoggingOut}
+      />
+    </>
   );
 };
 

@@ -1,162 +1,277 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-import { addMenuCategory, updateMenuCategory, deleteMenuCategory } from '../../../../services/menu/menuCategoriesService'
+import Modal from '@/components/modals/Modal';
+import ModalBody from '@/components/modals/ModalBody';
+import ModalContent from '@/components/modals/ModalContent';
+import ModalHeader from '@/components/modals/ModalHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  addMenuCategory,
+  deleteMenuCategory,
+  updateMenuCategory,
+} from '../../../../services/menu/menuCategoriesService';
 
-import './manageMenuCategoriesModal.css';
-
-const ManageMenuCategoriesModal = ({ isOpen, onClose, categories = [], menuItems = [], refetchMenu }) => {
+const ManageMenuCategoriesModalContent = ({
+  onClose,
+  categories,
+  menuItems,
+  refetchMenu,
+}) => {
   const [newCategory, setNewCategory] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset inputs when modal opens or closes
-  useEffect(() => {
-    if (isOpen) {
+  const checkDuplicate = (name, excludeId = null) => {
+    const normalizedName = name.trim().toLowerCase();
+
+    return categories.some((category) => {
+      return category.id !== excludeId
+        && category.category_name.toLowerCase() === normalizedName;
+    });
+  };
+
+  const isNewEmpty = newCategory.trim() === '';
+  const isNewDuplicate = !isNewEmpty && checkDuplicate(newCategory);
+  const isAddDisabled = isNewEmpty || isNewDuplicate || isSubmitting;
+
+  const isEditEmpty = editName.trim() === '';
+  const isEditDuplicate = !isEditEmpty && checkDuplicate(editName, editingId);
+  const isSaveDisabled = isEditEmpty || isEditDuplicate || isSubmitting;
+
+  const handleAddCategory = async () => {
+    if (isAddDisabled) return;
+
+    setIsSubmitting(true);
+    try {
+      await addMenuCategory(newCategory.trim());
+      if (refetchMenu) await refetchMenu();
       setNewCategory('');
-      setEditingId(null);
-      setEditName('');
+    } catch (error) {
+      alert(error.message);
+    } finally {
       setIsSubmitting(false);
     }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  // ─── 1. Add Category ───
-  const handleAddCategory = async () => {
-    if (newCategory.trim() === '' || isSubmitting) return;
-    setIsSubmitting(true);
-    await addMenuCategory(newCategory.trim());
-    if (refetchMenu) await refetchMenu();
-    setNewCategory('');
-    setIsSubmitting(false);
   };
 
-  // ─── 2. Save Edit ───
   const handleSaveEdit = async (id) => {
-    if (editName.trim() === '' || isSubmitting) return;
+    if (isSaveDisabled) return;
+
     setIsSubmitting(true);
-    await updateMenuCategory(id, editName.trim());
-    if (refetchMenu) await refetchMenu();
-    setEditingId(null);
-    setIsSubmitting(false);
+    try {
+      await updateMenuCategory(id, editName.trim());
+      if (refetchMenu) await refetchMenu();
+      setEditingId(null);
+      setEditName('');
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // ─── 3. Delete Category ───
   const handleDeleteCategory = async (id) => {
     if (isSubmitting) return;
+
     setIsSubmitting(true);
-    await deleteMenuCategory(id);
-    if (refetchMenu) await refetchMenu();
-    setIsSubmitting(false);
+    try {
+      await deleteMenuCategory(id);
+      if (refetchMenu) await refetchMenu();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="mc-modal-overlay">
-      <div className="mc-modal-content">
-        <div className="mc-modal-header">
-          <h3>Manage Menu Categories</h3>
-          <button className="mc-modal-close" onClick={onClose} title="Close">
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="32rem"
+      maxHeight="min(85svh, 42rem)"
+    >
+      <ModalHeader
+        title="Manage Menu Categories"
+        iconClassName="bi bi-tags"
+        closeDisabled={isSubmitting}
+      />
 
-        <div className="mc-modal-body">
-          {/* Add Category Row */}
-          <div className="mc-add-row">
-            <input
-              type="text"
-              className="mc-input"
-              placeholder="New Category Name"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-            />
-            <button
-              className="mc-btn-add"
-              disabled={newCategory.trim() === '' || isSubmitting}
+      <ModalBody>
+        <ModalContent>
+          <div className="flex items-start gap-[var(--app-space-2)] max-sm:flex-col">
+            <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)] max-sm:w-full">
+              <Input
+                type="text"
+                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isNewDuplicate ? 'border-[var(--app-color-danger)]' : ''}`}
+                placeholder="New Category Name"
+                value={newCategory}
+                onChange={(event) => setNewCategory(event.target.value)}
+                aria-invalid={isNewDuplicate}
+                aria-describedby={isNewDuplicate ? 'menu-category-add-error' : undefined}
+              />
+              {isNewDuplicate && (
+                <small
+                  id="menu-category-add-error"
+                  className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                >
+                  Category already exists.
+                </small>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              className="h-[var(--app-touch-target-min)] shrink-0 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)] max-sm:w-full"
+              disabled={isAddDisabled}
               onClick={handleAddCategory}
             >
               + Add Category
-            </button>
+            </Button>
           </div>
 
-          <div className="mc-separator"></div>
+          <div
+            className="h-px w-full bg-[var(--app-color-border-subtle)]"
+            aria-hidden="true"
+          />
 
-          {/* Categories List */}
-          <div className="mc-list">
-            {categories.map((cat) => {
-              const isEditing = editingId === cat.id;
-              const usedByCount = menuItems.filter((i) => i.category_id === cat.id).length;
+          {categories.length === 0 ? (
+            <div className="py-[var(--app-space-6)] text-center text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-subtle)]">
+              No categories found.
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {categories.map((category) => {
+                const isEditing = editingId === category.id;
+                const usedByCount = menuItems.filter((item) => {
+                  return item.category_id === category.id;
+                }).length;
 
-              return (
-                <div className="mc-list-item" key={cat.id}>
-                  {isEditing ? (
-                    <>
-                      <input
-                        type="text"
-                        className="mc-edit-input"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        autoFocus
-                      />
-                      <div className="mc-list-item-actions">
-                        <button
-                          className="mc-action-btn mc-action-btn--save"
-                          disabled={editName.trim() === '' || isSubmitting}
-                          onClick={() => handleSaveEdit(cat.id)}
-                          title="Save"
-                        >
-                          <i className="bi bi-check-lg"></i>
-                        </button>
-                        <button
-                          className="mc-action-btn mc-action-btn--edit"
-                          onClick={() => setEditingId(null)}
-                          title="Cancel"
-                        >
-                          <i className="bi bi-x-lg"></i>
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className="mc-list-item-name">
-                        {cat.category_name} {usedByCount > 0 && <small style={{ color: '#6c757d' }}>({usedByCount} items)</small>}
-                      </span>
-                      <div className="mc-list-item-actions">
-                        <button
-                          className="mc-action-btn mc-action-btn--edit"
-                          onClick={() => {
-                            setEditingId(cat.id);
-                            setEditName(cat.category_name);
-                          }}
-                          title="Edit"
-                        >
-                          <i className="bi bi-pencil"></i>
-                        </button>
-                        <button
-                          className="mc-action-btn mc-action-btn--delete"
-                          disabled={usedByCount > 0 || isSubmitting}
-                          title={usedByCount > 0 ? "Cannot delete category while items are using it." : "Delete"}
-                          onClick={() => handleDeleteCategory(cat.id)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    className="flex min-h-[var(--app-table-row-height)] items-center justify-between gap-[var(--app-space-2)] border-b border-[var(--app-color-border-subtle)] py-[var(--app-space-2)] last:border-b-0"
+                    key={category.id}
+                  >
+                    {isEditing ? (
+                      <>
+                        <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)]">
+                          <Input
+                            type="text"
+                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isEditDuplicate ? 'border-[var(--app-color-danger)]' : ''}`}
+                            value={editName}
+                            onChange={(event) => setEditName(event.target.value)}
+                            autoFocus
+                            aria-invalid={isEditDuplicate}
+                            aria-describedby={isEditDuplicate ? `menu-category-edit-error-${category.id}` : undefined}
+                          />
+                          {isEditDuplicate && (
+                            <small
+                              id={`menu-category-edit-error-${category.id}`}
+                              className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+                            >
+                              Category already exists.
+                            </small>
+                          )}
+                        </div>
 
-            {categories.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '1rem', color: '#6C757D', fontSize: '0.875rem' }}>
-                No categories found.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+                        <div className="flex shrink-0 gap-[var(--app-space-1)]">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-success)] hover:bg-[var(--app-color-success-surface)] hover:text-[var(--app-color-success)]"
+                            disabled={isSaveDisabled}
+                            onClick={() => handleSaveEdit(category.id)}
+                            aria-label={`Save ${category.category_name}`}
+                          >
+                            <i className="bi bi-check-lg" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-text)]"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditName('');
+                            }}
+                            aria-label={`Cancel editing ${category.category_name}`}
+                          >
+                            <i className="bi bi-x-lg" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="min-w-0 flex-1 break-words text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-medium text-[var(--app-color-text)]">
+                          {category.category_name}
+                          {usedByCount > 0 && (
+                            <small className="ml-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                              ({usedByCount} items)
+                            </small>
+                          )}
+                        </span>
+
+                        <div className="flex shrink-0 gap-[var(--app-space-1)]">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)]"
+                            onClick={() => {
+                              setEditingId(category.id);
+                              setEditName(category.category_name);
+                            }}
+                            aria-label={`Edit ${category.category_name}`}
+                          >
+                            <i className="bi bi-pencil" aria-hidden="true" />
+                          </Button>
+                          {usedByCount === 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-danger)] hover:bg-[var(--app-color-danger-surface)] hover:text-[var(--app-color-danger)]"
+                              disabled={isSubmitting}
+                              onClick={() => handleDeleteCategory(category.id)}
+                              aria-label={`Delete ${category.category_name}`}
+                            >
+                              <i className="bi bi-trash" aria-hidden="true" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ModalContent>
+      </ModalBody>
+    </Modal>
+  );
+};
+
+const ManageMenuCategoriesModal = ({
+  isOpen,
+  onClose,
+  categories = [],
+  menuItems = [],
+  refetchMenu,
+}) => {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <ManageMenuCategoriesModalContent
+      onClose={onClose}
+      categories={categories}
+      menuItems={menuItems}
+      refetchMenu={refetchMenu}
+    />
   );
 };
 

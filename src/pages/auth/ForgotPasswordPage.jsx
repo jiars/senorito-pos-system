@@ -1,96 +1,104 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import senoritoLogo from '../../assets/images/senorito_logo.png';
-import './auth.css';
+import { useEffect, useState } from "react";
+
+import { useRequestPasswordReset } from "@/hooks/usePasswordRecovery";
+
+import ForgotPasswordForm from "./components/ForgotPasswordForm";
 
 const ForgotPasswordPage = () => {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [cooldown, setCooldown] = useState(0);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Forgot password submitted:', { email });
-    setSent(true);
+  const passwordResetMutation = useRequestPasswordReset();
+  const isSubmitting = passwordResetMutation.isPending;
+
+  // Reduce the resend timer every second.
+  useEffect(() => {
+    if (cooldown <= 0) {
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setCooldown((current) => current - 1);
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [cooldown]);
+
+  const sendRequest = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (normalizedEmail === "") {
+      setErrorMessage("Email is required.");
+      return;
+    }
+
+    setErrorMessage("");
+
+    try {
+      const response = await passwordResetMutation.mutateAsync(normalizedEmail);
+
+      let retryAfter = Number(response.retry_after);
+
+      if (!retryAfter || retryAfter < 1) {
+        retryAfter = 60;
+      }
+
+      setEmail(normalizedEmail);
+      setMessage(response.message);
+      setSent(true);
+      setCooldown(retryAfter);
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
   };
 
-  const handleResend = () => {
-    console.log('Resend link clicked for:', email);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    await sendRequest();
+  };
+
+  const handleResend = async (event) => {
+    event.preventDefault();
+
+    if (cooldown > 0 || isSubmitting) {
+      return;
+    }
+
+    await sendRequest();
+  };
+
+  const handleUseAnotherEmail = () => {
+    setEmail("");
     setSent(false);
-    setTimeout(() => setSent(true), 100);
+    setMessage("");
+    setErrorMessage("");
+    setCooldown(0);
+    passwordResetMutation.reset();
   };
 
   return (
-    <div className="auth-page auth-page--slid">
-      {/* ── Left: Form Panel ── */}
-      <div className="auth-panel auth-panel--form">
-        <div className="auth-form-inner">
-          <div className="auth-brand">
-            <h1 className="auth-brand__title">Señorito Café</h1>
-            <p className="auth-brand__subtitle">Point of Sale and Inventory System</p>
-          </div>
-
-          <div className="auth-card">
-            <h2 className="auth-card__heading">Forgot your password?</h2>
-            <p className="auth-card__description">
-              Enter the email address associated with your account and we'll send you a
-              link to reset your password.
-            </p>
-
-            {sent && (
-              <div className="auth-success-msg">
-                <i className="bi bi-check-circle-fill"></i>
-                <span>A password reset link has been sent to your email.</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} id="forgot-form">
-              <div className="auth-field">
-                <label className="auth-field__label" htmlFor="forgot-email">
-                  Email
-                </label>
-                <div className="auth-input-wrapper">
-                  <input
-                    id="forgot-email"
-                    className="auth-input"
-                    type="email"
-                    placeholder="staff@senoritocafe.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
-
-              <button type="submit" className="auth-submit-btn" id="forgot-submit">
-                Send Link
-              </button>
-            </form>
-
-            <div className="auth-secondary-links">
-              <button type="button" className="auth-link auth-link--muted" onClick={handleResend}>
-                Resend Link
-              </button>
-              <Link to="/login" className="auth-link">
-                ← Back to Login
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Right: Logo Panel ── */}
-      <div className="auth-panel auth-panel--logo">
-        <div className="auth-logo-content">
-          <div className="auth-logo-circle">
-            <img
-              className="auth-logo-circle__img"
-              src={senoritoLogo}
-              alt="Señorito Café Logo"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <ForgotPasswordForm
+      email={email}
+      sent={sent}
+      message={message}
+      errorMessage={errorMessage}
+      cooldown={cooldown}
+      isSubmitting={isSubmitting}
+      onEmailChange={(event) => setEmail(event.target.value)}
+      onSubmit={handleSubmit}
+      onResend={handleResend}
+      onUseAnotherEmail={handleUseAnotherEmail}
+    />
   );
 };
 
