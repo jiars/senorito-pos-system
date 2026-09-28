@@ -1,6 +1,5 @@
 import { supabase } from "../supabaseClient";
 import { formatDecimal } from "../../utils/numberFormatters";
-import { logSystemActivity } from "../authService";
 import { logStockAdjustment } from "../inventory/inventoryStockService";
 
 // ---------------------------------------------------------
@@ -182,8 +181,6 @@ export const processCheckout = async (orderDetails) => {
         });
       }
     }
-
-    await logSystemActivity();
     return { id: newOrderId, order_number: orderData.order_number }; // Return success
   } catch (error) {
     console.error("Checkout error:", error);

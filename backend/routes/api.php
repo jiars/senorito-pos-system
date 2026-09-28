@@ -82,9 +82,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Dashboard
-    Route::get('/dashboard', [InitDashboardController::class, 'index']);
+    Route::get('/dashboard', [InitDashboardController::class, 'index'])->middleware('role:Owner,Cashier,Inventory Clerk');
 
-    Route::prefix('menu-management')->group(function () {
+    Route::prefix('menu-management')->name('menu-management.')->middleware('role:Owner')->group(function () {
         // 1. Unified Data Fetch for Menu Management
         Route::get('/init', [InitMenuManagementController::class, 'index']);
 
@@ -104,7 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('addons/{id}/unarchive', [AddonController::class, 'unarchive']);
     });
 
-    Route::prefix('inventory-management')->group(function () {
+    Route::prefix('inventory-management')->name('inventory-management.')->middleware('role:Owner,Inventory Clerk')->group(function () {
         // 1. Unified Data Fetch for Inventory Management
         Route::get('/init', [InitInventoryManagementController::class, 'index']);
 
@@ -134,7 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reports/valuation', [InventoryValuationController::class, 'index',]);
     });
 
-    Route::prefix('expense-management')->group(function () {
+    Route::prefix('expense-management')->name('expense-management.')->middleware('role:Owner')->group(function () {
         // Unified data fetch for the Expense Management page.
         Route::get('/init', [InitExpenseManagementController::class, 'index']);
 
@@ -150,7 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('expenses/{id}/unarchive', [ExpenseController::class, 'unarchive']);
     });
 
-    Route::prefix('order-management')->group(function () {
+    Route::prefix('order-management')->middleware('role:Owner,Cashier')->group(function () {
         // Fetch the Order History page data.
         Route::get('/init', [InitOrderManagementController::class, 'index']);
 
@@ -158,12 +158,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/{orderId}/items', [OrderItemController::class, 'index',]);
     });
 
-    Route::prefix('report-management')->group(function () {
+    Route::prefix('report-management')->middleware('role:Owner')->group(function () {
         // Unified data fetch for Sales Reports.
         Route::get('/sales/init', [InitSalesReportController::class, 'index',]);
     });
 
-    Route::prefix('pos-management')->group(function () {
+    Route::prefix('pos-management')->middleware('role:Owner,Cashier')->group(function () {
         // Fetch everything required by the POS page.
         Route::get('/init', [InitPosManagementController::class, 'index']);
         Route::post('/checkout', [CheckoutOrchestrator::class, 'store',]);

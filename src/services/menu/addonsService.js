@@ -1,5 +1,4 @@
 import api from "../../utils/axios/axiosInstance";
-import { logSystemActivity } from "../authService";
 
 export const fetchAddons = async () => {
   try {
@@ -14,7 +13,7 @@ export const fetchAddons = async () => {
 export const addAddon = async (payload) => {
   try {
     const response = await api.post("/menu-management/addons", payload);
-    await logSystemActivity();
+
     return response.data;
   } catch (error) {
     console.error("Error adding addon:", error.message);
@@ -28,7 +27,7 @@ export const updateAddon = async (addonId, payload) => {
       `/menu-management/addons/${addonId}/sync`,
       payload,
     );
-    await logSystemActivity();
+
     return response.data;
   } catch (error) {
     console.error("Error updating addon:", error.message);
@@ -39,7 +38,7 @@ export const updateAddon = async (addonId, payload) => {
 export const archiveAddon = async (addonId) => {
   try {
     const response = await api.delete(`/menu-management/addons/${addonId}`);
-    await logSystemActivity();
+
     return true;
   } catch (error) {
     console.error("Error archiving addon:", error.message);
@@ -53,8 +52,6 @@ export const unarchiveAddon = async (addonId) => {
     const response = await api.patch(
       `/menu-management/addons/${addonId}/unarchive`,
     );
-
-    await logSystemActivity();
 
     return response.data;
   } catch (error) {
