@@ -14,6 +14,11 @@ return [
     |
     */
 
+    // Read the Brevo key from the backend environment.
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

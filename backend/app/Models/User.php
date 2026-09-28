@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\AuthManagement\ResetPasswordNotification;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,6 +46,12 @@ class User extends Authenticatable
             'last_password_change_at' => 'datetime',
             'last_system_activity_at' => 'datetime',
         ];
+    }
+
+    // Let the password broker send our branded notification using its existing token.
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     // Get the role assigned to this user.

@@ -41,21 +41,19 @@ class SetupPasswordNotification extends Notification
 
         $setupUrl = rtrim((string) config('app.frontend_url'), '/') . "/setup-password?{$query}";
 
-        $expirationMinutes = (int) config('auth.passwords.employee_setup.expire');
-
-        $expirationHours = intdiv($expirationMinutes, 60);
-
-        $firstName = trim((string) $notifiable->first_name);
-
         return (new MailMessage)
             ->subject('Set up your Señorito POS password')
-            ->greeting($firstName !== '' ? "Hello {$firstName}," : 'Hello,')
-            ->line('An employee account was created for you in Señorito POS.')
+            // Supply content to the shared email template.
+            ->markdown('notifications::email', [
+                'emailTitle' => 'Set Up Your Password',
+                'accountEmail' => $notifiable->getEmailForPasswordReset(),
+                'accountExplanation' => 'An employee account was created in Señorito POS for',
+            ])
             ->line('Use the button below to create your private password.')
             ->action('Set Up Password', $setupUrl)
-            ->line("This setup link will expire in {$expirationHours} hours.")
-            ->line('If you were not expecting this account, contact the Owner.')
-            ->salutation('Señorito Café');
+            ->line('This setup link will expire. If it has expired, contact the cafe Owner to request a new link.')
+            ->line('Disclaimer: Only the most recently issued link can be used. Previous links become invalid when a new link is issued, even if their emails arrive later.')
+            ->line('If you were not expecting this account, do not use this link. Contact the cafe Owner.');
     }
 
     /**

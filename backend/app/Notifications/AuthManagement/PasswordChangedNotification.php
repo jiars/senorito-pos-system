@@ -25,8 +25,6 @@ class PasswordChangedNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $firstName = trim((string) $notifiable->first_name);
-
         $changedAt = $notifiable->last_password_change_at
             ->copy()
             ->timezone('Asia/Manila')
@@ -34,16 +32,14 @@ class PasswordChangedNotification extends Notification
 
         return (new MailMessage)
             ->subject('Your Señorito POS password was changed')
-            ->greeting(
-                $firstName !== ''
-                    ? "Hello {$firstName},"
-                    : 'Hello,'
-            )
-            ->line('Your Señorito POS password was successfully changed.')
-            ->line("Date and time: {$changedAt}")
+            ->markdown('notifications::email', [
+                'emailTitle' => 'Password Changed',
+                'accountEmail' => $notifiable->getEmailForPasswordReset(),
+                'accountExplanation' => 'Your Señorito POS password was successfully changed for',
+            ])
+            ->line("Date and time: {$changedAt} (Philippine Time)")
             ->line('All previous login sessions were signed out for your security.')
-            ->line('If you did not request this change, contact the Owner immediately.')
-            ->salutation('Señorito Café');
+            ->line('If you did not request this change, contact the cafe Owner immediately.');
     }
 
     /**

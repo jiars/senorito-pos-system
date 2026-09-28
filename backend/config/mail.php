@@ -49,6 +49,11 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        // Use the Brevo transport registered by our service provider.
+        'brevo' => [
+            'transport' => 'brevo',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -109,6 +114,15 @@ return [
     | used globally for all emails that are sent by your application.
     |
     */
+
+    'logo_url' => env('MAIL_LOGO_URL'),
+
+    'markdown' => [
+        'theme' => 'senorito',
+        'paths' => [
+            resource_path('views/vendor/mail'),
+        ],
+    ],
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),

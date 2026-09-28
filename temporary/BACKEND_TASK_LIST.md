@@ -388,4 +388,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 
 ## Next Task
 
-Follow `temporary/DEPLOYMENT_TASK_LIST.md`. Start with its three-item Next Batch and keep the current Vercel deployment unchanged until Cloudflare is verified.
+2026-09-29: With explicit user permission, completed reset-password and password-changed content using the approved shared email layout (300px proportional logo, medium left-aligned button, no greeting/username). ResetPasswordNotification extends Laravel's notification and is selected by User::sendPasswordResetNotification; the existing AppServiceProvider URL callback, broker, token expiry, and Owner approval logic are unchanged. Password-changed mail includes the account email, Philippine-time timestamp, session-revocation notice, and unauthorized-change instructions without an expiry or ignore disclaimer.
+
+Local HTML/plain-text assertions passed for all three notifications and the User notification hook passed with fake delivery. Used unsaved test data and fake token strings: no emails sent, database writes, or real tokens issued. User previously confirmed the basic Brevo delivery and the delayed setup preview eventually arrived; its delay remains unexplained.
+
+Latest: user approved all three design previews and requested Render/Cloudflare deployment guidance. Follow Phase 6 and the Next Batch in `temporary/DEPLOYMENT_TASK_LIST.md`. User handles Render environment variables, scoped Git commit/push, and deployment. Cloudflare needs no email secrets. Updated Docker build, real-token local tests, and production email verification remain pending; design previews alone do not prove those flows. Check database isolation before controlled account tests. Assistant has not pushed or changed provider settings.
