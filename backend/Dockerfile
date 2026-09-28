@@ -46,6 +46,9 @@ RUN composer dump-autoload \
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 
+# Render uses port 10000, so privileged-port capability is unnecessary.
+RUN setcap -r /usr/local/bin/frankenphp
+
 USER www-data
 
 EXPOSE 10000
