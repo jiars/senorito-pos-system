@@ -3,8 +3,13 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const ToolbarSearchInput = ({ placeholder, value, onValueChange }) => {
+const ToolbarSearchInput = ({ placeholder, value, onValueChange, isLoading }) => {
+  if (isLoading) {
+    return <Skeleton className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-control)]" />;
+  }
+
   return (
     <InputGroup className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-filter-font-color)] has-[[data-slot=input-group-control]:focus-visible]:border-[var(--app-color-border-subtle)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
       <InputGroupInput

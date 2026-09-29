@@ -1,6 +1,6 @@
 # Senorito Cafe POS — Codex Project Handoff
 
-Last verified: September 28, 2026 (Asia/Manila)
+Last updated: September 29, 2026 (Asia/Manila)
 
 This file is the concise operational handoff for another Codex account. It does not replace the project rules, implementation plans, or task lists. Always re-read the live files before changing code because they are the source of truth.
 
@@ -306,7 +306,132 @@ Other incomplete modal work includes:
 - Keyboard/focus/reduced-motion verification
 - Proven zero-reference cleanup of remaining legacy modal files
 
-## 9. Backend/Deployment Direction
+## 9. Active POS Frontend Handoff
+
+The user has started the Point of Sale visual migration. This is frontend UI work only for now.
+
+### User-approved POS direction
+
+- Use the shared application shell supplied by `MainLayout`:
+
+```text
+.layout-content-wrapper
+  .layout-topbar
+  .layout-main
+    .pos-page-shell.pos-page-layout
+```
+
+- POS is allowed to have a specialized inner workspace, but it must still follow the same global theme, typography, spacing, responsive, and component conventions used by Inventory and Menu.
+- Do not redesign the Customize Order modal yet. The user has a separate UI reference for it and explicitly deferred that work.
+- The Customize Order modal should eventually open from the add-on indicator/action, but its final interaction should be handled in a later batch.
+- Do not change POS API services, hooks, checkout calculations, offline Dexie behavior, or payloads during the visual migration.
+- Work in small batches, normally no more than five concrete steps, and pause for the user to test before continuing.
+- The user will run the build and tests. Do not claim verification unless the user reports it or explicitly asks the agent to run it.
+
+### POS reference layout
+
+```text
+POSPage
+  POS page shell
+    Catalog area
+      Shared search input
+      Horizontal category filter chips
+      Semantic category sections
+        Product grid
+          Product cards
+      Not Available category
+    Order panel
+      Current Order header + Clear action
+      Order source buttons
+      Cart items
+      Subtotal
+      Discount dropdown (not collapsible)
+      Total
+      Payment method buttons
+      Process Order action
+```
+
+Desktop should show three product cards per row, tablet two, and mobile one. The order panel remains visible on desktop/tablet and becomes the existing mobile drawer/FAB flow on phones. Catalog and order lists should scroll internally on short screens.
+
+### POS files and current state
+
+- `src/pages/pos/POSPage.jsx`
+  - Still owns the existing POS state, data loading, cart behavior, checkout flow, receipt flow, and offline sync.
+  - Now has the page shell classes `pos-container pos-page-shell pos-page-layout`.
+  - Uses the shared `ToolbarSearchInput` for catalog search.
+  - Uses semantic catalog sections and category filtering logic.
+  - Keeps `CartSidebar` and `CustomizeOrderModal` behavior intact.
+- `src/pages/pos/components/CategoryScroller.jsx`
+  - Now uses Tailwind classes and global `--app-*` tokens.
+  - Acts as the horizontal category filter navigation.
+- `src/pages/pos/components/ProductCard.jsx`
+  - Card redesign is intentionally deferred after the user rejected the previous POS-specific CSS approach.
+  - Do not add new card styling to `pos.css`; follow the Tailwind structure used by `src/pages/menu/components/MenuItemCard.jsx`.
+- `src/pages/pos/components/CartSidebar.jsx`
+  - Clear action is always rendered, disabled/grey when the cart is empty, and active when the cart has items.
+  - Current discount control is the native select/dropdown. Replace it with the existing shadcn `DropdownMenu` only if the user requests the exact shadcn visual treatment; do not install a new component without approval.
+- `src/pages/pos/pos.css`
+  - May contain POS page-level layout behavior: workspace grid, panel relationship, height clamps, internal scrolling, mobile drawer, and breakpoints.
+  - Do not use it for component presentation, typography, product-card visuals, or toolbar styling.
+  - The old search/category CSS was removed after migrating those components to Tailwind.
+
+### Required styling pattern for all future POS work
+
+Use the same pattern as Inventory and Menu:
+
+- Page layout CSS only for grids, relationships, scroll regions, height constraints, and responsive breakpoints.
+- Tailwind classes inside components for typography, colors, borders, spacing, states, badges, buttons, and local layout.
+- Use tokens from `src/styles/theme.css` and `src/styles/typography.css`, for example:
+  - `text-[length:var(--app-font-size-body-secondary)]`
+  - `leading-[var(--app-line-height-body-secondary)]`
+  - `gap-[var(--app-gap-related)]`
+  - `p-[var(--app-space-4)]`
+  - `rounded-[var(--app-radius-panel-standard)]`
+  - `shadow-[var(--app-shadow-card)]`
+- Reuse existing components before creating new ones:
+  - `ToolbarSearchInput`
+  - `FilterPopover`
+  - `FilterOptionGroup`
+  - `Badge`
+  - `Button`
+  - `Skeleton`
+  - `ScrollArea`
+  - shared modal primitives
+- Do not use raw `h2`/`p` CSS in module styles to define typography; apply the typography tokens inline in JSX.
+
+### POS work completed in the current session
+
+- Added semantic POS page/workspace wrappers.
+- Added available/unavailable catalog grouping logic.
+- Added the `Not Available` category.
+- Kept `All` and regular categories limited to available products.
+- Migrated POS search to `ToolbarSearchInput`.
+- Migrated category chips to Tailwind/token classes.
+- Converted catalog section and product-grid layout classes to Tailwind/token classes.
+- Fixed a JSX closing-tag mismatch in `POSPage.jsx` after the semantic migration.
+- Reverted the earlier experimental product-card redesign so the next card implementation can follow the Menu `MenuItemCard` pattern.
+
+### Next POS batch
+
+Before coding the next batch, read and compare:
+
+1. `src/pages/menu/components/MenuItemCard.jsx`
+2. `src/pages/menu/components/MenuItemsSection.jsx`
+3. `src/pages/menu/menuManagement.css`
+4. `src/pages/inventory/components/InventoryStockTable.jsx`
+5. `src/pages/inventory/inventory.css`
+6. `src/components/filters/ToolbarSearchInput.jsx`
+7. `src/components/filters/FilterOptionGroup.jsx`
+8. `src/styles/theme.css`
+9. `src/styles/typography.css`
+
+Then implement only the product-card presentation with Tailwind classes, including unavailable card states and add-on indicator styling. Do not put component styles into `pos.css`. Pause for user visual review after that batch.
+
+### POS verification still pending
+
+The user has not yet run or approved this POS batch. Verify visually at `1194x834`, `1440x900`, `1024x768`, `390x844`, and `390x600`. Also verify loading, empty, unavailable, and offline/online states without changing their underlying data behavior.
+
+## 10. Backend/Deployment Direction
 
 If the new Codex account is asked to work on backend or deployment instead of frontend, do not follow the frontend next task blindly.
 
@@ -323,7 +448,7 @@ Current deployment direction recorded by the project:
 
 Significant backend work already includes Laravel module APIs, authentication/password recovery, POS checkout, offline queue/sync, idempotency, and inventory deductions. Read the backend task list and current code before assuming a migration is incomplete.
 
-## 10. Known Deferred or High-Risk Areas
+## 11. Known Deferred or High-Risk Areas
 
 - Point of Sale visual redesign still needs its approved Figma reference.
 - Profile redesign still needs its approved reference.
@@ -336,7 +461,7 @@ Significant backend work already includes Laravel module APIs, authentication/pa
 - Do not disturb Dexie/offline POS behavior during visual refactors.
 - Do not expose or copy `.env` secrets into documentation or chat.
 
-## 11. Useful Commands
+## 12. Useful Commands
 
 PowerShell may block `npx.ps1`; use the `.cmd` executable when needed.
 
@@ -360,7 +485,7 @@ npm.cmd run dev
 
 Never run destructive Git commands such as `git reset --hard` or discard user changes. Do not run automatic dependency upgrades or package installs without user approval.
 
-## 12. Source-of-Truth Priority
+## 13. Source-of-Truth Priority
 
 When information conflicts, use this order:
 

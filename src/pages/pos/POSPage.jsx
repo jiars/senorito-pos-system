@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import "./pos.css";
 
 import CategoryScroller from "./components/CategoryScroller";
-import ProductCard from "./components/ProductCard";
-import ProductAreaLoader from "./components/ProductAreaLoader";
+import POSCategorySection from "./components/product-browser/POSCategorySection";
+import { Skeleton } from "@/components/ui/skeleton";
 import PosBlockingLoader from "./components/PosBlockingLoader";
-import CartSidebar from "./components/CartSidebar";
+import POSCartSidebar from "./components/cart-sidebar/POSCartSidebar";
 import CheckoutErrorBanner from "./components/CheckoutErrorBanner";
 import CustomizeOrderModal from "./CustomizeOrderModal/CustomizeOrderModal";
 import ReceiptModal from "./ReceiptModal/ReceiptModal";
+import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 
 // We will populate posProducts dynamically from the database!
 
@@ -205,12 +206,6 @@ const POSPage = () => {
           stockById,
         );
 
-        const categoryNames = [
-          "All",
-          ...categoriesData.map((c) => c.category_name),
-        ];
-        setCategories(categoryNames);
-
         setGlobalAddons(addonsWithStock);
         // Transform Laravel or cached data into the shape POSPage expects.
         const formattedProducts = menuItemsWithStock.map((item) => {
@@ -286,6 +281,16 @@ const POSPage = () => {
           if (!a.isAvailable && b.isAvailable) return 1;
           return a.name.localeCompare(b.name);
         });
+
+        const categoryNames = [
+          "All",
+          ...new Set([
+            ...categoriesData.map((category) => category.category_name),
+            ...formattedProducts.map((product) => product.category),
+          ].filter(Boolean)),
+          "Not Available",
+        ];
+        setCategories(categoryNames);
 
         setPosProducts(formattedProducts);
       } catch (error) {
@@ -431,6 +436,7 @@ const POSPage = () => {
         productId: customizedData.id,
         priceId: customizedData.selectedVariantId || null,
         name: customizedData.name,
+        imageURL: customizedData.imageURL,
         variant: customizedData.selectedVariant,
         price: customizedData.totalPrice, // Base + Add-ons price
         basePrice: customizedData.basePrice || customizedData.totalPrice,
@@ -726,6 +732,44 @@ const POSPage = () => {
     });
   }, [posProducts, cartItems]);
 
+  const catalogGroups = React.useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const searchedProducts = displayProducts.filter((product) =>
+      product.name.toLowerCase().includes(normalizedSearch),
+    );
+    const availableProducts = searchedProducts.filter(
+      (product) => product.isAvailable,
+    );
+    const unavailableProducts = searchedProducts.filter(
+      (product) => !product.isAvailable,
+    );
+
+    if (activeCategory === "Not Available") {
+      return unavailableProducts.length > 0
+        ? [{ label: "Not Available", products: unavailableProducts }]
+        : [];
+    }
+
+    if (activeCategory !== "All") {
+      const products = availableProducts.filter(
+        (product) => product.category === activeCategory,
+      );
+      return products.length > 0
+        ? [{ label: activeCategory, products }]
+        : [];
+    }
+
+    return categories
+      .filter((category) => category !== "All" && category !== "Not Available")
+      .map((category) => ({
+        label: category,
+        products: availableProducts.filter(
+          (product) => product.category === category,
+        ),
+      }))
+      .filter((group) => group.products.length > 0);
+  }, [activeCategory, categories, displayProducts, searchTerm]);
+
   const isPosBlocked = isSyncing || isProcessingOrder;
   let blockingTitle = "Processing Order...";
   let blockingMessage = "";
@@ -736,7 +780,7 @@ const POSPage = () => {
   }
 
   return (
-    <div className="pos-container">
+    <section className="pos-page-shell">
       <PosBlockingLoader
         isVisible={isPosBlocked}
         title={blockingTitle}
@@ -748,69 +792,70 @@ const POSPage = () => {
         onClose={() => setCheckoutError("")}
       />
 
-      <div className="pos-main-wrapper">
+      <div
+        className="pos-main-layout"
+        role="region"
+        aria-label="Point of sale workspace"
+      >
         {/* Left Side: Products */}
-        <div className="pos-content-left">
-          <div className="pos-search-wrapper">
-            <i className="bi bi-search"></i>
-            <input
-              type="text"
-              className="pos-search-input"
-              placeholder="Search item..."
+        <section className="pos-product-area" aria-label="Menu catalog">
+          <div className="w-full shrink-0">
+            <ToolbarSearchInput
+              placeholder="Search food, coffee, or item..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onValueChange={setSearchTerm}
+              isLoading={!hasLoadedMenu && isLoading}
             />
           </div>
 
           <div className="pos-product-browser">
-            {!hasLoadedMenu && isLoading ? (
-              <ProductAreaLoader label="Loading menu..." />
-            ) : (
-              <>
-                <CategoryScroller
-                  categories={categories}
-                  activeCategory={activeCategory}
-                  onSelectCategory={setActiveCategory}
-                />
+            <>
+              <CategoryScroller
+                categories={categories}
+                activeCategory={activeCategory}
+                onSelectCategory={setActiveCategory}
+                isLoading={!hasLoadedMenu && isLoading}
+              />
 
-                <div className="pos-product-grid">
-                  {displayProducts.filter(
-                    (p) =>
-                      activeCategory === "All" || p.category === activeCategory,
-                  ).length === 0 ? (
-                    <div className="pos-product-empty">
-                      No available items found.
-                    </div>
-                  ) : (
-                    displayProducts
-                      .filter(
-                        (p) =>
-                          activeCategory === "All" ||
-                          p.category === activeCategory,
-                      )
-                      .filter((p) =>
-                        p.name.toLowerCase().includes(searchTerm.toLowerCase()),
-                      )
-                      .map((product) => (
-                        <ProductCard
-                          key={product.id}
-                          product={product}
-                          onAdd={handleAddToCart}
-                        />
-                      ))
-                  )}
-                </div>
-
-                {isLoading && (
-                  <ProductAreaLoader label="Refreshing menu..." overlay />
+              <div
+                className="flex min-w-0 flex-col gap-[var(--app-gap-section)]"
+                aria-live="polite"
+              >
+                {!hasLoadedMenu && isLoading ? (
+                  [1, 2].map((i) => (
+                    <POSCategorySection key={i} isLoading={true} />
+                  ))
+                ) : catalogGroups.length === 0 ? (
+                  <div className="pos-product-empty">
+                    {activeCategory === "Not Available"
+                      ? "No unavailable items found."
+                      : "No available items found."}
+                  </div>
+                ) : (
+                  catalogGroups.map((group) => (
+                    <POSCategorySection
+                      key={group.label}
+                      group={group}
+                      onAddToCart={handleModalAddToCart}
+                      allAddons={globalAddons}
+                      cartItems={cartItems}
+                    />
+                  ))
                 )}
-              </>
-            )}
-          </div>
-        </div>
+              </div>
 
+              {isLoading && hasLoadedMenu && (
+                <div className="pos-product-area-loader overlay">
+                  <i className="bi bi-arrow-clockwise"></i>
+                  <span>Refreshing menu...</span>
+                </div>
+              )}
+            </>
+          </div>
+        </section>
         {/* Right Side: Cart */}
-        <CartSidebar
+        <aside aria-label="Current order" className={`pos-cart-sidebar-region ${isCartOpen ? "drawer-open" : ""}`}>
+          <POSCartSidebar
           cartItems={cartItems}
           onUpdateQty={handleUpdateQty}
           onRemoveItem={handleRemoveItem}
@@ -827,8 +872,10 @@ const POSPage = () => {
           canIncreaseQuantity={canIncreaseCartItem}
           isProcessingOrder={isProcessingOrder || isSyncing || isLoading}
           isCartOpen={isCartOpen}
+          isLoading={!hasLoadedMenu && isLoading}
           setIsCartOpen={setIsCartOpen}
-        />
+          />
+        </aside>
       </div>
 
       {/* Phone: overlay backdrop when cart is open */}
@@ -862,7 +909,7 @@ const POSPage = () => {
           onClose={handleCloseReceipt}
         />
       )}
-    </div>
+    </section>
   );
 };
 

@@ -35,14 +35,9 @@ const EmployeeActionsMenu = ({
 
   let resendLabel = "Resend Setup Link";
 
-  if (isSendingSetupLink) {
-    resendLabel = "Sending...";
-  } else if (cooldown > 0) {
-    resendLabel = `Send Again in ${cooldown}s`;
-  }
+  if (isSendingSetupLink) resendLabel = "Sending...";
+  else if (cooldown > 0) resendLabel = `Send Again in ${cooldown}s`;
 
-  const resetRequestLabel =
-    resetRequest?.status === "approved" ? "Reset Link Sent" : "Reset Requested";
 
   return (
     <DropdownMenu>
@@ -81,13 +76,7 @@ const EmployeeActionsMenu = ({
             onClick={() => onReviewPasswordRequest(employee, resetRequest)}
           >
             <i aria-hidden="true" className="bi bi-key" />
-            <span className="min-w-0 flex-1">Review Password Request</span>
-            <Badge
-              variant="secondary"
-              className="border-0 bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]"
-            >
-              {resetRequestLabel}
-            </Badge>
+            <span className="min-w-0 flex-1">Review Request</span>
           </DropdownMenuItem>
         )}
 

@@ -21,6 +21,7 @@ const RecipePricingStep = ({
   disabled,
   onRecipeChange,
   onAddIngredient,
+  className = "",
 }) => {
   const prefix = "addon";
   const priceError = errors.sellingPrice;
@@ -62,7 +63,7 @@ const RecipePricingStep = ({
   };
 
   return (
-    <section aria-labelledby="add-addon-recipe-pricing" className={stepPanelClassName}>
+    <section aria-labelledby="add-addon-recipe-pricing" className={`${stepPanelClassName} ${className}`}>
       <h2 id="add-addon-recipe-pricing" ref={headingRef} tabIndex={-1} className="sr-only">
         Recipe and pricing
       </h2>

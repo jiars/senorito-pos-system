@@ -4,13 +4,20 @@ import {
   getInventoryStockStatus,
   getRecipeAvailabilityStatus,
 } from '../../../utils/pos/checkoutCalculations';
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import './CustomizeOrderModal.css';
-const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose, onAddToCart }) => {
+const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose, onAddToCart, addonsOnly = false, initialVariantIndex = 0, initialQty = 1, initialAddons = [], onSaveAddons }) => {
   // State for selected size variant. Default to the first variant if available.
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
 
   // State for main drink quantity
-  const [drinkQty, setDrinkQty] = useState(1);
+  const [drinkQty, setDrinkQty] = useState(initialQty);
 
   // State for add-ons: [{ id, name, price, selected: boolean, qty: number }]
   const [addOns, setAddOns] = useState([]);
@@ -21,8 +28,7 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
         firstAvailableIdx = product.variants.findIndex(v => v.isAvailable);
         if (firstAvailableIdx === -1) firstAvailableIdx = 0;
       }
-      setSelectedVariantIndex(firstAvailableIdx);
-      setDrinkQty(1);
+      if (initialVariantIndex !== null && initialVariantIndex !== undefined) { setSelectedVariantIndex(initialVariantIndex); } else { setSelectedVariantIndex(firstAvailableIdx); } setDrinkQty(initialQty || 1);
 
       // Instantly filter active addons linked to this product's category
       const validAddons = allAddons.filter(ao =>
@@ -31,7 +37,7 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
         ao.addon_categories.some(ac => ac.menu_category_id === product.categoryId)
       );
 
-      setAddOns(validAddons.map(ao => {
+      const mappedAddons = validAddons.map(ao => {
         const recipes = ao.addon_recipes || [];
         const availability = getRecipeAvailabilityStatus({
           recipes,
@@ -44,12 +50,20 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
           id: ao.id,
           name: ao.addon_name,
           price: Number(ao.selling_price) || 0,
-          selected: false,
-          qty: 1,
+          selected: initialAddons.some(a => a.id === ao.id) ? true : false, qty: initialAddons.find(a => a.id === ao.id)?.qty || 1,
           recipes,
           ...availability,
         };
-      }));
+      });
+
+      // Sort: Available first, then alphabetically by name
+      mappedAddons.sort((a, b) => {
+        if (a.isAvailable && !b.isAvailable) return -1;
+        if (!a.isAvailable && b.isAvailable) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      setAddOns(mappedAddons);
     }
   }, [product, allAddons, cartItems]);
 
@@ -156,6 +170,12 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
       recipes: ao.recipes
     }));
 
+    if (addonsOnly && onSaveAddons) {
+      onSaveAddons(selectedAddOns);
+      onClose();
+      return;
+    }
+
     onAddToCart({
       ...product,
       selectedVariant: variantName,
@@ -170,172 +190,155 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
   };
 
   return (
-    <div className="pos-customize-overlay" onClick={onClose}>
-      <div className="pos-customize-modal" onClick={e => e.stopPropagation()}>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      maxWidth="32rem"
+      maxHeight="min(90svh, 48rem)"
+    >
+      <ModalHeader
+        title="Customize Order"
+        description={product.name}
+        className="relative justify-center [&>div]:items-center [&_[data-slot=dialog-header]]:!text-center [&>button]:absolute [&>button]:right-[var(--app-space-6)]"
+      />
 
-        {/* Header */}
-        <div className="pos-customize-header">
-          <button className="pos-customize-close" onClick={onClose}>
-            <i className="bi bi-x-lg"></i>
-          </button>
-          <h2>Customize Order</h2>
-          <p>{product.name}</p>
-        </div>
-
-        <div className="pos-customize-content">
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]">
+        <ModalContent className="flex flex-col gap-[var(--app-gap-related)] !p-[var(--app-space-8)]">
 
           {/* Size Variants */}
-          {product.variants && product.variants.length > 0 && (
-            <>
-              <h3 className="pos-customize-section-title">Size Variant</h3>
-              <div className="pos-customize-variants">
+          {!addonsOnly && product.variants && product.variants.length > 0 && (
+            <div className="flex flex-col gap-[var(--app-space-4)]">
+              <h3 className="text-[length:var(--app-font-size-caption)] font-bold text-[var(--app-color-text)]">Size</h3>
+              <div className="flex flex-col gap-[var(--app-space-2)]">
                 {product.variants.map((v, idx) => (
                   <div
                     key={idx}
-                    className={`pos-customize-variant-btn ${selectedVariantIndex === idx ? 'active' : ''} ${!v.isAvailable ? 'disabled' : ''}`}
-                    style={!v.isAvailable ? { opacity: 0.5, pointerEvents: 'none' } : {}}
-                    onClick={() => {
-                      if (v.isAvailable) setSelectedVariantIndex(idx);
-                    }}
+                    className={`grid grid-cols-[auto_1fr_auto_90px_65px] items-center gap-x-[var(--app-space-4)] px-[var(--app-space-4)] py-[var(--app-space-4)] ${!v.isAvailable ? 'opacity-50 pointer-events-none' : ''}`}
                   >
-                    <h3>
-                      {v.name}
-                      {v.status !== 'Available' && (
-                        <span className={`pos-customize-status ${v.isAvailable ? 'warning' : 'error'}`}>
-                          {v.status}
-                        </span>
-                      )}
-                    </h3>
-                    <p>{formatCurrency(v.price)}</p>
+                    <label className="contents">
+                      <div className="flex items-center justify-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="size-variant"
+                          className="size-5 rounded-full border-[var(--app-color-border)] text-[var(--app-color-brand)] focus:ring-[var(--app-color-brand)] accent-[var(--app-color-brand)]"
+                          checked={selectedVariantIndex === idx}
+                          disabled={!v.isAvailable}
+                          onChange={() => setSelectedVariantIndex(idx)}
+                        />
+                      </div>
+                      <span className="text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)] font-medium break-words leading-tight cursor-pointer">
+                        {v.name}
+                      </span>
+                      <div className="flex items-center cursor-pointer">
+                        {v.status !== 'Available' && (
+                          <span className={`text-[10px] px-[6px] py-[2px] rounded-full uppercase font-bold tracking-wider ${v.isAvailable ? 'bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]' : 'bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]'}`}>
+                            {v.status}
+                          </span>
+                        )}
+                      </div>
+                    </label>
+
+                    {/* Empty column to align with quantity */}
+                    <div></div>
+
+                    <span className="text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)] font-medium text-right">
+                      {formatCurrency(v.price)}
+                    </span>
                   </div>
                 ))}
               </div>
-            </>
-          )}
-
-          {/* Main Drink Quantity */}
-          <div className="pos-customize-main-qty">
-            <span>Quantity</span>
-            <div className="pos-customize-qty-ctrl">
-              <button
-                className="pos-customize-qty-btn"
-                onClick={() => setDrinkQty(Math.max(1, drinkQty - 1))}
-              >
-                <i className="bi bi-dash"></i>
-              </button>
-              <span className="pos-customize-qty">{drinkQty}</span>
-              <button
-                className="pos-customize-qty-btn"
-                onClick={() => setDrinkQty(drinkQty + 1)}
-                disabled={!canIncreaseDrinkQuantity}
-              >
-                <i className="bi bi-plus"></i>
-              </button>
             </div>
-          </div>
-
-          {!isCombinationValid && (
-            <p className="pos-customize-stock-note error">
-              Insufficient stock: {currentStockStatus.insufficientIngredients.join(', ')}.
-            </p>
-          )}
-
-          {isCombinationValid && !canIncreaseDrinkQuantity && (
-            <p className="pos-customize-stock-note">
-              Maximum available quantity reached.
-            </p>
           )}
 
           {/* Add-ons */}
-          <h3 className="pos-customize-section-title">Add-ons</h3>
-          <div className="pos-customize-addons-list">
-            {addOns.length === 0 ? (
-              <div style={{ color: '#999', fontStyle: 'italic', padding: '0.5rem 0' }}>
-                No available add-ons for this category.
-              </div>
-            ) : (
-              addOns.map(ao => {
-                const actionStockStatus = getAddOnActionStatus(ao);
-                const isAddOnActionBlocked = !actionStockStatus.hasEnoughStock;
-
-                return (
-                <div key={ao.id} className={`pos-customize-addon ${!ao.isAvailable ? 'pos-customize-addon-disabled' : ''}`}>
-                  <input
-                    type="checkbox"
-                    className="pos-customize-addon-checkbox"
-                    checked={ao.selected}
-                    disabled={!ao.isAvailable || (!ao.selected && isAddOnActionBlocked)}
-                    onChange={() => handleToggleAddOn(ao.id)}
-                  />
-                  <span className="pos-customize-addon-name">
-                    {ao.name}
-                    {ao.status !== 'Available' && (
-                      <span className={`pos-customize-status ${ao.isAvailable ? 'warning' : 'error'}`}>
-                        {ao.status}
-                      </span>
-                    )}
-                  </span>
-
-                  {ao.selected && (
-                    <div className="pos-customize-qty-ctrl">
-                      <button
-                        className="pos-customize-qty-btn"
-                        onClick={() => handleUpdateAddOnQty(ao.id, -1)}
-                        disabled={ao.qty <= 1}
-                      >
-                        <i className="bi bi-dash"></i>
-                      </button>
-                      <span className="pos-customize-qty">{ao.qty}</span>
-                      <button
-                        className="pos-customize-qty-btn"
-                        onClick={() => handleUpdateAddOnQty(ao.id, 1)}
-                        disabled={isAddOnActionBlocked}
-                        title={isAddOnActionBlocked ? 'Maximum available stock reached' : 'Add quantity'}
-                      >
-                        <i className="bi bi-plus"></i>
-                      </button>
-                    </div>
-                  )}
-
-                  <span className="pos-customize-addon-price">+ {formatCurrency(ao.price)}</span>
-
-                  {!ao.isAvailable && ao.blockingIngredients.length > 0 && (
-                    <p className="pos-customize-addon-stock-note">
-                      Affected: {ao.blockingIngredients.join(', ')}.
-                    </p>
-                  )}
-
-                  {ao.isAvailable && isAddOnActionBlocked && (
-                    <p className="pos-customize-addon-stock-note">
-                      Insufficient stock: {actionStockStatus.insufficientIngredients.join(', ')}.
-                    </p>
-                  )}
+          <div className="flex flex-col gap-[var(--app-space-4)]">
+            <h3 className="text-[length:var(--app-font-size-caption)] font-bold text-[var(--app-color-text)]">Add-ons</h3>
+            <div className="flex flex-col gap-[var(--app-space-2)]">
+              {addOns.length === 0 ? (
+                <div className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)] italic px-[var(--app-space-4)]">
+                  No available add-ons for this category.
                 </div>
-                );
-              })
-            )}
+              ) : (
+                addOns.map(ao => {
+                  const actionStockStatus = getAddOnActionStatus(ao);
+                  const isAddOnActionBlocked = !actionStockStatus.hasEnoughStock;
+
+                  return (
+                    <div
+                      key={ao.id}
+                      className={`grid grid-cols-[auto_1fr_auto_90px_65px] items-center gap-x-[var(--app-space-4)] px-[var(--app-space-4)] py-[var(--app-space-1)] ${(!ao.isAvailable) ? 'opacity-50' : ''}`}
+                    >
+                      <label className={`contents ${(!ao.selected && isAddOnActionBlocked) ? 'pointer-events-none opacity-50' : ''}`}>
+                        <div className="flex items-center justify-center cursor-pointer">
+                          <Checkbox
+                            checked={ao.selected}
+                            disabled={!ao.isAvailable || (!ao.selected && isAddOnActionBlocked)}
+                            onCheckedChange={() => handleToggleAddOn(ao.id)}
+                            className="size-[18px] border-[var(--app-color-border)] bg-[var(--app-color-filter-checkbox-surface)] data-[state=checked]:border-[var(--app-color-brand)] data-[state=checked]:bg-[var(--app-color-brand)] data-[state=checked]:text-white"
+                          />
+                        </div>
+                        <span className="text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)] font-medium break-words leading-tight cursor-pointer">
+                          {ao.name}
+                        </span>
+                        <div className="flex items-center cursor-pointer">
+                          {ao.status !== 'Available' && (
+                            <span className={`text-[10px] px-[6px] py-[2px] rounded-full uppercase font-bold tracking-wider ${ao.isAvailable ? 'bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]' : 'bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]'}`}>
+                              {ao.status}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+
+                      <div className="flex items-center justify-center">
+                        {ao.selected && (
+                          <div className="flex items-center justify-center w-full gap-[var(--app-space-2)]">
+                            <button
+                              type="button"
+                              className="relative after:absolute after:-inset-2 size-[26px] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
+                              onClick={() => handleUpdateAddOnQty(ao.id, -1)}
+                            >
+                              <i className="bi bi-dash text-[0.8rem]"></i>
+                            </button>
+                            <span className="font-bold text-[length:var(--app-font-size-body-secondary)] min-w-[1rem] text-center text-[var(--app-color-text)]">
+                              {ao.qty}
+                            </span>
+                            <button
+                              type="button"
+                              className="relative after:absolute after:-inset-2 size-[26px] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
+                              onClick={() => handleUpdateAddOnQty(ao.id, 1)}
+                              disabled={isAddOnActionBlocked}
+                            >
+                              <i className="bi bi-plus text-[0.8rem]"></i>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <span className="text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)] font-medium text-right">
+                        {formatCurrency(ao.price)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
+        </ModalContent>
+      </ModalBody>
 
-        </div>
-
-        {/* Footer */}
-        <div className="pos-customize-footer">
-          <div className="pos-customize-total">
-            <span>Total</span>
-            <span>{formatCurrency(total)}</span>
-          </div>
-          <button 
-            className="pos-customize-add-btn" 
-            onClick={handleAddToCartClick}
-            disabled={!isCombinationValid}
-            style={!isCombinationValid ? { backgroundColor: '#ccc', cursor: 'not-allowed' } : {}}
-          >
-            {isCombinationValid ? 'Add to Order' : 'Insufficient Stock'}
-          </button>
-        </div>
-
-      </div>
-    </div>
+      <ModalFooter>
+        <Button variant="outline" onClick={onClose} className="h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-4)] rounded-[var(--app-radius-nested)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-semibold text-[var(--app-color-text)] bg-[var(--app-color-canvas)] border-none hover:bg-[var(--app-color-surface-hover)]">
+          Cancel
+        </Button>
+        <Button
+          onClick={handleAddToCartClick}
+          disabled={!isCombinationValid}
+          className="h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-4)] rounded-[var(--app-radius-nested)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-semibold bg-[var(--app-color-brand)] text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isCombinationValid ? 'Confirm' : 'Insufficient Stock'}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };
 

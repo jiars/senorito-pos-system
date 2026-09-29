@@ -1,285 +1,316 @@
-import React, { useState, useEffect } from 'react';
-import './editAddonModal.css';
+import { useRef, useState } from "react";
 
-import { updateAddon } from '../../../../../services/menu/addonsService';
-import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
-import { validateAddonForm } from '../../../../../utils/validation/menuValidation';
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import RecipePricingStep from "../Add Add-on/steps/RecipePricingStep";
+import { updateAddon } from "@/services/menu/addonsService";
+import {
+  calculateEstCost,
+  calculateMargin,
+  calculateProfit,
+} from "@/utils/menu/pricingCalculations";
+import { validateAddonForm } from "@/utils/validation/menuValidation";
+import {
+  controlClassName,
+  errorClassName,
+  labelClassName,
+  secondaryButtonClassName,
+  toggleClassName,
+} from "@/pages/menu/modals/shared/menuModalClasses";
 
-import EditAddonBaseInfo from './components/EditAddonBaseInfo';
-import EditAddonIngredientRow from './components/EditAddonIngredientRow';
-import RecipeStatusBadge from '../../../components/RecipeStatusBadge';
+const createIngredient = (recipe = null) => ({
+  id: recipe?.id || crypto.randomUUID(),
+  persistedId: recipe?.id || null,
+  ingredientId: recipe?.inventory_item_id || "",
+  qty:
+    recipe?.quantity === undefined || recipe?.quantity === null
+      ? ""
+      : String(recipe.quantity),
+  unit: recipe?.unit || recipe?.inventory_items?.base_unit || "",
+});
 
-const EditAddonModal = ({ isOpen, onClose, addon, refetchAddons, categories = [], inventoryItems: dbIngredients = [] }) => {
-  const [addonName, setAddonName] = useState('');
-  const [sellingPrice, setSellingPrice] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [ingredients, setIngredients] = useState([]);
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+const EditAddonModalContent = ({
+  onClose,
+  addon,
+  refetchAddons,
+  categories = [],
+  inventoryItems = [],
+  maxWidth = "42rem",
+  maxHeight = "min(90svh, 48rem)",
+}) => {
+  const [addonName, setAddonName] = useState(addon.addon_name || "");
+  const [isAvailable, setIsAvailable] = useState(
+    addon.pos_status === "Available",
+  );
+  const [selectedCategories, setSelectedCategories] = useState(() =>
+    (addon.addon_categories || [])
+      .map((category) => category.menu_category_id)
+      .filter(Boolean),
+  );
+  const [recipe, setRecipe] = useState(() => ({
+    sellingPrice: String(addon.selling_price ?? ""),
+    ingredients: addon.addon_recipes?.length
+      ? addon.addon_recipes.map((entry) => createIngredient(entry))
+      : [createIngredient()],
+  }));
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const submittingRef = useRef(false);
 
+  const estimatedCost = calculateEstCost(recipe.ingredients, inventoryItems);
+  const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
+  const margin = calculateMargin(profit, recipe.sellingPrice);
+  const allErrors = validateAddonForm(
+    addonName,
+    recipe.sellingPrice,
+    selectedCategories,
+    recipe.ingredients,
+  );
+  const errors = hasAttemptedSubmit ? allErrors : {};
 
-
-  useEffect(() => {
-    if (isOpen && addon) {
-      setHasAttemptedSubmit(false);
-      setErrors({});
-      setErrorMessage('');
-      setIsSubmitting(false);
-
-      setAddonName(addon.addon_name || '');
-      setSellingPrice(addon.selling_price !== undefined ? addon.selling_price.toString() : '');
-      setIsAvailable(addon.pos_status === 'Available');
-
-      const catIds = [];
-      if (addon.addon_categories) {
-        for (let i = 0; i < addon.addon_categories.length; i++) {
-          if (addon.addon_categories[i].menu_category_id) {
-            catIds.push(addon.addon_categories[i].menu_category_id);
-          }
-        }
-      }
-      setSelectedCategories(catIds);
-
-      if (addon.addon_recipes && addon.addon_recipes.length > 0) {
-        setIngredients(addon.addon_recipes.map(recipe => ({
-          id: recipe.id,
-          ingredientId: recipe.inventory_item_id,
-          qty: recipe.quantity.toString(),
-          unit: recipe.unit || (recipe.inventory_items ? recipe.inventory_items.base_unit : '')
-        })));
-      } else {
-        setIngredients([
-          { id: Date.now(), ingredientId: '', qty: '', unit: '' }
-        ]);
-      }
-    }
-  }, [isOpen, addon]);
-
-  /* ─── Math Helpers (from utils) ─── */
-  const estCost = calculateEstCost(ingredients, dbIngredients);
-  const profit = calculateProfit(sellingPrice, estCost);
-  const margin = calculateMargin(profit, sellingPrice);
-
-  /* ─── Validation ─── */
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = validateAddonForm(addonName, sellingPrice, selectedCategories, ingredients);
-    setErrors(newErrors);
-  }, [addonName, sellingPrice, selectedCategories, ingredients, isOpen]);
-
-  const isFormValid = Object.keys(errors).length === 0;
-
-  /* ─── Handlers ─── */
-  const toggleCategory = (catId) => {
-    if (selectedCategories.includes(catId)) {
-      setSelectedCategories(selectedCategories.filter(id => id !== catId));
-    } else {
-      setSelectedCategories([...selectedCategories, catId]);
-    }
+  const updateRecipe = (updater) => {
+    setErrorMessage("");
+    setRecipe(updater);
   };
 
-  const handleSaveEdit = async () => {
+  const toggleCategory = (categoryId) => {
+    setErrorMessage("");
+    setSelectedCategories((current) =>
+      current.includes(categoryId)
+        ? current.filter((id) => id !== categoryId)
+        : [...current, categoryId],
+    );
+  };
+
+  const handleSave = async () => {
     setHasAttemptedSubmit(true);
-    if (!addon || isSubmitting || !isFormValid) return;
+    if (Object.keys(allErrors).length > 0 || submittingRef.current) return;
+
+    submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage('');
+    setErrorMessage("");
 
     try {
-      const payload = {
+      await updateAddon(addon.id, {
         base_info: {
           addon_name: addonName.trim(),
-          selling_price: parseFloat(sellingPrice) || 0,
-          estimated_cost: estCost,
-          profit: profit,
-          margin: margin,
-          pos_status: isAvailable ? 'Available' : 'Unavailable',
-          archived: isAvailable ? false : (addon.archived !== undefined ? addon.archived : false)
+          selling_price: Number(recipe.sellingPrice) || 0,
+          estimated_cost: estimatedCost,
+          profit,
+          margin,
+          pos_status: isAvailable ? "Available" : "Unavailable",
+          archived: addon.archived === true,
         },
         categories: selectedCategories,
-        recipes: ingredients
-          .filter(ing => ing.ingredientId && ing.qty)
-          .map(ing => {
-            const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-            let equivalent = 1;
-            if (ing.unit && ing.unit !== ref?.base_unit) {
-              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-              if (conv) equivalent = Number(conv.equivalent_base_amount);
-            }
-            const baseQty = parseFloat(ing.qty) * equivalent;
-
+        recipes: recipe.ingredients
+          .filter((ingredient) => ingredient.ingredientId && ingredient.qty)
+          .map((ingredient) => {
+            const reference = inventoryItems.find(
+              (item) => item.id === ingredient.ingredientId,
+            );
+            const conversion = reference?.inventory_conversion_units?.find(
+              (unit) => unit.converted_unit === ingredient.unit,
+            );
+            const equivalent = conversion
+              ? Number(conversion.equivalent_base_amount)
+              : 1;
             return {
-              id: typeof ing.id === 'string' && ing.id.length > 20 ? ing.id : null,
-              inventory_item_id: ing.ingredientId,
-              quantity: parseFloat(ing.qty),
-              unit: ing.unit || ref?.base_unit,
-              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
+              id: ingredient.persistedId || null,
+              inventory_item_id: ingredient.ingredientId,
+              quantity: Number(ingredient.qty),
+              unit: ingredient.unit || reference?.base_unit,
+              estimated_cost:
+                Number(ingredient.qty) *
+                equivalent *
+                Number(reference?.cost_per_unit || 0),
             };
-          })
-      };
-
-      await updateAddon(addon.id, payload);
-      if (refetchAddons) {
-        await refetchAddons();
-      }
+          }),
+      });
+      if (refetchAddons) await refetchAddons();
       onClose();
     } catch (error) {
-      console.error('Failed to update addon:', error);
-      setErrorMessage(error.message || 'An error occurred while saving the addon.');
+      setErrorMessage(
+        error.message || "Unable to update the add-on. Please try again.",
+      );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const addIngredient = () => {
-    setIngredients([
-      ...ingredients,
-      { id: Date.now(), ingredientId: '', qty: '', unit: '' }
-    ]);
-  };
-
-  const removeIngredient = (id) => {
-    if (ingredients.length <= 1) {
-      setErrorMessage('At least one ingredient is required.');
-      setTimeout(() => setErrorMessage(''), 3000);
-      return;
-    }
-    setErrorMessage('');
-    setIngredients(ingredients.filter(ing => ing.id !== id));
-  };
-
-  const updateIngredient = (id, field, value) => {
-    setIngredients(ingredients.map(ing => {
-      if (ing.id !== id) return ing;
-      const updated = { ...ing, [field]: value };
-      if (field === 'ingredientId') {
-        const ref = dbIngredients.find(i => i.id === value);
-        if (ref) updated.unit = ref.base_unit;
-      }
-      return updated;
-    }));
-  };
-
-  if (!isOpen) return null;
-
   return (
-    <div className="eao-modal-overlay">
-      <div className="eao-modal-content">
-
-        {/* Header */}
-        <div className="eao-modal-header">
-          <h3>Edit Add-on</h3>
-          <button className="eao-modal-close" onClick={onClose}>
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="eao-modal-body">
-
-          <EditAddonBaseInfo 
-            addonName={addonName}
-            setAddonName={setAddonName}
-            isAvailable={isAvailable}
-            setIsAvailable={setIsAvailable}
-            categories={categories}
-            selectedCategories={selectedCategories}
-            toggleCategory={toggleCategory}
-            sellingPrice={sellingPrice}
-            setSellingPrice={setSellingPrice}
-            estCost={estCost}
-            profit={profit}
-            margin={margin}
-            errors={errors}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-          />
-
-          <div className="eao-bottom-section">
-            <div className="eao-section">
-              <div className="menu-recipe-heading">
-                <div>
-                  <label className="eao-label" style={{ fontSize: '1rem' }}>Recipe / Ingredient Deductions</label>
-                  <p className="eao-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-                </div>
-                <RecipeStatusBadge
-                  ingredients={ingredients}
-                  inventoryItems={dbIngredients}
-                />
-              </div>
-
-              <div className="eao-ingredients-table">
-                <div className="eao-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Ingredient *</label>
-                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Qty *</label>
-                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Unit *</label>
-                  <label className="eao-label" style={{ fontSize: '0.8rem' }}>Est. Cost</label>
-                  <div></div>
-                </div>
-                {ingredients.map(ing => (
-                  <EditAddonIngredientRow 
-                    key={ing.id}
-                    ing={ing}
-                    dbIngredients={dbIngredients}
-                    updateIngredient={updateIngredient}
-                    removeIngredient={removeIngredient}
-                    errors={errors}
-                    hasAttemptedSubmit={hasAttemptedSubmit}
-                  />
-                ))}
-              </div>
-
-              <button
-                className="menu-btn"
-                style={{
-                  marginTop: '1rem',
-                  alignSelf: 'flex-start',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #D9C0AE',
-                  color: '#5C3827',
-                  fontWeight: '600'
-                }}
-                onClick={addIngredient}
-              >
-                <i className="bi bi-plus"></i> Add Ingredient
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Footer */}
-        {errorMessage && (
-          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
-            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
-            {errorMessage}
-          </div>
-        )}
-
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
-
-        <div className="eao-modal-footer">
-          <button className="eao-btn-cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            className="eao-btn-save"
+    <Modal
+      isOpen
+      onClose={() => {
+        if (!submittingRef.current) onClose();
+      }}
+      maxWidth={maxWidth}
+      maxHeight={maxHeight}
+    >
+      <ModalHeader
+        title="Edit Add-on"
+        description="Update the add-on details, pricing, and recipe ingredients."
+        iconClassName="bi bi-pencil-square"
+        closeDisabled={isSubmitting}
+      />
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]">
+        <ModalContent className="max-sm:!p-[var(--app-space-4)]">
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
+            >
+              {errorMessage}
+            </p>
+          )}
+          <fieldset
             disabled={isSubmitting}
-            onClick={handleSaveEdit}
+            className="flex min-w-0 flex-col gap-[var(--app-gap-section)] border-0 p-0"
           >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-
-      </div>
-    </div>
+            <section
+              aria-labelledby="edit-addon-general"
+              className="flex min-w-0 flex-col gap-[var(--app-gap-related)]"
+            >
+              <h2 id="edit-addon-general" className="sr-only">
+                General add-on information
+              </h2>
+              <Field data-invalid={Boolean(errors.addonName)}>
+                <FieldLabel
+                  htmlFor="edit-addon-name"
+                  className={labelClassName}
+                >
+                  Add-on Name{" "}
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <Input
+                  id="edit-addon-name"
+                  value={addonName}
+                  onChange={(event) => {
+                    setErrorMessage("");
+                    setAddonName(event.target.value);
+                  }}
+                  className={controlClassName}
+                  aria-invalid={Boolean(errors.addonName)}
+                />
+                {errors.addonName && (
+                  <FieldError className={errorClassName}>
+                    {errors.addonName}
+                  </FieldError>
+                )}
+              </Field>
+              <Field data-invalid={Boolean(errors.categories)}>
+                <span
+                  id="edit-addon-categories-label"
+                  className={labelClassName}
+                >
+                  Apply to Categories{" "}
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </span>
+                <div
+                  role="group"
+                  aria-labelledby="edit-addon-categories-label"
+                  className="grid max-h-[min(30svh,14rem)] grid-cols-2 gap-x-[var(--app-gap-related)] gap-y-[var(--app-space-2)] overflow-y-auto px-[var(--app-space-2)] py-[var(--app-space-1)] sm:grid-cols-4 sm:px-[var(--app-space-6)]"
+                >
+                  {categories.map((category) => (
+                    <label
+                      key={category.id}
+                      className="flex min-h-[var(--app-touch-target-min)] min-w-0 cursor-pointer items-center gap-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)]"
+                    >
+                      <Checkbox
+                        checked={selectedCategories.includes(category.id)}
+                        onCheckedChange={() => toggleCategory(category.id)}
+                        className="size-[18px] border-[var(--app-color-border)] bg-[var(--app-color-filter-checkbox-surface)] data-checked:border-[var(--app-color-brand)] data-checked:bg-[var(--app-color-brand)] data-checked:text-white"
+                      />
+                      <span className="min-w-0 break-words">
+                        {category.category_name}
+                      </span>
+                    </label>
+                  ))}
+                  {categories.length === 0 && (
+                    <p className="col-span-full text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-muted)]">
+                      No categories found.
+                    </p>
+                  )}
+                </div>
+                {errors.categories && (
+                  <FieldError className={errorClassName}>
+                    {errors.categories}
+                  </FieldError>
+                )}
+              </Field>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isAvailable}
+                onClick={() => {
+                  setErrorMessage("");
+                  setIsAvailable((current) => !current);
+                }}
+                className={toggleClassName}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${isAvailable ? "bg-[var(--app-color-brand)]" : "bg-[var(--app-color-border-subtle)]"}`}
+                >
+                  <span
+                    className={`absolute top-[3px] size-[18px] rounded-full bg-white shadow-sm transition-transform ${isAvailable ? "translate-x-[23px]" : "translate-x-[3px]"}`}
+                  />
+                </span>
+                Available for sale
+              </button>
+            </section>
+            <RecipePricingStep
+              headingRef={null}
+              recipe={recipe}
+              inventoryItems={inventoryItems}
+              errors={errors}
+              disabled={isSubmitting}
+              className="!bg-[var(--app-color-canvas)]"
+              onRecipeChange={updateRecipe}
+              onAddIngredient={() =>
+                updateRecipe((current) => ({
+                  ...current,
+                  ingredients: [...current.ingredients, createIngredient()],
+                }))
+              }
+            />
+          </fieldset>
+        </ModalContent>
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className={secondaryButtonClassName}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        >
+          {isSubmitting ? "Saving..." : "Save Changes"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
+};
+
+const EditAddonModal = ({ isOpen, addon, ...props }) => {
+  if (!isOpen || !addon) return null;
+  return <EditAddonModalContent key={addon.id} addon={addon} {...props} />;
 };
 
 export default EditAddonModal;
