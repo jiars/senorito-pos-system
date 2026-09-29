@@ -217,6 +217,7 @@ const MenuManagementPage = () => {
         refetchMenu={refetchMenu}
         categories={categories}
         inventoryItems={ingredients}
+        supportsVariantArchiving={true}
       />
 
       <ConfirmDeleteMenuItemModal

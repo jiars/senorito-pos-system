@@ -24,7 +24,12 @@ class MenuItemPrice extends Model
         'margin',
         'item_code',
         'pos_status',
-        'recipe_status'
+        'recipe_status',
+        'archived'
+    ];
+
+    protected $casts = [
+        'archived' => 'boolean',
     ];
 
     public function menu_item()

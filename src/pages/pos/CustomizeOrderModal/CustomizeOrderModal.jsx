@@ -141,7 +141,7 @@ const CustomizeOrderModal = ({ product, allAddons = [], cartItems = [], onClose,
     // Gather selected variant name
     const variantName = product.variants && product.variants.length > 0
       ? product.variants[selectedVariantIndex].name
-      : 'Regular';
+      : product.defaultVariantName || 'Reg';
 
     const variantId = product.variants && product.variants.length > 0
       ? product.variants[selectedVariantIndex].id

@@ -218,18 +218,18 @@ const POSPage = () => {
           let displayPrice = formatCurrency(0);
           let variants = [];
           let defaultPriceId = null;
+          let defaultVariantName = "Reg";
           let defaultPricePosStatus = "Available";
           let defaultRecipeStatus = "Incomplete";
-          const itemPrices = item.menu_prices || [];
+          const itemPrices = (item.menu_prices || []).filter((price) => !price.archived);
           const itemRecipes = item.menu_recipes || [];
 
-          if (item.pricing_type === "Fixed") {
-            const regularPriceObj =
-              itemPrices.find((p) => p.variant_name === "Regular") ||
-              itemPrices[0];
+          if (itemPrices.length === 1) {
+            const regularPriceObj = itemPrices[0];
             basePrice = Number(regularPriceObj?.selling_price) || 0;
             displayPrice = formatCurrency(basePrice);
             defaultPriceId = regularPriceObj?.id || null;
+            defaultVariantName = regularPriceObj?.variant_name || "Reg";
             defaultPricePosStatus = regularPriceObj?.pos_status || "Available";
             defaultRecipeStatus =
               regularPriceObj?.recipe_status || "Incomplete";
@@ -269,13 +269,14 @@ const POSPage = () => {
             price: displayPrice,
             basePrice,
             defaultPriceId,
+            defaultVariantName,
             defaultPricePosStatus,
             defaultRecipeStatus,
             posStatus: item.pos_status,
             imageURL: item.image_url || imgDefault,
             variants,
             rawRecipes: itemRecipes,
-            isAvailable: item.pos_status === "Available" && !item.archived,
+            isAvailable: item.pos_status === "Available" && !item.archived && itemPrices.length > 0,
           };
         });
 

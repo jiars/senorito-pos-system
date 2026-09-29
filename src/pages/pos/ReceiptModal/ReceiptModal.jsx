@@ -81,7 +81,7 @@ const ReceiptModal = ({ orderDetails, onClose }) => {
                   <tr className={item.addOns && item.addOns.length > 0 ? "pos-receipt-main-row-with-addon" : ""}>
                     <td>
                       <p className="pos-receipt-item-name">
-                        {item.name} {item.variant !== 'Regular' ? `(${item.variant})` : ''}
+                        {item.name} {item.variant && !['Regular', 'Reg'].includes(item.variant) ? `(${item.variant})` : ''}
                       </p>
                     </td>
                     <td>{item.qty}</td>

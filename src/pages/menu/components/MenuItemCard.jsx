@@ -16,7 +16,9 @@ const MenuItemCard = ({
   onRestore,
   isRestoring = false,
 }) => {
-  const prices = Array.isArray(item.menu_prices) ? item.menu_prices : [];
+  const prices = Array.isArray(item.menu_prices)
+    ? item.menu_prices.filter((price) => !price.archived)
+    : [];
   const category = item.menu_categories?.category_name || "Uncategorized";
   const isArchived = item.archived === true;
   const isArchiveMode = mode === "archive";

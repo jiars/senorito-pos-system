@@ -25,7 +25,10 @@ class MenuItemPriceController extends Controller
                 'profit' => $priceData['profit'] ?? 0,
                 'margin' => $priceData['margin'] ?? 0,
                 'item_code' => $priceData['item_code'] ?? null,
-                'pos_status' => $priceData['pos_status'] ?? 'Available'
+                'pos_status' => $this->resolvePosStatus(
+                    $priceData['pos_status'] ?? 'Available'
+                ),
+                'archived' => false,
             ]);
             // Pass the recipes down to the Recipe Controller!
             if (!empty($priceData['recipes'])) {
@@ -46,15 +49,34 @@ class MenuItemPriceController extends Controller
         $statusController = app(RecipeStatusController::class);
         $recipeController = app(MenuRecipeController::class);
         foreach ($prices as $priceData) {
-            MenuItemPrice::where('id', $priceData['id'])->update([
+            $price = MenuItemPrice::where('id', $priceData['id'])
+                ->where('menu_item_id', $menuItemId)
+                ->firstOrFail();
+
+            $archived = array_key_exists('archived', $priceData)
+                ? (bool) $priceData['archived']
+                : (bool) $price->archived;
+
+            $price->update([
                 'variant_name' => $priceData['variant_name'],
                 'selling_price' => $priceData['selling_price'],
                 'estimated_cost' => $priceData['estimated_cost'] ?? 0,
                 'profit' => $priceData['profit'] ?? 0,
                 'margin' => $priceData['margin'] ?? 0,
                 'item_code' => $priceData['item_code'] ?? null,
-                'pos_status' => $priceData['pos_status'] ?? 'Available'
+                'archived' => $archived,
+                'pos_status' => $archived
+                    ? 'Unavailable'
+                    : $this->resolvePosStatus(
+                        $priceData['pos_status'] ?? $price->pos_status
+                    ),
             ]);
+
+            // Archived rows keep their recipes so they can be restored later.
+            if ($archived || !array_key_exists('recipes', $priceData)) {
+                continue;
+            }
+
             // Sort recipes for this specific price
             $recipesToInsert = [];
             $recipesToUpdate = [];
@@ -85,6 +107,20 @@ class MenuItemPriceController extends Controller
 
     public function destroyMany(array $ids)
     {
-        MenuItemPrice::whereIn('id', $ids)->delete();
+        MenuItemPrice::whereIn('id', $ids)->update([
+            'archived' => true,
+            'pos_status' => 'Unavailable',
+        ]);
+    }
+
+    private function resolvePosStatus(mixed $status): string
+    {
+        if (is_bool($status)) {
+            return $status ? 'Available' : 'Unavailable';
+        }
+
+        return in_array($status, ['Available', 'Unavailable'], true)
+            ? $status
+            : 'Unavailable';
     }
 }

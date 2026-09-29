@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\OrderManagement\OrderItems;
 
 use App\Http\Controllers\Controller;
+use App\Models\MenuManagement\MenuItemPrice;
 use App\Models\OrderManagement\OrderItem;
+use Illuminate\Validation\ValidationException;
 
 class OrderItemController extends Controller
 {
@@ -26,6 +28,20 @@ class OrderItemController extends Controller
 
     public function store(array $itemData, string $orderId)
     {
+        $price = MenuItemPrice::query()
+            ->whereKey($itemData['price_id'] ?? null)
+            ->where('menu_item_id', $itemData['menu_item_id'] ?? null)
+            ->where('archived', false)
+            ->where('pos_status', 'Available')
+            ->whereHas('menu_item', fn($query) => $query->where('archived', false))
+            ->first();
+
+        if (!$price) {
+            throw ValidationException::withMessages([
+                'items' => 'One or more selected menu variants are unavailable.',
+            ]);
+        }
+
         // Create one purchased Menu item under the receipt.
         return OrderItem::create([
             'order_id' => $orderId,

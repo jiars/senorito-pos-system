@@ -398,8 +398,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 ### Variant 1 — Multi-step Forms
 
 - [x] Migrate Add Inventory Item with General, Initial Purchase, and optional Recipe Conversion steps; add compatible-unit automatic conversion with manual packaging fallback.
-- [ ] Migrate Add Menu Item using the approved multi-step structure while preserving variants, prices, and recipes.
-- [ ] Migrate Add Add-on using the approved multi-step structure while preserving its ingredient behavior.
+- [~] Add Menu Item implemented with General and Recipe & Pricing steps, required image selection, a responsive square preview (original upload unchanged), customizable modal dimensions, and field-only validation. Legacy Add Menu components/CSS removed after reference checks. Focused lint, build, and mocked UI checks pass; final user visual/save approval pending.
+- [~] Add Add-on implemented with General and Recipe & Pricing steps, multi-category selection/search, availability, and shared pricing/ingredient fields. Existing service/payload preserved; legacy Add Add-on components/CSS removed after reference checks. Focused lint, build, and mocked save checks pass; user visual/live-save approval pending.
 
 ### Modal Migration Verification
 
@@ -440,4 +440,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Current Next Task
 
-Migrate Add Menu Item as the next Variant 1 modal while preserving variants, prices, recipes, image handling, services, validation, and payloads. Keep complete cross-viewport and keyboard/focus modal verification in the Phase 11 verification pass.
+Review the revised Add Menu Item and new Add Add-on modals with the user, then verify real image upload and live saves. Both use the shared modal stepper and recipe/pricing fields; no services or backend contracts were changed. Keep final cross-viewport and keyboard/focus verification in the Phase 11 verification pass.

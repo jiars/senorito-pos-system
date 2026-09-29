@@ -87,42 +87,30 @@ export const validateAddonForm = (
  */
 export const validateMenuItemForm = (
   baseInfo,
-  pricingMode,
-  singleRecipe,
   variants,
+  { requireImage = false } = {},
 ) => {
   let errors = {};
-
+  const activeVariants = variants.filter((variant) => !variant.archived);
   if (!isRequired(baseInfo.name)) errors.name = "Item name is required.";
   if (!isRequired(baseInfo.category)) errors.category = "Category is required.";
+  if (requireImage && !baseInfo.image) errors.image = "Menu image is required.";
+  if (activeVariants.length === 0) errors.variants = "Keep at least one non-archived size.";
 
-  if (pricingMode === "single") {
-    if (!isRequired(singleRecipe.sellingPrice)) {
-      errors.sellingPrice = "Selling price is required.";
-    } else if (!isPositiveNumber(singleRecipe.sellingPrice)) {
-      errors.sellingPrice = "Price must be > 0.";
+  activeVariants.forEach((variant) => {
+    const prefix = `variant_${variant.id}`;
+    if (activeVariants.length > 1 && !isRequired(variant.name)) {
+      errors[`${prefix}_name`] = "Enter a name for every size when there are multiple variants.";
     }
-
-    const ingErrors = validateIngredients(
-      singleRecipe.ingredients,
-      "single_ing_",
-    );
-    errors = { ...errors, ...ingErrors };
-  } else {
-    variants.forEach((v) => {
-      if (!isRequired(v.name))
-        errors[`variant_${v.id}_name`] = "Variant name required.";
-
-      if (!isRequired(v.sellingPrice)) {
-        errors[`variant_${v.id}_price`] = "Price required.";
-      } else if (!isPositiveNumber(v.sellingPrice)) {
-        errors[`variant_${v.id}_price`] = "Must be > 0.";
-      }
-
-      const ingErrors = validateIngredients(v.ingredients, `var_${v.id}_ing_`);
-      errors = { ...errors, ...ingErrors };
-    });
-  }
-
+    if (!isRequired(variant.sellingPrice)) {
+      errors[`${prefix}_price`] = "Selling price is required.";
+    } else if (!isPositiveNumber(variant.sellingPrice)) {
+      errors[`${prefix}_price`] = "Price must be greater than 0.";
+    }
+    errors = {
+      ...errors,
+      ...validateIngredients(variant.ingredients, `var_${variant.id}_ing_`),
+    };
+  });
   return errors;
 };

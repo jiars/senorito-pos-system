@@ -1,275 +1,284 @@
-import React, { useState, useEffect } from 'react';
-import './addMenuItemModal.css';
-import { addMenuItem } from '../../../../services/menu/menuItemsService';
-import { uploadMenuImage } from '../../../../utils/imageUploadHelper';
-import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../utils/menu/pricingCalculations';
-import { validateMenuItemForm } from '../../../../utils/validation/menuValidation';
+import { useRef, useState } from "react";
 
-import AddMenuBaseInfo from './components/AddMenuBaseInfo';
-import AddMenuSinglePrice from './components/AddMenuSinglePrice';
-import AddMenuVariants from './components/AddMenuVariants';
+import Modal from "@/components/modals/Modal";
+import ModalHeader from "@/components/modals/ModalHeader";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalStepper from "@/components/modals/ModalStepper";
+import ModalFooter from "@/components/modals/ModalFooter";
+import { Button } from "@/components/ui/button";
+import { addMenuItem } from "@/services/menu/menuItemsService";
+import { uploadMenuImage } from "@/utils/imageUploadHelper";
+import {
+  calculateEstCost,
+  calculateProfit,
+  calculateMargin,
+} from "@/utils/menu/pricingCalculations";
+import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
+import { validateMenuItemForm } from "@/utils/validation/menuValidation";
 
-const getInitialBaseInfo = () => ({ name: '', category: '', description: '', isAvailable: false, image: null });
-const getInitialSingleRecipe = () => ({ sellingPrice: '', ingredients: [{ id: Date.now(), ingredientId: '', qty: '', unit: '' }] });
-const getInitialVariant = () => ({ id: Date.now(), name: '', isAvailable: true, sellingPrice: '', ingredients: [{ id: Date.now() + 1, ingredientId: '', qty: '', unit: '' }] });
+import GeneralStep from "./steps/GeneralStep";
+import RecipePricingStep from "./steps/RecipePricingStep";
+import { secondaryButtonClassName } from "../shared/menuModalClasses";
+import "./addMenuItemLayout.css";
 
-const AddMenuItemModal = ({ isOpen, onClose, refetchMenu, categories, inventoryItems = [] }) => {
-  /* ─── State ─── */
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [errors, setErrors] = useState({});
+const steps = [
+  { id: "general", label: "General" },
+  { id: "recipe-pricing", label: "Recipe & Pricing" },
+];
+const createIngredient = () => ({
+  id: crypto.randomUUID(),
+  ingredientId: "",
+  qty: "",
+  unit: "",
+});
+const createRecipe = () => ({
+  sellingPrice: "",
+  ingredients: [createIngredient()],
+});
+const createVariant = () => ({
+  ...createRecipe(),
+  id: crypto.randomUUID(),
+  name: "Reg",
+  isNameAutomatic: true,
+  archived: false,
+  isAvailable: true,
+});
 
-  const [pricingMode, setPricingMode] = useState('single'); // 'single' or 'variants'
-
-  const [baseInfo, setBaseInfo] = useState(getInitialBaseInfo());
-  const [singleRecipe, setSingleRecipe] = useState(getInitialSingleRecipe());
-  const [variants, setVariants] = useState([getInitialVariant()]);
-
-  /* ─── Load Categories & Reset State on Open ─── */
-  useEffect(() => {
-    if (isOpen) {
-      setErrorMessage('');
-      setIsSubmitting(false);
-      setHasAttemptedSubmit(false);
-      setErrors({});
-      setPricingMode('single');
-      setBaseInfo(getInitialBaseInfo());
-      setSingleRecipe(getInitialSingleRecipe());
-      setVariants([getInitialVariant()]);
+// Only generated names are cleared when another active size is added.
+const normalizeVariantNames = (variants) => {
+  const activeCount = variants.filter((variant) => !variant.archived).length;
+  return variants.map((variant) => {
+    if (variant.archived) return variant;
+    if (activeCount > 1 && variant.isNameAutomatic) {
+      return { ...variant, name: "", isNameAutomatic: false };
     }
-  }, [isOpen]);
+    if (activeCount === 1 && !variant.name.trim()) {
+      return { ...variant, name: "Reg", isNameAutomatic: true };
+    }
+    return variant;
+  });
+};
 
-  /* ─── Validation Helpers ─── */
-  useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = validateMenuItemForm(baseInfo, pricingMode, singleRecipe, variants);
-    setErrors(newErrors);
-  }, [baseInfo, pricingMode, singleRecipe, variants, isOpen]);
+const AddMenuItemModalContent = ({
+  onClose,
+  refetchMenu,
+  categories = [],
+  inventoryItems = [],
+  maxWidth = "42rem",
+  maxHeight = "min(90svh, 48rem)",
+  imageSize = 512,
+}) => {
+  const [baseInfo, setBaseInfo] = useState({
+    name: "",
+    category: "",
+    isAvailable: true,
+    image: null,
+  });
+  const [variants, setVariants] = useState(() => [createVariant()]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [attemptedStep, setAttemptedStep] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const submittingRef = useRef(false);
+  const stepHeadingRef = useRef(null);
 
-  const isFormValid = Object.keys(errors).length === 0;
+  const errors = validateMenuItemForm(
+    baseInfo,
+    variants,
+    { requireImage: true },
+  );
+  const generalValid = !errors.name && !errors.category && !errors.image;
+  const showErrors = attemptedStep === currentStep;
 
-  if (!isOpen) return null;
+  const changeStep = (step) => {
+    setAttemptedStep(null);
+    setErrorMessage("");
+    setCurrentStep(step);
+    window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
+  };
+
+  const updateRecipe = (variantId, updater) => {
+    setErrorMessage("");
+      setVariants((current) =>
+        current.map((variant) =>
+          variant.id === variantId ? updater(variant) : variant,
+        ),
+      );
+  };
 
   const handleSaveItem = async () => {
-    setHasAttemptedSubmit(true);
-    if (!isFormValid || isSubmitting) return;
-
+    setAttemptedStep(currentStep);
+    if (Object.keys(errors).length > 0 || submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage('');
+    setErrorMessage("");
 
     try {
-      // 1. Upload image if exists
       let uploadedImageUrl = null;
       if (baseInfo.image) {
-        const selectedCat = categories.find(c => c.id === baseInfo.category);
-        const categoryName = selectedCat ? selectedCat.category_name : 'Uncategorized';
-        uploadedImageUrl = await uploadMenuImage(baseInfo.image, baseInfo.name, categoryName);
+        const category = categories.find(
+          (item) => item.id === baseInfo.category,
+        );
+        uploadedImageUrl = await uploadMenuImage(
+          baseInfo.image,
+          baseInfo.name,
+          category?.category_name || "Uncategorized",
+        );
       }
 
-      // 2. Build the Giant JSON Payload
+      // Keep the existing Fixed/Variants and recipe payload contract unchanged.
+      const recipes = variants;
       const payload = {
         base_info: {
           item_name: baseInfo.name.trim(),
           category_id: baseInfo.category,
-          recipe_status: 'Complete',
-          pos_status: baseInfo.isAvailable ? 'Available' : 'Unavailable',
-          pricing_type: pricingMode === 'single' ? 'Fixed' : 'Variants',
-          image_url: uploadedImageUrl
+          recipe_status: "Complete",
+          pos_status: baseInfo.isAvailable ? "Available" : "Unavailable",
+          pricing_type: variants.length === 1 ? "Fixed" : "Variants",
+          image_url: uploadedImageUrl,
         },
-        prices: []
+        prices: recipes.map((recipe) => {
+          const estimatedCost = calculateEstCost(
+            recipe.ingredients,
+            inventoryItems,
+          );
+          const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
+          return {
+            variant_name:
+              recipe.name.trim() || "Reg",
+            selling_price: parseFloat(recipe.sellingPrice) || 0,
+            estimated_cost: estimatedCost,
+            profit,
+            margin: calculateMargin(profit, recipe.sellingPrice),
+            item_code: null,
+            archived: false,
+            pos_status:
+              recipe.isAvailable
+                ? "Available"
+                : "Unavailable",
+            recipes: buildRecipePayload(recipe.ingredients, inventoryItems),
+          };
+        }),
       };
 
-      if (pricingMode === 'single') {
-        const estCost = calculateEstCost(singleRecipe.ingredients, inventoryItems);
-        const profit = calculateProfit(singleRecipe.sellingPrice, estCost);
-        const margin = calculateMargin(profit, singleRecipe.sellingPrice);
-
-        const singlePriceData = {
-          variant_name: 'Regular',
-          selling_price: parseFloat(singleRecipe.sellingPrice) || 0,
-          estimated_cost: estCost,
-          profit: profit,
-          margin: margin,
-          item_code: null, // Will be generated in backend if needed
-          pos_status: 'Available',
-          recipes: []
-        };
-
-        singleRecipe.ingredients.forEach(ing => {
-          if (ing.ingredientId && ing.qty) {
-            const ref = inventoryItems.find(i => i.id === ing.ingredientId);
-            let equivalent = 1;
-            if (ing.unit && ing.unit !== ref?.base_unit) {
-              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-              if (conv) equivalent = Number(conv.equivalent_base_amount);
-            }
-            const baseQty = parseFloat(ing.qty) * equivalent;
-            
-            singlePriceData.recipes.push({
-              inventory_item_id: ing.ingredientId,
-              quantity: parseFloat(ing.qty),
-              unit: ing.unit || ref?.base_unit,
-              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-            });
-          }
-        });
-
-        payload.prices.push(singlePriceData);
-
-      } else {
-        variants.forEach(v => {
-          const vEstCost = calculateEstCost(v.ingredients, inventoryItems);
-          const vProfit = calculateProfit(v.sellingPrice, vEstCost);
-          const vMargin = calculateMargin(vProfit, v.sellingPrice);
-
-          const variantData = {
-            variant_name: v.name.trim(),
-            selling_price: parseFloat(v.sellingPrice) || 0,
-            estimated_cost: vEstCost,
-            profit: vProfit,
-            margin: vMargin,
-            item_code: null, // Will be generated in backend if needed
-            pos_status: v.isAvailable ? 'Available' : 'Unavailable',
-            recipes: []
-          };
-
-          v.ingredients.forEach(ing => {
-            if (ing.ingredientId && ing.qty) {
-              const ref = inventoryItems.find(i => i.id === ing.ingredientId);
-              let equivalent = 1;
-              if (ing.unit && ing.unit !== ref?.base_unit) {
-                const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-                if (conv) equivalent = Number(conv.equivalent_base_amount);
-              }
-              const baseQty = parseFloat(ing.qty) * equivalent;
-
-              variantData.recipes.push({
-                inventory_item_id: ing.ingredientId,
-                quantity: parseFloat(ing.qty),
-                unit: ing.unit || ref?.base_unit,
-                estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-              });
-            }
-          });
-
-          payload.prices.push(variantData);
-        });
-      }
-
-      // 3. Send Single API Request
       await addMenuItem(payload);
-
-      // 4. Refresh menu list and close modal
-      if (refetchMenu) {
-        await refetchMenu();
-      }
+      if (refetchMenu) await refetchMenu();
       onClose();
     } catch (error) {
-      console.error('Failed to save menu item:', error);
-      setErrorMessage(error.message || 'Error saving item to database.');
+      setErrorMessage(
+        error.message || "Unable to add menu item. Please try again.",
+      );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="ami-modal-overlay">
-      <div className="ami-modal-content">
-
-        {/* Header */}
-        <div className="ami-modal-header">
-          <h3>Add Menu Item</h3>
-          <button className="ami-modal-close" onClick={onClose}>
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="ami-modal-body">
-
-          {/* Base Info with Image Upload */}
-          <AddMenuBaseInfo
-            baseInfo={baseInfo}
-            setBaseInfo={setBaseInfo}
-            categories={categories}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-            errors={errors}
-          />
-
-          <div className="ami-row ami-pricing-mode">
-            <label className="ami-label" style={{ marginRight: '1rem' }}>Pricing</label>
-            <div className="ami-segmented-control">
-              <button
-                className={`ami-segment-btn ${pricingMode === 'single' ? 'active' : ''}`}
-                onClick={() => setPricingMode('single')}
-              >
-                Single Price
-              </button>
-              <button
-                className={`ami-segment-btn ${pricingMode === 'variants' ? 'active' : ''}`}
-                onClick={() => setPricingMode('variants')}
-              >
-                Sizes/Variants
-              </button>
-            </div>
-          </div>
-
-          {/* Single Price Mode */}
-          {pricingMode === 'single' && (
-            <AddMenuSinglePrice
-              singleRecipe={singleRecipe}
-              setSingleRecipe={setSingleRecipe}
-              setErrorMessage={setErrorMessage}
-              hasAttemptedSubmit={hasAttemptedSubmit}
-              errors={errors}
-              inventoryItems={inventoryItems}
-            />
+    <Modal
+      isOpen
+      onClose={() => {
+        if (!submittingRef.current) onClose();
+      }}
+      maxWidth={maxWidth}
+      maxHeight={maxHeight}
+    >
+      <ModalHeader
+        title="Add Menu Item"
+        description="Add a new menu item to your café."
+        iconClassName="bi bi-box-seam"
+        closeDisabled={isSubmitting}
+      />
+      <ModalBody
+        className="bg-[var(--app-color-canvas)]"
+        viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]"
+      >
+        <ModalContent className="gap-[var(--app-gap-section)] max-sm:!p-[var(--app-space-4)]">
+          <ModalStepper steps={steps} currentStep={currentStep} />
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
+            >
+              {errorMessage}
+            </p>
           )}
-
-          {/* Variants Mode */}
-          {pricingMode === 'variants' && (
-            <AddMenuVariants
-              variants={variants}
-              setVariants={setVariants}
-              setErrorMessage={setErrorMessage}
-              hasAttemptedSubmit={hasAttemptedSubmit}
-              errors={errors}
-              inventoryItems={inventoryItems}
-            />
-          )}
-
-        </div>
-
-        {/* Footer */}
-        {errorMessage && (
-          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
-            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
-            {errorMessage}
-          </div>
-        )}
-
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
-
-        <div className="ami-modal-footer">
-          <button className="ami-btn-cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            className="ami-btn-save"
-            disabled={isSubmitting}
-            onClick={handleSaveItem}
-          >
-            {isSubmitting ? 'Saving...' : 'Add Menu Item'}
-          </button>
-        </div>
-      </div>
-    </div>
+          <fieldset disabled={isSubmitting} className="min-w-0 border-0 p-0">
+            {currentStep === 0 ? (
+              <GeneralStep
+                headingRef={stepHeadingRef}
+                baseInfo={baseInfo}
+                imageSize={imageSize}
+                categories={categories}
+                errors={showErrors ? errors : {}}
+                onChange={(field, value) => {
+                  setErrorMessage("");
+                  setBaseInfo((current) => ({ ...current, [field]: value }));
+                }}
+              />
+            ) : (
+              <RecipePricingStep
+                headingRef={stepHeadingRef}
+                variants={variants}
+                inventoryItems={inventoryItems}
+                errors={showErrors ? errors : {}}
+                disabled={isSubmitting}
+                onRecipeChange={updateRecipe}
+                onAddIngredient={(variantId) =>
+                  updateRecipe(variantId, (recipe) => ({
+                    ...recipe,
+                    ingredients: [...recipe.ingredients, createIngredient()],
+                  }))
+                }
+                onAddVariant={() => {
+                  setErrorMessage("");
+                  setVariants((current) => normalizeVariantNames([...current, createVariant()]));
+                }}
+                onRemoveVariant={(id) => {
+                  setErrorMessage("");
+                  setVariants((current) =>
+                    current.length > 1
+                      ? normalizeVariantNames(current.filter((variant) => variant.id !== id))
+                      : current,
+                  );
+                }}
+              />
+            )}
+          </fieldset>
+        </ModalContent>
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          className={secondaryButtonClassName}
+          disabled={isSubmitting}
+          onClick={currentStep === 0 ? onClose : () => changeStep(0)}
+        >
+          {currentStep === 0 ? "Cancel" : "Previous"}
+        </Button>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+          onClick={
+            currentStep === 1
+              ? handleSaveItem
+              : () => {
+                  setAttemptedStep(0);
+                  if (generalValid) changeStep(1);
+                }
+          }
+        >
+          {isSubmitting ? "Saving..." : currentStep === 1 ? "Add Item" : "Next"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };
+
+const AddMenuItemModal = ({ isOpen, ...props }) =>
+  isOpen ? <AddMenuItemModalContent {...props} /> : null;
 
 export default AddMenuItemModal;

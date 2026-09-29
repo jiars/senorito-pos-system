@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import DataTable from "@/components/data-table/DataTable";
 import DataTablePagination from "@/components/data-table/DataTablePagination";
@@ -7,8 +7,34 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { useRefreshEmployeeManagement } from "@/hooks/useEmployeeManagement";
+import { resendEmployeeSetupLink } from "@/services/employees/employeeAccountsService";
 
 import EmployeeActionsMenu from "./EmployeeActionsMenu";
+
+const EmployeeActionContext = createContext(null);
+
+// A stable cell component keeps its dropdown mounted while the cooldown ticks.
+const EmployeeActionCell = ({ row }) => {
+  const actions = useContext(EmployeeActionContext);
+  const employee = row.original;
+  const cooldown = Math.max(0, Math.ceil(
+    ((actions.cooldownEndsAtByEmployee[String(employee.id)] || 0) - actions.cooldownClock) / 1000,
+  ));
+  return (
+    <EmployeeActionsMenu
+      employee={employee}
+      resetRequest={actions.requestByEmployeeId.get(String(employee.id))}
+      onEdit={actions.onEdit}
+      onChangeStatus={actions.onChangeStatus}
+      onReviewPasswordRequest={actions.onReviewPasswordRequest}
+      onResendSetupLink={actions.onResendSetupLink}
+      cooldown={cooldown}
+      isSendingSetupLink={actions.isSendingSetupLink && actions.setupLinkEmployee?.id === employee.id}
+    />
+  );
+};
 
 const statusOptions = [
   { label: "Active", value: "Active" },
@@ -130,6 +156,18 @@ const EmployeeTable = ({
   const [actionFeedback, setActionFeedback] = useState(null);
   const [cooldownEndsAtByEmployee, setCooldownEndsAtByEmployee] = useState({});
   const [cooldownClock, setCooldownClock] = useState(() => Date.now());
+  const [setupLinkEmployee, setSetupLinkEmployee] = useState(null);
+  const [isSendingSetupLink, setIsSendingSetupLink] = useState(false);
+  const [setupLinkError, setSetupLinkError] = useState("");
+  const setupLinkInFlight = useRef(false);
+  const refreshEmployeeManagement = useRefreshEmployeeManagement();
+
+  const setupEmployeeName = setupLinkEmployee
+    ? `${setupLinkEmployee.first_name || ""} ${setupLinkEmployee.last_name || ""}`.trim() || setupLinkEmployee.username || "Employee"
+    : "Employee";
+  const setupLinkCooldown = Math.max(0, Math.ceil(
+    ((cooldownEndsAtByEmployee[String(setupLinkEmployee?.id)] || 0) - cooldownClock) / 1000,
+  ));
 
   const hasActiveCooldown = Object.values(cooldownEndsAtByEmployee).some(
     (endsAt) => endsAt > cooldownClock,
@@ -156,6 +194,45 @@ const EmployeeTable = ({
       [String(employeeId)]: endsAt,
     }));
     setCooldownClock(Date.now());
+  };
+
+  const handleConfirmSetupLink = async () => {
+    if (!setupLinkEmployee || setupLinkInFlight.current) return;
+    const employee = employees.find((item) => String(item.id) === String(setupLinkEmployee.id));
+    const roleName = employee?.role?.role_name || employee?.role_name || "";
+    if (!employee || roleName.toLowerCase() === "owner" || !employee.requires_password_setup || String(employee.status || "Active").toLowerCase() !== "active") {
+      setSetupLinkError("This employee is no longer eligible for a setup link. Close this dialog and refresh the list.");
+      return;
+    }
+    if ((cooldownEndsAtByEmployee[String(employee.id)] || 0) > Date.now()) return;
+
+    setupLinkInFlight.current = true;
+    setIsSendingSetupLink(true);
+    setSetupLinkError("");
+    try {
+      const response = await resendEmployeeSetupLink(employee.id);
+      const retryAfter = Number(response.retry_after);
+      handleCooldownStart(employee.id, retryAfter > 0 ? retryAfter : 60);
+      setActionFeedback({ type: "success", message: `Setup link sent to ${setupEmployeeName}.` });
+      setSetupLinkEmployee(null);
+    } catch (requestError) {
+      const retryAfter = Number(requestError.response?.data?.retry_after);
+      if (retryAfter > 0) handleCooldownStart(employee.id, retryAfter);
+      if (requestError.response?.status === 409) {
+        setSetupLinkEmployee(null);
+        setActionFeedback({ type: "success", message: `${setupEmployeeName} has already completed password setup.` });
+        try {
+          await refreshEmployeeManagement();
+        } catch {
+          setActionFeedback({ type: "error", message: "Password setup is already complete, but the employee list could not refresh. Please reload the page." });
+        }
+      } else {
+        setSetupLinkError(requestError.message || "Unable to send the setup link. Please try again.");
+      }
+    } finally {
+      setupLinkInFlight.current = false;
+      setIsSendingSetupLink(false);
+    }
   };
 
   // Keep row-action feedback visible after its dropdown closes.
@@ -297,37 +374,10 @@ const EmployeeTable = ({
           headerClassName: "text-center",
           cellClassName: "text-center",
         },
-        cell: ({ row }) => {
-          const employee = row.original;
-          const resetRequest = requestByEmployeeId.get(String(employee.id));
-          const cooldownEndsAt =
-            cooldownEndsAtByEmployee[String(employee.id)] || 0;
-          const cooldown = Math.max(
-            0,
-            Math.ceil((cooldownEndsAt - cooldownClock) / 1000),
-          );
-
-          return (
-            <EmployeeActionsMenu
-              employee={employee}
-              resetRequest={resetRequest}
-              onEdit={onEdit}
-              onChangeStatus={onChangeStatus}
-              onReviewPasswordRequest={onReviewPasswordRequest}
-              onFeedback={setActionFeedback}
-              cooldown={cooldown}
-              onCooldownStart={handleCooldownStart}
-            />
-          );
-        },
+        cell: EmployeeActionCell,
       },
     ],
     [
-      cooldownClock,
-      cooldownEndsAtByEmployee,
-      onChangeStatus,
-      onEdit,
-      onReviewPasswordRequest,
       requestByEmployeeId,
     ],
   );
@@ -338,6 +388,11 @@ const EmployeeTable = ({
   };
 
   return (
+    <EmployeeActionContext.Provider value={{
+      cooldownClock, cooldownEndsAtByEmployee, requestByEmployeeId,
+      onEdit, onChangeStatus, onReviewPasswordRequest,
+      onResendSetupLink: setSetupLinkEmployee, isSendingSetupLink, setupLinkEmployee,
+    }}>
     <section className="grid min-w-0 gap-[var(--app-gap-section)]">
       <EmployeeTableToolbar
         key={`${filters.roles.join("|")}::${filters.statuses.join("|")}`}
@@ -396,7 +451,35 @@ const EmployeeTable = ({
         onPageSizeChange={setPageSize}
         isLoading={isLoading}
       />
+
+      <ConfirmationModal
+        open={Boolean(setupLinkEmployee)}
+        onOpenChange={(open) => {
+          if (!open && !setupLinkInFlight.current) {
+            setSetupLinkEmployee(null);
+            setSetupLinkError("");
+          }
+        }}
+        title="Resend Setup Link"
+        description={`Send a password setup link to ${setupEmployeeName}?`}
+        iconClassName="bi bi-envelope-arrow-up"
+        tone="success"
+        error={setupLinkError}
+        actions={[
+          {
+            key: "send",
+            label: setupLinkCooldown > 0 ? `Send Again in ${setupLinkCooldown}s` : "Send Setup Link",
+            loadingLabel: "Sending...",
+            tone: "success",
+            isLoading: isSendingSetupLink,
+            disabled: setupLinkCooldown > 0,
+            onClick: handleConfirmSetupLink,
+          },
+          { key: "cancel", label: "Cancel", tone: "secondary", close: true },
+        ]}
+      />
     </section>
+    </EmployeeActionContext.Provider>
   );
 };
 

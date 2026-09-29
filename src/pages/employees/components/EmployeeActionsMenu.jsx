@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,10 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRefreshEmployeeManagement } from "@/hooks/useEmployeeManagement";
-import { resendEmployeeSetupLink } from "@/services/employees/employeeAccountsService";
-
-const DEFAULT_COOLDOWN_SECONDS = 60;
 
 const EmployeeActionsMenu = ({
   employee,
@@ -19,12 +13,10 @@ const EmployeeActionsMenu = ({
   onEdit,
   onChangeStatus,
   onReviewPasswordRequest,
-  onFeedback,
+  onResendSetupLink,
   cooldown = 0,
-  onCooldownStart,
+  isSendingSetupLink = false,
 }) => {
-  const [isSendingSetupLink, setIsSendingSetupLink] = useState(false);
-  const refreshEmployeeManagement = useRefreshEmployeeManagement();
 
   const roleName = employee.role?.role_name || employee.role_name || "";
   const status = employee.status || "Active";
@@ -36,51 +28,6 @@ const EmployeeActionsMenu = ({
     `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
     employee.username ||
     "Employee";
-
-  const handleResendSetupLink = async () => {
-    if (!canResendSetupLink || cooldown > 0 || isSendingSetupLink) {
-      return;
-    }
-
-    setIsSendingSetupLink(true);
-
-    try {
-      const response = await resendEmployeeSetupLink(employee.id);
-      const retryAfter = Number(response.retry_after);
-
-      onCooldownStart(
-        employee.id,
-        retryAfter > 0 ? retryAfter : DEFAULT_COOLDOWN_SECONDS,
-      );
-      onFeedback({
-        type: "success",
-        message: `Setup link sent to ${employeeName}.`,
-      });
-      setIsSendingSetupLink(false);
-    } catch (error) {
-      const retryAfter = Number(error.response?.data?.retry_after);
-
-      if (retryAfter > 0) {
-        onCooldownStart(employee.id, retryAfter);
-      }
-
-      if (error.response?.status === 409) {
-        setIsSendingSetupLink(false);
-        await refreshEmployeeManagement();
-        onFeedback({
-          type: "success",
-          message: `${employeeName} has already completed password setup.`,
-        });
-        return;
-      }
-
-      onFeedback({
-        type: "error",
-        message: error.message,
-      });
-      setIsSendingSetupLink(false);
-    }
-  };
 
   if (isOwner) {
     return <span className="text-[var(--app-color-text-muted)]">—</span>;
@@ -122,7 +69,7 @@ const EmployeeActionsMenu = ({
         {canResendSetupLink && (
           <DropdownMenuItem
             disabled={cooldown > 0 || isSendingSetupLink}
-            onClick={handleResendSetupLink}
+            onClick={() => onResendSetupLink(employee)}
           >
             <i aria-hidden="true" className="bi bi-envelope-arrow-up" />
             {resendLabel}

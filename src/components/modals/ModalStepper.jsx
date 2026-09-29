@@ -1,10 +1,16 @@
-const ModalStepper = ({ steps, currentStep, className = "" }) => {
+const ModalStepper = ({
+  steps,
+  currentStep,
+  paddingX = "var(--app-space-4)",
+  className = "",
+}) => {
   return (
     <nav
       aria-label="Form progress"
-      className={`w-full px-[var(--app-space-4)] sm:px-[var(--app-space-6)] ${className}`}
+      className={`w-full min-w-0 ${className}`}
+      style={{ paddingInline: paddingX }}
     >
-      <ol className="flex w-full items-center">
+      <ol className="mx-auto flex w-fit max-w-full items-center">
         {steps.map((step, index) => {
           const isActive = index === currentStep;
           const isComplete = index < currentStep;
@@ -12,7 +18,7 @@ const ModalStepper = ({ steps, currentStep, className = "" }) => {
           return (
             <li
               key={step.id}
-              className="flex min-w-0 flex-1 items-center last:flex-none"
+              className="flex min-w-0 items-center"
             >
               <div
                 aria-current={isActive ? "step" : undefined}
@@ -31,7 +37,7 @@ const ModalStepper = ({ steps, currentStep, className = "" }) => {
                 </span>
 
                 <span
-                  className={`min-w-0 truncate text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] max-sm:max-w-16 ${
+                  className={`min-w-0 break-words text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] ${
                     isActive
                       ? "font-semibold text-[var(--app-color-text)]"
                       : "font-normal text-[var(--app-color-text-subtle)]"
@@ -44,7 +50,7 @@ const ModalStepper = ({ steps, currentStep, className = "" }) => {
               {index < steps.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className={`mx-[var(--app-space-2)] h-px min-w-4 flex-1 ${
+                  className={`mx-[var(--app-space-2)] h-px w-[var(--app-space-8)] shrink-0 max-sm:mx-[var(--app-space-1)] max-sm:w-[var(--app-space-4)] ${
                     isComplete
                       ? "bg-[var(--app-color-brand-soft)]"
                       : "bg-[var(--app-color-border-subtle)]"

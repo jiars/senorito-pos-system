@@ -1,0 +1,28 @@
+/* Modal-specific grid relationships; presentation lives in the step JSX. */
+.add-menu-general-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 35fr) minmax(0, 65fr);
+  align-items: stretch;
+  gap: var(--app-gap-related);
+}
+
+.add-menu-image-upload {
+  width: 100%;
+  max-width: var(--add-menu-image-size, 512px);
+  aspect-ratio: 1;
+  flex: none;
+}
+
+.add-menu-ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) var(--app-touch-target-min);
+  align-items: start;
+  gap: var(--app-space-2);
+}
+
+@media (max-width: 639px) {
+  .add-menu-general-grid { grid-template-columns: minmax(0, 1fr); }
+  .add-menu-ingredient-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .add-menu-ingredient-picker { grid-column: 1 / -1; }
+  .add-menu-ingredient-remove { justify-self: end; align-self: end; }
+}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\AuthManagement\Orchestrators;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\AuthManagement\PasswordSetupCompletedNotification;
 use Illuminate\Auth\Events\PasswordReset as PasswordResetEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use Throwable;
 
 class SetupPasswordController extends Controller
 {
@@ -84,6 +86,13 @@ class SetupPasswordController extends Controller
                 });
 
                 event(new PasswordResetEvent($user));
+
+                // Email delivery must not undo a completed password setup.
+                try {
+                    $user->notify(new PasswordSetupCompletedNotification());
+                } catch (Throwable $exception) {
+                    report($exception);
+                }
             }
         );
 

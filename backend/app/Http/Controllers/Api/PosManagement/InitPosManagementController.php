@@ -32,7 +32,7 @@ class InitPosManagementController extends Controller
         ])
             ->with([
                 'menu_categories:id,category_name',
-                'menu_prices:id,menu_item_id,variant_name,selling_price,pos_status,recipe_status',
+                'menu_prices:id,menu_item_id,variant_name,selling_price,pos_status,recipe_status,archived',
                 'menu_recipes:id,menu_item_id,menu_item_price_id,inventory_item_id,quantity,unit',
                 'menu_recipes.inventory_items:id,item_name,current_stock,base_unit,archived',
                 'menu_recipes.inventory_items.inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',

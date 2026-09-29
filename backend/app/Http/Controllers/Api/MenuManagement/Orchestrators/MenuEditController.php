@@ -9,6 +9,7 @@ use App\Models\MenuManagement\MenuItemPrice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class MenuEditController extends Controller
 {
@@ -26,35 +27,85 @@ class MenuEditController extends Controller
         DB::transaction(function () use ($request, $id) {
             // Update the main Menu Item.
             $menuItem = MenuItem::findOrFail($id);
+            $existingPrices = MenuItemPrice::where('menu_item_id', $id)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
             $menuItem->update($request->input('base_info'));
 
             $prices = $request->input('prices', []);
             $pricesToInsert = [];
             $pricesToUpdate = [];
             $providedPriceIds = [];
+            $finalActivePriceIds = $existingPrices
+                ->filter(fn(MenuItemPrice $price) => !$price->archived)
+                ->keys()
+                ->all();
 
             // Separate new prices from existing prices.
             foreach ($prices as $price) {
-                if (
-                    isset($price['id']) &&
-                    Str::isUuid($price['id'])
-                ) {
+                if (array_key_exists('id', $price) && $price['id'] !== null) {
+                    if (!Str::isUuid($price['id'])) {
+                        throw ValidationException::withMessages([
+                            'prices' => 'Existing price variants must use a valid ID.',
+                        ]);
+                    }
+
+                    if (!$existingPrices->has($price['id'])) {
+                        throw ValidationException::withMessages([
+                            'prices' => 'One or more price variants do not belong to this menu item.',
+                        ]);
+                    }
+
                     $pricesToUpdate[] = $price;
                     $providedPriceIds[] = $price['id'];
+
+                    $existingPrice = $existingPrices->get($price['id']);
+                    $isArchived = array_key_exists('archived', $price)
+                        ? (bool) $price['archived']
+                        : (bool) $existingPrice->archived;
+
+                    if ($isArchived) {
+                        $finalActivePriceIds = array_values(array_diff(
+                            $finalActivePriceIds,
+                            [$price['id']]
+                        ));
+                    } elseif (!in_array($price['id'], $finalActivePriceIds, true)) {
+                        $finalActivePriceIds[] = $price['id'];
+                    }
                 } else {
+                    if (!empty($price['archived'])) {
+                        throw ValidationException::withMessages([
+                            'prices' => 'New price variants cannot be archived before they are saved.',
+                        ]);
+                    }
+
                     $price['menu_item_id'] = $id;
                     $pricesToInsert[] = $price;
+                    $finalActivePriceIds[] = 'new-' . count($pricesToInsert);
                 }
             }
 
-            // Prices missing from the request will be removed.
-            $pricesToDelete = MenuItemPrice::where(
-                'menu_item_id',
-                $id
-            )
-                ->whereNotIn('id', $providedPriceIds)
-                ->pluck('id')
-                ->toArray();
+            // Saved variants missing from the request are archived, not deleted.
+            $pricesToArchive = $existingPrices
+                ->filter(
+                    fn(MenuItemPrice $price) =>
+                    !$price->archived &&
+                        !in_array($price->id, $providedPriceIds, true)
+                )
+                ->keys()
+                ->all();
+
+            $finalActivePriceIds = array_values(array_diff(
+                $finalActivePriceIds,
+                $pricesToArchive
+            ));
+
+            if (empty($finalActivePriceIds)) {
+                throw ValidationException::withMessages([
+                    'prices' => 'At least one active price variant is required.',
+                ]);
+            }
 
             $priceController = app(
                 MenuItemPriceController::class
@@ -75,9 +126,9 @@ class MenuEditController extends Controller
                 );
             }
 
-            if (!empty($pricesToDelete)) {
+            if (!empty($pricesToArchive)) {
                 $priceController->destroyMany(
-                    $pricesToDelete
+                    $pricesToArchive
                 );
             }
         });

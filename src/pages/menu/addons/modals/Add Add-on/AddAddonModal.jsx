@@ -1,264 +1,224 @@
-import React, { useState } from 'react';
-import './addAddonModal.css';
+import { useRef, useState } from "react";
+import Modal from "@/components/modals/Modal";
+import ModalHeader from "@/components/modals/ModalHeader";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalStepper from "@/components/modals/ModalStepper";
+import ModalFooter from "@/components/modals/ModalFooter";
+import { Button } from "@/components/ui/button";
+import { addAddon } from "@/services/menu/addonsService";
+import {
+  calculateEstCost,
+  calculateProfit,
+  calculateMargin,
+} from "@/utils/menu/pricingCalculations";
+import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
+import { validateAddonForm } from "@/utils/validation/menuValidation";
+import { secondaryButtonClassName } from "@/pages/menu/modals/shared/menuModalClasses";
+import GeneralStep from "./steps/GeneralStep";
+import RecipePricingStep from "./steps/RecipePricingStep";
 
-import { addAddon } from '../../../../../services/menu/addonsService';
-import { calculateEstCost, calculateProfit, calculateMargin } from '../../../../../utils/menu/pricingCalculations';
-import { validateAddonForm } from '../../../../../utils/validation/menuValidation';
+const steps = [
+  { id: "general", label: "General" },
+  { id: "recipe-pricing", label: "Recipe & Pricing" },
+];
+const createIngredient = () => ({
+  id: crypto.randomUUID(),
+  ingredientId: "",
+  qty: "",
+  unit: "",
+});
 
-import AddAddonBaseInfo from './components/AddAddonBaseInfo';
-import AddAddonIngredientRow from './components/AddAddonIngredientRow';
-
-const AddAddonModal = ({ isOpen, onClose, refetchAddons, categories = [], inventoryItems: dbIngredients = [] }) => {
-  const [addonName, setAddonName] = useState('');
-  const [sellingPrice, setSellingPrice] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState([]);
-
-  const [ingredients, setIngredients] = useState([
-    { id: Date.now(), ingredientId: '', qty: '', unit: '' }
-  ]);
+const AddAddonModalContent = ({
+  onClose,
+  refetchAddons,
+  categories = [],
+  inventoryItems = [],
+  maxWidth = "42rem",
+  maxHeight = "min(90svh, 48rem)",
+}) => {
+  const [addonName, setAddonName] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
-
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [recipe, setRecipe] = useState(() => ({
+    sellingPrice: "",
+    ingredients: [createIngredient()],
+  }));
+  const [currentStep, setCurrentStep] = useState(0);
+  const [attemptedStep, setAttemptedStep] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
+  const submittingRef = useRef(false);
+  const headingRef = useRef(null);
+  const errors = validateAddonForm(
+    addonName,
+    recipe.sellingPrice,
+    selectedCategories,
+    recipe.ingredients,
+  );
+  const visibleErrors = attemptedStep === currentStep ? errors : {};
 
-  React.useEffect(() => {
-    if (isOpen) {
-      setHasAttemptedSubmit(false);
-      setErrors({});
-      setErrorMessage('');
-      setAddonName('');
-      setSellingPrice('');
-      setSelectedCategories([]);
-      setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
-      setIsAvailable(true);
-    }
-  }, [isOpen]);
-
-  /* ─── Math Helpers (from utils) ─── */
-  const estCost = calculateEstCost(ingredients, dbIngredients);
-  const profit = calculateProfit(sellingPrice, estCost);
-  const margin = calculateMargin(profit, sellingPrice);
-
-  /* ─── Validation ─── */
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const newErrors = validateAddonForm(addonName, sellingPrice, selectedCategories, ingredients);
-    setErrors(newErrors);
-  }, [addonName, sellingPrice, selectedCategories, ingredients, isOpen]);
-
-  const isFormValid = Object.keys(errors).length === 0;
-
-  /* ─── Handlers ─── */
-  const toggleCategory = (catId) => {
-    if (selectedCategories.includes(catId)) {
-      setSelectedCategories(selectedCategories.filter(id => id !== catId));
-    } else {
-      setSelectedCategories([...selectedCategories, catId]);
-    }
+  const changeStep = (step) => {
+    setCurrentStep(step);
+    setAttemptedStep(null);
+    setErrorMessage("");
+    window.requestAnimationFrame(() => headingRef.current?.focus());
   };
 
-  const handleSaveAddon = async () => {
-    setHasAttemptedSubmit(true);
-    if (isSubmitting || !isFormValid) return;
+  const updateRecipe = (updater) => {
+    setErrorMessage("");
+    setRecipe(updater);
+  };
+
+  const handleSave = async () => {
+    setAttemptedStep(currentStep);
+    if (Object.keys(errors).length > 0 || submittingRef.current) return;
+    submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage('');
+    setErrorMessage("");
 
     try {
-      const payload = {
+      const estimatedCost = calculateEstCost(
+        recipe.ingredients,
+        inventoryItems,
+      );
+      const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
+      await addAddon({
         base_info: {
           addon_name: addonName.trim(),
-          selling_price: parseFloat(sellingPrice) || 0,
-          estimated_cost: estCost,
-          profit: profit,
-          margin: margin,
-          pos_status: isAvailable ? 'Available' : 'Unavailable',
-          archived: false
+          selling_price: parseFloat(recipe.sellingPrice) || 0,
+          estimated_cost: estimatedCost,
+          profit,
+          margin: calculateMargin(profit, recipe.sellingPrice),
+          pos_status: isAvailable ? "Available" : "Unavailable",
+          archived: false,
         },
         categories: selectedCategories,
-        recipes: ingredients
-          .filter(ing => ing.ingredientId && ing.qty)
-          .map(ing => {
-            const ref = dbIngredients.find(i => i.id === ing.ingredientId);
-            
-            let equivalent = 1;
-            if (ing.unit && ing.unit !== ref?.base_unit) {
-              const conv = ref?.inventory_conversion_units?.find(cu => cu.converted_unit === ing.unit);
-              if (conv) equivalent = Number(conv.equivalent_base_amount);
-            }
-            const baseQty = parseFloat(ing.qty) * equivalent;
-
-            return {
-              inventory_item_id: ing.ingredientId,
-              quantity: parseFloat(ing.qty),
-              unit: ing.unit || ref?.base_unit,
-              estimated_cost: baseQty * (ref ? ref.cost_per_unit : 0)
-            };
-          })
-      };
-
-      await addAddon(payload);
-
-      if (refetchAddons) {
-        await refetchAddons();
-      }
-
-      // Reset form on success
-      setAddonName('');
-      setSellingPrice('');
-      setSelectedCategories([]);
-      setIngredients([{ id: Date.now(), ingredientId: '', qty: '', unit: '' }]);
-      setIsAvailable(true);
+        recipes: buildRecipePayload(recipe.ingredients, inventoryItems),
+      });
+      if (refetchAddons) await refetchAddons();
       onClose();
     } catch (error) {
-      console.error('Failed to add addon:', error);
-      setErrorMessage(error.message || 'An error occurred while adding the addon.');
+      setErrorMessage(
+        error.message || "Unable to add add-on. Please try again.",
+      );
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const addIngredient = () => {
-    setIngredients([
-      ...ingredients,
-      { id: Date.now(), ingredientId: '', qty: '', unit: '' }
-    ]);
-  };
-
-  const removeIngredient = (id) => {
-    if (ingredients.length <= 1) {
-      setErrorMessage('At least one ingredient is required.');
-      setTimeout(() => setErrorMessage(''), 3000);
-      return;
-    }
-    setErrorMessage('');
-    setIngredients(ingredients.filter(ing => ing.id !== id));
-  };
-
-  const updateIngredient = (id, field, value) => {
-    setIngredients(ingredients.map(ing => {
-      if (ing.id !== id) return ing;
-      const updated = { ...ing, [field]: value };
-      if (field === 'ingredientId') {
-        const ref = dbIngredients.find(i => i.id === value);
-        if (ref) updated.unit = ref.base_unit;
-      }
-      return updated;
-    }));
-  };
-
-  if (!isOpen) return null;
-
   return (
-    <div className="aao-modal-overlay">
-      <div className="aao-modal-content">
-
-        {/* Header */}
-        <div className="aao-modal-header">
-          <h3>Add Add-on</h3>
-          <button className="aao-modal-close" onClick={onClose}>
-            <i className="bi bi-x-lg"></i>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="aao-modal-body">
-
-          <AddAddonBaseInfo 
-            addonName={addonName}
-            setAddonName={setAddonName}
-            isAvailable={isAvailable}
-            setIsAvailable={setIsAvailable}
-            categories={categories}
-            selectedCategories={selectedCategories}
-            toggleCategory={toggleCategory}
-            sellingPrice={sellingPrice}
-            setSellingPrice={setSellingPrice}
-            estCost={estCost}
-            profit={profit}
-            margin={margin}
-            errors={errors}
-            hasAttemptedSubmit={hasAttemptedSubmit}
-          />
-
-          <div className="aao-bottom-section">
-            <div className="aao-section">
-              <label className="aao-label" style={{ fontSize: '1rem' }}>Recipe / Ingredient Deductions</label>
-              <p className="aao-subtext">Select ingredients that will be deducted from inventory when sold.</p>
-
-              <div className="aao-ingredients-table">
-                <div className="aao-ingredient-row" style={{ marginBottom: '-0.25rem' }}>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Ingredient *</label>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Qty *</label>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Unit *</label>
-                  <label className="aao-label" style={{ fontSize: '0.8rem' }}>Est. Cost</label>
-                  <div></div>
-                </div>
-                {ingredients.map(ing => (
-                  <AddAddonIngredientRow 
-                    key={ing.id}
-                    ing={ing}
-                    dbIngredients={dbIngredients}
-                    updateIngredient={updateIngredient}
-                    removeIngredient={removeIngredient}
-                    errors={errors}
-                    hasAttemptedSubmit={hasAttemptedSubmit}
-                  />
-                ))}
-              </div>
-
-              <button
-                className="menu-btn"
-                style={{
-                  marginTop: '1rem',
-                  alignSelf: 'flex-start',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #D9C0AE',
-                  color: '#5C3827',
-                  fontWeight: '600'
+    <Modal
+      isOpen
+      onClose={() => {
+        if (!submittingRef.current) onClose();
+      }}
+      maxWidth={maxWidth}
+      maxHeight={maxHeight}
+    >
+      <ModalHeader
+        title="Add Add-on"
+        description="Add an extra option for your menu items."
+        iconClassName="bi bi-plus-square"
+        closeDisabled={isSubmitting}
+      />
+      <ModalBody
+        className="bg-[var(--app-color-canvas)]"
+        viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]"
+      >
+        <ModalContent className="gap-[var(--app-gap-section)] max-sm:!p-[var(--app-space-4)]">
+          <ModalStepper steps={steps} currentStep={currentStep} />
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
+            >
+              {errorMessage}
+            </p>
+          )}
+          <fieldset disabled={isSubmitting} className="min-w-0 border-0 p-0">
+            {currentStep === 0 ? (
+              <GeneralStep
+                headingRef={headingRef}
+                addonName={addonName}
+                isAvailable={isAvailable}
+                categories={categories}
+                selectedCategories={selectedCategories}
+                errors={visibleErrors}
+                onNameChange={(value) => {
+                  setErrorMessage("");
+                  setAddonName(value);
                 }}
-                onClick={addIngredient}
-              >
-                <i className="bi bi-plus"></i> Add Ingredient
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Footer */}
-        {errorMessage && (
-          <div style={{ padding: '0.75rem 1.5rem', backgroundColor: '#F8D7DA', color: '#721C24', fontSize: '0.875rem' }}>
-            <i className="bi bi-exclamation-triangle-fill" style={{ marginRight: '0.5rem' }}></i>
-            {errorMessage}
-          </div>
-        )}
-
-        {hasAttemptedSubmit && !isFormValid && (
-          <div style={{ color: '#dc3545', fontSize: '0.85rem', padding: '0 1.5rem', marginBottom: '1rem', textAlign: 'right', fontWeight: '500' }}>
-            Please fill in all required fields (*)
-          </div>
-        )}
-
-        <div className="aao-modal-footer">
-          <button className="aao-btn-cancel" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            className="aao-btn-save"
-            disabled={isSubmitting}
-            onClick={handleSaveAddon}
-          >
-            {isSubmitting ? 'Adding...' : 'Add Add-on'}
-          </button>
-        </div>
-
-
-      </div>
-    </div>
+                onAvailabilityChange={() => {
+                  setErrorMessage("");
+                  setIsAvailable((current) => !current);
+                }}
+                onCategoryToggle={(categoryId) => {
+                  setErrorMessage("");
+                  setSelectedCategories((current) =>
+                    current.includes(categoryId)
+                      ? current.filter((id) => id !== categoryId)
+                      : [...current, categoryId],
+                  );
+                }}
+              />
+            ) : (
+              <RecipePricingStep
+                headingRef={headingRef}
+                recipe={recipe}
+                inventoryItems={inventoryItems}
+                errors={visibleErrors}
+                disabled={isSubmitting}
+                onRecipeChange={updateRecipe}
+                onAddIngredient={() =>
+                  updateRecipe((current) => ({
+                    ...current,
+                    ingredients: [...current.ingredients, createIngredient()],
+                  }))
+                }
+              />
+            )}
+          </fieldset>
+        </ModalContent>
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          className={secondaryButtonClassName}
+          disabled={isSubmitting}
+          onClick={currentStep === 0 ? onClose : () => changeStep(0)}
+        >
+          {currentStep === 0 ? "Cancel" : "Previous"}
+        </Button>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+          onClick={
+            currentStep === 1
+              ? handleSave
+              : () => {
+                  setAttemptedStep(0);
+                  if (!errors.addonName && !errors.categories) changeStep(1);
+                }
+          }
+        >
+          {isSubmitting
+            ? "Saving..."
+            : currentStep === 1
+              ? "Add Add-on"
+              : "Next"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
+};
+
+const AddAddonModal = ({ isOpen, ...props }) => {
+  if (!isOpen) return null;
+  return <AddAddonModalContent {...props} />;
 };
 
 export default AddAddonModal;

@@ -1,0 +1,12 @@
+.add-addon-ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) var(--app-touch-target-min);
+  align-items: start;
+  gap: var(--app-space-2);
+}
+
+@media (max-width: 639px) {
+  .add-addon-ingredient-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .add-addon-ingredient-picker { grid-column: 1 / -1; }
+  .add-addon-ingredient-remove { justify-self: end; align-self: end; }
+}
