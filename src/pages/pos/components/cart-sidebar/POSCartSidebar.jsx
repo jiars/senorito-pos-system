@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import POSCartItem from './POSCartItem';
 import POSCartFooter from './POSCartFooter';
+import CashPaymentModal from '../../modals/CashPaymentModal/CashPaymentModal';
 import { Skeleton } from "@/components/ui/skeleton";
 
 const POSCartSidebar = ({
@@ -22,6 +24,8 @@ const POSCartSidebar = ({
   setIsCartOpen,
   isLoading
 }) => {
+
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
 
   // Logic from old CartSidebar
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -87,8 +91,7 @@ const POSCartSidebar = ({
   const paid = (paymentMethod === 'GCash' || paymentMethod === 'External') ? total : (parseFloat(amountPaid) || 0);
   const change = Math.max(0, paid - total);
 
-  const isProcessDisabled = isProcessingOrder || cartItems.length === 0 ||
-    (paymentMethod === 'Cash' && paid < total);
+  const isProcessDisabled = isProcessingOrder || cartItems.length === 0;
 
   const handleOrderSourceChange = (source) => {
     setOrderSource(source);
@@ -189,8 +192,29 @@ const POSCartSidebar = ({
           isProcessDisabled={isProcessDisabled}
           onProcessOrder={onProcessOrder}
           isProcessingOrder={isProcessingOrder}
+          onOpenCashModal={() => setIsCashModalOpen(true)}
         />
       </div>
+
+      {isCashModalOpen && (
+        <CashPaymentModal
+          totalQty={cartItems.reduce((sum, item) => sum + item.qty, 0)}
+          subtotal={subtotal}
+          discountType={discountType}
+          setDiscountType={setDiscountType}
+          discountAmount={discountAmount}
+          total={total}
+          amountPaid={amountPaid}
+          setAmountPaid={setAmountPaid}
+          change={change}
+          onClose={() => setIsCashModalOpen(false)}
+          onProcessOrder={(data) => {
+            setIsCashModalOpen(false);
+            onProcessOrder(data);
+          }}
+          isProcessingOrder={isProcessingOrder}
+        />
+      )}
     </div>
   );
 };
