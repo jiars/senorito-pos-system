@@ -95,7 +95,7 @@ const ExpenseOverview = ({
           <Skeleton className="min-h-64 flex-1 rounded-[var(--app-radius-nested)]" />
         </article>
       ) : (
-        <article className="flex min-h-0 min-w-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+        <article className="flex min-h-0 min-w-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
           <header className="mb-[var(--app-gap-related)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
             <div>
               <h2 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
@@ -183,7 +183,7 @@ const ExpenseOverview = ({
 
       <aside
         className={`flex min-h-0 min-w-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ${
-          isLoading ? "" : "shadow-[var(--app-shadow-card)]"
+          isLoading ? "" : ""
         }`}
       >
         {isLoading ? (
@@ -220,7 +220,7 @@ const ExpenseOverview = ({
                         ? undefined
                         : "This action will be connected after its workflow is ready."
                     }
-                    className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left shadow-[var(--app-shadow-card)] transition-colors hover:bg-[var(--app-color-control-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left  transition-colors hover:bg-[var(--app-color-control-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <img
                       src={action.icon}

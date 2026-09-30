@@ -104,7 +104,7 @@ const RecentOrdersTable = ({ recentOrders, isLoading }) => {
   }
 
   return (
-    <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+    <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
       <header className="mb-[var(--app-gap-section)]">
         <h3 className="m-0 text-[length:var(--app-font-size-h3)] leading-[var(--app-line-height-h3)] font-bold text-[var(--app-color-text)]">
           Recent Orders

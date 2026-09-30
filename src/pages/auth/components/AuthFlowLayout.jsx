@@ -62,7 +62,7 @@ const AuthFlowLayout = () => {
     <main className="min-h-svh w-full overflow-hidden bg-[var(--app-color-backdrop)]">
       <div className="relative min-h-svh w-full overflow-hidden bg-[var(--app-color-surface)]">
         <section
-          className={`absolute inset-y-0 left-0 z-10 flex min-h-svh w-full items-center justify-center bg-[var(--app-color-surface)] px-8 py-8 shadow-[var(--app-shadow-panel)] transition-[transform,border-radius] duration-500 motion-reduce:transition-none sm:px-12 md:w-1/2 md:px-16 ${
+          className={`absolute inset-y-0 left-0 z-10 flex min-h-svh w-full items-center justify-center bg-[var(--app-color-surface)] px-8 py-8  transition-[transform,border-radius] duration-500 motion-reduce:transition-none sm:px-12 md:w-1/2 md:px-16 ${
             isRecoveryView
               ? "md:translate-x-full md:rounded-l-[var(--app-radius-panel)]"
               : "md:translate-x-0 md:rounded-r-[var(--app-radius-panel)]"

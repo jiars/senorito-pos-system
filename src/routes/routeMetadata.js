@@ -10,7 +10,7 @@ export const APP_ROUTE_METADATA = [
     path: "/pos",
     label: "Point of Sale",
     icon: "bi-calculator",
-    group: "Sales & Reports",
+    group: "Overview",
     showInSidebar: true,
   },
   {

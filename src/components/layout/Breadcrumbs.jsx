@@ -39,7 +39,7 @@ const Breadcrumbs = () => {
   }
 
   return (
-    <Breadcrumb className="mb-4">
+    <Breadcrumb className="mb-[var(--app-gap-section)]">
       <BreadcrumbList className="text-sm text-[var(--app-color-text-subtle)]">
         <BreadcrumbItem>
           <BreadcrumbLink

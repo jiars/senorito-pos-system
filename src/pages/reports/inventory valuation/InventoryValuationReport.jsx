@@ -52,9 +52,9 @@ const InventoryValuationReport = () => {
 
     return sort === "Sort: Z-0"
       ? {
-          ...valuationResults,
-          filteredItems: [...valuationResults.filteredItems].reverse(),
-        }
+        ...valuationResults,
+        filteredItems: [...valuationResults.filteredItems].reverse(),
+      }
       : valuationResults;
   }, [processedItems, searchTerm, categories, sort]);
 
@@ -164,7 +164,7 @@ const InventoryValuationReport = () => {
       subtitle="Monitor the current value of inventory on hand."
       titleAccessory={valuationBasisTooltip}
       actions={pageActions}
-      className="valuation-page-shell flex flex-col gap-4"
+      className="valuation-page-shell flex flex-col gap-[var(--app-gap-section)]"
     >
       <div className="valuation-page-layout val-page">
         <section className="valuation-page-overview">
@@ -181,7 +181,6 @@ const InventoryValuationReport = () => {
             selectedCategories={categories}
             categories={availableCategories}
             sort={sort}
-            categories={availableCategories}
             onSearchChange={handleSearchChange}
             onCategoryChange={handleCategoryChange}
             onSortChange={handleSortChange}

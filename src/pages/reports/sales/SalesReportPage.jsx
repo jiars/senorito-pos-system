@@ -30,7 +30,7 @@ import SalesDistributionPanel from "./components/SalesDistributionPanel";
 import SalesPerformancePanel from "./components/SalesPerformancePanel";
 import SalesPrintLayout from "./components/SalesPrintLayout";
 
-const categoryColors = ["#2E7D32", "#EF6C00", "#0277BD", "#7B1FA2", "#00695C"];
+const categoryColors = ["#b06a58", "#C98A5B", "#6F9C8F", "#D8B45C", "#8C7BA8"];
 
 const SalesReportPage = () => {
   const [fromDate, setFromDate] = useState("");
@@ -157,7 +157,7 @@ const SalesReportPage = () => {
         type="button"
         variant="outline"
         onClick={handleExport}
-        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)]"
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
       >
         <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
         Export
@@ -177,7 +177,7 @@ const SalesReportPage = () => {
       <Button
         type="button"
         onClick={() => window.print()}
-        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-white hover:bg-[var(--app-color-brand-hover)]"
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-white hover:bg-[var(--app-color-brand-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
       >
         <i aria-hidden="true" className="bi bi-printer" />
         Print
@@ -190,7 +190,7 @@ const SalesReportPage = () => {
       title="Sales"
       subtitle="View and analyze your sales performance and profitability metrics."
       actions={pageActions}
-      className="sales-page-shell flex flex-col gap-4"
+      className="sales-page-shell flex flex-col gap-[var(--app-gap-section)]"
     >
       <div className="sales-page-layout sales-page">
         <section className="sales-page-summary">

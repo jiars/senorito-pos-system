@@ -107,9 +107,9 @@ const SalesProfitabilityPanel = ({
   }
 
   return (
-    <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+    <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
       <header className="mb-[var(--app-gap-section)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
-        <div>
+        <div className="flex-1 min-w-0 max-w-[16rem] lg:max-w-none">
           <h2 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
             Menu Profitability Heatmap
           </h2>
@@ -242,7 +242,7 @@ const SalesProfitabilityPanel = ({
 
             {activeProfitabilityItem && (
               <div
-                className="absolute z-10 -translate-x-1/2 rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-center shadow-[var(--app-shadow-card)]"
+                className="absolute z-10 -translate-x-1/2 rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-center "
                 style={{
                   bottom: `calc(${Math.min(
                     Math.max(activeProfitabilityItem.margin, 5),

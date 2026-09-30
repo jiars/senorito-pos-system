@@ -20,7 +20,7 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
               type="button"
               variant="outline"
               aria-label="Open Inventory actions"
-              className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] p-0 text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] hover:bg-[var(--app-color-control-hover)]"
+              className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] p-0 text-[var(--app-color-text)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
             >
               <i aria-hidden="true" className="bi bi-three-dots-vertical" />
             </Button>
@@ -48,7 +48,7 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
       <Button
         type="button"
         onClick={onOpenAddItem}
-        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
       >
         <i aria-hidden="true" className="bi bi-plus-lg" />
         Add New Item

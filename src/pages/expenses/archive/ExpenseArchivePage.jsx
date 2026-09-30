@@ -49,10 +49,10 @@ const ExpenseArchivePage = () => {
       type="button"
       variant="outline"
       onClick={() => navigate("/expenses")}
-      className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] shadow-[var(--app-shadow-card)] hover:bg-[var(--app-color-control-hover)]"
+      className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
     >
       <i aria-hidden="true" className="bi bi-arrow-left" />
-      Back to Expense Tracking
+      Back
     </Button>
   );
 

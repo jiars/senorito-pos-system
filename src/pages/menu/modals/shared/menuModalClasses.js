@@ -5,7 +5,7 @@ export const controlClassName =
 export const comboClassName =
   "h-[var(--app-touch-target-min)] w-full min-w-0 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] shadow-none has-aria-invalid:border-[var(--app-color-danger)]";
 export const popupClassName =
-  "z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0";
+  "z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]  ring-0";
 export const optionClassName =
   "min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)]";
 export const errorClassName =

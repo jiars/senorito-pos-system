@@ -8,6 +8,7 @@
   --app-color-brand-hover: #683528;
   --app-color-brand-light: #d1836f;
   --app-color-brand-border: rgb(123 64 48 / 25%);
+  --app-color-brand-shadow: rgb(123 64 48 / 50%);
   --app-color-brand-number: #9d6638;
   --app-color-brand-deep: #3a1a0a;
   --app-color-brand-header: #4b251b;
@@ -16,21 +17,15 @@
   /* Filters */
   --app-color-stroke: #a3a3a3;
 
-  --app-gradient-metric-orders: linear-gradient(
-    135deg,
-    rgb(123 64 48 / 50%),
-    rgb(225 117 88 / 50%)
-  );
-  --app-gradient-metric-revenue: linear-gradient(
-    135deg,
-    rgb(83 143 85 / 50%),
-    rgb(204 214 127 / 50%)
-  );
-  --app-gradient-metric-expense: linear-gradient(
-    135deg,
-    rgb(230 57 70 / 50%),
-    rgb(118 65 80 / 50%)
-  );
+  --app-gradient-metric-orders: linear-gradient(135deg,
+      rgb(123 64 48 / 50%),
+      rgb(225 117 88 / 50%));
+  --app-gradient-metric-revenue: linear-gradient(135deg,
+      rgb(83 143 85 / 50%),
+      rgb(204 214 127 / 50%));
+  --app-gradient-metric-expense: linear-gradient(135deg,
+      rgb(230 57 70 / 50%),
+      rgb(118 65 80 / 50%));
 
   --app-color-danger: #9a3f3f;
   --app-color-danger-foreground: #8b3030;
@@ -52,7 +47,7 @@
   --app-color-highlight: #ccd67f;
   --app-color-highlight-muted: #e4d6a9;
 
-  --app-color-chart-weekly-sales: #b69a92;
+  --app-color-chart-weekly-sales: #b06a58;
   --app-color-chart-grid: #e5dfdc;
 
   /* Surfaces and text */
@@ -94,4 +89,5 @@
   --app-focus-ring: 0 0 0 1px var(--app-color-brand);
   --app-shadow-panel: 12px 0 32px rgba(36, 18, 10, 0.14);
   --app-shadow-card: 0 3px 10px rgb(0 0 0 / 10%);
+  --app-shadow-card-hover: 0 3px 10px var(--app-color-brand-shadow);
 }

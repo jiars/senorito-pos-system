@@ -11,7 +11,7 @@ const ToolbarSearchInput = ({ placeholder, value, onValueChange, isLoading }) =>
   }
 
   return (
-    <InputGroup className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-filter-font-color)] has-[[data-slot=input-group-control]:focus-visible]:border-[var(--app-color-border-subtle)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+    <InputGroup className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-filter-font-color)] has-[[data-slot=input-group-control]:focus-visible]:border-[var(--app-color-border-subtle)] has-[[data-slot=input-group-control]:focus-visible]:ring-0 transition-shadow hover:shadow-brand has-[[data-slot=input-group-control]:focus-visible]:shadow-brand">
       <InputGroupInput
         type="search"
         placeholder={placeholder}

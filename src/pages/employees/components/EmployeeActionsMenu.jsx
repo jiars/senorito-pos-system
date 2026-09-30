@@ -47,7 +47,6 @@ const EmployeeActionsMenu = ({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label={`Open actions for ${employeeName}`}
             className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] text-[var(--app-color-text)]"
           >
             <i aria-hidden="true" className="bi bi-three-dots-vertical" />

@@ -118,7 +118,7 @@ const GeneralStep = ({
             />
             <ComboboxContent
               positionerClassName="!z-[1100]"
-              className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+              className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]  ring-0"
             >
               <ComboboxEmpty>No category found.</ComboboxEmpty>
               <ComboboxList>
@@ -164,7 +164,7 @@ const GeneralStep = ({
             />
             <ComboboxContent
               positionerClassName="!z-[1100]"
-              className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-[var(--app-shadow-card)] ring-0"
+              className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]  ring-0"
             >
               <ComboboxEmpty>No base unit found.</ComboboxEmpty>
               <ComboboxList>

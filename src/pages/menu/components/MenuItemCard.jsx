@@ -29,7 +29,7 @@ const MenuItemCard = ({
   };
 
   return (
-    <article className="relative grid min-h-[10rem] min-w-0 grid-cols-[8rem_minmax(0,1fr)] gap-[var(--app-gap-related)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-space-4)] shadow-[var(--app-shadow-card)] max-sm:min-h-[8.5rem] max-sm:grid-cols-[6.5rem_minmax(0,1fr)]">
+    <article className="relative grid min-h-[10rem] min-w-0 grid-cols-[8rem_minmax(0,1fr)] gap-[var(--app-gap-related)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-space-4)]  max-sm:min-h-[8.5rem] max-sm:grid-cols-[6.5rem_minmax(0,1fr)]">
       <img
         src={item.image_url || defaultMenuImage}
         alt={item.item_name || "Menu item"}
@@ -77,7 +77,7 @@ const MenuItemCard = ({
               type="button"
               variant="ghost"
               aria-label={`Open actions for ${item.item_name || "menu item"}`}
-              className="absolute right-0 top-0 size-[var(--app-touch-target-min)] rounded-full bg-transparent p-0 text-[var(--app-color-text)] shadow-none hover:bg-transparent"
+              className="absolute right-0 top-0 size-[var(--app-touch-target-min)] rounded-full bg-transparent p-0 text-[var(--app-color-text)] shadow-none hover:bg-transparent group"
             >
               <span className="grid size-[1.25rem] place-items-center rounded-full border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]">
                 <i
