@@ -96,7 +96,7 @@
   margin: 0;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1440px) {
   .layout-hamburger-btn {
     display: inline-flex;
   }

@@ -15,7 +15,8 @@ const POSCartFooter = ({
   orderSource,
   isProcessDisabled,
   onProcessOrder,
-  isProcessingOrder
+  isProcessingOrder,
+  onOpenCashModal
 }) => {
 
   const standardBtnClasses = "flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-[var(--app-radius-panel-standard,1rem)] border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex flex-wrap items-center justify-center gap-[var(--app-space-1)]";
@@ -64,7 +65,12 @@ const POSCartFooter = ({
         <div className="flex flex-wrap gap-[var(--app-space-2)] w-full">
           <button
             className={`${standardBtnClasses} ${paymentMethod === 'Cash' ? btnActive : btnInactive} ${orderSource !== 'In-Store' ? btnDisabled : ''}`}
-            onClick={() => setPaymentMethod('Cash')}
+            onClick={() => {
+              setPaymentMethod('Cash');
+              if (subtotal > 0) {
+                onOpenCashModal();
+              }
+            }}
             disabled={orderSource !== 'In-Store'}
           >
             <i className="bi bi-cash"></i> Cash
@@ -90,7 +96,13 @@ const POSCartFooter = ({
       <button
         className="w-full h-[var(--app-touch-target-min,2.75rem)] rounded-[var(--app-radius-panel-standard,1rem)] bg-[var(--app-color-brand)] text-white font-bold text-[length:var(--app-font-size-body-secondary)] tracking-wide shadow-[var(--app-shadow-card)] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-[var(--app-space-2)] hover:brightness-110"
         disabled={isProcessDisabled}
-        onClick={() => onProcessOrder({ total, subtotal, discountAmount, change })}
+        onClick={() => {
+          if (paymentMethod === 'Cash') {
+            onOpenCashModal();
+          } else {
+            onProcessOrder({ total, subtotal, discountAmount, change });
+          }
+        }}
       >
         {isProcessingOrder ? (
           <>

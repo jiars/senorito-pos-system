@@ -146,7 +146,7 @@
   color: #dc3545;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1440px) {
   .layout-sidebar {
     transform: translateX(-100%);
   }

@@ -69,7 +69,7 @@
   transition: opacity var(--layout-transition);
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1440px) {
   .layout-content-wrapper {
     margin-left: 0;
   }
