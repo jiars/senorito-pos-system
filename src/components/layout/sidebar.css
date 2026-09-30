@@ -56,7 +56,7 @@
   overflow-y: auto;
 }
 
-.layout-sidebar-nav-group + .layout-sidebar-nav-group {
+.layout-sidebar-nav-group+.layout-sidebar-nav-group {
   margin-top: 1.25rem;
 }
 

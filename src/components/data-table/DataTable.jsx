@@ -217,7 +217,7 @@ const DataTable = ({
           containerClassName="overflow-visible"
         >
           <TableHeader
-            className={`bg-[var(--app-color-canvas)] ${headerClassName}`}
+            className={`sticky top-0 z-10 bg-[var(--app-color-canvas)] ${headerClassName}`}
           >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow

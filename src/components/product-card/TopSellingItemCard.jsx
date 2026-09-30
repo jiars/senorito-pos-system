@@ -7,12 +7,12 @@ const TopSellingItemCard = ({ item, className = "" }) => {
 
   return (
     <article
-      className={`flex h-[7.25rem] min-w-0 items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-canvas)] p-[var(--app-space-4)] shadow-[var(--app-shadow-card)] ${className}`}
+      className={`flex h-[7.25rem] min-w-0 items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-panel-standard)] bg-white border border-[var(--app-color-border-subtle)] p-[var(--app-space-4)] shadow-sm transition-shadow hover:shadow-md ${className}`}
     >
       <img
         src={item.imageUrl || item.image_url || defaultMenuImage}
         alt={item.name}
-        className="size-[6rem] shrink-0 rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] object-cover"
+        className="size-[6rem] shrink-0 rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] object-cover transition-transform duration-300 hover:scale-[1.05] cursor-pointer"
         onError={handleImageError}
       />
 

@@ -111,7 +111,6 @@ const MenuAddonsTable = ({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Open actions for ${addon.addon_name}`}
                     className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] text-[var(--app-color-text)]"
                   >
                     <i

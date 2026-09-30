@@ -66,7 +66,7 @@ const InventoryWorkspace = ({
           value={tab.value}
           className="inventory-tab-content min-w-0"
         >
-          <p className="inventory-tab-caption text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)] mt-[var(--app-space-2)] mb-[var(--app-gap-section)]">
+          <p className="inventory-tab-caption text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)] mt-[var(--app-space-2)] mb-[var(--app-gap-section)]">
             {tab.caption}
           </p>
 

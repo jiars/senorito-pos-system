@@ -176,32 +176,32 @@
 }
 
 .b-green {
-  background-color: #4caf50;
+  background-color: #6F9C8F;
 }
 .b-blue {
-  background-color: #03a9f4;
+  background-color: #8C7BA8;
 }
 .b-yellow {
-  background-color: #ffc107;
+  background-color: #D8B45C;
 }
 .b-red {
-  background-color: #f44336;
+  background-color: #b06a58;
 }
 
 .profitability-metric-icon {
   background-color: transparent;
 }
 .profitability-metric-icon.b-green {
-  color: #4caf50;
+  color: #6F9C8F;
 }
 .profitability-metric-icon.b-blue {
-  color: #03a9f4;
+  color: #8C7BA8;
 }
 .profitability-metric-icon.b-yellow {
-  color: #ffc107;
+  color: #D8B45C;
 }
 .profitability-metric-icon.b-red {
-  color: #f44336;
+  color: #b06a58;
 }
 
 .scatter-axis-label {

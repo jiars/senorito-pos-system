@@ -13,7 +13,7 @@ const PageHeader = ({
     <header
       className={`flex flex-col gap-4 md:flex-row md:items-start md:justify-between ${className}`}
     >
-      <div>
+      <div className="flex-1 min-w-[12rem] max-w-[16rem] md:max-w-[22rem] lg:max-w-none">
         <div className="flex items-center gap-[var(--app-space-2)]">
           <h1 className="m-0 text-2xl font-bold tracking-[-0.02em] text-[var(--app-color-brand-header)] md:text-3xl">
             {title}

@@ -67,7 +67,7 @@ const FilterPopover = ({
         render={
           <Button
             type="button"
-            className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] aria-expanded:bg-[var(--app-color-brand)] aria-expanded:text-white"
+            className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] aria-expanded:bg-[var(--app-color-brand)] aria-expanded:text-white transition-shadow hover:shadow-brand active:shadow-brand"
           >
             <i aria-hidden="true" className={`bi ${triggerIcon}`} />
             {label}
@@ -88,9 +88,9 @@ const FilterPopover = ({
           ...(usesSidebar
             ? {}
             : {
-                width: `min(${maxWidth}, calc(100vw - 2rem))`,
-                maxWidth,
-              }),
+              width: `min(${maxWidth}, calc(100vw - 2rem))`,
+              maxWidth,
+            }),
         }}
       >
         {usesSidebar ? (

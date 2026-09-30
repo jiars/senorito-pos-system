@@ -27,7 +27,7 @@ const DataTableSheet = ({
       <SheetContent
         side={side}
         showCloseButton={showCloseButton}
-        className={`${widthClassName} ${sheetPaddingClassName} gap-[var(--app-gap-related)] overflow-x-hidden overflow-y-auto border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]`}
+        className={`${widthClassName} ${sheetPaddingClassName} !pt-[calc(var(--app-padding-panel)+var(--app-space-4))] gap-[var(--app-gap-related)] overflow-x-hidden overflow-y-auto border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] rounded-l-[var(--app-radius-panel-standard)]`}
       >
         <SheetHeader
           className={`flex-row items-start justify-between gap-[var(--app-gap-related)] p-0 ${headerClassName}`}

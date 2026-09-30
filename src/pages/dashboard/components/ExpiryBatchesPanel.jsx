@@ -47,7 +47,7 @@ const ExpiryBatchesPanel = ({ alerts, isLoading }) => {
   ).length;
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+    <section className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col overflow-hidden rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
       <header className="flex items-center border-b-2 border-[var(--app-color-border-subtle)] pb-[var(--app-space-4)]">
         <h3 className="text-[length:var(--app-font-size-h3)] leading-[var(--app-line-height-h3)] font-bold text-[var(--app-color-text)]">
           Expiry Alerts

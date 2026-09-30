@@ -1,6 +1,6 @@
 # Frontend Figma Migration Task List
 
-Updated: September 25, 2026
+Updated: September 29, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferred
 
@@ -355,11 +355,11 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 - [x] Preserve current employee data and role behavior.
 - [x] Restyle the page header and content shell with the shared `PageLayout` and a layout-only Employee module stylesheet.
-- [x] Split the visible module into `EmployeeDirectory`, `EmployeeToolbar`, and reusable `EmployeeCard` responsibilities.
-- [x] Create responsive Employee cards with shared typography/tokens, shadcn role/status badges, masked personal information, accessible edit actions, skeletons, and an empty state.
+- [x] Split the visible module into `EmployeeDirectory`, `EmployeeToolbar`, and reusable table/action-cell responsibilities.
+- [x] Create the responsive Employee shared table with shared typography/tokens, shadcn role/status badges, masked personal information, accessible row actions, skeletons, and an empty state.
 - [x] Preserve existing Add and Edit modal behavior and employee-service response handling.
 - [x] Apply the approved shared search and multi-select Role/Status filter direction; final shared button styling remains deferred.
-- [x] Implement the approved responsive grid: three columns on desktop/tablet landscape, two on tablet portrait, and one on phone, with short-height density adjustments.
+- [x] Implement the approved responsive Employee table layout with short-height density adjustments.
 - [x] Remove the zero-reference legacy Employee card stylesheet after visual approval.
 - [x] Run focused Employee lint and the production/PWA build.
 - [x] Visually review and approve Employee Management before continuing.
@@ -371,15 +371,15 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Create composable shared modal primitives: `Modal`, `ModalHeader`, `ModalBody`, and `ModalContent`.
 - [x] Add reusable `ModalFooter` for Variant 2; module modals import only the pieces they need.
 - [x] Add reusable `ModalStepper` for Variant 1 flows with a configurable number of steps.
-- [ ] Keep fields, state, validation, service calls, payloads, permissions, and refetch behavior inside their current module modal containers.
+- [x] Keep fields, state, validation, service calls, payloads, permissions, and refetch behavior inside their current module modal containers.
 - [ ] Standardize modal layering above Sidebar/Topbar, internal scrolling, responsive width and height, accessible title/close behavior, keyboard focus, reduced motion, and tablet touch targets.
 
 ### Variant 3 — Category Management
 
 - [x] Migrate Inventory Manage Categories and approve it as the Variant 3 reference.
 - [x] Migrate Menu Manage Categories using the approved Variant 3 structure.
-- [ ] Migrate Expense Manage Categories using the approved Variant 3 structure.
-- [ ] Keep each Variant 3 category workflow inside its module modal file; remove redundant one-use category Add/List component files after their markup is consolidated and references are cleared.
+- [x] Migrate Expense Manage Categories using the approved Variant 3 structure.
+- [x] Keep each Variant 3 category workflow inside its module modal file; remove redundant one-use category Add/List component files after their markup is consolidated and references are cleared.
 - [ ] Preserve duplicate-name validation, inline editing, usage counts, delete restrictions, submitting states, and empty states in all three category modals.
 
 ### Variant 2 — Standard and Conditional Forms
@@ -390,16 +390,16 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Migrate Edit Inventory Item into one Variant 2 modal file with searchable category selection, preserved immutable item/base-unit behavior, cost and supplier fields, editable recipe conversions, existing payload/refetch behavior, and zero-reference legacy component/CSS cleanup.
 - [x] Migrate Add Expense, including its conditional/custom additional input fields and Inventory Purchase flow.
 - [x] Migrate Edit Expense with predefined values while preserving its service payload and refresh behavior.
-- [ ] Migrate Edit Add-on.
-- [ ] Migrate Edit Menu Item.
+- [x] Migrate Edit Add-on into the shared Variant 2 modal structure and remove its zero-reference legacy components/CSS.
+- [x] Migrate Edit Menu Item.
 - [x] Migrate Add Employee.
-- [ ] Migrate Edit Employee.
+- [x] Migrate Edit Employee.
 
 ### Variant 1 — Multi-step Forms
 
 - [x] Migrate Add Inventory Item with General, Initial Purchase, and optional Recipe Conversion steps; add compatible-unit automatic conversion with manual packaging fallback.
-- [~] Add Menu Item implemented with General and Recipe & Pricing steps, required image selection, a responsive square preview (original upload unchanged), customizable modal dimensions, and field-only validation. Legacy Add Menu components/CSS removed after reference checks. Focused lint, build, and mocked UI checks pass; final user visual/save approval pending.
-- [~] Add Add-on implemented with General and Recipe & Pricing steps, multi-category selection/search, availability, and shared pricing/ingredient fields. Existing service/payload preserved; legacy Add Add-on components/CSS removed after reference checks. Focused lint, build, and mocked save checks pass; user visual/live-save approval pending.
+- [x] Add Menu Item implemented with General and Recipe & Pricing steps, required image selection, a responsive square preview (original upload unchanged), customizable modal dimensions, and field-only validation. Legacy Add Menu components/CSS removed after reference checks. Focused lint, build, and mocked UI checks pass; user visual/save approval completed.
+- [x] Add Add-on implemented with General and Recipe & Pricing steps, multi-category selection/search, availability, and shared pricing/ingredient fields. Existing service/payload preserved; legacy Add Add-on components/CSS removed after reference checks. Focused lint, build, and mocked save checks pass; user visual/live-save approval completed.
 
 ### Modal Migration Verification
 
@@ -440,4 +440,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Current Next Task
 
-Review the revised Add Menu Item and new Add Add-on modals with the user, then verify real image upload and live saves. Both use the shared modal stepper and recipe/pricing fields; no services or backend contracts were changed. Keep final cross-viewport and keyboard/focus verification in the Phase 11 verification pass.
+Complete the Phase 11 modal verification pass: live-test the migrated modal flows, validation, reset/reopen behavior, keyboard/focus behavior, responsive sizes, and remaining Variant 2/3 migrations. After that, continue the final cleanup and cross-module responsive/accessibility/build review.

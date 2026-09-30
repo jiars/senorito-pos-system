@@ -116,9 +116,9 @@ const SalesDistributionCard = ({
   }
 
   return (
-    <section className="flex min-h-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+    <section className="flex min-h-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
       <header className="mb-[var(--app-gap-section)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
-        <div>
+        <div className="flex-1 min-w-0 max-w-[16rem] lg:max-w-none">
           <h3 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
             {title}
           </h3>
@@ -231,7 +231,7 @@ const SalesDistributionPanel = ({
         sheetData={sourceData}
         getRowId={(source) => source.label}
         tableLabel="Detailed sales by order source"
-        sheetWidthClassName="!w-full sm:!w-[42vw] sm:!max-w-none"
+        sheetWidthClassName="!w-full sm:!w-[60vw] lg:!w-[42vw] sm:!max-w-none"
       >
         {hasSourceData ? (
           <>
@@ -260,7 +260,7 @@ const SalesDistributionPanel = ({
         sheetData={categorySales}
         getRowId={(category) => category.cat}
         tableLabel="Detailed sales by menu category"
-        sheetWidthClassName="!w-full sm:!w-[42vw] sm:!max-w-none"
+        sheetWidthClassName="!w-full sm:!w-[60vw] lg:!w-[42vw] sm:!max-w-none"
       >
         {hasCategoryData ? (
           <>

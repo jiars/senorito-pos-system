@@ -35,10 +35,10 @@ const SummaryCards = ({
   return (
     <div className={gridClassName}>
       {cards.map((card) => {
-        const cardClassName = `flex min-h-[132px] w-full flex-col rounded-[var(--app-radius-panel-standard)] border bg-[var(--app-color-surface)] p-[var(--app-space-4)] text-left shadow-[var(--app-shadow-card)] transition-colors ${
+        const cardClassName = `flex min-h-[132px] w-full flex-col rounded-[var(--app-radius-panel-standard)] border bg-[var(--app-color-surface)] p-[var(--app-space-4)] text-left transition-all hover:shadow-brand ${
           card.isActive
-            ? "border-[var(--app-color-brand)]"
-            : "border-transparent"
+            ? "border-[var(--app-color-brand)] shadow-brand"
+            : "border-transparent shadow-[var(--app-shadow-card)]"
         } ${
           card.onClick
             ? "cursor-pointer hover:border-[var(--app-color-brand-border)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-color-brand-border)]"

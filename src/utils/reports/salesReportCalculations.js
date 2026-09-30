@@ -154,17 +154,17 @@ export const calculateOrderTrends = (orders) => {
     "In-Store": {
       label: "In-Store",
       value: 0,
-      color: "#42A5F5",
+      color: "#7189A6",
     },
     Grab: {
       label: "Grab",
       value: 0,
-      color: "#4CAF50",
+      color: "#6F9C8F",
     },
     FoodPanda: {
       label: "FoodPanda",
       value: 0,
-      color: "#E91E63",
+      color: "#D47A82",
     },
   };
 

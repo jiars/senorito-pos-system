@@ -237,7 +237,6 @@ const ExpenseRecordsTable = ({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Open actions for ${record.description}`}
                     className="size-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] text-[var(--app-color-text)]"
                   >
                     <i

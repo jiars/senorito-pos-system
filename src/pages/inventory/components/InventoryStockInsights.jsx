@@ -135,7 +135,7 @@ const InventoryStockInsights = ({
 
       <aside
         className={`inventory-stock-quick-actions-region flex min-h-0 min-w-0 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ${
-          isLoading ? "" : "shadow-[var(--app-shadow-card)]"
+          isLoading ? "" : ""
         }`}
       >
         {isLoading ? (
@@ -173,7 +173,7 @@ const InventoryStockInsights = ({
                     disabled={!actionHandler}
                     onClick={actionHandler}
                     title={action.label}
-                    className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left shadow-[var(--app-shadow-card)] transition-colors hover:bg-[var(--app-color-control-hover)] disabled:cursor-not-allowed"
+                    className="flex min-h-[var(--app-control-height-primary)] w-full items-center gap-[var(--app-gap-related)] rounded-[var(--app-radius-nested)] bg-[linear-gradient(to_bottom,var(--app-color-canvas),var(--app-color-surface))] px-[var(--app-space-4)] py-[var(--app-space-2)] text-left  transition-colors hover:bg-[var(--app-color-control-hover)] disabled:cursor-not-allowed"
                   >
                   <img
                     src={action.icon}

@@ -89,7 +89,7 @@ const SalesPerformancePanel = ({
 
   return (
     <>
-      <article className="sales-performance-panel flex min-h-0 flex-1 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+      <article className="sales-performance-panel flex min-h-0 flex-1 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
         <header className="mb-[var(--app-gap-section)] flex items-start justify-between gap-[var(--app-gap-related)]">
           <h3 className="text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
             Hourly Sales Pattern
@@ -117,7 +117,7 @@ const SalesPerformancePanel = ({
             <TooltipContent
               side="bottom"
               align="end"
-              className="max-w-[32rem] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)]"
+              className="max-w-[32rem] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] "
             >
               <p>Replace this tooltip content with your final explanation.</p>
             </TooltipContent>
@@ -222,7 +222,7 @@ const SalesPerformancePanel = ({
 
       </article>
 
-      <article className="sales-performance-panel sales-top-selling-panel flex min-h-0 flex-1 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-[var(--app-shadow-card)]">
+      <article className="sales-performance-panel sales-top-selling-panel flex min-h-0 flex-1 flex-col rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
           <header className="mb-[var(--app-gap-section)]">
             <h3 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
               Top Selling Items
