@@ -358,7 +358,7 @@ Dashboard Recent Orders is the first consumer of the reusable table foundation. 
 3. Add shared frontend route metadata for labels, breadcrumbs, sidebar groups, and icons while keeping `ROLE_ROUTES` as the permission source.
 4. Add the approved sidebar group labels while keeping its color and route behavior.
 5. Preserve role filtering and responsive sidebar behavior.
-6. Use a visual-only Topbar `Synced` placeholder during the UI migration. Do not connect it to browser connectivity, offline orders, or automatic synchronization until Final Verification.
+6. Use a visual-only Topbar `Synced` placeholder during the UI migration. Do not connect it to browser connectivity, offline orders, or automatic synchronization until Final Verification. October 2: shared sync state, status popover, and shadcn-compatible toast feedback are approved for later work; follow `BACKEND_IMPLEMENTATION_PLAN.md` under `Deferred: Shared Sync Indicator and Toast Feedback`. Receipt-printing investigation takes priority; no sync UI implementation is authorized by this planning update.
 7. Keep POS inside the shared shell initially and allow only a specialized inner POS layout when its approved design requires it.
 8. Defer the Tailwind-first shared App Shell migration until after page UI work. Keep the approved plain-CSS App Shell intact for now; future migration must preserve legacy `.layout-page-heading` and print selectors.
 9. Pause for approval.

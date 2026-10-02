@@ -1,95 +1,46 @@
-/**
- * pos.css — POS page layout regions, grid sizing, scroll containment,
- * and responsive breakpoints ONLY.
- *
- * Visual styles (colors, fonts, shadows, borders, radii, hover states)
- * belong in Tailwind classes inside each component JSX file.
- *
- * Token references from theme.css and typography.css are allowed here
- * when they describe spacing or sizing relationships, not visual appearance.
- */
-
-/* ═══════════════════════════════════════════════════
-   Page shell
-   Full-height flex column below the Topbar + Breadcrumbs.
-   The shell itself does not scroll — inner regions do.
-════════════════════════════════════════════════════ */
+/* POS layout, scroll containment, and viewport relationships.
+   Component colors, typography, and controls use Tailwind app tokens. */
 .pos-page-shell {
   display: flex;
   flex-direction: column;
-  margin: -1.5rem -2rem -2rem -2rem;
+  margin: calc(-1 * var(--app-space-6)) calc(-1 * var(--app-space-8)) calc(-1 * var(--app-space-8));
   height: calc(100svh - var(--layout-topbar-height, 64px));
-  z-index: 10;
-  background-color: var(--app-color-canvas);
   overflow: hidden;
 }
 
-/* ═══════════════════════════════════════════════════
-   Page header  (search bar + category scroller)
-   Fixed at top — does not scroll.
-════════════════════════════════════════════════════ */
-.pos-page-header {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2, 0.5rem);
-  padding: var(--app-space-4, 1rem) var(--app-space-4, 1rem) 0;
-  min-width: 0;
-}
-
-/* ═══════════════════════════════════════════════════
-   Main layout  (product area + cart sidebar, side-by-side)
-   Fills remaining height below the page header.
-════════════════════════════════════════════════════ */
 .pos-main-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(320px, 30vw, 400px);
   align-items: stretch;
-  gap: var(--app-gap-related, 1rem);
+  gap: var(--app-gap-related);
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-/* ═══════════════════════════════════════════════════
-   Product area  (left — scrollable catalog)
-════════════════════════════════════════════════════ */
 .pos-product-area {
   display: flex;
   flex-direction: column;
-  gap: var(--app-gap-related, 1rem);
-  padding: 1.5rem 0 1.5rem 2rem;
+  gap: var(--app-gap-related);
+  padding: var(--app-space-6) 0 var(--app-space-6) var(--app-space-8);
   overflow-y: auto;
   overscroll-behavior: contain;
   min-width: 0;
   min-height: 0;
   scrollbar-width: none;
+  container: pos-catalog / inline-size;
 }
 
-.pos-product-area::-webkit-scrollbar { display: none; }
-
-.pos-product-area::-webkit-scrollbar-track {
-  background: transparent;
+.pos-product-area::-webkit-scrollbar,
+.pos-cart-items-list::-webkit-scrollbar {
+  display: none;
 }
 
-.pos-product-area::-webkit-scrollbar-thumb {
-  border-radius: 10px;
-}
-
-/* ═══════════════════════════════════════════════════
-   Category section  (one <section> per menu category)
-════════════════════════════════════════════════════ */
-
-.pos-product-browser {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-gap-related, 1rem);
-}
-
+.pos-product-browser,
 .pos-category-section {
   display: flex;
   flex-direction: column;
-  gap: var(--app-gap-related, 1rem);
+  gap: var(--app-gap-related);
   min-width: 0;
 }
 
@@ -97,18 +48,14 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--app-space-4, 1rem);
+  gap: var(--app-gap-related);
   min-width: 0;
 }
 
-/* ═══════════════════════════════════════════════════
-   Product grid  (cards inside each category section)
-   Desktop: 3 columns. Tablet portrait: 2. Phone: 1.
-════════════════════════════════════════════════════ */
 .pos-product-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--app-gap-related, 1rem);
+  gap: var(--app-gap-related);
   min-width: 0;
 }
 
@@ -118,9 +65,19 @@
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Cart sidebar region  (right column — flex wrapper)
-════════════════════════════════════════════════════ */
+/* Account for the actual catalog width beside either sidebar. */
+@container pos-catalog (max-width: 48rem) {
+  .pos-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container pos-catalog (max-width: 36rem) {
+  .pos-product-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .pos-cart-sidebar-region {
   display: flex;
   min-width: 0;
@@ -128,7 +85,6 @@
   overflow: hidden;
 }
 
-/* The cart sidebar fills its region fully */
 .pos-cart-sidebar {
   display: flex;
   flex-direction: column;
@@ -137,41 +93,22 @@
   overflow: hidden;
 }
 
-/* ═══════════════════════════════════════════════════
-   Cart items list  (scrollable, takes remaining space)
-════════════════════════════════════════════════════ */
 .pos-cart-items-list {
   flex: 1;
   overflow-y: auto;
-  min-height: 0;
+  min-height: min(8rem, 18svh);
   overscroll-behavior: contain;
-  scrollbar-width: none;}
-
-.pos-cart-items-list::-webkit-scrollbar { display: none; }
-
-.pos-cart-items-list::-webkit-scrollbar-track {
-  background: transparent;
+  scrollbar-width: none;
 }
 
-.pos-cart-items-list::-webkit-scrollbar-thumb {
-  border-radius: 10px;
-}
-
-/* ═══════════════════════════════════════════════════
-   Cart footer  (totals + payment + process button)
-   Capped at 55% of sidebar height so it never crowds
-   the items list on short viewports.
-════════════════════════════════════════════════════ */
 .pos-cart-footer {
-  flex-shrink: 0;
+  flex: 0 1 auto;
   overflow-y: auto;
+  overscroll-behavior: contain;
   max-height: 55%;
   min-height: 0;
 }
 
-/* ═══════════════════════════════════════════════════
-   Blocking loader overlay  (stacking only)
-════════════════════════════════════════════════════ */
 .pos-blocking-loader {
   position: fixed;
   inset: 0;
@@ -181,23 +118,17 @@
   justify-content: center;
 }
 
-/* ═══════════════════════════════════════════════════
-   Checkout error banner  (fixed top-center; stacking only)
-════════════════════════════════════════════════════ */
 .pos-checkout-error {
   position: fixed;
-  top: 1rem;
+  top: var(--app-space-4);
   left: 50%;
-  z-index: 10001;
+  z-index: 10004;
   width: min(90%, 460px);
   transform: translateX(-50%);
 }
 
-/* ═══════════════════════════════════════════════════
-   Phone-only: FAB button + bottom-drawer backdrop
-   Hidden by default on tablet and desktop.
-════════════════════════════════════════════════════ */
-.pos-mobile-fab {
+.pos-mobile-fab,
+.pos-cart-close-btn {
   display: none;
 }
 
@@ -208,43 +139,21 @@
   z-index: 9999;
 }
 
-.pos-cart-overlay.visible {
-  display: block;
-}
-
-.pos-cart-close-btn {
-  display: none;
-}
-
-/* ═══════════════════════════════════════════════════
-   Responsive: Tablet Portrait  640–1023px
-   Sidebar narrows; product grid remains 2 columns.
-════════════════════════════════════════════════════ */
 @media (max-width: 1023px) {
   .pos-main-layout {
     grid-template-columns: minmax(0, 1fr) clamp(280px, 28vw, 360px);
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Responsive: Phone  < 640px
-   Product area goes full-width.
-   Cart sidebar hides from normal flow and reappears
-   as a bottom drawer triggered by the FAB button.
-════════════════════════════════════════════════════ */
 @media (max-width: 639px) {
   .pos-page-shell {
-    position: relative; /* fallback to normal flow for mobile */
     --app-gap-section: var(--app-space-4);
-    height: calc(100svh - var(--layout-topbar-height, 64px) - 2.75rem);
   }
 
   .pos-main-layout {
     display: block;
-    padding: var(--app-space-2, 0.5rem) var(--app-space-2, 0.5rem) 5rem;
+    padding: var(--app-space-4) var(--app-space-4) calc(5rem + env(safe-area-inset-bottom));
     overflow-y: auto;
-    flex: 1;
-    min-height: 0;
   }
 
   .pos-product-area {
@@ -254,46 +163,45 @@
   }
 
   .pos-product-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .pos-cart-sidebar-region {
     display: none;
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    inset: auto 0 0;
     z-index: 10000;
-    height: 80svh;
+    height: min(80svh, calc(100svh - var(--app-space-4)));
     overflow: hidden;
-    border-radius: 1.25rem 1.25rem 0 0;
   }
 
-  .pos-cart-sidebar-region.drawer-open {
+  .pos-cart-sidebar-region.drawer-open,
+  .pos-cart-overlay.visible {
     display: flex;
   }
 
   .pos-mobile-fab {
     display: flex;
-    align-items: center;
-    gap: var(--app-space-2, 0.5rem);
     position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
+    bottom: calc(var(--app-space-6) + env(safe-area-inset-bottom));
+    right: var(--app-space-6);
     z-index: 9000;
   }
 
   .pos-cart-close-btn {
     display: flex;
-    align-items: center;
-    justify-content: center;
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   Shared keyframe used by the blocking loader
-════════════════════════════════════════════════════ */
+/* Match the shared shell's smaller phone padding. */
+@media (max-width: 480px) {
+  .pos-page-shell {
+    margin: -1.25rem calc(-1 * var(--app-space-4)) calc(-1 * var(--app-space-6));
+  }
+}
+
+/* Retained for the existing Order Details loading animation. */
 @keyframes spin {
   from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }

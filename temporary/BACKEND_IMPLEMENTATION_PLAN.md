@@ -95,6 +95,18 @@ Migrate in this order:
 6. Sync through Laravel transactions.
 7. Test retries, browser restart, Cash, and GCash behavior.
 
+### Deferred: Shared Sync Indicator and Toast Feedback
+
+Added October 2, 2026. User approved planning only; resume after receipt-printing investigation.
+
+- [ ] Replace the static Topbar Synced button with shared sync state, following the existing hooks/services structure. Keep one sync coordinator; do not start duplicate sync loops from the Topbar.
+- [ ] Derive feedback from connection/reachability, Dexie queue counts, sync progress, authentication, and menu refresh results. Handle checking, synced, pending, syncing/refreshing, offline, connection failure, needs attention, and sign-in required. Connection and queue status must remain separately tracked.
+- [ ] Show pending/attention counts and last successful sync in a reusable status popover. Allow retry only when appropriate. Synced means this browser's orders are synchronized, not that all accounts receive real-time updates.
+- [ ] Keep POS checkout blocked throughout sync and the required stock/menu refresh. Never report full success if uploads succeeded but the refresh failed, or if queue inspection failed.
+- [ ] Keep rejected orders visible for review; remove local orders only after confirmed backend acceptance. Preserve idempotency and existing retry/ownership protections.
+- [ ] Add one shared shadcn-compatible toast host after checking the installed component stack. Notify on meaningful state transitions and batch outcomes, deduplicate repeated failures, and keep actionable problems visible in the status popover after a toast disappears.
+- [ ] Verify offline/reconnect, partial success, validation rejection, expired login, backend unavailable, refresh failure, repeated renders, and browser restart. Implement shared state and badge first, then toast feedback.
+
 ## Phase 9: Final Cleanup and Deployment
 
 1. Remove unused direct Supabase database access.

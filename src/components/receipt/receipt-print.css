@@ -1,0 +1,107 @@
+/* Shared table sizing; all screen typography and colors come from app tokens. */
+.receipt-items th,
+.receipt-items td {
+  vertical-align: top;
+  padding: var(--app-space-1) 0 var(--app-space-1) var(--app-space-2);
+}
+
+.receipt-items :is(th, td):first-child {
+  width: 100%;
+  padding-left: 0;
+}
+
+.receipt-items :is(th, td):not(:first-child) {
+  white-space: nowrap;
+}
+
+.receipt-print-root {
+  display: none;
+}
+
+@media print {
+  html:has(.receipt-print-root),
+  body:has(.receipt-print-root) {
+    /* Discard dialog scroll-lock positioning when paginating the print copy. */
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    display: block !important;
+    page: auto;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Only the body-level print copy participates in layout, not the modal/scroll area. */
+  body:has(.receipt-print-root) > #root,
+  body:has(.receipt-print-root) > :not(.receipt-print-root) {
+    display: none !important;
+  }
+
+  body > .receipt-print-root {
+    display: block !important;
+    /* Avoid switching from the document's default page to a different named page. */
+    page: auto;
+    position: static;
+    width: 58mm;
+    max-width: 100%;
+    height: auto;
+    padding: 2mm;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .receipt-print-root,
+  .receipt-print-root * {
+    visibility: visible !important;
+    color: black !important;
+    font-family: "Courier New", Courier, monospace !important;
+  }
+
+  .receipt-print-root .receipt-document {
+    font-size: 10px;
+    line-height: 1.35;
+  }
+
+  .receipt-print-root .receipt-heading h2,
+  .receipt-print-root .receipt-total {
+    font-size: 14px;
+    line-height: 1.3;
+  }
+
+  .receipt-print-root .receipt-heading p {
+    font-size: 10px;
+  }
+
+  .receipt-print-root .receipt-heading > *,
+  .receipt-print-root .receipt-section > * {
+    margin: 0 0 4px;
+  }
+
+  .receipt-print-root .receipt-row {
+    gap: 2mm;
+    break-inside: avoid;
+  }
+
+  .receipt-print-root .receipt-divider {
+    border: 0;
+    border-top: 1px dashed black;
+    margin: 6px 0;
+  }
+
+  .receipt-print-root .receipt-items :is(th, td) {
+    padding: 2px 0 2px 3px;
+  }
+
+  .receipt-print-root .receipt-items :is(th, td):first-child {
+    padding-left: 0;
+  }
+
+  .receipt-print-root .receipt-items tr,
+  .receipt-print-root .receipt-closing {
+    break-inside: avoid;
+  }
+}

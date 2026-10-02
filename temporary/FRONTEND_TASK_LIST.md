@@ -408,6 +408,42 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [ ] Remove each legacy modal stylesheet or component only after confirming zero remaining references and receiving visual approval.
 - [ ] Run focused modal lint and the production/PWA build after every approved variant batch.
 
+### Shared Receipt Modal — POS and Order History (October 2, 2026)
+
+- [x] Replace duplicated receipt markup with one shared receipt document and modal, using the existing Modal/Header/Body/Content/Footer and Button primitives plus theme/typography tokens.
+- [x] Match Add Inventory Item's modal shell: 42rem width, 48rem/90svh height cap, canvas body, default ModalContent padding, white bordered inner panel, and matching secondary/primary footer buttons (Close/Print Receipt). Keep receipt content and thermal printing separate; no form stepper. Re-ran focused lint, production/PWA build, and mocked responsive/keyboard/print checks; user visual approval remains pending.
+- [x] Keep existing POS props and Order History query/service contracts; use display-only item adapters without changing checkout, saved order totals, stock, or offline sync.
+- [x] Render an isolated body-level print copy outside modal scroll constraints, with 58mm content width, monochrome thermal styling, and printer-selected paper length. Scope print isolation to an open, ready receipt.
+- [x] Stop importing both legacy receipt stylesheets; retain the files until visual approval and a final reference check.
+- [x] Pass focused receipt lint and production/PWA build (existing large-bundle advisory remains).
+- [x] User approved the shared modal design. Preserve the subsequently adjusted 30rem width and relocated POS receipt wrapper.
+- [x] Replace the receipt loading spinner with the existing shared Skeleton primitive in a receipt-shaped placeholder; retain accessible loading status, reduced-motion support, disabled Print, and no printable skeleton.
+- [x] Remove the named receipt-page transition, mount zero-margin/default-paper page settings only with the printable receipt, reset print-time dialog scroll positioning, and keep the payment/footer block together across page breaks.
+- [x] Verify paginated local Chrome PDFs: short receipts use one page at 58x210mm and 58x297mm; a 40-item/40-add-on stress receipt contains all items and the closing payment/footer, with no blank pages. The original blank-first-sheet problem did not reproduce in the automated baseline, so the Windows POS-58 preview still requires user confirmation; do not mark the reported issue conclusively resolved yet.
+- [x] Pass mocked local Chrome checks: POS/history display parity; 1194x834, 1440x900, 390x844, and 390x600; Escape/close/outside-click/reopen; keyboard focus containment; disabled print on loading/error/empty; print action; isolated print media with other modules' print CSS loaded; 40 items plus 40 add-ons without scroll clipping. No live orders created.
+- [ ] User visually approves both receipt entry points and verifies real order values, add-ons, discounts, and online/offline receipts.
+- [x] User confirmed the Windows POS-58 preview now shows one sheet at 58x210mm with no leading blank sheet, no margins, and 100% scale. This supersedes the earlier pending preview confirmation; physical output remains unverified.
+- [x] Keep monetary receipt-row values on one line and allow long labels to wrap. Verified a long Senior/PWD discount label at 58mm, all five monetary rows, the existing mocked responsive/modal/print checks, focused lint, and production/PWA build. No checkout or stored totals changed.
+- [ ] Verify physical Xprinter output. Browser print-media checks do not prove driver/protocol compatibility.
+- [ ] After approval, remove the two zero-reference legacy receipt stylesheets. ESC/POS/TSPL transport and sticker printing remain a separate batch.
+
+## Public Printing Test Lab — October 2, 2026
+
+User-approved direction: public `/print-test` on the existing site, with brief beginner-friendly explanations, settings, and separate strategies. Work in reviewable batches. No new native mobile app, no live order data, and no checkout or stock writes. User runs dependency installation commands. Public availability after the user's normal deployment; do not push automatically.
+
+October 2 consolidation: all lab-only source and fixture tests now live inside `src/pages/print-test/`, including its `components/` and `utils/` subfolders. Imports updated; user runs tests/build. Keep future experimental encoders and delivery adapters here until a winning method is approved for production. Do not delete a selected production implementation with the lab: move that reusable implementation into its permanent location first. Cleanup then removes this folder and its import/route/fallback in `src/App.jsx`; shared `src/components/receipt/` remains because POS and Order History use it. Updated fixture test command: `node --test src/pages/print-test/utils/printTestFixtures.test.js`.
+
+- [x] Batch 1 — implemented public `/print-test` outside session loading, with sample-only data, six method guides, readiness labels, working browser receipt test, four receipt fixtures, and three example sticker-preview sizes. Reused existing Card/Button/Badge/Select/Receipt components; no new dependencies or API/checkout/stock changes.
+- [x] Batch 1 local verification — five fixture tests, focused lint, production/PWA build, and production-preview browser checks passed. Verified logged-out access, saved-token isolation (no session/API requests), 1194x834/1440x900/390x844/390x600 layouts, sample selection, label/receipt switching, keyboard focus, disabled unimplemented actions, receipt print isolation/Escape, and protected POS redirect to Login. Browser print was stubbed: no real print job or order was sent. Screenshots are in `temporary/ui-reviews/printing-test/`. Existing bundle-size advisory remains.
+- [ ] Batch 2 — install ReceiptPrinterEncoder with the user's command; generate text commands from the same fixtures; download commands and send them to the existing PC emulator. Start with ASCII/PHP currency, bounded lengths, no cutter/drawer commands.
+- [ ] Batch 3 — render the fixture receipt as a monochrome image; encode supported receipt image commands; compare emulator output and printable dot widths. This is separate from browser PDF printing.
+- [ ] Batch 4 — Android RawBT handoff for prepared receipt jobs; explicit user action, compatible profile/settings, unavailable-helper guidance, payload limits, and no false physical-success claim. Verify installed-version licensing and actual Android behavior.
+- [ ] Batch 5 — measured sticker dimensions and gap; label-command generation and compatible delivery. The initial sample label is preview-only. Confirm TSPL support/mode separately; the existing receipt emulator does not validate it.
+- [ ] Batch 6 — PC QZ Tray integration, explicit connection permission, selected printer, and emulator delivery; handle disconnects, cancellation, and uncertain results without automatic retries. No silent-printing promise without certificate setup.
+- [ ] Batch 7 — test prepared strategies on the real printer, record method/settings/output, choose the reliable default and one fallback, then integrate the approved method into POS/Order History. Keep printing separate from checkout and offline order synchronization.
+- [ ] Optional later investigation — direct browser USB/Serial/BLE only after confirming browser and device compatibility; not a promised universal Android/iPhone route.
+- [ ] User visual approval and deployed `/print-test` smoke test. Physical receipt and label output remain unverified until hardware tests pass.
+
 ## Waiting for References
 
 - [ ] Migrate Point of Sale after its approved reference is supplied.
@@ -418,6 +454,22 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [ ] Implement final shared button variants after approval.
 - [ ] Implement additional complex filter variants only after their references and interactions are approved.
 - [x] Modal Variant 1, Variant 2, and Variant 3 references are supplied; migration is tracked in Phase 11.
+
+## Toast Feedback Review — POS First
+
+Feedback placement and examples: [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBACK_PLAN.md). Use it to choose inline errors, hints, disabled controls, tooltips, toasts, banners, in-content states, or confirmation modals before each approved batch.
+
+- [ ] POS Add to order prerequisite UX: disable until an available variant is selected and show "Select a size first." near the selector. See the feedback plan; implementation and user verification remain pending.
+- [~] Review and approve the shared Base UI toast in POS: accepted add-to-order success, stock rejection warning, duplicate updates, dismissal, mobile placement, and keyboard/accessibility behavior. Use `toast.add`, `toast.update`, and `toast.close` directly; keep styling and default timeout in the shared toast/Toaster. User runs testing and build checks.
+- [ ] Review other POS outcomes before adding more toasts: checkout failure, offline order queued, cart removal/clear, and add-on confirmation. Keep important checkout failures visible in the existing banner, avoid duplicate messages, and do not announce routine quantity/filter changes.
+- [ ] Review Inventory pages and modals for confirmed save, restock, wastage, correction, archive, restore, category, and export outcomes.
+- [ ] Review Menu/Add-ons pages and modals for confirmed save, archive, restore, variant, category, and export outcomes.
+- [ ] Review Expense pages and modals for confirmed save, archive, restore, category, and export outcomes.
+- [ ] Review Employee Management for confirmed save, activation/deactivation, setup-link, and password-request outcomes.
+- [ ] Review Dashboard, Order History, Sales, Inventory Valuation, and Inventory Audit pages for actionable feedback such as export failures. Keep fetch errors with retry in the page content.
+- [ ] Review Authentication, Profile, and any Store Settings pages for suitable transient feedback; keep password/setup instructions and field errors visible in their forms.
+- [ ] Review every remaining route and archive page for needed feedback, keyboard announcements, responsive placement, duplicate messages, and print exclusion. Add toasts one approved module batch at a time.
+- [ ] Use inline messages for field validation; use persistent page/banner feedback for loading failures or critical failures needing recovery. Toasts supplement brief action feedback and must follow a confirmed result. Normal modal cancellation does not need a toast.
 
 ## Final Cleanup
 
@@ -440,4 +492,4 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 ## Current Next Task
 
-Complete the Phase 11 modal verification pass: live-test the migrated modal flows, validation, reset/reopen behavior, keyboard/focus behavior, responsive sizes, and remaining Variant 2/3 migrations. After that, continue the final cleanup and cross-module responsive/accessibility/build review.
+Review the public Printing Test Lab Batch 1 at `/print-test`; user visual approval and deployment smoke test remain pending. Then proceed to Batch 2: user installs the approved receipt encoder, followed by app-generated text commands and PC emulator testing. Do not enable unfinished transports or claim physical printing success. Resume the Phase 11 modal verification and final cross-module cleanup afterward.

@@ -1,6 +1,6 @@
 # Temporary Task List
 
-Updated: September 26, 2026
+Updated: October 2, 2026
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skipped
 
@@ -25,6 +25,23 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 - [ ] Review and reduce unsafe Supabase RLS policies.
 
 ## Authentication and Authorization
+
+- [~] Add email-or-username login (October 1, 2026; user implements, assistant guides).
+  - [x] Check existing usernames for blank values, case-insensitive duplicates, and ambiguity with another user's email. User confirmed all three read-only queries returned no rows on October 1, 2026.
+  - [x] Update the existing AuthController login validation and email/username lookup; preserve password, status, role, and Sanctum checks. Implementation inspected and user reports login works.
+  - [~] Update login throttling: five failed credentials trigger a 180-second account lockout starting on the fifth failure; email/username share the counter. Reset incomplete counters after 15 minutes without a failed attempt and clear them on successful authentication. Return attempts_remaining and retry_after for the frontend; retain separate IP protection and email-only recovery throttles. User implements with guidance.
+  - [~] Update the existing frontend login input/state/payload and generic credential errors. Shared Axios, response-reading utility, remaining-attempt feedback, and countdown are connected. With user permission, restored one-time password-reset message cleanup and grouped feedback inside the error box; focused ESLint passed. Browser lockout tests remain pending.
+  - [x] Add a persistent browser login device ID through an auth utility and the existing login service payload. User confirmed the same ID across changed identifiers and refresh; utility and service wiring inspected October 1, 2026.
+  - [x] Enforce a shared browser-device failure counter across different login identifiers: five failures trigger a 180-second lockout; retain account and IP protection. Implementation inspected and user reports local behavior works. Browser IDs are resettable and are not trusted physical-device identity.
+  - [ ] Test both identifiers, casing, incorrect credentials, inactive accounts, and shared rate limits before deployment; include changing identifiers in the same browser and reloading during lockout.
+  - [ ] Keep Forgot Password email-only and verify existing email login remains compatible during rollout.
+  - [ ] Deferred input-case follow-up (October 2, user requested keeping current progress). Preserve existing case-insensitive email/username login, recovery/setup email normalization, and email constraints. The proposed exact-case email changes are cancelled; no application changes or email migration were made for this follow-up.
+    - [ ] Deferred: align username uniqueness with case-insensitive login. Existing login already ignores case, but EmployeeAddController still uses ordinary Rule::unique; the proposed validation snippet was not applied. Inspect live duplicates/indexes before adding database protection.
+    - [ ] Deferred: capitalize employee name initials. EmployeeAddController still trims first/last names without changing casing; the proposed Str::ucwords snippet was not applied. First/last names remain read-only during employee edit.
+    - [x] Retain normalized recovery-email throttle keys, IP protection, and canonicalized browser UUID keys so casing changes cannot split counters. User accepted the existing policy October 2; no application change needed for this decision.
+    - [ ] Keep case-insensitive sales filters. StoreMenuItemRequest and SyncMenuItemRequest were verified unreferenced by active app/routes/bootstrap on October 1; leave them untouched.
+    - [ ] Deferred: review case-insensitive business-name duplicate prevention while preserving display casing. Audit existing case-only duplicates before adding constraints; do not merge or delete records automatically.
+    - [ ] Retest consistent case-insensitive identity matching, case-sensitive passwords/tokens, employee add/edit, cross-identifier ambiguity, device lockouts, and case-only business-name duplicates before coordinated deployment.
 
 - [x] Return User with Role from `/user`.
 - [x] Remove the React default-to-Owner behavior.
@@ -387,6 +404,8 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally skippe
 - [ ] Test production deployment and backups.
 
 ## Next Task
+
+Current priority (October 2, 2026): resume deployment Phase 7 scheduled maintenance. User reports the email/username login and device-counter behavior work locally; these auth changes are still present as uncommitted working-tree changes, so production rollout remains a separate step. Input-case follow-ups are deferred at the user's request. First guide the user to correct shared-table password-token cleanup in routes/console.php and inspect the configured broker expirations/schedule without executing cleanup. Then implement the protected inventory-maintenance trigger and Supabase Cron/fallback in small batches. Assistant updates tracking; user edits backend application code.
 
 Phase 7 first batch: read-only inspection found shared-table token cleanup could delete still-valid setup links because scheduled auth:clear-resets uses the default shorter-expiry broker. Guide user to choose the longest configured broker expiry for garbage collection in routes/console.php, then verify with schedule:list (not schedule:run). No application code or database changed by the assistant. Existing inventory cleanup already has transaction/row locks and positive-quantity filtering; test retry safety next, preserving its orchestrator structure.
 

@@ -1,27 +1,22 @@
-export const loginUser = async (email, password) => {
+import api from "../utils/axios/axiosInstance";
+import { getLoginDeviceId } from "../utils/auth/loginDevice";
+
+export const loginUser = async (login, password) => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ email, password }),
+    const response = await api.post("/login", {
+      login: login.trim(),
+      password,
+      device_id: getLoginDeviceId(),
     });
 
-    const data = await response.json();
+    // Preserve the existing successful-login behavior.
+    localStorage.setItem("auth_token", response.data.token);
 
-    // if laravel returns an error
-    if (!response.ok) {
-      throw new Error(data.message);
-    }
-
-    // if laravel login successful, save token to localstorage
-    localStorage.setItem("auth_token", data.token);
-
-    return data;
+    return response.data;
   } catch (error) {
     console.error("Error logging in:", error.message);
+
+    // Preserve Laravel's response body, status, and headers.
     throw error;
   }
 };

@@ -24,12 +24,12 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
 
         <div>
           {/* Row 1: Title */}
-          <h5 className="font-semibold text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] m-0 truncate">
+          <h5 className="font-semibold text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] m-0 break-words">
             {item.name}
           </h5>
 
           {/* Row 2: Size and Add-on toggle */}
-          <div className="flex items-center gap-1 mt-0.5 leading-[var(--app-line-height-caption)]">
+          <div className="flex flex-wrap items-center gap-1 mt-0.5 leading-[var(--app-line-height-caption)]">
             <span className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
               {item.variant || 'Regular'}
             </span>
@@ -38,6 +38,8 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
               <>
                 <span className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">|</span>
                 <button
+                  type="button"
+                  aria-expanded={isAddonsExpanded}
                   className="text-[var(--app-color-brand)] font-medium text-[length:var(--app-font-size-caption)] flex items-center gap-0.5 hover:brightness-110"
                   onClick={() => setIsAddonsExpanded(!isAddonsExpanded)}
                 >
@@ -51,7 +53,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
           {isAddonsExpanded && item.addOns && item.addOns.length > 0 && (
             <div className="flex flex-col mt-1 gap-0.5 mb-1 leading-[var(--app-line-height-caption)]">
               {item.addOns.map(ao => (
-                <span key={ao.id} className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)] truncate">
+                <span key={ao.id} className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)] break-words">
                   {ao.qty}x {ao.name}
                 </span>
               ))}
@@ -59,7 +61,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
           )}
 
           {!canIncrease && (
-            <p className="text-[0.65rem] text-[var(--app-color-warning)] font-bold m-0 mt-1 flex items-center gap-1">
+            <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-warning)] font-bold m-0 mt-1 flex items-center gap-1">
               <i className="bi bi-exclamation-triangle-fill"></i> Max stock reached
             </p>
           )}
@@ -76,6 +78,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
       <div className="flex flex-col items-end justify-between shrink-0 mb-[var(--app-space-2)]">
         {/* Remove Button */}
         <button
+          type="button"
           className="text-[var(--app-color-text-muted)] hover:text-[var(--app-color-danger)] transition-colors p-1 -mr-1"
           onClick={() => onRemoveItem(item.cartId)}
           title="Remove Item"
@@ -87,6 +90,9 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
         {/* Quantity Controls */}
         <div className="flex items-center gap-2 mt-auto">
           <button
+            type="button"
+            aria-label={`Decrease quantity of ${item.name}`}
+            disabled={item.qty <= 1}
             className="w-[1.375rem] h-[1.375rem] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
             onClick={() => onUpdateQty(item.cartId, item.qty - 1)}
           >
@@ -98,6 +104,8 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
           </span>
 
           <button
+            type="button"
+            aria-label={`Increase quantity of ${item.name}`}
             className="w-[1.375rem] h-[1.375rem] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
             onClick={() => onUpdateQty(item.cartId, item.qty + 1)}
             disabled={!canIncrease}

@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\Response;
 
 class RateLimitServiceProvider extends ServiceProvider
 {
@@ -26,21 +25,10 @@ class RateLimitServiceProvider extends ServiceProvider
     {
         // Login: protect individual accounts and the requesting IP.
         RateLimiter::for('login', function (Request $request) {
-            $emailKey = $this->emailKey($request);
-
-            $shouldCount = static fn(Response $response): bool =>
-            in_array($response->getStatusCode(), [401, 403, 422], true);
-
-            return [
-                Limit::perMinute(5)
-                    ->by("login-email:{$emailKey}")
-                    ->after($shouldCount),
-
-                Limit::perMinute(20)
-                    ->by("login-ip:{$request->ip()}")
-                    ->after($shouldCount),
-            ];
+            return Limit::perMinute(20)
+                ->by("login-ip:{$request->ip()}");
         });
+
         // Forgot-password request.
         RateLimiter::for('password-request', function (Request $request) {
             $emailKey = $this->emailKey($request);

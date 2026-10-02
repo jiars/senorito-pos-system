@@ -1,19 +1,12 @@
 import React, { useState } from "react";
 import "./pos.css";
 
-import CategoryScroller from "./components/CategoryScroller";
-import POSCategorySection from "./components/product-browser/POSCategorySection";
-import { Skeleton } from "@/components/ui/skeleton";
+import POSCatalog from "./components/POSCatalog";
 import PosBlockingLoader from "./components/PosBlockingLoader";
 import POSCartSidebar from "./components/cart-sidebar/POSCartSidebar";
 import CheckoutErrorBanner from "./components/CheckoutErrorBanner";
-import CustomizeOrderModal from "./CustomizeOrderModal/CustomizeOrderModal";
-import ReceiptModal from "./ReceiptModal/ReceiptModal";
-import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
+import ReceiptModal from "./components/modals/ReceiptModal";
 
-// We will populate posProducts dynamically from the database!
-
-import imgDefault from "../../assets/images/default_menu_picture.jpg";
 import { processOnlineCheckout } from "../../services/pos/checkoutService";
 import { usePosManagement } from "../../hooks/usePosManagement";
 import { useRefreshInventoryManagement } from "../../hooks/useInventoryManagement";
@@ -27,45 +20,20 @@ import {
   generateClientTransactionId,
   generateOfflineTransactionId,
 } from "../../utils/orderUtils";
-import { formatCurrency } from "../../utils/currencyFormatters";
 import {
   calculateInventoryDeductions,
-  getRecipeAvailabilityStatus,
   hasEnoughInventoryStock,
+  getInventoryStockStatus,
 } from "../../utils/pos/checkoutCalculations";
 import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
-
-// Place the trusted usable stock inside every Menu and Add-on recipe.
-const applyInventoryStock = (records, recipeKey, stockById) => {
-  return records.map((record) => {
-    const recipes = record[recipeKey] || [];
-
-    return {
-      ...record,
-      [recipeKey]: recipes.map((recipe) => {
-        const stock = stockById.get(recipe.inventory_item_id);
-        let inventoryItem = recipe.inventory_items;
-
-        if (inventoryItem) {
-          inventoryItem = {
-            ...inventoryItem,
-            current_stock:
-              Number(stock?.usable_stock ?? stock?.current_stock) || 0,
-            usable_stock:
-              Number(stock?.usable_stock ?? stock?.current_stock) || 0,
-            minimum_level: Number(stock?.minimum_level) || 0,
-            archived: Boolean(stock?.archived ?? inventoryItem.archived),
-          };
-        }
-
-        return {
-          ...recipe,
-          inventory_items: inventoryItem,
-        };
-      }),
-    };
-  });
-};
+import { buildPOSCartWithItem } from "@/utils/pos/posCartUtils";
+import { toast } from "@/components/ui/toast";
+import { savePosManagementCache } from "../../services/pos/posCacheService";
+import {
+  preparePOSCatalog,
+  getPOSDisplayProducts,
+  getPOSCatalogGroups,
+} from "../../utils/pos/posCatalogUtils";
 
 const POSPage = () => {
   const { user, profile } = React.useContext(AuthContext);
@@ -105,9 +73,6 @@ const POSPage = () => {
   const [discountType, setDiscountType] = useState("None");
   const [amountPaid, setAmountPaid] = useState("");
 
-  // Customize Order Modal State
-  const [customizingProduct, setCustomizingProduct] = useState(null);
-
   // Receipt Modal State
   const [processedOrder, setProcessedOrder] = useState(null);
   const pendingCheckoutIdRef = React.useRef(null);
@@ -140,39 +105,13 @@ const POSPage = () => {
             inventoryStockData = posInventoryStock;
           }
 
-          inventoryStockData = inventoryStockData.map((item) => ({
-            id: item.id,
-            item_name: item.item_name,
-            base_unit: item.base_unit,
-            current_stock: Number(item.current_stock) || 0,
-            usable_stock:
-              Number(item.usable_stock ?? item.current_stock) || 0,
-            minimum_level: Number(item.minimum_level) || 0,
-            archived: Boolean(item.archived),
-          }));
-
-          // Replace the complete refreshable cache together.
-          await db.transaction(
-            "rw",
-            [db.menuItems, db.addons, db.categories, db.inventoryStock],
-            async () => {
-              await Promise.all([
-                db.menuItems.clear(),
-                db.addons.clear(),
-                db.categories.clear(),
-                db.inventoryStock.clear(),
-              ]);
-
-              if (data.length > 0) await db.menuItems.bulkPut(data);
-              if (addonsData.length > 0) await db.addons.bulkPut(addonsData);
-              if (categoriesData.length > 0) {
-                await db.categories.bulkPut(categoriesData);
-              }
-              if (inventoryStockData.length > 0) {
-                await db.inventoryStock.bulkPut(inventoryStockData);
-              }
-            },
-          );
+          const cachedData = await savePosManagementCache({
+            items: data,
+            addons: addonsData,
+            categories: categoriesData,
+            inventory_stock: inventoryStockData,
+          });
+          inventoryStockData = cachedData.inventory_stock;
 
           console.log("Online: Laravel POS data cached to Dexie.");
         } else {
@@ -190,109 +129,15 @@ const POSPage = () => {
           }
         }
 
-        const stockById = new Map();
-        inventoryStockData.forEach((item) => {
-          stockById.set(item.id, item);
-        });
-
-        const menuItemsWithStock = applyInventoryStock(
+        const catalog = preparePOSCatalog(
           data,
-          "menu_recipes",
-          stockById,
-        );
-        const addonsWithStock = applyInventoryStock(
           addonsData,
-          "addon_recipes",
-          stockById,
+          categoriesData,
+          inventoryStockData,
         );
-
-        setGlobalAddons(addonsWithStock);
-        // Transform Laravel or cached data into the shape POSPage expects.
-        const formattedProducts = menuItemsWithStock.map((item) => {
-          let basePrice = 0;
-          let displayPrice = formatCurrency(0);
-          let variants = [];
-          let defaultPriceId = null;
-          let defaultVariantName = "Reg";
-          let defaultPricePosStatus = "Available";
-          let defaultRecipeStatus = "Incomplete";
-          const itemPrices = (item.menu_prices || []).filter((price) => !price.archived);
-          const itemRecipes = item.menu_recipes || [];
-
-          if (itemPrices.length === 1) {
-            const regularPriceObj = itemPrices[0];
-            basePrice = Number(regularPriceObj?.selling_price) || 0;
-            displayPrice = formatCurrency(basePrice);
-            defaultPriceId = regularPriceObj?.id || null;
-            defaultVariantName = regularPriceObj?.variant_name || "Reg";
-            defaultPricePosStatus = regularPriceObj?.pos_status || "Available";
-            defaultRecipeStatus =
-              regularPriceObj?.recipe_status || "Incomplete";
-          } else {
-            // Sort variants by price (lowest to highest) for display
-            const sortedPrices = [...itemPrices].sort(
-              (a, b) => a.selling_price - b.selling_price,
-            );
-            if (sortedPrices.length > 0) {
-              basePrice = sortedPrices[0].selling_price;
-              const minPrice = Number(sortedPrices[0].selling_price) || 0;
-              const maxPrice =
-                Number(sortedPrices[sortedPrices.length - 1].selling_price) ||
-                0;
-
-              if (minPrice === maxPrice) {
-                displayPrice = formatCurrency(minPrice);
-              } else {
-                displayPrice = `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`;
-              }
-
-              variants = sortedPrices.map((p) => ({
-                id: p.id,
-                name: p.variant_name,
-                price: Number(p.selling_price) || 0,
-                posStatus: p.pos_status || "Unavailable",
-                recipeStatus: p.recipe_status || "Incomplete",
-              }));
-            }
-          }
-
-          return {
-            id: `p-${item.id}`,
-            name: item.item_name,
-            category: item.menu_categories?.category_name || "Uncategorized",
-            categoryId: item.category_id,
-            price: displayPrice,
-            basePrice,
-            defaultPriceId,
-            defaultVariantName,
-            defaultPricePosStatus,
-            defaultRecipeStatus,
-            posStatus: item.pos_status,
-            imageURL: item.image_url || imgDefault,
-            variants,
-            rawRecipes: itemRecipes,
-            isAvailable: item.pos_status === "Available" && !item.archived && itemPrices.length > 0,
-          };
-        });
-
-        // Sort: Alphabetical, but Unavailable items always at the very end
-        formattedProducts.sort((a, b) => {
-          if (a.isAvailable && !b.isAvailable) return -1;
-          if (!a.isAvailable && b.isAvailable) return 1;
-          return a.name.localeCompare(b.name);
-        });
-
-        const categoryNames = [
-          "All",
-          ...new Set([
-            ...categoriesData.map((category) => category.category_name),
-            ...formattedProducts.map((product) => product.category),
-          ].filter(Boolean)),
-          "Not Available",
-        ];
-        setCategories(categoryNames);
-
-        setPosProducts(formattedProducts);
+        setGlobalAddons(catalog.addons);
+        setCategories(catalog.categories);
+        setPosProducts(catalog.products);
       } catch (error) {
         console.error("Failed to load menu for POS:", error);
         alert("Error loading menu: " + error.message);
@@ -394,66 +239,29 @@ const POSPage = () => {
   }, []);
 
   // Cart Actions
-  const handleAddToCart = (product) => {
-    if (isSyncing || isLoading) return;
-    if (!product.isAvailable) return;
+  const handleModalAddToCart = (selection) => {
+    const cartId = `${selection.id}-${Date.now()}`;
+    const updatedCart = buildPOSCartWithItem(cartItems, selection, cartId);
+    const stockStatus = getInventoryStockStatus(updatedCart);
 
-    // ALWAYS open the customization modal so they can add add-ons or adjust quantity
-    setCustomizingProduct(product);
-  };
-
-  const handleModalAddToCart = (customizedData) => {
-    setCartItems((prev) => {
-      const existingIdx = prev.findIndex((item) => {
-        if (item.productId !== customizedData.id) return false;
-        if (item.variant !== customizedData.selectedVariant) return false;
-        if (item.addOns.length !== customizedData.selectedAddOns.length)
-          return false;
-
-        // Check if add-ons match exactly
-        return customizedData.selectedAddOns.every((newAo) =>
-          item.addOns.some(
-            (existAo) =>
-              existAo.name === newAo.name && existAo.qty === newAo.qty,
-          ),
-        );
+    if (!stockStatus.hasEnoughStock) {
+      toast.add({
+        id: `pos-cart-${selection.id}-${selection.selectedVariantId}`,
+        type: "warning",
+        title: "Not enough stock",
+        description: "Reduce quantity or check ingredient stock.",
       });
+      return false;
+    }
 
-      if (existingIdx >= 0) {
-        const updated = [...prev];
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          qty: updated[existingIdx].qty + customizedData.drinkQty,
-        };
-
-        if (!hasEnoughInventoryStock(updated)) return prev;
-        return updated;
-      }
-
-      const cartId = `${customizedData.id}-${Date.now()}`;
-      const newItem = {
-        cartId,
-        productId: customizedData.id,
-        priceId: customizedData.selectedVariantId || null,
-        name: customizedData.name,
-        imageURL: customizedData.imageURL,
-        variant: customizedData.selectedVariant,
-        price: customizedData.totalPrice, // Base + Add-ons price
-        basePrice: customizedData.basePrice || customizedData.totalPrice,
-        qty: customizedData.drinkQty,
-        addOns: customizedData.selectedAddOns,
-        recipeIngredients:
-          customizedData.rawRecipes?.filter(
-            (r) =>
-              r.menu_item_price_id === customizedData.selectedVariantId ||
-              r.menu_item_price_id === null,
-          ) || [],
-      };
-      const updated = [...prev, newItem];
-      if (!hasEnoughInventoryStock(updated)) return prev;
-
-      return updated;
+    setCartItems(updatedCart);
+    toast.add({
+      id: `pos-cart-${selection.id}-${selection.selectedVariantId}`,
+      type: "success",
+      title: "Added to order",
+      description: `${selection.drinkQty} × ${selection.name} (${selection.selectedVariant})`,
     });
+    return true;
   };
 
   const handleUpdateQty = (cartId, newQty) => {
@@ -670,104 +478,16 @@ const POSPage = () => {
 
   // Recalculate product and variant availability against the current cart.
   const displayProducts = React.useMemo(() => {
-    if (!posProducts || posProducts.length === 0) return [];
-
-    return posProducts.map((product) => {
-      const variants = product.variants.map((variant) => {
-        const recipes = product.rawRecipes.filter(
-          (recipe) =>
-            recipe.menu_item_price_id === variant.id ||
-            recipe.menu_item_price_id === null,
-        );
-
-        const availability = getRecipeAvailabilityStatus({
-          recipes,
-          cartItems,
-          posStatus:
-            product.posStatus === "Available"
-              ? variant.posStatus
-              : "Unavailable",
-          recipeStatus: variant.recipeStatus,
-        });
-
-        return {
-          ...variant,
-          ...availability,
-        };
-      });
-
-      let availability;
-
-      if (variants.length > 0) {
-        availability =
-          variants.find((variant) => variant.status === "Available") ||
-          variants.find((variant) => variant.isAvailable) ||
-          variants[0];
-      } else {
-        const recipes = product.rawRecipes.filter(
-          (recipe) =>
-            recipe.menu_item_price_id === product.defaultPriceId ||
-            recipe.menu_item_price_id === null,
-        );
-
-        availability = getRecipeAvailabilityStatus({
-          recipes,
-          cartItems,
-          posStatus:
-            product.posStatus === "Available"
-              ? product.defaultPricePosStatus
-              : "Unavailable",
-          recipeStatus: product.defaultRecipeStatus,
-        });
-      }
-
-      return {
-        ...product,
-        variants,
-        status: availability.status,
-        isAvailable: availability.isAvailable,
-        blockingIngredients: availability.blockingIngredients,
-        lowStockIngredients: availability.lowStockIngredients,
-      };
-    });
+    return getPOSDisplayProducts(posProducts, cartItems);
   }, [posProducts, cartItems]);
 
   const catalogGroups = React.useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const searchedProducts = displayProducts.filter((product) =>
-      product.name.toLowerCase().includes(normalizedSearch),
+    return getPOSCatalogGroups(
+      displayProducts,
+      categories,
+      activeCategory,
+      searchTerm,
     );
-    const availableProducts = searchedProducts.filter(
-      (product) => product.isAvailable,
-    );
-    const unavailableProducts = searchedProducts.filter(
-      (product) => !product.isAvailable,
-    );
-
-    if (activeCategory === "Not Available") {
-      return unavailableProducts.length > 0
-        ? [{ label: "Not Available", products: unavailableProducts }]
-        : [];
-    }
-
-    if (activeCategory !== "All") {
-      const products = availableProducts.filter(
-        (product) => product.category === activeCategory,
-      );
-      return products.length > 0
-        ? [{ label: activeCategory, products }]
-        : [];
-    }
-
-    return categories
-      .filter((category) => category !== "All" && category !== "Not Available")
-      .map((category) => ({
-        label: category,
-        products: availableProducts.filter(
-          (product) => product.category === category,
-        ),
-      }))
-      .filter((group) => group.products.length > 0);
   }, [activeCategory, categories, displayProducts, searchTerm]);
 
   const isPosBlocked = isSyncing || isProcessingOrder;
@@ -780,7 +500,7 @@ const POSPage = () => {
   }
 
   return (
-    <section className="pos-page-shell">
+    <section className="pos-page-shell bg-[var(--app-color-canvas)]">
       <PosBlockingLoader
         isVisible={isPosBlocked}
         title={blockingTitle}
@@ -798,109 +518,65 @@ const POSPage = () => {
         aria-label="Point of sale workspace"
       >
         {/* Left Side: Products */}
-        <section className="pos-product-area" aria-label="Menu catalog">
-          <div className="w-full shrink-0">
-            <ToolbarSearchInput
-              placeholder="Search food, coffee, or item..."
-              value={searchTerm}
-              onValueChange={setSearchTerm}
-              isLoading={!hasLoadedMenu && isLoading}
-            />
-          </div>
-
-          <div className="pos-product-browser">
-            <>
-              <CategoryScroller
-                categories={categories}
-                activeCategory={activeCategory}
-                onSelectCategory={setActiveCategory}
-                isLoading={!hasLoadedMenu && isLoading}
-              />
-
-              <div
-                className="flex min-w-0 flex-col gap-[var(--app-gap-section)]"
-                aria-live="polite"
-              >
-                {!hasLoadedMenu && isLoading ? (
-                  [1, 2].map((i) => (
-                    <POSCategorySection key={i} isLoading={true} />
-                  ))
-                ) : catalogGroups.length === 0 ? (
-                  <div className="pos-product-empty">
-                    {activeCategory === "Not Available"
-                      ? "No unavailable items found."
-                      : "No available items found."}
-                  </div>
-                ) : (
-                  catalogGroups.map((group) => (
-                    <POSCategorySection
-                      key={group.label}
-                      group={group}
-                      onAddToCart={handleModalAddToCart}
-                      allAddons={globalAddons}
-                      cartItems={cartItems}
-                    />
-                  ))
-                )}
-              </div>
-
-              {isLoading && hasLoadedMenu && (
-                <div className="pos-product-area-loader overlay">
-                  <i className="bi bi-arrow-clockwise"></i>
-                  <span>Refreshing menu...</span>
-                </div>
-              )}
-            </>
-          </div>
-        </section>
-        {/* Right Side: Cart */}
-        <aside aria-label="Current order" className={`pos-cart-sidebar-region ${isCartOpen ? "drawer-open" : ""}`}>
-          <POSCartSidebar
+        <POSCatalog
+          categories={categories}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          catalogGroups={catalogGroups}
+          onAddToCart={handleModalAddToCart}
+          allAddons={globalAddons}
           cartItems={cartItems}
-          onUpdateQty={handleUpdateQty}
-          onRemoveItem={handleRemoveItem}
-          onClearCart={handleClearCart}
-          orderSource={orderSource}
-          setOrderSource={setOrderSource}
-          paymentMethod={paymentMethod}
-          setPaymentMethod={setPaymentMethod}
-          discountType={discountType}
-          setDiscountType={setDiscountType}
-          amountPaid={amountPaid}
-          setAmountPaid={setAmountPaid}
-          onProcessOrder={handleProcessOrder}
-          canIncreaseQuantity={canIncreaseCartItem}
-          isProcessingOrder={isProcessingOrder || isSyncing || isLoading}
-          isCartOpen={isCartOpen}
-          isLoading={!hasLoadedMenu && isLoading}
-          setIsCartOpen={setIsCartOpen}
+          isLoading={isLoading}
+          hasLoadedMenu={hasLoadedMenu}
+        />
+        {/* Right Side: Cart */}
+        <aside
+          aria-label="Current order"
+          className={`pos-cart-sidebar-region max-sm:rounded-t-[var(--app-radius-panel-large)] ${isCartOpen ? "drawer-open" : ""}`}
+        >
+          <POSCartSidebar
+            cartItems={cartItems}
+            onUpdateQty={handleUpdateQty}
+            onRemoveItem={handleRemoveItem}
+            onClearCart={handleClearCart}
+            orderSource={orderSource}
+            setOrderSource={setOrderSource}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            discountType={discountType}
+            setDiscountType={setDiscountType}
+            amountPaid={amountPaid}
+            setAmountPaid={setAmountPaid}
+            onProcessOrder={handleProcessOrder}
+            canIncreaseQuantity={canIncreaseCartItem}
+            isProcessingOrder={isProcessingOrder || isSyncing || isLoading}
+            isLoading={!hasLoadedMenu && isLoading}
+            setIsCartOpen={setIsCartOpen}
           />
         </aside>
       </div>
 
       {/* Phone: overlay backdrop when cart is open */}
       <div
-        className={`pos-cart-overlay ${isCartOpen ? "visible" : ""}`}
+        className={`pos-cart-overlay bg-black/40 ${isCartOpen ? "visible" : ""}`}
+        aria-hidden="true"
         onClick={() => setIsCartOpen(false)}
       />
 
       {/* Phone: floating action button to open cart */}
-      <button className="pos-mobile-fab" onClick={() => setIsCartOpen(true)}>
+      <button
+        type="button"
+        className="pos-mobile-fab min-h-[var(--app-touch-target-min)] items-center gap-[var(--app-space-2)] rounded-full bg-[var(--app-color-brand)] px-[var(--app-space-6)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-white shadow-[var(--app-shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-color-brand)]"
+        aria-label={`Open current order, ${totalQty} items`}
+        aria-expanded={isCartOpen}
+        onClick={() => setIsCartOpen(true)}
+      >
         <i className="bi bi-cart3"></i>
         <span>Cart</span>
-        {totalQty > 0 && <span className="pos-fab-badge">{totalQty}</span>}
+        {totalQty > 0 && <span className="min-w-6 rounded-full bg-white/20 px-[var(--app-space-2)] text-center">{totalQty}</span>}
       </button>
-
-      {/* Customize Order Modal */}
-      {customizingProduct && (
-        <CustomizeOrderModal
-          product={customizingProduct}
-          allAddons={globalAddons}
-          cartItems={cartItems}
-          onClose={() => setCustomizingProduct(null)}
-          onAddToCart={handleModalAddToCart}
-        />
-      )}
 
       {/* Receipt Modal */}
       {processedOrder && (

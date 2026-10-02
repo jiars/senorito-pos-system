@@ -34,6 +34,7 @@
   --app-padding-row-y: var(--app-space-4);
 
   /* Tablet touch targets. */
+  --app-control-height-compact: 2.25rem;
   --app-touch-target-min: 2.75rem;
   --app-control-height-primary: 3.25rem;
   --app-control-height-primary-large: 3.5rem;
