@@ -99,6 +99,8 @@ Migrate in this order:
 
 Added October 2, 2026. User approved planning only; resume after receipt-printing investigation.
 
+October 3, 2026: user selected this as the next work focus and confirmed the eight display states and toast messages. The detailed three-batch checklist is in [Frontend Task List — Shared Sync Indicator](FRONTEND_TASK_LIST.md#shared-sync-indicator-and-toast-feedback--october-3-2026). This supersedes the older two-label `Synced / Not synced` display direction. Planning is recorded; implementation and user verification remain pending.
+
 - [ ] Replace the static Topbar Synced button with shared sync state, following the existing hooks/services structure. Keep one sync coordinator; do not start duplicate sync loops from the Topbar.
 - [ ] Derive feedback from connection/reachability, Dexie queue counts, sync progress, authentication, and menu refresh results. Handle checking, synced, pending, syncing/refreshing, offline, connection failure, needs attention, and sign-in required. Connection and queue status must remain separately tracked.
 - [ ] Show pending/attention counts and last successful sync in a reusable status popover. Allow retry only when appropriate. Synced means this browser's orders are synchronized, not that all accounts receive real-time updates.

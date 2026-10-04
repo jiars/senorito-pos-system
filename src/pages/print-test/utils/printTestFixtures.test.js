@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPrintTestReceipt, labelTestSizes, printTestCases } from "./printTestFixtures.js";
+import { createPrintTestReceipt, printTestCases } from "./printTestFixtures.js";
+import { printingStrategies } from "../printingStrategies.js";
 
 for (const fixture of printTestCases) {
   test(`${fixture.id}: sample-only identity and balanced totals`, () => {
@@ -28,5 +29,14 @@ test("fixtures are independent and include the intended edge cases", () => {
   assert.equal(createPrintTestReceipt("addons").discountAmount, 72);
   assert.equal(createPrintTestReceipt("long").items.length, 20);
   assert.match(createPrintTestReceipt("characters").items[0].name, /ñ.*é/);
-  assert.ok(labelTestSizes.every((size) => size.width > 0 && size.height > 0));
+});
+
+test("the lab exposes only three delivery methods with beginner guides", () => {
+  assert.deepEqual(printingStrategies.map((strategy) => { return strategy.id; }), ["browser", "rawbt", "qz"]);
+  for (const strategy of printingStrategies) {
+    assert.ok(strategy.tutorial.length >= 6);
+    assert.equal(new Set(strategy.tutorial.map((step) => { return step.title; })).size, strategy.tutorial.length);
+    assert.ok(strategy.tutorial.every((step) => { return step.title && step.text; }));
+    assert.ok(strategy.links.every((link) => { return link.url.startsWith("https://") && link.label; }));
+  }
 });

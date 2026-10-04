@@ -64,22 +64,3 @@ export function createTextReceiptCommands(receipt) {
 
   return encoder.encode();
 }
-
-export function downloadTextReceipt(receipt, caseId) {
-  const bytes = createTextReceiptCommands(receipt);
-  const file = new Blob([bytes], { type: "application/octet-stream" });
-  const url = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `senorito-test-${caseId}.bin`;
-  link.hidden = true;
-  document.body.appendChild(link);
-
-  // Allow the browser time to start the download before releasing its URL.
-  try {
-    link.click();
-  } finally {
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-  }
-}

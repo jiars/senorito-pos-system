@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "../ui/table";
 import { Skeleton } from "../ui/skeleton";
-import EmptyState from "../feedback/EmptyState";
+import EmptyState from "../feedback/data-state/EmptyState";
 
 import "./dataTable.css";
 

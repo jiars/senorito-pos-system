@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { formatCurrency } from '../../../../utils/currencyFormatters';
 import defaultImage from '../../../../assets/images/default_menu_picture.jpg';
+import { POS_FEEDBACK } from '@/utils/pos/posFeedback';
 
-const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) => {
+const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity, isOrderLocked = false }) => {
   const [isAddonsExpanded, setIsAddonsExpanded] = useState(false);
   const canIncrease = canIncreaseQuantity(item.cartId);
 
@@ -62,7 +63,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
 
           {!canIncrease && (
             <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-warning)] font-bold m-0 mt-1 flex items-center gap-1">
-              <i className="bi bi-exclamation-triangle-fill"></i> Max stock reached
+              <i className="bi bi-exclamation-triangle-fill"></i> {POS_FEEDBACK.STOCK_LIMIT_REACHED}
             </p>
           )}
         </div>
@@ -79,7 +80,8 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
         {/* Remove Button */}
         <button
           type="button"
-          className="text-[var(--app-color-text-muted)] hover:text-[var(--app-color-danger)] transition-colors p-1 -mr-1"
+          className="text-[var(--app-color-text-muted)] hover:text-[var(--app-color-danger)] transition-colors p-1 -mr-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isOrderLocked}
           onClick={() => onRemoveItem(item.cartId)}
           title="Remove Item"
           aria-label="Remove item"
@@ -92,7 +94,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
           <button
             type="button"
             aria-label={`Decrease quantity of ${item.name}`}
-            disabled={item.qty <= 1}
+            disabled={isOrderLocked || item.qty <= 1}
             className="w-[1.375rem] h-[1.375rem] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
             onClick={() => onUpdateQty(item.cartId, item.qty - 1)}
           >
@@ -108,7 +110,7 @@ const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity }) =
             aria-label={`Increase quantity of ${item.name}`}
             className="w-[1.375rem] h-[1.375rem] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
             onClick={() => onUpdateQty(item.cartId, item.qty + 1)}
-            disabled={!canIncrease}
+            disabled={isOrderLocked || !canIncrease}
             title={!canIncrease ? 'Maximum available stock reached' : 'Add quantity'}
           >
             <i className="bi bi-plus text-[0.6rem]"></i>

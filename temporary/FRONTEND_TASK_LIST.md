@@ -1,6 +1,8 @@
 # Frontend Figma Migration Task List
 
-Updated: September 29, 2026
+Updated: October 4, 2026
+
+Documentation reconciled against current frontend source on October 4. Corrected superseded layout/reference descriptions without treating source inspection as runtime verification. The active Topbar/offline-sync checkpoint remains with the other partner; preserve its detailed progress and pending checks below.
 
 Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferred
 
@@ -59,7 +61,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Receive the shared category, status, and sort filter visual reference.
 - [ ] Define and test the shared filter interaction and responsive behavior from the approved reference.
 
-- [-] Modal redesigns — waiting for dedicated references.
+- [x] Receive shared modal Variants 1, 2, and 3 plus confirmation references; migrated forms are tracked in Phase 11. Remaining legacy modal presentation and verification are still pending.
 
 ## Figma Reference Checklist
 
@@ -75,7 +77,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Expense Tracking
 - [x] Menu Management
 - [x] Employee Management
-- [ ] Point of Sale
+- [x] Point of Sale — supplied reference and UI implementation exist; remaining behavior/visual checks are tracked below.
 - [ ] Profile
 - [x] Forgot Password
 - [x] Reset Password
@@ -83,7 +85,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [ ] Shared button variants and states
 - [x] Shared filter visual direction for category, status, and sorting controls
 - [ ] Additional complex filter variants and interaction states
-- [ ] Modal designs and interaction states
+- [x] Shared modal variant and confirmation designs supplied; remaining module-specific references/checks stay pending.
 - [ ] Desktop website references or approved responsive rules
 - [ ] Mobile references or approved responsive rules
 
@@ -166,7 +168,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 
 - [-] Add Owner approval and resend controls to Employee Management — deferred until its Laravel Employee Management integration.
 
-- [x] Show the Pending Setup employee-card state and setup-link resend cooldown.
+- [x] Show Pending Setup in the Employee table and preserve the setup-link resend cooldown.
 
 ## Phase 3: Shared App Shell and Sidebar
 
@@ -185,7 +187,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Preserve role-based visibility.
 - [ ] Preserve mobile sidebar open, close, overlay, and keyboard behavior.
 - [x] Preserve topbar sync and account indicators.
-- [x] Add a visual-only `Synced` Topbar placeholder for the UI migration; it must not claim real connection or offline-queue state.
+- [x] Initial visual-only Topbar placeholder was implemented. It is now superseded by the live display-only badge; current sync work and its verification remain tracked below.
 - [x] Keep all current protected routes inside the shared shell; allow POS only a specialized inner layout if its approved design needs one.
 - [x] Run focused lint and production build.
 - [x] Visually review and approve the shared shell before continuing.
@@ -326,7 +328,7 @@ Legend: `[ ]` pending, `[~]` active, `[x]` completed, `[-]` intentionally deferr
 - [x] Create one focused `ExpenseOverview.jsx` component owning the 55/45 Expense Distribution and Quick Actions child panels.
 - [x] Rebuild Expense Distribution inside `ExpenseOverview` as a header/caption child panel with a responsive bar chart and structured skeleton.
 - [x] Align Expense Distribution with Dashboard Weekly Sales: fixed Sunday-to-Saturday buckets with zero totals for calendar days without recorded expenses.
-- [x] Build four Quick Actions inside `ExpenseOverview` using the approved Inventory action-card layout. Manage Categories and View Archive are connected; Pay Employee and Purchase Inventory remain intentionally disabled until their modal workflows are approved.
+- [x] Build four Quick Actions inside `ExpenseOverview` using the approved Inventory action-card layout. Pay Employee and Purchase Inventory now open Add Expense with the matching initial category; Manage Categories and View Archive are also connected.
 - [x] Build the records toolbar with shared search and a simple, non-sidebar FilterPopover containing Expense Period (`All Time`, `This Day`, `This Week`, `This Month`), shared From/To date range, and collapsible multi-select Categories.
 - [x] Migrate Expense Records to the shared DataTable with module-owned columns, light-surface category badges, overflow row actions, loading/error/empty/populated states, and preserved Inventory Purchase restrictions.
 - [x] Add shared DataTablePagination and reset to page 1 when search or applied filters change.
@@ -446,7 +448,7 @@ October 2 consolidation: all lab-only source and fixture tests now live inside `
 
 ## Waiting for References
 
-- [ ] Migrate Point of Sale after its approved reference is supplied.
+- [x] POS reference supplied and UI implemented; complete outstanding verification and feedback/sync checkpoints separately.
 - [ ] Migrate Profile after its approved reference is supplied.
 - [x] Migrate Forgot Password from its approved reference.
 - [x] Migrate Reset Password as an approved standalone token-reset form.
@@ -457,9 +459,16 @@ October 2 consolidation: all lab-only source and fixture tests now live inside `
 
 ## Toast Feedback Review — POS First
 
+- [~] Earlier post-order refresh feedback implemented with a loading toast while awaiting fresh POS data and catalog/cache preparation or offline local reload, followed by success/warning. The October 3 page-level banner decision below supersedes that presentation. Preserve saved-order context, refresh completion checks, and unmount cleanup during migration. User testing/build and banner migration remain pending.
+- [~] Processing feedback foundation implemented: centralized copy, cart/control locks, and immediate duplicate-submit guard. The latest revision uses the blocking Dialog described below; the earlier floating Alert is superseded. User testing/build remain pending.
+- [~] Feedback hook organization: moved `useFeedback` and `usePOSFeedback` into `src/hooks/feedback/` and updated consumers; data-management hooks and behavior unchanged. User testing/build pending.
+- [~] Feedback folder organization: moved action messages to `components/feedback/inline/` and loading/error/empty components plus loading CSS to `components/feedback/data-state/`; updated consumers and asset paths. Kept ErrorState as its existing empty placeholder. No fetching behavior changed; user testing/build pending.
+- [~] Feedback cleanup Batch 1: shared `utils/feedback/errorFeedback.js` policies, generic `useFeedback`, thin `usePOSFeedback`, typed `POS_INLINE_ERRORS`, and reusable `InlineFeedback` connected to the POS card and add-on modal. Removed duplicated inline markup and the replaced POS-only timer; no services/routes/stock calculations changed in this batch. User approval/testing/build pending. Stop before Batch 2 (remaining POS feedback) or Batch 3 (utility organization).
+- [~] POS inline feedback timing: shared `usePOSFeedback` with centralized timing; attempted stock-limit feedback shows for 3 seconds, fades over 300ms, and resets on repeated attempts. Missing-size/current-invalid-quantity/add-on validation stays persistent, checkout banners unchanged, toasts still 4 seconds. User testing/build and visual approval pending.
+- [~] POS stock feedback batch: centralized selection/stock/unavailable/add-to-order copy in `src/utils/pos/posFeedback.js`; reused stock previews for product-card quantity guards; kept add-on Confirm clickable with inline validation. Insufficient Stock add-ons remain selectable for review, with invalid confirmation blocked. User testing/build and visual approval remain pending. Other checkout/payment feedback centralization is deferred.
 Feedback placement and examples: [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBACK_PLAN.md). Use it to choose inline errors, hints, disabled controls, tooltips, toasts, banners, in-content states, or confirmation modals before each approved batch.
 
-- [ ] POS Add to order prerequisite UX: disable until an available variant is selected and show "Select a size first." near the selector. See the feedback plan; implementation and user verification remain pending.
+- [~] POS Add to order prerequisite UX: keep the button clickable for available products; show "Select a size first." inline only after clicking without a selection and clear it after selection. Replaces the rejected disabled-button design. See the feedback plan; user visual and behavior verification remains pending.
 - [~] Review and approve the shared Base UI toast in POS: accepted add-to-order success, stock rejection warning, duplicate updates, dismissal, mobile placement, and keyboard/accessibility behavior. Use `toast.add`, `toast.update`, and `toast.close` directly; keep styling and default timeout in the shared toast/Toaster. User runs testing and build checks.
 - [ ] Review other POS outcomes before adding more toasts: checkout failure, offline order queued, cart removal/clear, and add-on confirmation. Keep important checkout failures visible in the existing banner, avoid duplicate messages, and do not announce routine quantity/filter changes.
 - [ ] Review Inventory pages and modals for confirmed save, restock, wastage, correction, archive, restore, category, and export outcomes.
@@ -471,6 +480,120 @@ Feedback placement and examples: [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBAC
 - [ ] Review every remaining route and archive page for needed feedback, keyboard announcements, responsive placement, duplicate messages, and print exclusion. Add toasts one approved module batch at a time.
 - [ ] Use inline messages for field validation; use persistent page/banner feedback for loading failures or critical failures needing recovery. Toasts supplement brief action feedback and must follow a confirmed result. Normal modal cancellation does not need a toast.
 
+## POS Blocking Feedback and Result Toasts — October 3, 2026
+
+- [~] Shared blocking component extracted after user approval of POS behavior: `components/feedback/blocking/BlockingFeedback.jsx` accepts `open`, `status`, `title`, `message`, and optional `action: { label, onClick, disabled }`. POS now imports it; the old POS-only component was moved, not duplicated. Messages/timing/workflow stay with their existing owners. User verification of this extraction is pending; no tests/build run. Other modules are not migrated in this batch.
+
+Latest approved direction: block app interaction while processing, syncing, or preparing the next order. See [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBACK_PLAN.md#approved-pos-blocking-feedback-and-toast-flow--october-3-2026). A centered loading Dialog with a dimmed backdrop replaces the earlier floating-alert/full-width-banner loading designs. Work in separate batches; user performs testing/build.
+
+- [x] User approved blocking loading dialogs for ongoing critical work. The receipt confirms order success; brief terminal toasts use the existing four-second policy. This checkbox records the design decision only.
+- [~] Batch 1 implemented — rebuilt `PosBlockingLoader` using shared Dialog, with focus containment, background interaction blocking, no close button, and Escape/outside dismissal prevention while busy. Processing and the existing coordinator-driven sync loader share one dialog; processing has display priority. Centralized sync copy, removed the processing floating-alert consumer, and removed unused loader CSS. Existing receipt/error flows and submission guards remain. User testing/build and visual approval pending.
+- [~] Batch 2 implemented — receipt close uses "Preparing the next order…" in the same dialog through fetch/cache/catalog preparation or offline reload. Success unlocks and shows the four-second ready toast. Failure stops the spinner, preserves saved-order context, and offers "Retry refresh" without unlocking ordering. Retry only refreshes data, is repeat-click guarded, and never resubmits checkout. Online sales cannot unlock using a pre-sale offline cache. Existing in-flight POS-local sync is awaited; shared-sync restart remains separate. No tests/build run; awaiting user review.
+- [ ] Batch 3 — refine sync/refresh failure recovery and deduplicated confirmed result toasts with the shared coordinator. Failed operations must stop the spinner and offer appropriate recovery; preserve actual counts, partial-result accuracy, queue ownership, idempotency, and upload/refresh guards.
+- [ ] User verifies overlapping operations keep one dialog open until both finish, keyboard focus remains inside, background controls cannot activate, and Escape/outside clicks do not dismiss active loading. Check success-to-receipt and failure-to-error focus handoff, phone drawer behavior, and reduced motion. No loading timeout or duplicate loading toast.
+- [ ] Keep copy in `posFeedback.js` and timer policies in `errorFeedback.js`. Retain reusable `StatusFeedback` for future nonblocking alerts; cleanup beyond the replaced loader CSS stays separate.
+- [ ] User verifies slow checkout, rapid repeat clicks, retained cart on failure, receipt success, refresh success/failure, offline local reload, sync/refresh completion, partial sync, overlapping work, navigation while waiting, mobile/short-screen layout, and keyboard announcements. User runs tests/build; no verification is claimed by this documentation update.
+
+## Shared Sync Indicator and Toast Feedback — October 3, 2026
+
+User-approved next work focus. Follow the existing backend implementation plan's shared-sync safeguards. The eight states below supersede the older two-label `Synced / Not synced` display direction. Show one derived badge at a time; retain overlapping conditions in the popover. The service foundation and its reported tests are tracked below; shared Topbar state, popover, and toast wiring remain pending.
+
+### Guided Restart — Small Checkpoints (October 3, 2026)
+
+October 4 latest verification: user reports reload-recovery Tests 1–3, ordinary online/offline regression checks, ESLint, and build passed; checkout stayed locked after reload until recovery succeeded. User also approved the scoped loading-copy correction separating offline-order upload from menu/stock refresh. No runtime checks were performed by the assistant.
+
+October 4 revised direction (supersedes the initial-menu-readiness batch): the badge describes connection and offline-order synchronization, not general menu loading. User approved normal Online, Syncing during upload and required refresh, then Synced for five seconds only after actual successful synchronization and required refresh completion, then Online. Do not show the confirmation for an empty queue check or ordinary page reload. Offline, new pending work, authentication failures, refresh failures, and attention conditions override the confirmation immediately. Partial success is not full Synced. Keep brief saved-queue Checking and all tested durable refresh/checkout safeguards.
+
+Current three-task batch, one checkpoint at a time:
+
+Checkpoint 2B progress (October 4): inspected the user's Online fallback; it is correct. Assistant made the existing successful offline-sync-refresh mutation return refreshedSavedOrders and completedAt, and Topbar optionally displays Synced only when its existing derived state is Online and the hook supplies showSyncedConfirmation. User-owned useOfflineSync.js confirmation observer/timer snippet is pending; no timer is active until that snippet is added. Proposed observer listens only to new TanStack mutation updates (no replay on mount), checks the cashier's local queue and durable refresh marker, suppresses partial results, uses a five-second deadline from refresh completion, and cancels on new sync work/offline/unmount. Cashier scope prevents an old account's confirmation from appearing. No new files, API requests, backend changes, or tests/build by assistant. Required checks: ordinary reload and empty reconnect remain Online; real upload plus refresh gives Synced then Online; blocked refresh gives no confirmation until recovery succeeds; partial failures stay attention; offline immediately overrides success. Popover remains Task 3.
+
+- [~] Task 1 — remove the unused menu-readiness experiment. Assistant removed only the POS preparation mutation key, its cashierId metadata/dependency, and the development-only Topbar Console preview. Inspection confirms the proposed .js observer snippets were not added, so no .js changes or file deletions were needed. Existing queue/sync observation, message correction, and reload recovery are preserved. Await user smoke check/lint; assistant ran no tests.
+- [~] Task 2 — implement Online plus a five-second Synced confirmation after a real successful sync and required refresh. Checkpoint 2A: assistant added the Online Wi-Fi icon and existing positive-state colors in SyncStatusButton; user is to change only getSyncStatus's final fallback from synced/Synced to online/Online. All preceding queue/recovery/error rules remain unchanged. Await user edit and normal/offline/pending checks. Checkpoint 2B (five-second success confirmation) is not implemented yet: retain all failure/pending priorities, avoid timer restart on rerenders and stale confirmations on reload/account change, and require actual uploaded orders plus successful required refresh. User edits .js with guidance; assistant edits JSX. No tests/build run by assistant.
+- [ ] Task 3 — add the details popover to the rounded sync button using existing shared UI components. Show connection, pending/attention counts, explanations, and last confirmed successful synchronization (do not imply persistence before implementing it). Build and test read-only details first; add appropriate retry actions in a separate checkpoint without a second uploader. Retain keyboard/touch accessibility. Not implemented yet.
+
+October 4 recovery checkpoint: user implemented Dexie v4 syncMetadata, cache reminder helpers, atomic accepted-order removal plus reminder creation, transactional queue/reminder reads, and refreshRequired status input. User confirmed checkpoint A passed: a failed required refresh kept required=true; successful retry changed it to false without changing the revision. The existing POS offline-sync-refresh mutation clears the captured revision only after successful loadMenu/cache preparation; revision mismatch or storage failure remains a recovery failure.
+
+Task 3 checkpoint B is now implemented in POSPage.jsx only, awaiting user verification: startup inspects the saved refresh reminder before allowing normal menu preparation, cart actions, or automatic queue upload. A required reminder runs the existing GET/cache-only refresh; failed inspection or refresh keeps checkout blocked and offers retry. Reconnection retries unfinished startup recovery. Same-page refresh retry remains unchanged, and accepted orders are not reinserted or resubmitted by the recovery operation. No new files, .js/backend edits, installs, lint, build, or runtime tests were performed by the assistant. Test reload with the init request blocked, then unblock/retry and confirm no additional checkout POST for an already-accepted order. Also check ordinary online/offline startup and normal offline-order sync. The user explicitly requested testing each checkpoint before proceeding.
+
+General initial-menu readiness is excluded from the badge by the revised direction above. Still separate: cross-tab refresh/cache coordination and preserving pending-order stock reservations when replacing the server cache. The revision guard protects reminder completion; it does not keep every tab's rendered catalog current or prevent all competing cache writes. Current Laravel checkout locks/rechecks submitted ingredient deductions inside a database transaction, so normal online stale-stock sales should be rejected without partial order/audit writes. Real-time stock notifications are not implemented. Cross-cashier upload preserving the original cashier is requested for later, not implemented; backend-authoritative calculations are deferred by user until after migration/UI work and remain a production security gap.
+
+Latest checkpoint (October 3, live-label batch): user confirmed blocked-init refresh recovery works and Retry refresh sends no additional checkout POST. Current three implementation tasks are now in place: (1) user extended useOfflineSyncState to observe cashier-scoped offline-sync-refresh mutations; (2) user added buildSyncStatusInput, failed-order counts, and updated label precedence in syncStatus.js; (3) assistant connected Topbar to those inputs and the derived label, removed the temporary Console preview, and updated the existing SyncStatusButton with matching icons, neutral non-success styling, and a polite status announcement. Rounded shape and token-based minimum touch size remain. The button is display-only/disabled; no new files, uploader, service changes, popover, or toasts were added in task 3. Await user lint/build and live-label checks. Runtime verification was not performed by the assistant. Mutation history is in-memory; timestamp ordering is only an interim interpretation of the current sequential POS workflow, not durable recovery or cross-tab coordination.
+
+Latest user verification (October 3): all combined-preview checks A–C passed: settled online state, browser offline/online transitions, and queued-order sync with the expected count/progress/result values. This is user-reported verification of the normal path, not refresh-failure recovery or a production build. Current three-task batch now implemented: (1) user's `useBrowserOnline.js` inspected; (2) Topbar/POS use the hook instead of duplicated connection-state effects, preserving the separate POS uploader listener; (3) POS has a separate `offline-sync-refresh` mutation, rejects missing/error init results and `loadMenu()` false, retains checkout/cart blocking after a failed required refresh, and reuses BlockingFeedback's Retry refresh action for GET/cache-only recovery. A shared in-flight refresh promise prevents duplicate retry work; automatic reconnect uploads are gated while required refresh remains unresolved. Receipt-close recovery waits for the same required refresh. Accepted orders are not restored to the queue or resubmitted by refresh retry. No .js/backend files were edited by the assistant. Await user lint/build plus normal sync and blocked-init/retry tests; no tests were run by the assistant. The refresh state is currently POS-local, not durable across navigation/reload; observing recovery in the shared badge remains future work.
+
+Progress inspection (October 3): `dexie-react-hooks` is installed; `src/hooks/sync/useOfflineQueue.js` uses `useLiveQuery`, and the custom watcher was removed from `offlineQueueService.js`. Topbar consumes the hook for development-only Console output. User confirmed one offline order reports pendingCount 1, then 0 after successful sync. The sync mutation configuration is extracted into `src/hooks/sync/useOfflineSync.js`; POS still owns its callbacks and startup/reconnect listener, and the user confirmed offline sync still succeeds. Earlier focused ESLint was user-reported complete; this is not full failure/account-switch or production-build verification. Current three-task batch: assistant extracts `SyncStatusButton.jsx` and connects the existing Topbar placeholder to it (done); user adds a read-only TanStack mutation-state observer to the existing sync hook file (pending). No new uploader is introduced.
+
+The user requested undoing the large shared-sync batch and rebuilding in explained checkpoints. This sequence replaces the implementation pace of the older three batches, not their approved states or safeguards. Updated delegation: assistant edits JSX pages/components and tracking; user handles .js files and backend implementation unless separately delegated, and runs installation commands/tests/build. Each implementation batch has exactly three related tasks; checks are separate. Explain each proposed file, provide focused snippets for user-owned edits, and wait for the user's result before proceeding. Do not recreate the six-file batch at once.
+
+- [ ] **1. Confirm the rollback baseline.** User opens POS, checks normal menu loading, and runs focused lint plus the production build. No new sale or queue edits required for this first check. Explain the existing flow: POS requests synchronization, the service uploads saved orders, Laravel processes checkout, and confirmed orders leave Dexie. The Topbar is still a static placeholder, not a real status check.
+- [ ] **2. Define the display rules in isolation.** Add one small pure utility for the approved eight labels and explicit precedence. Explain each input and test sample inputs without requests or database writes. Keep connection, pending/attention counts, authentication, and upload/refresh progress distinct. A failed inspection/refresh must never produce Synced. No Topbar wiring yet.
+- [ ] **3. Read the real local queue.** Add read-only queue observation using existing Dexie capabilities, with initial checking, error, change-subscription cleanup, and account-switch handling. Count the current cashier's eligible records separately from attention/auth records; preserve and safely acknowledge other/unknown-owner orders without uploading or exposing their details. Do not change order statuses, clear storage, or start a second sync loop. Compare the result with direct Dexie reads.
+- [ ] **4. Share the existing sync workflow carefully.** First explain and extract the POS-local lifecycle without changing its behavior; test that extraction before mounting it at a shared level in a separate small step. Reuse the tested upload service. During cutover remove the old POS startup/reconnect listener so only one coordinator starts uploads. Explain every shared hook/context/wrapper before adding it; keep layout presentation and existing authentication/role rules separate. Preserve cashier ownership, idempotency, checkout locks, and accepted/rejected queue behavior. Required menu/cache refresh failures must retain a recoverable failure and block checkout; do not overwrite local pending-order stock reservations or let stale refreshes report success. Only call refresh endpoints allowed for the signed-in role. Verify each lifecycle change before continuing.
+- [ ] **5. Connect the Topbar display.** Reuse existing styling/components and consume shared state only; the badge must not initiate uploads. Check all eight labels, real counts, account changes, navigation, responsive text, and accessible announcements. Keep the existing POS blocking-dialog work from the other chat intact. Do not claim Synced from browser connectivity alone.
+- [ ] **6. Add details, then retry.** First show the status explanation, overlapping conditions, and last confirmed successful sync in the existing shared popover primitive. Test this before adding manual retry in a separate step. Disable inappropriate retries during offline, authentication-required, or active work. Never automatically repair, delete, or retry attention records. Explain the recovery action for each failure.
+- [ ] **7. Add result toasts, then final checks.** Reuse the installed toast host and timing policy. Announce confirmed transitions/batch outcomes once; do not announce full success before required refresh finishes. Test partial success, 401, 422, temporary failure, refresh/inspection failure, offline reload, and no duplicate orders/deductions. User runs final focused lint/build and approves before completion.
+
+For every step: explain purpose and one real scenario, give the smallest complete edit, describe the expected result, inspect the user's changes, then wait for their verification. No Laravel endpoint, database schema, dependency installation, service cleanup, or other-module refactor is included by default. Deployment scheduled maintenance remains a separate pending task.
+
+### Approved Display States (Retained)
+
+- `Checking…` — initial queue/status inspection has not finished; never briefly show `Synced` before the checks succeed.
+- `Synced` — no unsent orders, no orders needing attention, and no outstanding sync/stock/menu-refresh failure.
+- `Pending · 2` — orders are saved locally and waiting to upload; use the actual count.
+- `Syncing…` — upload orders, then refresh menu and stock; retain this state and checkout blocking through the required refresh.
+- `Offline · 2 pending` — browser reports no connection; use the actual pending count, or `Offline` when none are pending.
+- `Connection issue` — Laravel could not be reached or returned a temporary server failure. Browser connectivity alone does not prove backend availability.
+- `Needs attention · 1` — an order needs intervention, such as insufficient stock; use the actual count.
+- `Sign in required` — synchronization stopped because authentication expired; automatic retries cannot fix this.
+
+Track connection/reachability, queue inspection and counts, sync/refresh progress, and authentication separately. Derive one display state using explicit precedence; never hide the other conditions in the underlying state. For example, the badge may say `Offline · 2 pending`, while the popover lists `2 pending, 1 needs attention`. `Synced` refers to this browser's orders, not real-time updates between accounts. Failed queue inspection or failed refresh must never appear as `Synced`.
+
+### Approved Toast Messages
+
+- Going offline: `You're offline. Orders will be saved on this device.` Show only on a meaningful transition and only when offline checkout is actually available; otherwise do not promise local order saving.
+- Successful batch: `2 offline orders synchronized.` Use the actual confirmed accepted count.
+- Partial result: `1 order synchronized. 1 needs attention.` Use actual counts and include `View details` to open the status popover. If remaining orders are retryable rather than rejected, describe them as pending instead of needing attention.
+- Temporary failure: `Couldn't synchronize. Your pending orders remain saved.` Use only when local preservation is confirmed; queue-storage errors need accurate feedback instead.
+- Expired session: `Sign in to synchronize your pending orders.`
+
+Reuse the existing shared toast host and its timing policy; do not add a second host or notification wrapper. Deduplicate repeated transitions/failures and report batch outcomes, not every order or render. Important problems remain visible in the popover after the toast disappears. Do not announce full success if the required refresh failed. On POS, ongoing sync/refresh and actionable failures also follow the approved page-level banner flow above; avoid duplicate failure announcements from a banner and toast. The banner consumes the same shared sync state as the Topbar indicator.
+
+### Batch 1 — Shared State and Topbar Badge
+
+- [~] October 3 service cleanup and sync foundation: audited all 30 files in `src/services/` for static imports, re-exports, dynamic loading, and export-name references. Removed the confirmed zero-reference legacy Supabase `pos/ordersService.js`; retained the other 29 services, including still-used Supabase helpers. With explicit user permission, applied cashier ownership metadata/filtering, `awaiting_auth` on 401, temporary-failure batch pauses, malformed-record attention handling, and structured sync results. Unknown-owner/other-cashier rows remain saved and are skipped; no ownership is guessed. User confirmed normal online POS, new offline-order metadata and successful upload/removal, and no duplicate sale after reopening/reloading POS. The blocked-checkout test retained the oldest row as `failed` with 5 attempts and the next as `pending_sync` with 0 attempts, then succeeded after unblocking. User accepted the batch pause; this verifies a simulated network failure, not actual HTTP server-error responses. User confirmed `npm run build` passes; focused lint is not explicitly confirmed. Rejection/repair, invalid-authentication/recovery, and the service-level mismatched-cashier guard tests are confirmed separately below. Shared state, accurate refresh-failure handling, and Topbar badge wiring are not implemented yet.
+- [x] Service-level cashier ownership guard: while offline, user invoked synchronization with a dummy mismatched cashier identity and confirmed the expected zero uploads/failures, skipped queued order, and unchanged stored record. On reconnect, the actual logged-in cashier successfully synchronized the same order. No ownership was reassigned. This verifies the service guard and normal retry, not an end-to-end switch between two real accounts or backend authorization security.
+- [x] Controlled invalid-authentication and recovery: a temporarily invalid local bearer token produced a real HTTP 401 for `OFF-261003-0012`. User confirmed the order remained in Dexie as `awaiting_auth`, with `last_error: Unauthenticated.`, `last_error_status: 401`, and one failed attempt. The original token was backed up locally rather than revoked; user confirmed successful retry after restoration and reconnect. This verifies 401 preservation and recovery, not an actual timed token-expiration test or the pending sign-in-required UI.
+- [x] Controlled 422 rejection and subsequent-order continuation: user confirmed `OFF-261003-0008` remains in Dexie as `requires_attention`, with one failed attempt and `last_error_status: 422`, while the second queued order successfully synchronizes and is removed. User verified no Order History entry or inventory audit log for the rejected order. A direct Dexie read confirmed the attention state despite a stale Application-panel display. After inspecting the current recipe calculation (deduction quantity 1), user applied the narrowly scoped repair while offline, preserved the client transaction ID, and confirmed the retry works. This manual repair is test cleanup, not an implemented production attention-resolution interface.
+- [x] Scoped POS lifecycle correction verified by the user: focused ESLint reports no errors; online initial loading completes and the menu appears; one controlled offline order reconnects, uploads once, is removed after acceptance, and checkout unlocks after refresh; `npm run build` passes. Loading/sync lifecycle now uses existing TanStack mutation tracking, stable empty query fallbacks, and caught-error cause preservation. This does not verify shared Topbar coordination, failure-path refresh handling, concurrency across tabs, or unrelated POS feedback batches.
+- [ ] Reuse the existing sync service through one shared coordinator/hook; connect POS and Topbar without duplicate sync listeners or loops. Inspect current authentication and queue ownership behavior before moving coordination.
+- [ ] Implement the separate status inputs and derived badge states above. Preserve idempotency, delete local orders only after confirmed backend acceptance, retain rejected orders, and block checkout through sync and refresh.
+- [ ] User verifies initial checking, an empty queue, offline checkout availability, pending orders, reconnect/upload/refresh, and no duplicate sync; user runs focused checks and `npm run build` before proceeding.
+
+### Batch 2 — Status Popover and Retry
+
+- [ ] Add a reusable accessible popover showing the status explanation, pending and attention counts, and last successful sync; show overlapping conditions even when another state has badge priority.
+- [ ] Allow manual retry only when appropriate; disable it during sync, offline, or sign-in-required states. Keep rejected orders available for review without silently retrying or deleting them.
+- [ ] User verifies count updates, offline plus attention, retry, backend failure, rejected orders, and keyboard/responsive behavior; user runs focused checks and `npm run build` before proceeding.
+
+### Batch 3 — Toast Feedback and Final Verification
+
+- [ ] Connect the approved toast messages to confirmed transitions and batch results; implement `View details` and deduplication using the existing shared toast component.
+- [ ] Verify partial success, temporary failure, expired login, refresh failure, queue-inspection failure, repeated renders, and browser restart without lost orders, misleading success, duplicate sync, or duplicate toasts.
+- [ ] User completes final behavior/visual checks and `npm run build`; mark only verified items complete. Work one batch at a time and wait for the user's result before starting the next.
+
+## Deferred: Review and Refactor Every Page/Module — October 3, 2026
+
+User-approved future cleanup after shared sync work. Follow the module-by-module lifecycle refactor section in `FRONTEND_IMPLEMENTATION_PLAN.md`; preserve every existing function and apply the appropriate pattern, not a blanket conversion to mutations.
+
+- [ ] Inventory every page/module and document current behavior, dependencies, and regression checks before selecting an implementation batch.
+- [ ] Review server reads, writes/workflows, UI state, derived data, effects, hooks, services, and component boundaries; refactor only where needed using the verified POS lifecycle principles.
+- [ ] Review loading/error ownership, retries, concurrent/stale operations, and required refresh/cache failures without changing existing routes, roles, API contracts, calculations, actions, print/export, or applicable offline behavior.
+- [ ] Refactor one module in small approved batches, preserving concurrent/user-owned edits; obtain separate authorization for backend/service contract changes and exact deletion targets after fresh reference checks.
+- [ ] User verifies each module's behavior before/after, applicable loading/error/empty/populated/disabled and responsive/accessibility states, focused lint, and production/PWA build before marking the batch complete.
+
+This section schedules future work only. No other page/module refactor is started by this planning update.
+
 ## Final Cleanup
 
 - [ ] Remove legacy styles only after confirming they have no references.
@@ -479,7 +602,7 @@ Feedback placement and examples: [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBAC
 - [x] Move the reusable PageHeader into `src/components/layout/` and remove its obsolete UI-folder copy after updating consumers.
 - [x] Remove `auth.css` after confirming Forgot Password and Reset Password no longer depend on it.
 - [ ] Resolve unused imports separately without touching user-owned service behavior.
-- [ ] Replace the visual-only Topbar sync placeholder with a real shared connection and pending-offline-order indicator after all page UI work is approved.
+- [~] Live display-only Topbar badge implemented; remaining shared coordination, recovery, popover, result feedback, and verification are owned by the active sync partner. Follow the latest checkpoint above.
 - [ ] Standardize folder names containing spaces during a dedicated low-risk cleanup.
 - [ ] Verify desktop, tablet, mobile, keyboard, focus, and contrast behavior.
 - [ ] Capture and review phone and desktop screenshots for each tablet-approved module, beginning with Login.
@@ -492,4 +615,20 @@ Feedback placement and examples: [Frontend UX Feedback Plan](FRONTEND_UX_FEEDBAC
 
 ## Current Next Task
 
-Review the public Printing Test Lab Batch 1 at `/print-test`; user visual approval and deployment smoke test remain pending. Then proceed to Batch 2: user installs the approved receipt encoder, followed by app-generated text commands and PC emulator testing. Do not enable unfinished transports or claim physical printing success. Resume the Phase 11 modal verification and final cross-module cleanup afterward.
+October 4 priority update: the user selected Inventory feedback first. The other partner owns Topbar/offline-checkout synchronization and its current tests. Do not change sync hooks/services, cache coordination, or POS readiness as part of this feedback rollout. Broader lifecycle cleanup remains deferred.
+
+Inventory feedback Batch 1 (Restock checkpoint implemented, awaiting user checks):
+
+1. [~] Restock: JSX now uses shared useFeedback/InlineFeedback and direct toast.add; replaces browser alerts with persistent save feedback, retains values on mutation failure, focuses the first invalid control, prevents repeated submissions/dismissal while busy, and freezes saved fields during refresh-only recovery. Checks resolved query errors as well as thrown refresh failures. Existing stock payload and background consumers retained. User-authorized inventoryFeedback.js correction now matches the POS copy/inline/toast catalog and resolver structure; removed the stale undefined successMessages reference. Restock source reviewed after the cutoff: handlers, JSX, imports, and refresh-only retry are present. No tests/build run; await Restock review before Wastage.
+2. [ ] Wastage: matching feedback while preserving batch selection, quantity-lost validation, payload, and refresh consumers.
+3. [ ] Correction: matching feedback while preserving actual-count validation, difference calculation, payload, and refresh consumers.
+
+Reuse the existing toast, InlineFeedback, and global feedback policies. Optional Inventory message copy belongs in src/utils/inventory/inventoryFeedback.js; user-owned JavaScript work requires separate delegation. Inspect current callers before implementation. Detailed behavior and later batches are in FRONTEND_UX_FEEDBACK_PLAN.md and FRONTEND_IMPLEMENTATION_PLAN.md.
+
+User checks separately: invalid input makes no write; one valid submission gives one stock update; API failure retains inputs; saved-but-refresh-failed feedback never invites another stock submission; Retry refresh only reloads data; repeated clicks, reopen/reset, keyboard/mobile behavior, lint, and build. Restock implementation is not verified. The unchanged restock service currently rethrows only an Error message, so structured server field-error mapping is not added in this checkpoint; that requires separately authorized service work.
+
+Inventory archive/restore presentation is still pending, now scheduled after stock-action and Add/Edit/category feedback. Retain affected Menu/Add-on details; affected-record fetch failures must not look like an empty impact list. Agree on the information-heavy confirmation layout before coding and obtain approval before deleting legacy files.
+
+POS blocking-feedback Batches 1 and 2 are implemented: processing, existing POS-local syncing, and post-receipt refresh use one blocking Dialog. A failed post-receipt refresh retains the lock with "Retry refresh"; successful preparation shows the ready toast. Await user tests/build and visual approval before Batch 3 (shared-sync recovery/result feedback). Preserve the independent shared-sync progress below.
+
+Current focus (October 3): live Topbar labels are connected using the user's queue/status utilities and cashier-scoped upload/refresh observer. The prior blocked-init/retry check passed according to the user, including no duplicate checkout POST. This display-only batch now awaits user focused lint/build and visible-label checks: settled online, offline pending count, reconnect/upload/refresh, required refresh failure and retry, plus existing auth/rejection cases when available. Stay on POS for the scoped recovery check. No upload coordinator was moved; uploads still start from POS. Shared upload coordination, durable cross-navigation/reload refresh recovery, popover, and toasts remain pending. Do not start another implementation batch until the user reports results. Assistant did not run lint/build or runtime tests.

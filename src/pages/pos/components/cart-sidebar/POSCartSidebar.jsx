@@ -3,6 +3,7 @@ import POSCartItem from './POSCartItem';
 import { formatCurrency } from '@/utils/currencyFormatters';
 import CashPaymentModal from '../modals/CashPaymentModal';
 import { Skeleton } from "@/components/ui/skeleton";
+import { POS_FEEDBACK, getPOSStatusFeedback } from "@/utils/pos/posFeedback";
 
 const standardBtnClasses = "flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-[var(--app-radius-panel-standard,1rem)] border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex flex-wrap items-center justify-center gap-[var(--app-space-1)]";
 const btnActive = "bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white shadow-sm";
@@ -25,11 +26,14 @@ const POSCartSidebar = ({
   onProcessOrder,
   canIncreaseQuantity,
   isProcessingOrder,
+  isCheckoutBlocked = false,
   setIsCartOpen,
   isLoading
 }) => {
 
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const processingFeedback = isProcessingOrder ? getPOSStatusFeedback("ORDER_PROCESSING") : null;
+  const isPaymentLocked = isProcessingOrder || isCheckoutBlocked;
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
@@ -94,9 +98,10 @@ const POSCartSidebar = ({
   const paid = (paymentMethod === 'GCash' || paymentMethod === 'External') ? total : (parseFloat(amountPaid) || 0);
   const change = Math.max(0, paid - total);
 
-  const isProcessDisabled = isProcessingOrder || cartItems.length === 0;
+  const isProcessDisabled = isPaymentLocked || cartItems.length === 0;
 
   const handleOrderSourceChange = (source) => {
+    if (isPaymentLocked) return;
     setOrderSource(source);
     if (source === 'Foodpanda' || source === 'Grab') {
       setPaymentMethod('External');
@@ -126,7 +131,7 @@ const POSCartSidebar = ({
               className={`min-h-[var(--app-touch-target-min)] text-[length:var(--app-font-size-body-secondary)] font-semibold transition-colors disabled:opacity-30 ${cartItems.length > 0 ? 'text-[var(--app-color-info)]' : 'text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text-soft)]'}`}
               onClick={onClearCart}
               title={cartItems.length > 0 ? "Clear Cart" : "Cart is empty"}
-              disabled={cartItems.length === 0}
+              disabled={isPaymentLocked || cartItems.length === 0}
               aria-label="Clear current order"
             >
               Clear
@@ -148,7 +153,9 @@ const POSCartSidebar = ({
         {['In-Store', 'Foodpanda', 'Grab'].map(source => (
           <button
             key={source}
-            className={`flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-full border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex items-center justify-center ${
+            type="button"
+            disabled={isPaymentLocked}
+            className={`flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-full border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed ${
               orderSource === source
                 ? 'bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white shadow-sm'
                 : 'bg-[var(--app-color-surface)] border-[var(--app-color-border)] text-[var(--app-color-text-soft)] hover:bg-[var(--app-color-canvas)]'
@@ -175,6 +182,7 @@ const POSCartSidebar = ({
               onUpdateQty={onUpdateQty}
               onRemoveItem={onRemoveItem}
               canIncreaseQuantity={canIncreaseQuantity}
+              isOrderLocked={isPaymentLocked}
             />
           ))
         )}
@@ -197,6 +205,7 @@ const POSCartSidebar = ({
                 <select
                   className="text-[length:var(--app-font-size-body-secondary)] bg-[var(--app-color-canvas)] border border-[var(--app-color-border-subtle)] rounded px-[var(--app-space-1)] py-[2px] outline-none focus:border-[var(--app-color-brand)]"
                   value={discountType}
+                  disabled={isPaymentLocked}
                   onChange={(e) => setDiscountType(e.target.value)}
                 >
                   <option value="None">None</option>
@@ -221,28 +230,28 @@ const POSCartSidebar = ({
             <h4 className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text-subtle)] m-0">Payment Method</h4>
             <div className="flex flex-wrap gap-[var(--app-space-2)] w-full">
               <button
-                className={`${standardBtnClasses} ${paymentMethod === 'Cash' ? btnActive : btnInactive} ${orderSource !== 'In-Store' ? btnDisabled : ''}`}
+                className={`${standardBtnClasses} ${paymentMethod === 'Cash' ? btnActive : btnInactive} ${isPaymentLocked || orderSource !== 'In-Store' ? btnDisabled : ''}`}
                 onClick={() => {
                   setPaymentMethod('Cash');
                   if (subtotal > 0) {
                     setIsCashModalOpen(true);
                   }
                 }}
-                disabled={orderSource !== 'In-Store'}
+                disabled={isPaymentLocked || orderSource !== 'In-Store'}
               >
                 <i className="bi bi-cash"></i> Cash
               </button>
               <button
-                className={`${standardBtnClasses} ${paymentMethod === 'GCash' ? btnActive : btnInactive} ${orderSource !== 'In-Store' ? btnDisabled : ''}`}
+                className={`${standardBtnClasses} ${paymentMethod === 'GCash' ? btnActive : btnInactive} ${isPaymentLocked || orderSource !== 'In-Store' ? btnDisabled : ''}`}
                 onClick={() => setPaymentMethod('GCash')}
-                disabled={orderSource !== 'In-Store'}
+                disabled={isPaymentLocked || orderSource !== 'In-Store'}
               >
                 <i className="bi bi-credit-card"></i> Card
               </button>
               <button
-                className={`${standardBtnClasses} ${paymentMethod === 'External' ? btnActive : btnInactive} ${orderSource === 'In-Store' ? btnDisabled : ''}`}
+                className={`${standardBtnClasses} ${paymentMethod === 'External' ? btnActive : btnInactive} ${isPaymentLocked || orderSource === 'In-Store' ? btnDisabled : ''}`}
                 onClick={() => setPaymentMethod('External')}
-                disabled={orderSource === 'In-Store'}
+                disabled={isPaymentLocked || orderSource === 'In-Store'}
               >
                 <i className="bi bi-bag"></i> External
               </button>
@@ -254,6 +263,7 @@ const POSCartSidebar = ({
             className="w-full h-[var(--app-touch-target-min,2.75rem)] rounded-[var(--app-radius-panel-standard,1rem)] bg-[var(--app-color-brand)] text-white font-bold text-[length:var(--app-font-size-body-secondary)] tracking-wide shadow-[var(--app-shadow-card)] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-[var(--app-space-2)] hover:brightness-110"
             disabled={isProcessDisabled}
             onClick={() => {
+              if (isProcessDisabled) return;
               if (paymentMethod === 'Cash') {
                 setIsCashModalOpen(true);
               } else {
@@ -263,12 +273,12 @@ const POSCartSidebar = ({
           >
             {isProcessingOrder ? (
               <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                Processing...
+                <i className="bi bi-arrow-clockwise animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                {processingFeedback.buttonLabel}
               </>
             ) : (
               <>
-                Process Order
+                {isCheckoutBlocked ? POS_FEEDBACK.CHECKOUT_WAITING : "Process Order"}
               </>
             )}
           </button>
@@ -292,6 +302,7 @@ const POSCartSidebar = ({
             onProcessOrder(data);
           }}
           isProcessingOrder={isProcessingOrder}
+          isCheckoutBlocked={isCheckoutBlocked}
         />
       )}
     </div>

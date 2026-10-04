@@ -1,8 +1,9 @@
 import React, { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import "./pos.css";
 
 import POSCatalog from "./components/POSCatalog";
-import PosBlockingLoader from "./components/PosBlockingLoader";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import POSCartSidebar from "./components/cart-sidebar/POSCartSidebar";
 import CheckoutErrorBanner from "./components/CheckoutErrorBanner";
 import ReceiptModal from "./components/modals/ReceiptModal";
@@ -25,10 +26,21 @@ import {
   hasEnoughInventoryStock,
   getInventoryStockStatus,
 } from "../../utils/pos/checkoutCalculations";
-import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
+import { useOfflineSync } from "../../hooks/sync/useOfflineSync";
+import { useBrowserOnline } from "../../hooks/sync/useBrowserOnline";
 import { buildPOSCartWithItem } from "@/utils/pos/posCartUtils";
 import { toast } from "@/components/ui/toast";
-import { savePosManagementCache } from "../../services/pos/posCacheService";
+import {
+  POS_FEEDBACK,
+  getPOSAddedDescription,
+  getPOSStatusFeedback,
+  getPOSToastFeedback,
+} from "@/utils/pos/posFeedback";
+import {
+  savePosManagementCache,
+  readPOSRefreshState,
+  completePOSRefresh,
+} from "../../services/pos/posCacheService";
 import {
   preparePOSCatalog,
   getPOSDisplayProducts,
@@ -37,7 +49,8 @@ import {
 
 const POSPage = () => {
   const { user, profile } = React.useContext(AuthContext);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const cashierId = user ? user.id : null;
+  const isOnline = useBrowserOnline();
   const refreshInventoryManagement = useRefreshInventoryManagement();
   const refreshAuditLogs = useRefreshInventoryAuditLogs();
   const refreshInventoryValuation = useRefreshInventoryValuation();
@@ -59,11 +72,10 @@ const POSPage = () => {
   const [categories, setCategories] = useState(["All"]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [posProducts, setPosProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orderRefreshStatus, setOrderRefreshStatus] = useState("idle");
   const [hasLoadedMenu, setHasLoadedMenu] = useState(false);
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
-  const [isSyncing, setIsSyncing] = useState(false);
   const [globalAddons, setGlobalAddons] = useState([]);
 
   // Cart State
@@ -76,74 +88,116 @@ const POSPage = () => {
   // Receipt Modal State
   const [processedOrder, setProcessedOrder] = useState(null);
   const pendingCheckoutIdRef = React.useRef(null);
+  const checkoutInFlightRef = React.useRef(false);
+  const syncInFlightRef = React.useRef(false);
+  const savedOrderRefreshRef = React.useRef(null);
+  const orderRefreshRequestRef = React.useRef(null);
+  const syncCompletionRef = React.useRef(null);
+  const syncRefreshRequiredRef = React.useRef(false);
+  const syncRefreshPromiseRef = React.useRef(null);
+  const recoveryCheckPromiseRef = React.useRef(null);
+
+  React.useEffect(
+    () => () => {
+      orderRefreshRequestRef.current = null;
+    },
+    [],
+  );
 
   const totalQty = cartItems.reduce((sum, item) => sum + item.qty, 0);
 
-  // Format Laravel data online or use the saved Dexie data offline.
-  const loadMenu = React.useCallback(
-    async (freshPosData = null) => {
-      try {
-        setIsLoading(true);
-        let data, addonsData, categoriesData, inventoryStockData;
-        const hasFreshPosData = freshPosData !== null;
-        const shouldLoadOnlineData = isOnline || hasFreshPosData;
+  // The mutation tracks the real cache operation, including offline reads.
+  const { mutateAsync: prepareMenu, isPending: isMenuLoading } = useMutation({
+    networkMode: "always",
+    retry: false,
+    mutationFn: async ({ freshPosData, menuSource }) => {
+      let data, addonsData, categoriesData, inventoryStockData;
+      const hasFreshPosData = freshPosData !== null;
+      const shouldLoadOnlineData = menuSource.isOnline || hasFreshPosData;
 
-        if (shouldLoadOnlineData) {
-          if (!hasFreshPosData && posDataError) {
-            throw new Error(posDataError);
-          }
-
-          if (hasFreshPosData) {
-            data = freshPosData.items || [];
-            addonsData = freshPosData.addons || [];
-            categoriesData = freshPosData.categories || [];
-            inventoryStockData = freshPosData.inventory_stock || [];
-          } else {
-            data = menuItems;
-            addonsData = addons;
-            categoriesData = posCategories;
-            inventoryStockData = posInventoryStock;
-          }
-
-          const cachedData = await savePosManagementCache({
-            items: data,
-            addons: addonsData,
-            categories: categoriesData,
-            inventory_stock: inventoryStockData,
-          });
-          inventoryStockData = cachedData.inventory_stock;
-
-          console.log("Online: Laravel POS data cached to Dexie.");
-        } else {
-          // Fetch Data from Dexie (Offline DB)
-          console.log("Offline Mode: Loading menu from Dexie...");
-          data = await db.menuItems.toArray();
-          addonsData = await db.addons.toArray();
-          categoriesData = await db.categories.toArray();
-          inventoryStockData = await db.inventoryStock.toArray();
-
-          if (data.length === 0) {
-            console.warn(
-              "No offline data found. Please connect to the internet first.",
-            );
-          }
+      if (shouldLoadOnlineData) {
+        if (!hasFreshPosData && menuSource.error) {
+          throw new Error(menuSource.error);
         }
 
-        const catalog = preparePOSCatalog(
-          data,
-          addonsData,
-          categoriesData,
-          inventoryStockData,
-        );
-        setGlobalAddons(catalog.addons);
-        setCategories(catalog.categories);
-        setPosProducts(catalog.products);
-      } catch (error) {
-        console.error("Failed to load menu for POS:", error);
-        alert("Error loading menu: " + error.message);
-      } finally {
-        setIsLoading(false);
-        setHasLoadedMenu(true);
+        if (hasFreshPosData) {
+          data = freshPosData.items || [];
+          addonsData = freshPosData.addons || [];
+          categoriesData = freshPosData.categories || [];
+          inventoryStockData = freshPosData.inventory_stock || [];
+        } else {
+          data = menuSource.items;
+          addonsData = menuSource.addons;
+          categoriesData = menuSource.categories;
+          inventoryStockData = menuSource.inventory_stock;
+        }
+
+        const cachedData = await savePosManagementCache({
+          items: data,
+          addons: addonsData,
+          categories: categoriesData,
+          inventory_stock: inventoryStockData,
+        });
+        inventoryStockData = cachedData.inventory_stock;
+
+        console.log("Online: Laravel POS data cached to Dexie.");
+      } else {
+        console.log("Offline Mode: Loading menu from Dexie...");
+        data = await db.menuItems.toArray();
+        addonsData = await db.addons.toArray();
+        categoriesData = await db.categories.toArray();
+        inventoryStockData = await db.inventoryStock.toArray();
+
+        if (data.length === 0) {
+          console.warn(
+            "No offline data found. Please connect to the internet first.",
+          );
+        }
+      }
+
+      return preparePOSCatalog(
+        data,
+        addonsData,
+        categoriesData,
+        inventoryStockData,
+      );
+    },
+    onSuccess: (catalog) => {
+      setGlobalAddons(catalog.addons);
+      setCategories(catalog.categories);
+      setPosProducts(catalog.products);
+    },
+    onError: (error, variables) => {
+      console.error("Failed to load menu for POS:", error);
+      if (variables.notifyError) alert("Error loading menu: " + error.message);
+    },
+    onSettled: () => {
+      setHasLoadedMenu(true);
+    },
+  });
+
+  const loadMenu = React.useCallback(
+    async (
+      freshPosData = null,
+      { notifyError = true, loadOnline = isOnline } = {},
+    ) => {
+      try {
+        await prepareMenu({
+          freshPosData,
+          notifyError,
+          menuSource: {
+            isOnline: loadOnline,
+            items: menuItems,
+            addons,
+            categories: posCategories,
+            inventory_stock: posInventoryStock,
+            error: posDataError,
+          },
+        });
+        return true;
+      } catch {
+        // The mutation's onError callback already handles the error.
+        return false;
       }
     },
     [
@@ -153,55 +207,153 @@ const POSPage = () => {
       posCategories,
       posDataError,
       posInventoryStock,
+      prepareMenu,
     ],
   );
 
+  // Retrying this operation only reloads data; it never submits orders.
+  const {
+    mutateAsync: refreshSyncData,
+    isPending: isSyncRefreshPending,
+    isError: hasSyncRefreshFailed,
+  } = useMutation({
+    mutationKey: ["offline-sync-refresh"],
+    networkMode: "always",
+    retry: false,
+    mutationFn: async () => {
+      if (!navigator.onLine) throw new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+
+      // Capture the reminder before fetching; newer uploads need a newer refresh.
+      const refreshState = await readPOSRefreshState();
+      const freshPosResult = await refetchPosManagement();
+      if (freshPosResult.error || !freshPosResult.data) {
+        throw freshPosResult.error || new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+      }
+
+      const refreshed = await loadMenu(freshPosResult.data, {
+        notifyError: false,
+        loadOnline: true,
+      });
+      if (!refreshed) throw new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+
+      // Keep recovery locked if preparation or clearing the reminder fails.
+      const completed = await completePOSRefresh(refreshState.revision);
+      if (!completed) throw new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+
+      // Confirmation is allowed only after an accepted upload's refresh succeeds.
+      return {
+        refreshedSavedOrders: refreshState.required === true,
+        completedAt: Date.now(),
+      };
+    },
+    onSuccess: () => {
+      syncRefreshRequiredRef.current = false;
+    },
+    onError: (error) => {
+      console.error("Orders uploaded, but POS refresh failed:", error);
+    },
+  });
+
+  const requestSyncRefresh = React.useCallback(() => {
+    if (syncRefreshPromiseRef.current) return syncRefreshPromiseRef.current;
+
+    syncRefreshRequiredRef.current = true;
+    const completion = refreshSyncData(cashierId).finally(() => {
+      syncRefreshPromiseRef.current = null;
+    });
+    syncRefreshPromiseRef.current = completion;
+    return completion;
+  }, [cashierId, refreshSyncData]);
+
+  // Reopen unfinished recovery before normal cache work or checkout can run.
+  const {
+    mutateAsync: restorePOSReadiness,
+    data: restoredCashierId,
+    isSuccess: hasRestoredPOS,
+    isError: hasRecoveryCheckFailed,
+    error: recoveryCheckError,
+  } = useMutation({
+    networkMode: "always",
+    retry: false,
+    mutationFn: async (currentCashierId) => {
+      const refreshState = await readPOSRefreshState();
+      if (refreshState.required || syncRefreshRequiredRef.current) {
+        await requestSyncRefresh();
+      }
+      return currentCashierId;
+    },
+  });
+
+  const isRecoveryReady = hasRestoredPOS && restoredCashierId === cashierId;
+
+  const requestPOSRecovery = React.useCallback(() => {
+    if (recoveryCheckPromiseRef.current) return recoveryCheckPromiseRef.current;
+
+    const completion = restorePOSReadiness(cashierId).finally(() => {
+      recoveryCheckPromiseRef.current = null;
+    });
+    recoveryCheckPromiseRef.current = completion;
+    return completion;
+  }, [cashierId, restorePOSReadiness]);
+
+  const onRecoveryRequested = React.useEffectEvent(() => {
+    if (!cashierId || isRecoveryReady) return;
+    // The mutation retains failures so the existing dialog can offer a retry.
+    requestPOSRecovery().catch(() => {});
+  });
+
   React.useEffect(() => {
-    if (isOnline && isPosDataLoading) {
-      setIsLoading(true);
+    onRecoveryRequested();
+    window.addEventListener("online", onRecoveryRequested);
+    return () => window.removeEventListener("online", onRecoveryRequested);
+  }, [cashierId]);
+
+  // Failed refreshes remain blocking even after the upload mutation settles.
+  const isAwaitingSyncRefresh = isSyncRefreshPending || hasSyncRefreshFailed;
+  // A failed required refresh stays locked until an explicit retry succeeds.
+  const isAwaitingOrderRefresh = orderRefreshStatus !== "idle";
+  const hasOrderRefreshFailed = orderRefreshStatus === "failed";
+  // Initial loading, cache work, and post-order refresh all block checkout.
+  const isLoading =
+    !isRecoveryReady ||
+    !hasLoadedMenu ||
+    isMenuLoading ||
+    isAwaitingSyncRefresh ||
+    isAwaitingOrderRefresh ||
+    (isOnline && isPosDataLoading);
+
+  React.useEffect(() => {
+    // Receipt/sync recovery owns preparation after a saved order. Do not start
+    // another cache write from the refetch's query update or reconnect event.
+    if (
+      !isRecoveryReady ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current ||
+      (isOnline && isPosDataLoading)
+    ) {
       return;
     }
 
     loadMenu();
-  }, [isOnline, isPosDataLoading, loadMenu]);
+  }, [isOnline, isPosDataLoading, isRecoveryReady, loadMenu]);
 
-  React.useEffect(() => {
-    const updateConnectionStatus = () => {
-      setIsOnline(navigator.onLine);
-    };
-
-    window.addEventListener("online", updateConnectionStatus);
-    window.addEventListener("offline", updateConnectionStatus);
-
-    return () => {
-      window.removeEventListener("online", updateConnectionStatus);
-      window.removeEventListener("offline", updateConnectionStatus);
-    };
-  }, []);
-
-  // Background Auto-Sync Offline Orders
-  React.useEffect(() => {
-    const runSync = async () => {
-      if (!navigator.onLine) return;
-
-      setIsSyncing(true);
-
-      try {
-        const result = await syncPendingOfflineOrders();
+  // Pending remains true until the upload and required refresh finish.
+  const { mutateAsync: syncOfflineOrders, isPending: isSyncing } =
+    useOfflineSync({
+      onSuccess: async (result) => {
+        if (result.failed > 0) {
+          setCheckoutError(
+            `${result.failed} offline order(s) could not be synchronized.`,
+          );
+        }
 
         if (result.synced > 0) {
+          // Keep the POS locked until the required refresh actually succeeds.
+          await requestSyncRefresh();
+
           console.log(
             `Successfully auto-synced ${result.synced} offline orders!`,
           );
-
-          // Keep the POS locked until the latest menu and stock are ready.
-          const freshPosResult = await refetchPosManagement();
-
-          if (freshPosResult.error) {
-            throw freshPosResult.error;
-          }
-
-          await loadMenu(freshPosResult.data);
 
           // Refresh secondary pages without delaying the refreshed POS.
           Promise.allSettled([
@@ -212,34 +364,59 @@ const POSPage = () => {
             refreshSalesReport(),
           ]);
         }
-
-        if (result.failed > 0) {
-          setCheckoutError(
-            `${result.failed} offline order(s) could not be synchronized.`,
-          );
-        }
-      } catch (error) {
+      },
+      onError: (error) => {
+        // The blocking refresh dialog owns recovery for already-saved orders.
+        if (syncRefreshRequiredRef.current) return;
         setCheckoutError(
           error.message || "Unable to synchronize offline orders.",
         );
-      } finally {
-        setIsSyncing(false);
-      }
-    };
+      },
+      onSettled: () => {
+        syncInFlightRef.current = false;
+      },
+    });
+
+  // Read the latest callbacks without syncing again when menu data changes.
+  const onSyncRequested = React.useEffectEvent(() => {
+    if (
+      !navigator.onLine ||
+      !cashierId ||
+      !isRecoveryReady ||
+      syncInFlightRef.current ||
+      syncRefreshRequiredRef.current
+    ) {
+      return;
+    }
+    syncInFlightRef.current = true;
+    // Receipt refresh can await an already-running sync without starting
+    // another upload. Existing mutation callbacks still own sync errors.
+    syncCompletionRef.current = syncOfflineOrders(cashierId).catch(() => {});
+  });
+
+  React.useEffect(() => {
+    if (!cashierId || !isRecoveryReady) return;
 
     // 1. Run sync immediately in case they just opened the app with internet
-    runSync();
+    onSyncRequested();
 
     // 2. Listen for when internet comes back online
-    window.addEventListener("online", runSync);
+    window.addEventListener("online", onSyncRequested);
 
     return () => {
-      window.removeEventListener("online", runSync);
+      window.removeEventListener("online", onSyncRequested);
     };
-  }, []);
+  }, [cashierId, isRecoveryReady]);
 
   // Cart Actions
   const handleModalAddToCart = (selection) => {
+    if (
+      !isRecoveryReady ||
+      checkoutInFlightRef.current ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current
+    )
+      return false;
     const cartId = `${selection.id}-${Date.now()}`;
     const updatedCart = buildPOSCartWithItem(cartItems, selection, cartId);
     const stockStatus = getInventoryStockStatus(updatedCart);
@@ -248,8 +425,8 @@ const POSPage = () => {
       toast.add({
         id: `pos-cart-${selection.id}-${selection.selectedVariantId}`,
         type: "warning",
-        title: "Not enough stock",
-        description: "Reduce quantity or check ingredient stock.",
+        title: POS_FEEDBACK.CART_STOCK_TITLE,
+        description: POS_FEEDBACK.CART_STOCK_DESCRIPTION,
       });
       return false;
     }
@@ -258,13 +435,19 @@ const POSPage = () => {
     toast.add({
       id: `pos-cart-${selection.id}-${selection.selectedVariantId}`,
       type: "success",
-      title: "Added to order",
-      description: `${selection.drinkQty} × ${selection.name} (${selection.selectedVariant})`,
+      title: POS_FEEDBACK.ADDED_TO_ORDER,
+      description: getPOSAddedDescription(selection),
     });
     return true;
   };
 
   const handleUpdateQty = (cartId, newQty) => {
+    if (
+      !isRecoveryReady ||
+      checkoutInFlightRef.current ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current
+    ) return;
     if (newQty < 1) return;
 
     const updatedCart = cartItems.map((item) =>
@@ -289,10 +472,22 @@ const POSPage = () => {
   };
 
   const handleRemoveItem = (cartId) => {
+    if (
+      !isRecoveryReady ||
+      checkoutInFlightRef.current ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current
+    ) return;
     setCartItems((prev) => prev.filter((item) => item.cartId !== cartId));
   };
 
   const handleClearCart = () => {
+    if (
+      !isRecoveryReady ||
+      checkoutInFlightRef.current ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current
+    ) return;
     setCartItems([]);
     setAmountPaid("");
     pendingCheckoutIdRef.current = null;
@@ -304,11 +499,21 @@ const POSPage = () => {
     discountAmount,
     change,
   }) => {
+    // A ref blocks repeat clicks before React renders the disabled controls.
+    if (
+      checkoutInFlightRef.current ||
+      savedOrderRefreshRef.current ||
+      syncRefreshRequiredRef.current ||
+      processedOrder ||
+      cartItems.length === 0
+    )
+      return;
     if (isSyncing || isLoading) {
-      setCheckoutError("Please wait while the menu and stock are refreshing.");
+      setCheckoutError(POS_FEEDBACK.CHECKOUT_REFRESHING);
       return;
     }
 
+    checkoutInFlightRef.current = true;
     setCheckoutError("");
     setIsProcessingOrder(true);
     try {
@@ -403,6 +608,7 @@ const POSPage = () => {
         console.log("Offline Mode: Saving order to Dexie...");
 
         const offlinePayload = {
+          cashier_id: user.id,
           client_transaction_id: clientTransactionId,
           offline_order_number: transactionId,
           checkout_payload: checkoutPayload,
@@ -449,6 +655,10 @@ const POSPage = () => {
       }
 
       // Show receipt modal only if successful (use the real DB-generated order number)
+      savedOrderRefreshRef.current = {
+        transactionId: result.order_number,
+        requiresOnline: isCheckoutOnline,
+      };
       setProcessedOrder({
         ...orderDetails,
         transactionId: result.order_number,
@@ -459,21 +669,91 @@ const POSPage = () => {
         error.message || "Unable to process the order. Please try again.",
       );
     } finally {
+      checkoutInFlightRef.current = false;
       setIsProcessingOrder(false);
     }
   };
 
-  const handleCloseReceipt = () => {
-    setProcessedOrder(null);
-    handleClearCart();
-    setIsCartOpen(false);
+  const refreshAfterOrder = async () => {
+    const savedOrder = savedOrderRefreshRef.current;
+    if (!savedOrder || orderRefreshRequestRef.current) return;
+    const request = {};
+    orderRefreshRequestRef.current = request;
+    setOrderRefreshStatus("pending");
 
-    if (isOnline) {
-      setIsLoading(true);
-      refetchPosManagement();
-    } else {
-      loadMenu();
+    try {
+      // A reconnect may already be uploading offline orders and rebuilding
+      // stock. Let that finish before preparing the next order's catalog.
+      await syncCompletionRef.current;
+      if (orderRefreshRequestRef.current !== request) return;
+      if (syncRefreshRequiredRef.current) {
+        // An accepted upload requires a fresh server read, even for an
+        // originally offline receipt. Never unlock using its old local cache.
+        await requestSyncRefresh();
+      }
+      if (orderRefreshRequestRef.current !== request) return;
+      const loadOnline = navigator.onLine;
+      // Never unlock with a pre-sale offline cache after an online checkout.
+      if (savedOrder.requiresOnline && !loadOnline) {
+        throw new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+      }
+      let freshData = null;
+      if (loadOnline) {
+        const result = await refetchPosManagement();
+        if (result.error || !result.data) {
+          throw result.error || new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+        }
+        freshData = result.data;
+      }
+      if (orderRefreshRequestRef.current !== request) return;
+      const refreshed = await loadMenu(freshData, {
+        notifyError: false,
+        loadOnline,
+      });
+      if (!refreshed) throw new Error(POS_FEEDBACK.ORDER_REFRESH_FAILED);
+      if (orderRefreshRequestRef.current !== request) return;
+      savedOrderRefreshRef.current = null;
+      setOrderRefreshStatus("idle");
+      toast.add({
+        id: `pos-order-refresh-${savedOrder.transactionId}`,
+        ...getPOSToastFeedback("ORDER_REFRESH_READY"),
+      });
+    } catch (error) {
+      if (orderRefreshRequestRef.current !== request) return;
+      console.error("Order saved, but POS refresh failed:", error);
+      setOrderRefreshStatus("failed");
+    } finally {
+      if (orderRefreshRequestRef.current === request) {
+        orderRefreshRequestRef.current = null;
+      }
     }
+  };
+
+  const handleRetrySyncRefresh = async () => {
+    try {
+      if (!isRecoveryReady) {
+        await requestPOSRecovery();
+      } else {
+        await requestSyncRefresh();
+      }
+      // A closed receipt may also have been waiting for this same recovery.
+      if (savedOrderRefreshRef.current && !processedOrder) {
+        await refreshAfterOrder();
+      }
+    } catch {
+      // The refresh mutation keeps the error dialog and checkout lock active.
+    }
+  };
+
+  const handleCloseReceipt = () => {
+    if (!processedOrder || orderRefreshRequestRef.current) return;
+    setProcessedOrder(null);
+    // Clear the completed cart once; retries only refresh data.
+    setCartItems([]);
+    setAmountPaid("");
+    pendingCheckoutIdRef.current = null;
+    setIsCartOpen(false);
+    refreshAfterOrder();
   };
 
   // Recalculate product and variant availability against the current cart.
@@ -490,21 +770,48 @@ const POSPage = () => {
     );
   }, [activeCategory, categories, displayProducts, searchTerm]);
 
-  const isPosBlocked = isSyncing || isProcessingOrder;
-  let blockingTitle = "Processing Order...";
-  let blockingMessage = "";
-
-  if (isSyncing) {
-    blockingTitle = "Syncing offline orders...";
-    blockingMessage = "Refreshing menu and stock. Please wait.";
+  // Keep a single dialog open until all active blocking operations have finished.
+  let blockingFeedback = null;
+  if (isProcessingOrder) {
+    blockingFeedback = getPOSStatusFeedback("ORDER_PROCESSING");
+  } else if (isSyncing) {
+    // The sync mutation stays pending while its final refresh runs.
+    blockingFeedback = getPOSStatusFeedback(
+      isSyncRefreshPending ? "POS_REFRESHING" : "ORDERS_SYNCING",
+    );
+  } else if (isAwaitingSyncRefresh) {
+    blockingFeedback = getPOSStatusFeedback(
+      hasSyncRefreshFailed ? "ORDER_REFRESH_FAILED" : "POS_REFRESHING",
+    );
+  } else if (hasRecoveryCheckFailed) {
+    // A failed storage inspection must not claim the menu is safe to use.
+    blockingFeedback = {
+      ...getPOSStatusFeedback("ORDER_REFRESH_FAILED"),
+      message: recoveryCheckError.message,
+    };
+  } else if (isAwaitingOrderRefresh) {
+    blockingFeedback = getPOSStatusFeedback(
+      hasOrderRefreshFailed ? "ORDER_REFRESH_FAILED" : "ORDER_REFRESH_PENDING",
+    );
   }
 
   return (
     <section className="pos-page-shell bg-[var(--app-color-canvas)]">
-      <PosBlockingLoader
-        isVisible={isPosBlocked}
-        title={blockingTitle}
-        message={blockingMessage}
+      <BlockingFeedback
+        open={Boolean(blockingFeedback)}
+        title={blockingFeedback ? blockingFeedback.title : ""}
+        message={blockingFeedback ? blockingFeedback.message : ""}
+        status={blockingFeedback?.type === "critical" ? "error" : "loading"}
+        action={
+          blockingFeedback?.type === "critical"
+            ? {
+                label: blockingFeedback.buttonLabel,
+                onClick: hasSyncRefreshFailed || hasRecoveryCheckFailed
+                  ? handleRetrySyncRefresh
+                  : refreshAfterOrder,
+              }
+            : undefined
+        }
       />
 
       <CheckoutErrorBanner
@@ -530,6 +837,13 @@ const POSPage = () => {
           cartItems={cartItems}
           isLoading={isLoading}
           hasLoadedMenu={hasLoadedMenu}
+          isOrderLocked={
+            !isRecoveryReady ||
+            isProcessingOrder ||
+            isAwaitingOrderRefresh ||
+            isSyncing ||
+            isAwaitingSyncRefresh
+          }
         />
         {/* Right Side: Cart */}
         <aside
@@ -551,7 +865,8 @@ const POSPage = () => {
             setAmountPaid={setAmountPaid}
             onProcessOrder={handleProcessOrder}
             canIncreaseQuantity={canIncreaseCartItem}
-            isProcessingOrder={isProcessingOrder || isSyncing || isLoading}
+            isProcessingOrder={isProcessingOrder}
+            isCheckoutBlocked={isSyncing || isLoading}
             isLoading={!hasLoadedMenu && isLoading}
             setIsCartOpen={setIsCartOpen}
           />
@@ -575,7 +890,11 @@ const POSPage = () => {
       >
         <i className="bi bi-cart3"></i>
         <span>Cart</span>
-        {totalQty > 0 && <span className="min-w-6 rounded-full bg-white/20 px-[var(--app-space-2)] text-center">{totalQty}</span>}
+        {totalQty > 0 && (
+          <span className="min-w-6 rounded-full bg-white/20 px-[var(--app-space-2)] text-center">
+            {totalQty}
+          </span>
+        )}
       </button>
 
       {/* Receipt Modal */}

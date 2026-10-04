@@ -28,6 +28,7 @@ const CashPaymentModal = ({
   onClose,
   onProcessOrder,
   isProcessingOrder,
+  isCheckoutBlocked = false,
 }) => {
   const [showError, setShowError] = useState(false);
   const paid = parseFloat(amountPaid) || 0;
@@ -40,6 +41,7 @@ const CashPaymentModal = ({
   };
 
   const handleProcessClick = () => {
+    if (isProcessingOrder || isCheckoutBlocked) return;
     if (!isValid) {
       setShowError(true);
       return;
@@ -82,6 +84,7 @@ const CashPaymentModal = ({
                 <select
                   className="bg-[var(--app-color-canvas)] border border-[var(--app-color-border-subtle)] rounded px-[var(--app-space-1)] py-[2px] outline-none cursor-pointer text-[var(--app-color-text-muted)]"
                   value={discountType}
+                  disabled={isProcessingOrder}
                   onChange={(e) => setDiscountType(e.target.value)}
                 >
                   <option value="None">None</option>
@@ -158,7 +161,7 @@ const CashPaymentModal = ({
         <Button
           type="button"
           className={`${buttonClassName} bg-[var(--app-color-brand)] text-white hover:bg-[var(--app-color-brand-hover)]`}
-          disabled={isProcessingOrder}
+          disabled={isProcessingOrder || isCheckoutBlocked}
           onClick={handleProcessClick}
         >
           {isProcessingOrder ? "Processing..." : "Process Order"}

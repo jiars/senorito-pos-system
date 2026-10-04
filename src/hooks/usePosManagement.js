@@ -4,6 +4,7 @@ import { fetchPosManagement } from "../services/pos/posManagementService";
 import { savePosManagementCache } from "../services/pos/posCacheService";
 
 const POS_MANAGEMENT_QUERY_KEY = ["pos-management"];
+const EMPTY_POS_RECORDS = [];
 
 const posManagementQueryOptions = {
   queryKey: POS_MANAGEMENT_QUERY_KEY,
@@ -18,10 +19,10 @@ export const usePosManagement = (isOnline) => {
   });
 
   return {
-    menuItems: data?.items || [],
-    addons: data?.addons || [],
-    categories: data?.categories || [],
-    inventoryStock: data?.inventory_stock || [],
+    menuItems: data?.items || EMPTY_POS_RECORDS,
+    addons: data?.addons || EMPTY_POS_RECORDS,
+    categories: data?.categories || EMPTY_POS_RECORDS,
+    inventoryStock: data?.inventory_stock || EMPTY_POS_RECORDS,
     isLoading,
     error: error ? error.message : null,
     refetchPosManagement: refetch,

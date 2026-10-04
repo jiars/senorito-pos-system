@@ -1,4 +1,4 @@
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import MenuItemCard from "./MenuItemCard";

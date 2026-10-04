@@ -1,4 +1,4 @@
-import { getRecipeAvailabilityStatus } from "./checkoutCalculations";
+import { getInventoryStockStatus, getRecipeAvailabilityStatus } from "./checkoutCalculations";
 
 export const getPOSProductVariants = (product) => {
   if (product.variants && product.variants.length > 0) {
@@ -82,3 +82,15 @@ export const buildPOSStockPreview = (product, variantId, quantity, addons) => {
     addOns: addons,
   };
 };
+
+// Preview an additional selection without reserving or changing stock.
+export const getPOSSelectionStockStatus = (
+  product, variantId, quantity, addons = [], cartItems = [],
+) => getInventoryStockStatus([
+  ...cartItems,
+  buildPOSStockPreview(product, variantId ?? product.defaultPriceId, quantity, addons),
+]);
+
+// Insufficient stock can be reviewed; manually unavailable/invalid recipes cannot.
+export const isPOSAddonSelectable = (addon) =>
+  addon.isAvailable || addon.status === "Insufficient Stock";

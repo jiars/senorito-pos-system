@@ -6,12 +6,6 @@ export const printTestCases = [
   { id: "characters", label: "Special characters", description: "Check Señorito, Café, and the peso sign. Raw-text support will depend on the printer." },
 ];
 
-export const labelTestSizes = [
-  { id: "50x30", label: "50 × 30 mm", width: 50, height: 30 },
-  { id: "58x40", label: "58 × 40 mm", width: 58, height: 40 },
-  { id: "60x40", label: "60 × 40 mm", width: 60, height: 40 },
-];
-
 export function createPrintTestReceipt(caseId) {
   let items = [
     { name: "Iced Latte", variant: "Reg", qty: 2, basePrice: 100, addOns: [] },

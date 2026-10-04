@@ -1,34 +1,36 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import defaultImage from "../../../../assets/images/default_menu_picture.jpg";
 import { formatCurrency } from "../../../../utils/currencyFormatters";
 import { toast } from "@/components/ui/toast";
+import { getPOSUnavailableMessage } from "@/utils/pos/posFeedback";
+import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import CustomizeOrderModal from "../modals/CustomizeOrderModal";
 import {
   getPOSProductVariants,
   getPOSUnitPrice,
+  getPOSSelectionStockStatus,
 } from "@/utils/pos/posSelectionUtils";
 
-const unavailableMessages = {
-  "Out of Stock": "Ingredients are out of stock.",
-  "Insufficient Stock": "Not enough stock for this order.",
-  "On Hold": "Recipe needs attention.",
-  Incomplete: "Recipe is incomplete.",
-  Unavailable: "Disabled for sale.",
-  "Not Available": "Currently unavailable.",
-};
-
-const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
+const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLocked = false }) => {
   // Local state for the card
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(null);
   const [drinkQty, setDrinkQty] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
+  const sizeHintId = useId();
 
   const variants = getPOSProductVariants(product);
   const selectedVariant = variants[selectedVariantIndex];
   const canAddToOrder = Boolean(
     selectedVariant && selectedVariant.isAvailable && product.isAvailable,
   );
+  const hasInvalidQuantity = selectedVariant && !getPOSSelectionStockStatus(
+    product, selectedVariant.id, drinkQty, selectedAddons, cartItems,
+  ).hasEnoughStock;
+  const { feedback: activeFeedback, showFeedback, clearFeedback } =
+    usePOSFeedback(hasInvalidQuantity ? "QUANTITY_STOCK_INSUFFICIENT" : null);
+  const feedback = product.isAvailable ? activeFeedback : null;
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -49,15 +51,42 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
   const handleVariantClick = (idx) => {
     if (variants[idx].isAvailable) {
       setSelectedVariantIndex((prev) => (prev === idx ? null : idx));
+      const nextVariant = selectedVariantIndex === idx ? null : variants[idx];
+      showFeedback(nextVariant && !getPOSSelectionStockStatus(
+        product, nextVariant.id, drinkQty, selectedAddons, cartItems,
+      ).hasEnoughStock ? "QUANTITY_STOCK_INSUFFICIENT" : null);
     }
   };
 
-  const handleAddQty = () => setDrinkQty((prev) => prev + 1);
-  const handleSubQty = () => setDrinkQty((prev) => Math.max(1, prev - 1));
+  const handleAddQty = () => {
+    if (!selectedVariant) {
+      showFeedback("SIZE_REQUIRED");
+      return;
+    }
+    if (!selectedVariant.isAvailable) {
+      showFeedback("VARIANT_UNAVAILABLE");
+      return;
+    }
+    if (!getPOSSelectionStockStatus(
+      product, selectedVariant.id, drinkQty + 1, selectedAddons, cartItems,
+    ).hasEnoughStock) {
+      showFeedback("STOCK_LIMIT_REACHED");
+      return;
+    }
+    setDrinkQty(drinkQty + 1);
+    clearFeedback();
+  };
+  const handleSubQty = () => {
+    const quantity = Math.max(1, drinkQty - 1);
+    setDrinkQty(quantity);
+    showFeedback(selectedVariant && !getPOSSelectionStockStatus(
+      product, selectedVariant.id, quantity, selectedAddons, cartItems,
+    ).hasEnoughStock ? "QUANTITY_STOCK_INSUFFICIENT" : null);
+  };
 
   const handleUnavailableClick = () => {
     const status = product.status || "Not Available";
-    const description = unavailableMessages[status] || unavailableMessages["Not Available"];
+    const description = getPOSUnavailableMessage(status);
 
     const isDisabledForSale = status === "Unavailable" || status === "Not Available";
     toast.add({
@@ -69,7 +98,15 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
   };
 
   const handleAddToOrder = () => {
-    if (!canAddToOrder) return;
+    if (isOrderLocked) return;
+    if (product.isAvailable && !selectedVariant) {
+      showFeedback("SIZE_REQUIRED");
+      return;
+    }
+    if (!canAddToOrder) {
+      showFeedback("VARIANT_UNAVAILABLE");
+      return;
+    }
 
     const variantName = selectedVariant.name || "Reg";
     const variantId = selectedVariant.id || product.defaultPriceId;
@@ -90,6 +127,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
     setSelectedVariantIndex(null);
     setDrinkQty(1);
     setSelectedAddons([]);
+    clearFeedback();
   };
 
   return (
@@ -114,6 +152,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
             <button
               type="button"
               aria-label={`Decrease quantity of ${product.name}`}
+              aria-describedby={feedback ? sizeHintId : undefined}
               className={`relative after:absolute after:-inset-[11px] w-[1.375rem] h-[1.375rem] rounded-full border flex items-center justify-center text-[0.6rem] transition-colors ${drinkQty > 1 ? "border-[var(--app-color-text-subtle)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)]" : "border-[var(--app-color-border-subtle)] text-[var(--app-color-text-muted)] cursor-not-allowed opacity-50"}`}
               onClick={handleSubQty}
               disabled={drinkQty <= 1 || !product.isAvailable}
@@ -126,6 +165,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
             <button
               type="button"
               aria-label={`Increase quantity of ${product.name}`}
+              aria-describedby={feedback ? sizeHintId : undefined}
               className="relative after:absolute after:-inset-[11px] w-[1.375rem] h-[1.375rem] rounded-full border bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white flex items-center justify-center text-[0.6rem] transition-colors hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAddQty}
               disabled={!product.isAvailable}
@@ -158,6 +198,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
                   key={v.id || idx}
                   type="button"
                   aria-pressed={selectedVariantIndex === idx}
+                  aria-describedby={feedback ? sizeHintId : undefined}
                   className={`px-2.5 py-0.5 rounded-full text-[length:var(--app-font-size-caption)] transition-all ${
                     selectedVariantIndex === idx
                       ? "bg-[var(--app-color-brand)] text-white border-[var(--app-color-brand)] shadow-sm"
@@ -171,6 +212,11 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
               ))}
             </div>
           </div>
+          <InlineFeedback
+            id={sizeHintId}
+            feedback={feedback}
+            className="mb-[var(--app-space-2)]"
+          />
 
           {/* Row 3: Add-ons */}
           <button
@@ -192,13 +238,14 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
           {/* Row 4: Add to Order Button */}
           <button
             type="button"
-              className={`w-full mt-3 min-h-[var(--app-control-height-compact)] px-[var(--app-space-2)] rounded-full text-[length:var(--app-font-size-body-secondary)] font-semibold transition-all border ${
-              selectedVariantIndex !== null
+            aria-describedby={feedback ? sizeHintId : undefined}
+            className={`w-full mt-3 min-h-[var(--app-control-height-compact)] px-[var(--app-space-2)] rounded-full text-[length:var(--app-font-size-body-secondary)] font-semibold transition-all border disabled:cursor-not-allowed disabled:opacity-50 ${
+              canAddToOrder
                 ? "bg-[var(--app-color-brand)] text-white border-[var(--app-color-brand)] shadow-sm hover:brightness-110 active:scale-[0.98]"
-                : "bg-transparent text-[var(--app-color-brand)] border-[var(--app-color-brand)]"
+                : "bg-transparent text-[var(--app-color-brand)] border-[var(--app-color-brand)] hover:bg-[var(--app-color-surface-soft)]"
             }`}
             onClick={handleAddToOrder}
-            disabled={!canAddToOrder}
+            disabled={!product.isAvailable || isOrderLocked}
           >
             Add to order
           </button>
@@ -231,7 +278,10 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems }) => {
           initialVariantIndex={selectedVariantIndex}
           initialQty={drinkQty}
           initialAddons={selectedAddons}
-          onSaveAddons={setSelectedAddons}
+          onSaveAddons={(addons) => {
+            setSelectedAddons(addons);
+            clearFeedback();
+          }}
           onClose={() => setIsAddonModalOpen(false)}
         />
       )}

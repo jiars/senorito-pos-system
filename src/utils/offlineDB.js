@@ -18,6 +18,11 @@ db.version(3).stores({
   addons: "id, addon_name",
 });
 
+// Keep recovery information even after the page reloads.
+db.version(4).stores({
+  syncMetadata: "id",
+});
+
 // Clear refreshable cache without deleting unsynced sales.
 export const clearOfflineCache = async () => {
   await db.transaction(

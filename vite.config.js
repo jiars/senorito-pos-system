@@ -19,7 +19,7 @@ export default defineConfig({
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg", "senorito-cafe-pfp.png"],
       manifest: {
         name: "Senorito POS System",
         short_name: "SenoritoPOS",

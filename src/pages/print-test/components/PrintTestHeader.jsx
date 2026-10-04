@@ -12,7 +12,7 @@ export default function PrintTestHeader() {
         <h1 className="text-[length:var(--app-font-size-h1)] font-bold leading-[var(--app-line-height-h1)] text-[var(--app-color-brand-header)]">Printing test lab</h1>
         <Badge variant="outline">Public · sample data only</Badge>
       </div>
-      <p className="max-w-2xl text-[var(--app-color-text-muted)]">Try different ways to print, compare the results, then keep the method that works with your printer.</p>
+      <p className="max-w-2xl text-[var(--app-color-text-muted)]">Choose Browser / POS receipt, Android / RawBT, or PC / QZ Tray. Follow the setup guide, prepare a sample, and send one test at a time.</p>
       <p className="rounded-[var(--app-radius-nested)] border border-[var(--app-color-brand-border)] bg-[var(--app-color-surface-soft)] p-4 text-sm">
         No login needed. No real orders, customer details, or stock changes. Nothing prints automatically. Use a printer you have permission to test.
       </p>

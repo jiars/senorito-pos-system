@@ -1,5 +1,51 @@
 import { db } from "../../utils/offlineDB";
 
+const POS_REFRESH_KEY = "pos-refresh";
+
+// Missing means no refresh reminder has been recorded yet.
+export async function readPOSRefreshState() {
+  const savedState = await db.syncMetadata.get(POS_REFRESH_KEY);
+
+  if (savedState) return savedState;
+
+  return {
+    id: POS_REFRESH_KEY,
+    required: false,
+    revision: 0,
+  };
+}
+
+// Record a new requirement to refresh menu and stock.
+export async function markPOSRefreshRequired() {
+  return db.transaction("rw", db.syncMetadata, async () => {
+    const current = await readPOSRefreshState();
+    const revision = current.revision + 1;
+
+    await db.syncMetadata.put({
+      id: POS_REFRESH_KEY,
+      required: true,
+      revision,
+    });
+
+    return revision;
+  });
+}
+
+export async function completePOSRefresh(expectedRevision) {
+  return db.transaction("rw", db.syncMetadata, async () => {
+    const current = await readPOSRefreshState();
+
+    if (current.revision !== expectedRevision) return false;
+
+    await db.syncMetadata.put({
+      ...current,
+      required: false,
+    });
+
+    return true;
+  });
+}
+
 // Keep Inventory numbers consistent before saving them offline.
 const prepareInventoryStock = (inventoryStock) => {
   return inventoryStock.map((item) => {

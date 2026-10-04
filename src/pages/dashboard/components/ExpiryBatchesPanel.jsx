@@ -1,4 +1,4 @@
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import { Badge } from "../../../components/ui/badge";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";

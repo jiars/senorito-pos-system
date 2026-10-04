@@ -13,17 +13,37 @@ import {
 
 import { formatFullName, formatInitials } from "../../utils/stringFormatters";
 import { useAuth } from "../../hooks/useAuth";
+import { useOfflineQueue } from "../../hooks/sync/useOfflineQueue";
+import { useOfflineSyncState } from "../../hooks/sync/useOfflineSync";
+import { useBrowserOnline } from "../../hooks/sync/useBrowserOnline";
+import {
+  buildSyncStatusInput,
+  getSyncStatus,
+} from "../../utils/sync/syncStatus";
 
 import ConfirmLogoutModal from "./modals/Confirm Logout/ConfirmLogoutModal";
+import SyncStatusButton from "./sync/SyncStatusButton";
 
 import "./topbar.css";
 
 const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const isBrowserOnline = useBrowserOnline();
 
   const navigate = useNavigate();
   const { profile, logout } = useAuth();
+  const queue = useOfflineQueue(profile.id);
+  const sync = useOfflineSyncState(profile.id);
+
+  // Display observed progress only; POS still owns the upload workflow.
+  const syncStatusInput = buildSyncStatusInput({ isBrowserOnline, queue, sync });
+  let syncStatus = getSyncStatus(syncStatusInput);
+
+  // Never let a success confirmation hide pending work or a connection error.
+  if (syncStatus.key === "online" && sync.showSyncedConfirmation) {
+    syncStatus = { key: "synced", label: "Synced" };
+  }
 
   let fullName = formatFullName(profile.first_name, profile.last_name);
   let initials = formatInitials(profile.first_name, profile.last_name);
@@ -54,15 +74,7 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
         </div>
 
         <div className="layout-topbar-right">
-          <Button
-            type="button"
-            size="sm"
-            disabled
-            className="bg-[var(--app-color-highlight)] text-[var(--app-color-synced)] disabled:opacity-100"
-          >
-            <i className="bi bi-wifi" aria-hidden="true"></i>
-            Synced
-          </Button>
+          <SyncStatusButton statusKey={syncStatus.key} label={syncStatus.label} />
 
           <DropdownMenu>
             <DropdownMenuTrigger

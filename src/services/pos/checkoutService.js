@@ -1,4 +1,5 @@
 import api from "../../utils/axios/axiosInstance";
+import { markPOSRefreshRequired } from "./posCacheService";
 
 // Send one complete online checkout to Laravel.
 export const processOnlineCheckout = async (payload, clientTransactionId) => {

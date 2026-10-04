@@ -43,7 +43,7 @@ const POSProductCardSkeleton = () => (
   </div>
 );
 
-const POSCategorySection = ({ group, onAddToCart, allAddons, cartItems, isLoading }) => {
+const POSCategorySection = ({ group, onAddToCart, allAddons, cartItems, isLoading, isOrderLocked }) => {
   if (isLoading) {
     return (
       <section className="pos-category-section">
@@ -84,6 +84,7 @@ const POSCategorySection = ({ group, onAddToCart, allAddons, cartItems, isLoadin
             onAdd={onAddToCart}
             allAddons={allAddons}
             cartItems={cartItems}
+            isOrderLocked={isOrderLocked}
           />
         ))}
       </div>
@@ -103,6 +104,7 @@ const POSCatalog = ({
   cartItems,
   isLoading,
   hasLoadedMenu,
+  isOrderLocked,
 }) => {
   return (
     <section className="pos-product-area" aria-label="Menu catalog">
@@ -145,6 +147,7 @@ const POSCatalog = ({
                 onAddToCart={onAddToCart}
                 allAddons={allAddons}
                 cartItems={cartItems}
+                isOrderLocked={isOrderLocked}
               />
             ))
           )}

@@ -4,7 +4,7 @@ import {
   CardHeader,
 } from "../../../components/ui/card";
 import { Skeleton } from "../../../components/ui/skeleton";
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import TopSellingItemCard from "@/components/product-card/TopSellingItemCard";
 
 const TopSellingPanel = ({ topSellingItems, isLoading }) => {

@@ -1,6 +1,6 @@
-import leftBean from "../../assets/images/loading/left.png";
-import middleBean from "../../assets/images/loading/middle.png";
-import rightBean from "../../assets/images/loading/right.png";
+import leftBean from "@/assets/images/loading/left.png";
+import middleBean from "@/assets/images/loading/middle.png";
+import rightBean from "@/assets/images/loading/right.png";
 import "./loading-state.css";
 
 const LoadingState = ({ message = "Loading..." }) => {

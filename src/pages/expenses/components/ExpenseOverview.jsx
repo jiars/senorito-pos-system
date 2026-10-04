@@ -3,7 +3,7 @@ import payEmployeeIcon from "@/assets/quick-action/expense/payEmployee.svg";
 import purchaseInventoryIcon from "@/assets/quick-action/expense/purchaseInventory.svg";
 import viewArchiveIcon from "@/assets/quick-action/expense/viewArchive.svg";
 
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import {
   ChartContainer,
   ChartTooltip,

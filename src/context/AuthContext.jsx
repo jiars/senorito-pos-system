@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import LoadingState from "@/components/feedback/LoadingState";
+import LoadingState from "@/components/feedback/data-state/LoadingState";
 import { AuthContext } from "./authContext";
 
 export const AuthProvider = ({ children }) => {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import TopSellingItemCard from "@/components/product-card/TopSellingItemCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";

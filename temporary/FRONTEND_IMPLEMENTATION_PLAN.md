@@ -1,6 +1,8 @@
 # Frontend Figma Migration Implementation Plan
 
-Updated: September 18, 2026
+Updated: October 4, 2026
+
+October 4 documentation reconciliation: current code and newer task entries supersede the earlier migration descriptions. Employee Management uses the shared table; POS and the shared modal variants are implemented. Implementation does not imply that every pending visual, failure-path, lint, or build check has passed. Another partner owns the active Topbar/offline-sync checkpoint; preserve that work.
 
 ## Goal
 
@@ -53,18 +55,17 @@ References received for:
 - Employee Management
 - Shared filter patterns for category, status, and sorting controls
 
-Still required before redesigning their main pages:
+Remaining design references or final review requirements:
 
-- Point of Sale
 - Profile
-- Forgot Password
-- Reset Password
 - Store Settings, if this will become a real module
 - Dedicated button component designs
 - Additional filter variants or complex filter interactions not covered by the supplied reference
-- Modal designs and interaction states
+- Designs for remaining legacy modals and their interaction states; shared Variants 1, 2, and 3 plus confirmation references are already supplied
 - Desktop website variants, if available
 - Mobile variants, if available
+
+POS, Forgot Password, Reset Password, and the shared modal references have already been supplied and implemented. Continue their remaining verification rather than restarting their initial migration.
 
 ## Migration Safety Rules
 
@@ -102,9 +103,11 @@ src/
     ui/
       # New shadcn files gradually replace the legacy custom controls
     feedback/
-      LoadingState.jsx
-      ErrorState.jsx
-      EmptyState.jsx
+      data-state/                     # LoadingState, ErrorState, EmptyState
+      inline/                         # InlineFeedback
+      status/                         # Nonblocking StatusFeedback
+      blocking/                       # BlockingFeedback
+    modals/                           # Shared modal and confirmation primitives
   pages/
     auth/
     dashboard/
@@ -299,6 +302,19 @@ Use descriptive filenames such as `inventory/stock-overview-tablet-1194x-scroll.
 
 Login and Loading currently require no additional shadcn/ui downloads. Login uses a custom floating input because its Google-style label behavior is design-specific.
 
+## Deferred: Module-by-Module Lifecycle Refactor — October 3, 2026
+
+User-approved future work after the shared sync indicator: review every page/module and refactor where needed using the POS lifecycle principles, without removing or changing existing functionality. This is a review-and-refactor plan, not permission to rewrite all modules at once or convert every operation to `useMutation`.
+
+1. Inventory the module's routes, roles, actions, forms, API contracts, calculations, cache behavior, feedback, print/export, and offline support before editing. Record its existing behavior and targeted regression checks.
+2. Use `useQuery` for server reads, `useMutation` for writes and imperative workflows, local state for UI inputs, and directly derived values for calculations and combined status. Keep effects for external synchronization/subscriptions; do not merely move state setters into mutations to silence lint.
+3. Extract meaningful lifecycle/orchestration into custom hooks; keep API/Dexie operations in services, reusable pure business calculations in utils, and visual sections in components. Preserve module-specific behavior rather than copying the POS implementation literally. Avoid extra dependencies and unnecessary abstractions.
+4. Audit concurrency, stale results, retry behavior, loading ownership, and error propagation. A failed required refresh/cache operation must not produce a success state. Preserve existing idempotency, queue ownership, and saved data.
+5. Work one module and one small approved batch at a time. Preserve user-owned/concurrent edits and all existing functionality, including permissions, payloads, validation, filtering, pagination, printing, exports, and applicable offline flows. Backend/service contract changes require separate explicit authorization.
+6. The user runs focused lint, production/PWA build, and the module's regression/visual checks. Compare behavior before/after; mark complete only after confirmation. Check references before proposing legacy-file deletion and obtain approval for the exact targets.
+
+The POS scoped lifecycle correction is the first verified reference: the user confirmed focused lint, online initial loading, one offline-order reconnect/upload/removal with checkout unlocking after refresh, and production build. Shared coordination and accurate refresh-failure handling are still separate pending work; do not treat the current page as a finished universal template.
+
 ## Sidebar Scope
 
 Keep:
@@ -358,7 +374,7 @@ Dashboard Recent Orders is the first consumer of the reusable table foundation. 
 3. Add shared frontend route metadata for labels, breadcrumbs, sidebar groups, and icons while keeping `ROLE_ROUTES` as the permission source.
 4. Add the approved sidebar group labels while keeping its color and route behavior.
 5. Preserve role filtering and responsive sidebar behavior.
-6. Use a visual-only Topbar `Synced` placeholder during the UI migration. Do not connect it to browser connectivity, offline orders, or automatic synchronization until Final Verification. October 2: shared sync state, status popover, and shadcn-compatible toast feedback are approved for later work; follow `BACKEND_IMPLEMENTATION_PLAN.md` under `Deferred: Shared Sync Indicator and Toast Feedback`. Receipt-printing investigation takes priority; no sync UI implementation is authorized by this planning update.
+6. Topbar now observes browser connectivity, cashier-scoped queue data, and upload/refresh mutation state to display one of eight sync labels. POS still owns uploads. Shared coordination, reload recovery, popover, and result toasts remain separate checkpoints owned by the active sync partner. Follow the latest October 4 notes in `FRONTEND_TASK_LIST.md`; do not introduce another upload listener or claim full verification.
 7. Keep POS inside the shared shell initially and allow only a specialized inner POS layout when its approved design requires it.
 8. Defer the Tailwind-first shared App Shell migration until after page UI work. Keep the approved plain-CSS App Shell intact for now; future migration must preserve legacy `.layout-page-heading` and print selectors.
 9. Pause for approval.
@@ -472,7 +488,7 @@ Planned September 20, 2026:
 4. Reuse shared `SummaryCards` for Total Expenses, Salary, Inventory Purchases, and Top Operating Expense. Cards are display-only and must preserve the existing expense calculations; add only derived presentation calculations backed by the current records.
 5. Create one focused `ExpenseOverview` component that owns the 55/45 Expense Distribution and Quick Actions child panels, matching the successful Inventory Insights composition while keeping both responsibilities readable inside the component.
 6. Replace the legacy donut/category-breakdown layout inside `ExpenseOverview` with an Expense Distribution child panel containing a standard header, caption, tooltip, and bar chart. Use the existing chart foundation/theme tokens and provide a structured panel skeleton.
-7. Add the Quick Actions child panel inside `ExpenseOverview` using the approved Inventory Quick Actions card layout with four rows: Pay Employee, Purchase Inventory, Manage Expense Categories, and View Archive. Reuse proven existing modal/actions only. Manage Categories and View Archive are connected; Pay Employee and Purchase Inventory stay disabled until their modal workflows are approved.
+7. Keep the four Quick Actions inside `ExpenseOverview` using the approved Inventory action-card layout. Pay Employee and Purchase Inventory now open Add Expense with the matching initial category; Manage Categories and View Archive are also connected. Preserve the conditional fields and existing save restrictions.
 8. Build the records toolbar with shared `ToolbarSearchInput` and a simple `FilterPopover` without sidebar sections. Its content contains Expense Period (`All Time`, `This Day`, `This Week`, `This Month`), shared From/To date-range picker, and a collapsible multi-select Category group. Preserve the existing date-filter meaning and reset pagination on applied changes.
 9. Migrate Expense Records to the shared `DataTable` and `DataTablePagination`; keep date, category, description, vendor/supplier, amount, recorded-by, edit, and archive behavior. Put row actions in the approved overflow menu and retain the Inventory Purchase edit/archive restrictions.
 10. Keep `expenseTracking.css` layout-only: named regions, four-card grid, `ExpenseOverview` 55/45 child columns, height clamps, scroll containment, responsive stacking, and print selectors if required. Use Tailwind and semantic tokens for component presentation.
@@ -495,34 +511,37 @@ Completed September 20, 2026:
 ### Phase 10: Employee Management
 
 1. Preserve existing employee and role behavior while backend auth decisions remain paused.
-2. Split search/filter controls, employee grid, employee card, and modals clearly.
-3. Match the supplied card-based layout.
+2. Keep the shared Employee table, search/filter toolbar, row-action menu, and modals as focused responsibilities.
+3. Preserve the approved table layout: full name, status, role, username, contact number, email, and actions. The earlier card layout is superseded.
 4. Pause for approval.
 
 Completed September 25, 2026:
 
-5. Migrated Employee Management to the shared `PageLayout` with `EmployeeDirectory`, `EmployeeToolbar`, and reusable `EmployeeCard` boundaries while preserving the existing employee service and Add/Edit modal flows.
-6. Added shared search plus multi-select Role/Status filters, structured card skeletons, the reusable placeholder empty state, shadcn role/status badges, masked personal details, and an accessible compact edit control.
-7. Kept `employeeManagement.css` layout-only and implemented the approved three/two/one-column responsive grid with module-scoped phone and short-height density adjustments.
-8. Completed the Employee zero-reference cleanup, removed the obsolete card stylesheet, passed focused Employee lint and the production/PWA build, and received visual approval.
+5. Current Employee Management uses `PageLayout`, `EmployeeTable`, and `EmployeeActionsMenu`, with shared DataTable/pagination/filter primitives and Laravel account services.
+6. Preserve status priority: Deactivated, Pending Setup, Reset Requested, Reset Link Sent, Active. Keep employee IDs, setup state, existing search/filters, and cooldowns.
+7. Add/Edit Employee use Variant 2. Status changes and setup-link resend use the shared ConfirmationModal; one PasswordResetRequestModal reviews pending or approved requests. Employee name/email are the displayed details; cancellation uses neutral styling.
+8. Earlier page approval and checks remain recorded in the task list. Later modal, feedback, and account-flow changes require their own verification; this documentation update does not verify them.
+
+### Phase 10A: POS UI and Shared Feedback
+
+The POS UI is already implemented inside the shared shell, with focused catalog, product-card, cart, and `components/modals/` responsibilities. Preserve searchable categories, the dedicated Not Available view, unavailable-variant labels, responsive square imagery, quantity/stock guards, clickable prerequisite validation, and the existing receipt/checkout flows.
+
+Use the shared toast directly: four seconds, top-right, stacking. Transient inline feedback uses the shared three-second policy and fade; unresolved validation remains visible. Critical processing, syncing, and required refresh use one shared BlockingFeedback dialog. The active sync partner owns its lifecycle/recovery integration. User tests/build and remaining feedback reviews are tracked separately; do not mark the whole POS complete from source inspection.
 
 ### Phase 11: Remaining Screens
 
 Wait for approved Figma references before migrating:
 
-- POS
 - Profile
-- Forgot Password
-- Reset Password
 - Store Settings
 - Shared button variants and any filter variants not covered by the supplied reference
-- Module modals
+- Remaining legacy module modals; shared modal variants and many Add/Edit forms are already migrated
 
 ### Phase 12: Cleanup and Verification
 
 1. Remove unused legacy CSS and components only after confirming zero references.
 2. Standardize folder and file naming gradually.
-3. Replace the visual-only Topbar sync placeholder with a real indicator for browser connectivity and pending offline orders. Verify role routes, responsive layouts, offline indicators, print views, exports, and modals.
+3. Complete the active shared-sync checkpoints with the owning partner, preserving the existing live badge and POS blocking behavior. Verify role routes, responsive layouts, offline indicators, print views, exports, and modals.
 4. Run lint and production build.
 5. Perform final visual comparison against approved Figma frames.
 
@@ -544,4 +563,24 @@ A module is complete only when:
 
 ## Recommended Starting Point
 
-Start with Phase 1, the UI foundation. After that, implement Login and the loading screen as the first visual pilot. Do not start the Dashboard or other modules until the shared foundation is approved.
+The foundation, Login, loading screen, main management-page layouts, POS UI, and many Add/Edit modals already exist. The user's October 4 priority is Inventory feedback, beginning with Restock, Wastage, and Correction. This update schedules work only; application implementation has not started. Inventory archive/restore presentation follows later. Broader lifecycle refactoring remains deferred while the other partner finishes Topbar/offline sync.
+
+### Inventory feedback rollout — planned October 4, 2026
+
+Use the existing toast and shared feedback primitives; no new library or notification wrapper. Keep approved layouts, stock calculations, routes, payloads, and existing refresh consumers intact. See FRONTEND_UX_FEEDBACK_PLAN.md for display and recovery rules.
+
+Batch 1 contains three tasks:
+
+1. Restock: retain field validation and submitting protection; replace browser alerts with persistent in-modal save errors, add a confirmed-success toast, and distinguish mutation failure from saved-but-inventory-refresh-failed recovery.
+2. Wastage: apply the same feedback contract while retaining selected-batch and quantity-lost validation.
+3. Correction: apply the same feedback contract while retaining actual-count and difference calculations.
+
+If shared Inventory copy is needed, propose a copy-only src/utils/inventory/inventoryFeedback.js within the first task, reusing the existing global feedback policies. JavaScript utilities/hooks remain user-owned unless separately delegated. Do not introduce a module toast dispatcher or duplicate timer hook.
+
+Later batches, each separately approved:
+
+- Batch 2: Add Item, Edit Item, and Manage Categories feedback.
+- Batch 3: Archive confirmation, Restore confirmation, and affected-record loading/failure feedback, preserving Menu/Add-on impact details.
+- Batch 4: tab loading/error/empty states, stock-history/QR preparation feedback, and export outcomes. Do not claim that opening a print dialog means physical printing succeeded.
+
+User verification is separate from implementation tasks: invalid inputs, successful saves, API failure with values retained, confirmed save followed by failed refresh, refresh-only retry without another stock write, repeated clicks, reopening/reset, keyboard/mobile behavior, lint, and build. Stop for review after each batch. POS readiness, background refresh coordination, and offline synchronization remain the other partner's scope.

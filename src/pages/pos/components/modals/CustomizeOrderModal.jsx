@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { formatCurrency } from "@/utils/currencyFormatters";
-import { getInventoryStockStatus } from "@/utils/pos/checkoutCalculations";
+import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import {
   getPOSProductVariants,
   getPOSAddonOptions,
   getPOSSelectedAddons,
-  buildPOSStockPreview,
+  getPOSSelectionStockStatus,
+  isPOSAddonSelectable,
 } from "@/utils/pos/posSelectionUtils";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
@@ -26,6 +28,7 @@ const CustomizeOrderModal = ({
   onSaveAddons,
 }) => {
   const [selection, setSelection] = useState(initialAddons);
+  const feedbackId = useId();
   const variants = getPOSProductVariants(product);
   let variant = variants[initialVariantIndex];
   if (!variant) {
@@ -33,15 +36,30 @@ const CustomizeOrderModal = ({
   }
 
   const addonOptions = getPOSAddonOptions(product, allAddons, cartItems, selection);
+  const stockStatus = getStockStatusForSelection(addonOptions);
+  const hasUnavailableAddons = addonOptions.some(
+    (addon) => addon.selected && !isPOSAddonSelectable(addon),
+  ) || selection.some((addon) => !addonOptions.some((option) => option.id === addon.id));
+  const persistentCode = !variant?.isAvailable ? "VARIANT_UNAVAILABLE"
+    : hasUnavailableAddons ? "ADDON_UNAVAILABLE"
+      : !stockStatus.hasEnoughStock ? "ADDON_STOCK_INSUFFICIENT" : null;
+  const { feedback, showFeedback } =
+    usePOSFeedback(persistentCode);
 
-  const getStockStatusForSelection = (options) => {
+  function getStockStatusForSelection(options) {
     const selectedAddons = getPOSSelectedAddons(options);
-    const preview = buildPOSStockPreview(product, variant.id, initialQty, selectedAddons);
-    return getInventoryStockStatus([...cartItems, preview]);
+    return getPOSSelectionStockStatus(product, variant?.id, initialQty, selectedAddons, cartItems);
+  }
+
+  const updateSelection = (options) => {
+    setSelection(getPOSSelectedAddons(options));
+    showFeedback(getStockStatusForSelection(options).hasEnoughStock
+      ? null : "ADDON_STOCK_INSUFFICIENT");
   };
 
   const handleToggleAddOn = (id) => {
     const addon = addonOptions.find((item) => item.id === id);
+    if (!addon || (!addon.selected && !isPOSAddonSelectable(addon))) return;
     const updated = addonOptions.map((item) => {
       if (item.id === id) {
         return { ...item, selected: !item.selected };
@@ -49,8 +67,7 @@ const CustomizeOrderModal = ({
       return item;
     });
 
-    if (!addon.selected && !getStockStatusForSelection(updated).hasEnoughStock) return;
-    setSelection(getPOSSelectedAddons(updated));
+    updateSelection(updated);
   };
 
   const handleUpdateAddOnQty = (id, delta) => {
@@ -61,25 +78,26 @@ const CustomizeOrderModal = ({
       return addon;
     });
 
-    if (delta > 0 && !getStockStatusForSelection(updated).hasEnoughStock) return;
-    setSelection(getPOSSelectedAddons(updated));
+    if (delta > 0 && !getStockStatusForSelection(updated).hasEnoughStock) {
+      showFeedback("STOCK_LIMIT_REACHED");
+      return;
+    }
+    updateSelection(updated);
   };
-
-  const getAddOnActionStatus = (addon) => {
-    const updated = addonOptions.map((item) => {
-      if (item.id !== addon.id) return item;
-      if (item.selected) {
-        return { ...item, qty: item.qty + 1 };
-      }
-      return { ...item, selected: true };
-    });
-    return getStockStatusForSelection(updated);
-  };
-
-  const isCombinationValid = getStockStatusForSelection(addonOptions).hasEnoughStock;
 
   const handleConfirm = () => {
-    if (!isCombinationValid) return;
+    if (!variant?.isAvailable) {
+      showFeedback("VARIANT_UNAVAILABLE");
+      return;
+    }
+    if (hasUnavailableAddons) {
+      showFeedback("ADDON_UNAVAILABLE");
+      return;
+    }
+    if (!stockStatus.hasEnoughStock) {
+      showFeedback("ADDON_STOCK_INSUFFICIENT");
+      return;
+    }
     onSaveAddons(getPOSSelectedAddons(addonOptions));
     onClose();
   };
@@ -112,20 +130,20 @@ const CustomizeOrderModal = ({
                 </div>
               ) : (
                 addonOptions.map(ao => {
-                  const actionStockStatus = getAddOnActionStatus(ao);
-                  const isAddOnActionBlocked = !actionStockStatus.hasEnoughStock;
+                  const isSelectable = isPOSAddonSelectable(ao);
 
                   return (
                     <div
                       key={ao.id}
-                      className={`grid grid-cols-[auto_minmax(0,1fr)_auto_90px_65px] items-center gap-x-[var(--app-space-4)] px-[var(--app-space-4)] py-[var(--app-space-1)] max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:gap-[var(--app-space-2)] max-sm:px-0 ${(!ao.isAvailable) ? 'opacity-50' : ''}`}
+                      className={`grid grid-cols-[auto_minmax(0,1fr)_auto_90px_65px] items-center gap-x-[var(--app-space-4)] px-[var(--app-space-4)] py-[var(--app-space-1)] max-sm:grid-cols-[auto_minmax(0,1fr)_auto] max-sm:gap-[var(--app-space-2)] max-sm:px-0 ${!isSelectable ? 'opacity-50' : ''}`}
                     >
-                      <label className={`contents ${(!ao.selected && isAddOnActionBlocked) ? 'pointer-events-none opacity-50' : ''}`}>
+                      <label className="contents">
                         <div className="flex items-center justify-center cursor-pointer max-sm:col-start-1 max-sm:row-start-1">
                           <Checkbox
                             aria-label={`Add ${ao.name}`}
                             checked={ao.selected}
-                            disabled={!ao.isAvailable || (!ao.selected && isAddOnActionBlocked)}
+                            disabled={!ao.selected && !isSelectable}
+                            aria-describedby={feedback ? feedbackId : undefined}
                             onCheckedChange={() => handleToggleAddOn(ao.id)}
                             className="size-[18px] border-[var(--app-color-border)] bg-[var(--app-color-filter-checkbox-surface)] data-[state=checked]:border-[var(--app-color-brand)] data-[state=checked]:bg-[var(--app-color-brand)] data-[state=checked]:text-white"
                           />
@@ -135,7 +153,7 @@ const CustomizeOrderModal = ({
                         </span>
                         <div className="flex items-center cursor-pointer max-sm:col-start-2 max-sm:col-span-2 max-sm:row-start-2">
                           {ao.status !== 'Available' && (
-                            <span className={`text-[10px] px-[6px] py-[2px] rounded-full uppercase font-bold tracking-wider ${ao.isAvailable ? 'bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]' : 'bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]'}`}>
+                            <span className={`text-[10px] px-[6px] py-[2px] rounded-full uppercase font-bold tracking-wider ${isSelectable ? 'bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]' : 'bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]'}`}>
                               {ao.status}
                             </span>
                           )}
@@ -150,6 +168,7 @@ const CustomizeOrderModal = ({
                               aria-label={`Decrease quantity of ${ao.name}`}
                               className="relative after:absolute after:-inset-2 size-[26px] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
                               onClick={() => handleUpdateAddOnQty(ao.id, -1)}
+                              disabled={ao.qty <= 1}
                             >
                               <i className="bi bi-dash text-[0.8rem]"></i>
                             </button>
@@ -161,7 +180,8 @@ const CustomizeOrderModal = ({
                               className="relative after:absolute after:-inset-2 size-[26px] flex items-center justify-center rounded-full border border-[var(--app-color-border)] bg-[var(--app-color-surface)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)] hover:bg-[var(--app-color-surface-soft)] active:scale-95 transition-all disabled:opacity-50"
                               aria-label={`Increase quantity of ${ao.name}`}
                               onClick={() => handleUpdateAddOnQty(ao.id, 1)}
-                              disabled={isAddOnActionBlocked}
+                              disabled={!isSelectable}
+                              aria-describedby={feedback ? feedbackId : undefined}
                             >
                               <i className="bi bi-plus text-[0.8rem]"></i>
                             </button>
@@ -181,16 +201,21 @@ const CustomizeOrderModal = ({
         </ModalContent>
       </ModalBody>
 
-      <ModalFooter>
+      <ModalFooter className="flex-wrap">
+        <InlineFeedback
+          id={feedbackId}
+          feedback={feedback}
+          className="w-full basis-full max-sm:basis-auto max-sm:order-last"
+        />
         <Button variant="outline" onClick={onClose} className="h-[var(--app-touch-target-min)] px-[var(--app-space-4)] rounded-[var(--app-radius-nested)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-semibold text-[var(--app-color-text)] bg-[var(--app-color-canvas)] border-none hover:bg-[var(--app-color-control-hover)]">
           Cancel
         </Button>
         <Button
           onClick={handleConfirm}
-          disabled={!isCombinationValid}
+          aria-describedby={feedback ? feedbackId : undefined}
           className="h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-4)] rounded-[var(--app-radius-nested)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-semibold bg-[var(--app-color-brand)] text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isCombinationValid ? 'Confirm' : 'Insufficient Stock'}
+          Confirm
         </Button>
       </ModalFooter>
     </Modal>

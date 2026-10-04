@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
@@ -17,6 +18,7 @@ import {
 import DatePicker from "@/components/ui/date-picker";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import {
   InputGroup,
   InputGroupAddon,
@@ -29,10 +31,15 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
 import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
+import {
+  getInventoryInlineFeedback,
+  getInventoryToastFeedback,
+} from "@/utils/inventory/inventoryFeedback";
 import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
 
 const restockReasons = [
@@ -68,6 +75,13 @@ const RestockModalContent = ({
   const [quantity, setQuantity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const operationInFlight = useRef(false);
+  const fieldsRef = useRef(null);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(
+    getInventoryInlineFeedback,
+  );
+  const fieldsDisabled = isSubmitting || hasSaved;
 
   const currentStock = Number(selectedItem?.current_stock || 0);
   const numericQuantity = Number(quantity) || 0;
@@ -95,44 +109,96 @@ const RestockModalContent = ({
     return nextErrors;
   }, [currentStock, expirationDate, quantity, reason, selectedItem, totalCost]);
 
+  // A saved stock change must only retry the read, never the stock mutation.
+  const refreshSavedInventory = async () => {
+    try {
+      if (refetchInventory) {
+        const result = await refetchInventory();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
+
+    clearFeedback();
+    toast.add(getInventoryToastFeedback("RESTOCK_SAVED"));
+    onClose();
+
+    // Preserve existing background consumers; this toast only confirms Inventory.
+    Promise.allSettled([
+      refreshAuditLogs(),
+      refreshValuation(),
+      refreshMenuManagement(),
+      refreshPosManagement(),
+    ]);
+  };
+
   const handleSave = async () => {
+    if (operationInFlight.current || hasSaved) return;
     setHasAttemptedSubmit(true);
+    clearFeedback();
 
-    if (Object.keys(errors).length > 0 || isSubmitting || !selectedItem) return;
+    if (Object.keys(errors).length > 0 || !selectedItem) {
+      requestAnimationFrame(() => {
+        if (fieldsRef.current) {
+          const firstInvalidField = fieldsRef.current.querySelector(
+            '[aria-invalid="true"]',
+          );
+          if (firstInvalidField) firstInvalidField.focus();
+        }
+      });
+      return;
+    }
 
+    operationInFlight.current = true;
     setIsSubmitting(true);
 
     try {
-      await restockInventoryItem(selectedItem.id, {
-        stockData: {
-          quantity: Number(quantity),
-          reason: reason.trim(),
-          notes: supplier.trim() || null,
-        },
-        purchaseData: {
-          total_cost: Number(totalCost) || 0,
-          supplier: supplier.trim() || null,
-          expiration_date: expirationDate || null,
-        },
-      });
-
-      if (refetchInventory) {
-        await refetchInventory();
+      try {
+        await restockInventoryItem(selectedItem.id, {
+          stockData: {
+            quantity: Number(quantity),
+            reason: reason.trim(),
+            notes: supplier.trim() || null,
+          },
+          purchaseData: {
+            total_cost: Number(totalCost) || 0,
+            supplier: supplier.trim() || null,
+            expiration_date: expirationDate || null,
+          },
+        });
+      } catch {
+        showFeedback("SAVE_FAILED");
+        return;
       }
 
-      onClose();
-
-      Promise.allSettled([
-        refreshAuditLogs(),
-        refreshValuation(),
-        refreshMenuManagement(),
-        refreshPosManagement(),
-      ]);
-    } catch (error) {
-      alert(error.message);
+      setHasSaved(true);
+      await refreshSavedInventory();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+
+    try {
+      await refreshSavedInventory();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved) onClose();
   };
 
   const handleReasonChange = (nextReason) => {
@@ -148,7 +214,7 @@ const RestockModalContent = ({
   return (
     <Modal
       isOpen={true}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="32rem"
       maxHeight="min(90svh, 46rem)"
     >
@@ -156,12 +222,18 @@ const RestockModalContent = ({
         title="Restock Item"
         description="Add stock from delivery or purchase."
         iconClassName="bi bi-box-seam-fill"
-        closeDisabled={isSubmitting}
+        closeDisabled={fieldsDisabled}
       />
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
         <ModalContent>
-          <div className="flex flex-col gap-[var(--app-gap-related)]">
+          <InlineFeedback feedback={feedback} id="restock-action-feedback" />
+          <fieldset
+            ref={fieldsRef}
+            disabled={fieldsDisabled}
+            aria-busy={isSubmitting}
+            className="flex min-w-0 flex-col gap-[var(--app-gap-related)] border-0 p-0"
+          >
             <Field data-invalid={hasAttemptedSubmit && Boolean(errors.item)}>
               <FieldLabel className={labelClassName}>
                 Item Name
@@ -181,11 +253,11 @@ const RestockModalContent = ({
                 isItemEqualToValue={(inventoryItem, value) =>
                   inventoryItem?.id === value?.id
                 }
-                disabled={Boolean(item)}
+                disabled={Boolean(item) || fieldsDisabled}
               >
                 <ComboboxInput
                   placeholder="Select an inventory item"
-                  disabled={Boolean(item)}
+                  disabled={Boolean(item) || fieldsDisabled}
                   aria-invalid={hasAttemptedSubmit && Boolean(errors.item)}
                   className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
                 />
@@ -311,6 +383,7 @@ const RestockModalContent = ({
                   <Select
                     value={reason || null}
                     onValueChange={handleReasonChange}
+                    disabled={fieldsDisabled}
                   >
                     <SelectTrigger
                       id="restock-reason"
@@ -367,6 +440,7 @@ const RestockModalContent = ({
                   value={expirationDate}
                   onValueChange={setExpirationDate}
                   placeholder="MM/DD/YYYY"
+                  disabled={fieldsDisabled}
                   invalid={
                     hasAttemptedSubmit && Boolean(errors.expirationDate)
                   }
@@ -440,7 +514,7 @@ const RestockModalContent = ({
                 />
               </Field>
             </div>
-          </div>
+          </fieldset>
 
           <div className="flex items-start gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] p-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
             <i
@@ -456,8 +530,8 @@ const RestockModalContent = ({
         <Button
           type="button"
           variant="outline"
-          disabled={isSubmitting}
-          onClick={onClose}
+          disabled={fieldsDisabled}
+          onClick={handleClose}
           className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
         >
           Cancel
@@ -465,10 +539,12 @@ const RestockModalContent = ({
         <Button
           type="button"
           disabled={isSubmitting}
-          onClick={handleSave}
+          onClick={hasSaved ? handleRetryRefresh : handleSave}
+          aria-describedby={feedback ? "restock-action-feedback" : undefined}
           className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isSubmitting ? "Updating..." : "Update Stock"}
+          {isSubmitting && (hasSaved ? "Refreshing..." : "Saving...")}
+          {!isSubmitting && (hasSaved ? "Retry refresh" : "Update Stock")}
         </Button>
       </ModalFooter>
     </Modal>

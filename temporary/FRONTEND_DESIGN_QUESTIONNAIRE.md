@@ -1,5 +1,7 @@
 # Frontend Design Questionnaire
 
+Historical planning questionnaire. October 4, 2026: its option labels are suggestions, not the current approved choices. Follow frontend-design-decisions, the typography/design-system rules, and the latest task list instead. Current choices include local Inter, Bootstrap Icons, the Employee shared table, existing modal variants, and the eight-state sync display. Do not restart this questionnaire or replace implemented UI from an older recommended option.
+
 Reply using the question number and choice, for example: `1B, 2A, 3C`. You may also write your own answer. Choices marked **Recommended** are a safe industry-standard starting point.
 
 ## A. Product Feel and Brand

@@ -11,7 +11,7 @@ import {
   CardHeader,
 } from "../../../components/ui/card";
 import { Skeleton } from "../../../components/ui/skeleton";
-import EmptyState from "@/components/feedback/EmptyState";
+import EmptyState from "@/components/feedback/data-state/EmptyState";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const WeeklySalesChart = ({ weeklySalesData, isLoading }) => {
