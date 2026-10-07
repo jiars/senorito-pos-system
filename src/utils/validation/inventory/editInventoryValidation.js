@@ -1,3 +1,5 @@
+import { getMinimumLevelRules, isValidMinimumLevel } from "@/utils/inventory/minimumLevel";
+
 export const validateEditInventoryItem = ({
   name,
   originalName,
@@ -29,12 +31,8 @@ export const validateEditInventoryItem = ({
     errors.cost = 'Cost must be greater than 0.';
   }
 
-  if (
-    reorderLevel === '' ||
-    !Number.isFinite(Number(reorderLevel)) ||
-    Number(reorderLevel) < 1
-  ) {
-    errors.reorderLevel = 'Minimum level must be at least 1.';
+  if (!isValidMinimumLevel(reorderLevel, unit)) {
+    errors.reorderLevel = getMinimumLevelRules(unit).errorMessage;
   }
 
   const conversionsValid = conversions.every((conversion, index) => {

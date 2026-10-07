@@ -12,8 +12,6 @@ export const correctInventoryStock = async (itemId, payload) => {
   } catch (error) {
     console.error("Error correcting inventory stock:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to correct inventory stock",
-    );
+    throw error;
   }
 };

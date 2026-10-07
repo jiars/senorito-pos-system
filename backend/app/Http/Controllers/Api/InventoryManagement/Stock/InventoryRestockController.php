@@ -20,12 +20,13 @@ class InventoryRestockController extends Controller
             'purchaseData.expiration_date' => 'nullable|date',
         ]);
 
-        $item = app(InventoryRestockOrchestrator::class)
+        $result = app(InventoryRestockOrchestrator::class)
             ->store($request, $id);
 
         return response()->json([
             'message' => 'Inventory item restocked successfully.',
-            'item' => $item,
+            'item' => $result['item'],
+            'batch' => $result['batch']->only(['id', 'batch_number']),
         ]);
     }
 }

@@ -16,6 +16,7 @@ const DataTablePagination = ({
   onPageChange,
   onPageSizeChange,
   isLoading = false,
+  pageSizeSelectContentProps = {},
 }) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const canGoToPreviousPage = currentPage > 1;
@@ -56,7 +57,7 @@ const DataTablePagination = ({
             <SelectValue />
           </SelectTrigger>
 
-          <SelectContent side="top">
+          <SelectContent side="top" {...pageSizeSelectContentProps}>
             {pageSizeOptions.map((option) => (
               <SelectItem key={option} value={String(option)}>
                 {option}

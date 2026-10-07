@@ -12,6 +12,7 @@ function Calendar({
   classNames,
   showOutsideDays = true,
   captionLayout = "label",
+  navLayout,
   buttonVariant = "ghost",
   locale,
   formatters,
@@ -30,6 +31,7 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
+      navLayout={navLayout}
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
@@ -42,7 +44,12 @@ function Calendar({
           "relative flex flex-col gap-4 md:flex-row",
           defaultClassNames.months
         ),
-        month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
+        month: cn(
+          navLayout === "around"
+            ? "grid w-full grid-cols-[var(--cell-size)_minmax(0,1fr)_var(--cell-size)] items-center gap-y-4"
+            : "flex w-full flex-col gap-4",
+          defaultClassNames.month
+        ),
         nav: cn(
           "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
           defaultClassNames.nav
@@ -50,15 +57,20 @@ function Calendar({
         button_previous: cn(
           buttonVariants({ variant: buttonVariant }),
           "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          navLayout === "around" && "col-start-1 row-start-1",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: buttonVariant }),
           "size-(--cell-size) p-0 select-none aria-disabled:opacity-50",
+          navLayout === "around" && "col-start-3 row-start-1",
           defaultClassNames.button_next
         ),
         month_caption: cn(
-          "flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)",
+          "flex h-(--cell-size) w-full items-center justify-center",
+          navLayout === "around"
+            ? "col-start-2 row-start-1 min-w-0 px-0"
+            : "px-(--cell-size)",
           defaultClassNames.month_caption
         ),
         dropdowns: cn(
@@ -80,7 +92,11 @@ function Calendar({
             : "flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label
         ),
-        month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
+        month_grid: cn(
+          "w-full border-collapse",
+          navLayout === "around" && "col-span-3 row-start-2",
+          defaultClassNames.month_grid
+        ),
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "flex-1 rounded-(--cell-radius) text-[0.8rem] font-normal text-muted-foreground select-none",

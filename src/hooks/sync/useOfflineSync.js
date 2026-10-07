@@ -7,18 +7,57 @@ import {
 import { readOfflineQueue } from "../../services/pos/offlineQueueService";
 import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
 
-export function useOfflineSync({ onSuccess, onError, onSettled }) {
+import { toast } from "../../components/ui/toast";
+import { getPOSSyncToastFeedback } from "../../utils/pos/posFeedback";
+
+export function useOfflineSync({
+  refreshAfterSync,
+  onSuccess,
+  onError,
+  onSettled,
+}) {
+  function showFeedback(result, options = {}) {
+    const feedback = getPOSSyncToastFeedback(result, options);
+    if (feedback) toast.add(feedback);
+  }
+
   return useMutation({
     mutationKey: ["offline-order-sync"],
-    mutationFn: syncPendingOfflineOrders,
     networkMode: "always",
     retry: false,
+
+    mutationFn: async (cashierId) => {
+      // Preserve the current page behavior until we connect the new flow.
+      if (!refreshAfterSync) return syncPendingOfflineOrders(cashierId);
+
+      let result;
+
+      try {
+        result = await syncPendingOfflineOrders(cashierId);
+      } catch (error) {
+        showFeedback(null, { syncFailed: true });
+        throw error;
+      }
+
+      if (result.synced > 0) {
+        try {
+          // Do not announce completion before menu and stock are ready.
+          await refreshAfterSync();
+        } catch (error) {
+          showFeedback(result, { refreshFailed: true });
+          throw error;
+        }
+      }
+
+      showFeedback(result);
+      return result;
+    },
+
     onSuccess,
     onError,
     onSettled,
   });
 }
-
 // Read sync progress without starting another upload.
 export function useOfflineSyncState(cashierId) {
   const showSyncedConfirmation = useSyncConfirmation(cashierId);

@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from "react";
+import { addYears, format, parseISO } from "date-fns";
 
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
@@ -36,10 +39,12 @@ import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
 import {
-  getInventoryInlineFeedback,
-  getInventoryToastFeedback,
-} from "@/utils/inventory/inventoryFeedback";
+  getRestockInlineFeedback,
+  getRestockStatusFeedback,
+  getRestockToastFeedback,
+} from "@/utils/inventory/feedback/restockFeedback";
 import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
 
 const restockReasons = [
@@ -58,6 +63,7 @@ const readonlyClassName =
 
 const RestockModalContent = ({
   onClose,
+  onRestockAgain,
   refetchInventory,
   inventoryItems,
   item,
@@ -72,16 +78,26 @@ const RestockModalContent = ({
   const [reason, setReason] = useState("");
   const [isCustomReason, setIsCustomReason] = useState(false);
   const [expirationDate, setExpirationDate] = useState("");
+  const [isExpirationInputValid, setIsExpirationInputValid] = useState(true);
   const [quantity, setQuantity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const operationInFlight = useRef(false);
+  const savedRestockResponse = useRef(null);
   const fieldsRef = useRef(null);
   const { feedback, showFeedback, clearFeedback } = useFeedback(
-    getInventoryInlineFeedback,
+    getRestockInlineFeedback,
   );
-  const fieldsDisabled = isSubmitting || hasSaved;
+  const fieldsDisabled = isSubmitting || hasSaved || isConfirmationOpen;
+  const today = format(new Date(), "yyyy-MM-dd");
+  const expirationLimits = useMemo(() => {
+    const minDate = parseISO(today);
+    return { minDate, maxDate: addYears(minDate, 10) };
+  }, [today]);
+  const maxExpirationDate = format(expirationLimits.maxDate, "yyyy-MM-dd");
 
   const currentStock = Number(selectedItem?.current_stock || 0);
   const numericQuantity = Number(quantity) || 0;
@@ -96,6 +112,8 @@ const RestockModalContent = ({
       currentStock,
       totalCost,
       expirationDate,
+      minExpirationDate: today,
+      maxExpirationDate,
       isExpiryTracked: Boolean(selectedItem?.track_expiry),
       selectedBatchId: "",
       selectedBatchStock: 0,
@@ -105,9 +123,12 @@ const RestockModalContent = ({
     if (!selectedItem) {
       nextErrors.item = "Please select an inventory item.";
     }
+    if (!isExpirationInputValid) {
+      nextErrors.expirationDate = "Enter a complete, valid expiration date within the allowed range.";
+    }
 
     return nextErrors;
-  }, [currentStock, expirationDate, quantity, reason, selectedItem, totalCost]);
+  }, [currentStock, expirationDate, quantity, reason, selectedItem, totalCost, today, maxExpirationDate, isExpirationInputValid]);
 
   // A saved stock change must only retry the read, never the stock mutation.
   const refreshSavedInventory = async () => {
@@ -125,7 +146,23 @@ const RestockModalContent = ({
     }
 
     clearFeedback();
-    toast.add(getInventoryToastFeedback("RESTOCK_SAVED"));
+    const response = savedRestockResponse.current;
+    const savedItem = response && response.item;
+    const toastDetails = {
+      quantity: Number(quantity),
+      itemName: selectedItem.item_name,
+      totalCost: Number(totalCost),
+      totalStock: savedItem ? savedItem.current_stock : undefined,
+      unit: savedItem ? savedItem.base_unit : unit,
+    };
+    let toastId;
+    if (onRestockAgain) {
+      toastDetails.onRestockAgain = () => {
+        toast.close(toastId);
+        onRestockAgain();
+      };
+    }
+    toastId = toast.add(getRestockToastFeedback("RESTOCK_SAVED", toastDetails));
     onClose();
 
     // Preserve existing background consumers; this toast only confirms Inventory.
@@ -137,8 +174,7 @@ const RestockModalContent = ({
     ]);
   };
 
-  const handleSave = async () => {
-    if (operationInFlight.current || hasSaved) return;
+  const validateForm = () => {
     setHasAttemptedSubmit(true);
     clearFeedback();
 
@@ -151,15 +187,28 @@ const RestockModalContent = ({
           if (firstInvalidField) firstInvalidField.focus();
         }
       });
-      return;
+      return false;
     }
+
+    return true;
+  };
+
+  const handleReview = () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave) return;
+    if (validateForm()) setIsConfirmationOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave) return;
+    setIsConfirmationOpen(false);
+    if (!validateForm()) return;
 
     operationInFlight.current = true;
     setIsSubmitting(true);
 
     try {
       try {
-        await restockInventoryItem(selectedItem.id, {
+        savedRestockResponse.current = await restockInventoryItem(selectedItem.id, {
           stockData: {
             quantity: Number(quantity),
             reason: reason.trim(),
@@ -171,8 +220,11 @@ const RestockModalContent = ({
             expiration_date: expirationDate || null,
           },
         });
-      } catch {
-        showFeedback("SAVE_FAILED");
+      } catch (error) {
+        const errorCode = getInventorySaveErrorCode(error);
+        showFeedback(errorCode);
+        // Do not repeat a stock write whose outcome is still unknown.
+        if (errorCode === "SAVE_UNCONFIRMED") setHasUnconfirmedSave(true);
         return;
       }
 
@@ -198,7 +250,7 @@ const RestockModalContent = ({
   };
 
   const handleClose = () => {
-    if (!operationInFlight.current && !hasSaved) onClose();
+    if (!operationInFlight.current && !hasSaved && !isConfirmationOpen) onClose();
   };
 
   const handleReasonChange = (nextReason) => {
@@ -211,9 +263,24 @@ const RestockModalContent = ({
     setReason(nextReason);
   };
 
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "STOCK_SAVING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getRestockStatusFeedback(blockingCode);
+  let blockingAction;
+
+  if (isRefreshError) {
+    blockingAction = {
+      label: blockingFeedback.buttonLabel,
+      onClick: handleRetryRefresh,
+    };
+  }
+
   return (
+    <>
     <Modal
-      isOpen={true}
+      isOpen={!isSubmitting && !hasSaved}
       onClose={handleClose}
       maxWidth="32rem"
       maxHeight="min(90svh, 46rem)"
@@ -437,9 +504,15 @@ const RestockModalContent = ({
                 </FieldLabel>
                 <DatePicker
                   id="restock-expiration-date"
+                  editable
+                  showValidationMessage={false}
+                  aria-describedby={hasAttemptedSubmit && errors.expirationDate ? "restock-expiration-error" : undefined}
+                  onValidityChange={setIsExpirationInputValid}
                   value={expirationDate}
                   onValueChange={setExpirationDate}
                   placeholder="MM/DD/YYYY"
+                  minDate={expirationLimits.minDate}
+                  maxDate={expirationLimits.maxDate}
                   disabled={fieldsDisabled}
                   invalid={
                     hasAttemptedSubmit && Boolean(errors.expirationDate)
@@ -447,7 +520,7 @@ const RestockModalContent = ({
                   triggerClassName={controlClassName}
                 />
                 {hasAttemptedSubmit && errors.expirationDate && (
-                  <FieldError className="text-[length:var(--app-font-size-caption)]">
+                  <FieldError id="restock-expiration-error" className="text-[length:var(--app-font-size-caption)]">
                     {errors.expirationDate}
                   </FieldError>
                 )}
@@ -538,22 +611,49 @@ const RestockModalContent = ({
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
-          onClick={hasSaved ? handleRetryRefresh : handleSave}
+          disabled={fieldsDisabled || hasUnconfirmedSave}
+          onClick={handleReview}
           aria-describedby={feedback ? "restock-action-feedback" : undefined}
           className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isSubmitting && (hasSaved ? "Refreshing..." : "Saving...")}
-          {!isSubmitting && (hasSaved ? "Retry refresh" : "Update Stock")}
+          {hasUnconfirmedSave && feedback ? feedback.buttonLabel : "Update Stock"}
         </Button>
       </ModalFooter>
+    {/* Nest the alert under the parent Dialog so focus/dismissal stays on top. */}
+    <ActionAlertDialog
+      open={isConfirmationOpen}
+      onOpenChange={setIsConfirmationOpen}
+      type="small"
+      title="Confirm restock?"
+      description={
+        <>
+          Add <strong className="font-semibold">{quantity} {unit}</strong> to{" "}
+          <strong className="font-semibold">{selectedItem && selectedItem.item_name}</strong> for{" "}
+          <strong className="font-semibold">₱{Number(totalCost).toFixed(2)}</strong>?
+          {" "}This also records an Inventory Purchase expense.
+        </>
+      }
+      actions={[
+        { key: "cancel", label: "Cancel", close: true },
+        { key: "confirm", label: "Confirm", onClick: handleSave, disabled: isSubmitting },
+      ]}
+    />
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 
 const RestockModal = ({
   isOpen,
   onClose,
+  onRestockAgain,
   refetchInventory,
   inventoryItems = [],
   item = null,
@@ -563,6 +663,7 @@ const RestockModal = ({
   return (
     <RestockModalContent
       onClose={onClose}
+      onRestockAgain={onRestockAgain}
       refetchInventory={refetchInventory}
       inventoryItems={inventoryItems}
       item={item}

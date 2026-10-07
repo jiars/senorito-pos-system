@@ -9,8 +9,7 @@ const compareOldestBatch = (firstBatch, secondBatch) => {
   if (receivedDifference !== 0) return receivedDifference;
 
   const createdDifference =
-    getBatchTime(firstBatch.created_at) -
-    getBatchTime(secondBatch.created_at);
+    getBatchTime(firstBatch.created_at) - getBatchTime(secondBatch.created_at);
 
   if (createdDifference !== 0) return createdDifference;
 
@@ -38,3 +37,36 @@ export const getSortedStockActionBatches = (item) =>
 
     return compareOldestBatch(firstBatch, secondBatch);
   });
+
+// Preview only; the backend decides the actual deductions.
+export const getWastageSpilloverPreview = (item, selectedBatchId, quantity) => {
+  const batches = getSortedStockActionBatches(item);
+  const selectedBatch = batches.find((batch) => {
+    return String(batch.id) === String(selectedBatchId);
+  });
+
+  if (!selectedBatch || Number(selectedBatch.quantity) <= 0) return [];
+
+  let remaining = Number(quantity) - Number(selectedBatch.quantity);
+  if (!Number.isFinite(remaining) || remaining <= 0) return [];
+
+  const spillover = [];
+
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+    if (String(batch.id) === String(selectedBatchId)) continue;
+
+    const available = Number(batch.quantity);
+    if (available <= 0) continue;
+
+    const deducted = Math.min(available, remaining);
+    spillover.push({
+      batchId: batch.id,
+      batchNumber: batch.batch_number,
+      quantity: deducted,
+    });
+    remaining -= deducted;
+  }
+
+  return spillover;
+};

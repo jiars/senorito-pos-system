@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/input-group";
 import { formatCurrency } from "@/utils/currencyFormatters";
 import { formatUnitConversionAmount } from "@/utils/inventory/unitConversion";
+import { getMinimumLevelRules } from "@/utils/inventory/minimumLevel";
 
 import {
   controlClassName,
@@ -26,6 +27,7 @@ const InitialPurchaseStep = ({
   onPurchaseUnitChange,
   getBaseUnitCost,
 }) => {
+  const minimumLevelRules = getMinimumLevelRules(formData.unit);
   const hasValidPurchaseCost =
     validation.isQtyValid && validation.isCostValid;
   const costPerPurchaseUnit = hasValidPurchaseCost
@@ -180,18 +182,23 @@ const InitialPurchaseStep = ({
           />
           <Input
             id="add-inventory-minimum-level"
-            type="number"
-            min="1"
-            step="any"
+            type="text"
+            inputMode={minimumLevelRules.inputMode}
+            pattern={minimumLevelRules.pattern}
             value={formData.minLevel}
-            onChange={(event) => onFieldChange("minLevel", event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (minimumLevelRules.inputPattern.test(value)) {
+                onFieldChange("minLevel", value);
+              }
+            }}
             placeholder="Enter minimum stock level"
             aria-invalid={showErrors && !validation.isMinValid}
             className={controlClassName}
           />
           {showErrors && !validation.isMinValid && (
             <FieldError className={errorClassName}>
-              Minimum level must be at least 1.
+              {minimumLevelRules.errorMessage}
             </FieldError>
           )}
         </Field>

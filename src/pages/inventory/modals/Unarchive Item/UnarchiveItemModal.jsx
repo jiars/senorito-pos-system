@@ -1,150 +1,222 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getRestoreInlineFeedback, getRestoreStatusFeedback, getRestoreToastFeedback } from "@/utils/inventory/feedback/restoreFeedback";
+import { toast } from "@/components/ui/toast";
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { unarchiveInventoryItem, fetchAffectedMenuItems } from "@/services/inventory/inventoryItemsService";
 
-import {
-  fetchAffectedMenuItems,
-  unarchiveInventoryItem
-} from '../../../../services/inventory/inventoryItemsService';
-import UnarchiveAffectedRecords from './components/UnarchiveAffectedRecords';
-import UnarchiveItemHeader from './components/UnarchiveItemHeader';
-import UnarchiveItemSummary from './components/UnarchiveItemSummary';
-
-import './unarchiveItemModal.css';
-
-const emptyRecords = { menuItems: [], addons: [] };
-
-const normalizeAffectedRecords = (data) => {
-  if (Array.isArray(data)) return { menuItems: data, addons: [] };
-
-  return {
-    menuItems: data?.menuItems || data?.menu_items || [],
-    addons: data?.addons || []
-  };
-};
-
-const UnarchiveItemModal = ({
-  isOpen,
-  onClose,
-  item,
-  refetchInventory,
-  refreshMenuManagement,
-  refreshPosManagement
+const UnarchiveItemModalContent = ({
+  onClose, item, refetchInventory, refreshMenuManagement, refreshPosManagement,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState('');
-  const [records, setRecords] = useState(emptyRecords);
-  const [isLoadingAffected, setIsLoadingAffected] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getRestoreInlineFeedback);
+  const [records, setRecords] = useState({ menuItems: [], addons: [] });
+  const [affectedStatus, setAffectedStatus] = useState("loading");
+  const [lookupAttempt, setLookupAttempt] = useState(0);
+  const operationInFlight = useRef(false);
 
   useEffect(() => {
-    if (!isOpen || !item) return;
-
     let isCurrent = true;
-    setApiError('');
-    setRecords(emptyRecords);
-    setIsLoadingAffected(true);
-
+    setAffectedStatus("loading");
     const loadAffectedRecords = async () => {
       try {
         const data = await fetchAffectedMenuItems(item.id);
-        if (isCurrent) setRecords(normalizeAffectedRecords(data));
+        // The current endpoint returns these two name arrays.
+        if (!data || !Array.isArray(data.menuItems) || !Array.isArray(data.addons)) {
+          throw new Error("Invalid affected-record response.");
+        }
+        if (isCurrent) {
+          setRecords(data);
+          setAffectedStatus("ready");
+        }
       } catch (error) {
-        console.error('Failed to load affected records:', error);
-      } finally {
-        if (isCurrent) setIsLoadingAffected(false);
+        console.error("Failed to load affected records:", error.message);
+        if (isCurrent) setAffectedStatus("error");
       }
     };
-
     loadAffectedRecords();
+    return () => { isCurrent = false; };
+  }, [item.id, lookupAttempt]);
 
-    return () => {
-      isCurrent = false;
-    };
-  }, [isOpen, item]);
+  const totalAffected = records.menuItems.length + records.addons.length;
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved) onClose();
+  };
 
-  if (!isOpen || !item) return null;
-
-  const totalAffected =
-    records.menuItems.length + records.addons.length;
-
-  const handleUnarchive = async () => {
-    if (isSubmitting) return;
-
-    setIsSubmitting(true);
-    setApiError('');
-
+  // After a confirmed restore, retry only these reads, never the PATCH.
+  const refreshRestoredItem = async () => {
     try {
-      await unarchiveInventoryItem(item.id);
-
-      // Refresh every page affected by the restored ingredient.
       const refreshTasks = [];
       if (refetchInventory) refreshTasks.push(refetchInventory());
-      if (refreshMenuManagement) {
-        refreshTasks.push(refreshMenuManagement());
-      }
+      if (refreshMenuManagement) refreshTasks.push(refreshMenuManagement());
       if (refreshPosManagement) refreshTasks.push(refreshPosManagement());
+      const results = await Promise.allSettled(refreshTasks);
+      const refreshFailed = results.some((result) => {
+        if (result.status === "rejected") return true;
+        return Boolean(result.value && (result.value.isError || result.value.error));
+      });
+      if (refreshFailed) {
+        showFeedback("REFRESH_FAILED");
+        return;
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
+    clearFeedback();
+    toast.add(getRestoreToastFeedback("ITEM_RESTORED", { itemName: item.item_name }));
+    onClose();
+  };
 
-      await Promise.all(refreshTasks);
-      onClose();
-    } catch (error) {
-      setApiError(error.message || 'Failed to unarchive item.');
+  const handleRestore = async () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave || affectedStatus !== "ready") return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    clearFeedback();
+    try {
+      try {
+        await unarchiveInventoryItem(item.id);
+      } catch (error) {
+        let code = getInventorySaveErrorCode(error);
+        if (error.response && error.response.status === 409) code = "RESTORE_CONFLICT";
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RESTORE_CONFLICT") setHasUnconfirmedSave(true);
+        return;
+      }
+      setHasSaved(true);
+      await refreshRestoredItem();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshRestoredItem();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "ITEM_RESTORING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getRestoreStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
-    <div className="unarchive-modal-overlay">
-      <div className="unarchive-modal-content">
-        <UnarchiveItemHeader
-          itemName={item.item_name}
-          onClose={onClose}
-          isSubmitting={isSubmitting}
-        />
-
-        <div className="unarchive-modal-body">
-          <UnarchiveItemSummary
-            item={item}
-            totalAffected={totalAffected}
-          />
-
-          <hr className="unarchive-divider" />
-
-          <UnarchiveAffectedRecords
-            records={records}
-            isLoading={isLoadingAffected}
-          />
-
-          <div className="unarchive-warning-box">
-            <i className="bi bi-info-circle-fill unarchive-warning-icon" />
-            <p className="unarchive-warning-text">
-              This item will return to active Inventory. Review its stock and
-              expiry details after restoring it.
+    <>
+    <Modal isOpen={!isSubmitting && !hasSaved} onClose={handleClose} maxWidth="32rem" maxHeight="min(90svh, 42rem)">
+      <ModalHeader
+        title="Restore Inventory Item"
+        description="Review affected records before restoring."
+        iconClassName="bi bi-box-arrow-up"
+        closeDisabled={isSubmitting || hasSaved}
+      />
+      <ModalBody>
+        <ModalContent className="gap-[var(--app-gap-related)]">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-[var(--app-space-2)] border-b border-[var(--app-color-border-subtle)] pb-[var(--app-space-4)]">
+            <p className="min-w-0 break-words text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">
+              {item.item_name}
+            </p>
+            <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              Stock: <strong className="font-semibold">{item.current_stock} {item.base_unit}</strong>
             </p>
           </div>
-        </div>
-
-        <div className="unarchive-modal-footer">
-          {apiError && <p className="unarchive-error-msg">{apiError}</p>}
-          <button
-            type="button"
-            className="unarchive-btn-cancel"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="unarchive-btn-confirm"
-            onClick={handleUnarchive}
-            disabled={isSubmitting}
-          >
-            <i className="bi bi-box-arrow-up" />
-            {isSubmitting ? 'Unarchiving...' : 'Unarchive'}
-          </button>
-        </div>
-      </div>
-    </div>
+          {affectedStatus === "loading" && (
+            <section aria-label="Checking affected records" aria-busy="true" className="flex flex-col gap-[var(--app-space-2)]">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </section>
+          )}
+          {affectedStatus === "error" && (
+            <section className="flex flex-col gap-[var(--app-space-2)]">
+              <InlineFeedback feedback={getRestoreInlineFeedback("AFFECTED_LOAD_FAILED")} />
+              <Button type="button" variant="outline" className="min-h-[var(--app-touch-target-min)] self-start text-[length:var(--app-font-size-body-secondary)]"
+                onClick={() => {
+                  if (operationInFlight.current || affectedStatus !== "error") return;
+                  setAffectedStatus("loading");
+                  setLookupAttempt((attempt) => attempt + 1);
+                }}>
+                Retry
+              </Button>
+            </section>
+          )}
+          {affectedStatus === "ready" && (
+            <section aria-label="Affected records" className="grid min-w-0 grid-cols-2 gap-[var(--app-gap-related)] px-[var(--app-space-4)]">
+              {[
+                { title: "Menu Items", names: records.menuItems },
+                { title: "Add-ons", names: records.addons },
+              ].map((group) => (
+                <section key={group.title} aria-label={group.title} className="flex min-w-0 flex-col gap-[var(--app-space-2)]">
+                  <h3 className="text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">
+                    {group.title} <span className="font-normal text-[var(--app-color-text-subtle)]">({group.names.length})</span>
+                  </h3>
+                  {group.names.length > 0 ? (
+                    <ScrollArea className="min-h-0 min-w-0" viewportClassName="max-h-[min(22svh,10rem)]" aria-label={`${group.title} list`}>
+                    <ul className="divide-y divide-[var(--app-color-border-subtle)] pr-[var(--app-space-2)]">
+                      {group.names.map((name, index) => (
+                        <li key={index} className="break-words py-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-muted)]">
+                          {name}
+                        </li>
+                      ))}
+                    </ul>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">None use this item.</p>
+                  )}
+                </section>
+              ))}
+            </section>
+          )}
+          {affectedStatus === "ready" && totalAffected > 0 && (
+            <div role="note" className="flex items-start gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              <i className="bi bi-info-circle shrink-0 text-[var(--app-color-info)]" aria-hidden="true" />
+              <p>Restoring recalculates recipe status. Other archived ingredients can keep recipes <strong className="font-semibold">On Hold</strong>; insufficient stock can still prevent a sale. Names above are not a guaranteed availability preview.</p>
+            </div>
+          )}
+          <InlineFeedback feedback={feedback} id="restore-action-feedback" />
+        </ModalContent>
+      </ModalBody>
+      <ModalFooter>
+        <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting || hasSaved}
+          className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]">
+          Cancel
+        </Button>
+        <Button type="button" onClick={handleRestore} disabled={isSubmitting || hasSaved || hasUnconfirmedSave || affectedStatus !== "ready"}
+          aria-describedby={feedback ? "restore-action-feedback" : undefined}
+          className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]">
+          Restore
+        </Button>
+      </ModalFooter>
+    </Modal>
+    <BlockingFeedback open={isSubmitting || hasSaved} status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title} message={blockingFeedback.message} action={blockingAction} />
+    </>
   );
 };
 
+const UnarchiveItemModal = ({ isOpen, item, ...modalProps }) => {
+  if (!isOpen || !item) return null;
+  return <UnarchiveItemModalContent key={item.id} item={item} {...modalProps} />;
+};
 export default UnarchiveItemModal;

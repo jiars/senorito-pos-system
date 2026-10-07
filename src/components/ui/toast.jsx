@@ -25,7 +25,7 @@ function ToastViewport({
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-[var(--app-space-4)] top-[calc(var(--app-space-4)+env(safe-area-inset-top))] z-[10010] mx-auto h-(--toast-frontmost-height) w-auto max-w-sm outline-none sm:right-[var(--app-space-6)] sm:left-auto sm:top-[var(--app-space-6)] sm:mx-0 sm:w-full print:hidden",
+        "pointer-events-none fixed right-[var(--toast-edge)] top-[calc(var(--app-space-4)+env(safe-area-inset-top))] z-[10010] h-(--toast-frontmost-height) w-[var(--toast-width)] max-w-[calc(100vw-var(--toast-edge)*2)] outline-none [--toast-edge:var(--app-space-4)] sm:top-[var(--app-space-6)] sm:[--toast-edge:var(--app-space-6)] print:hidden",
         className
       )}
       {...props}
@@ -99,7 +99,7 @@ function ToastDescription({
   return (
     <ToastPrimitive.Description
       data-slot="toast-description"
-      className={cn("break-words text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]", className)}
+      className={cn("whitespace-pre-line break-words text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]", className)}
       {...props}
     />
   )
@@ -171,14 +171,39 @@ function ToastList() {
   const { toasts } = ToastPrimitive.useToastManager()
 
   return toasts.map((toastItem) => (
-    <Toast key={toastItem.id} toast={toastItem} swipeDirection={["up", "right"]}>
+    <Toast
+      key={toastItem.id}
+      toast={toastItem}
+      swipeDirection={["up", "right"]}
+      className="w-[var(--toast-width)] max-w-[calc(100vw-var(--toast-edge)*2)]"
+      style={toastItem.data && toastItem.data.width ? { "--toast-width": toastItem.data.width } : undefined}
+    >
       <ToastContent>
         <ToastIcon type={toastItem.type} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <ToastTitle />
-          {toastItem.description && <ToastDescription />}
+          {toastItem.description && (
+            <ToastDescription>
+              {toastItem.data && toastItem.data.descriptionParts
+                ? toastItem.data.descriptionParts.map((part, index) => (
+                  <span key={index}>
+                    {part.label && <strong className="font-semibold">{part.label}</strong>}
+                    {part.text}
+                  </span>
+                ))
+                : undefined}
+            </ToastDescription>
+          )}
         </div>
-        {toastItem.actionProps && <ToastAction {...toastItem.actionProps} />}
+        {toastItem.actionProps && (
+          <ToastAction
+            {...toastItem.actionProps}
+            className={cn(
+              toastItem.data && toastItem.data.actionTone === "success" && "border-[var(--app-color-confirm-success)] bg-transparent text-[var(--app-color-confirm-success)] hover:bg-[var(--app-color-success-surface)] hover:text-[var(--app-color-confirm-success)]",
+              toastItem.actionProps.className
+            )}
+          />
+        )}
         <ToastClose />
       </ToastContent>
     </Toast>
@@ -188,13 +213,14 @@ function ToastList() {
 function Toaster({
   children,
   toastManager = toast,
+  width = "24rem",
   ...props
 }) {
   return (
     <ToastProvider toastManager={toastManager} {...props}>
       {children}
       <ToastPortal>
-        <ToastViewport>
+        <ToastViewport style={{ "--toast-width": width }}>
           <ToastList />
         </ToastViewport>
       </ToastPortal>

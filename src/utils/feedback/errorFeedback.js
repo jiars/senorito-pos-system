@@ -11,5 +11,14 @@ export const resolveErrorFeedback = (definition) => {
   if (!definition) return null;
   const type = definition.type || "validation";
   const policy = ERROR_FEEDBACK_POLICIES[type] || ERROR_FEEDBACK_POLICIES.validation;
-  return { display: "inline", tone: "error", ...definition, ...policy };
+  const feedback = { display: "inline", tone: "error", ...definition, ...policy };
+
+  // Inline guidance stays plain; modal action errors can opt in to visible codes.
+  const isErrorType = type === "validation" || type === "critical" || type === "transient";
+  const showCode = feedback.showCode === true || (feedback.display === "status" && feedback.showCode !== false);
+  if (showCode && isErrorType && feedback.tone === "error" && feedback.code && feedback.message) {
+    feedback.message = `${feedback.message} (Code: ${feedback.code})`;
+  }
+
+  return feedback;
 };

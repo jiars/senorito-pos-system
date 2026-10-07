@@ -31,6 +31,6 @@ dist-ssr
 .cursor/
 .agents/
 supabase/
-temporary/
+/temporary/
 docs/
 .intern/

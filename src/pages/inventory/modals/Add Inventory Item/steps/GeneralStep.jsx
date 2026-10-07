@@ -1,3 +1,4 @@
+import { addYears, startOfDay } from "date-fns";
 import DatePicker from "@/components/ui/date-picker";
 import ModalFieldLabel from "@/components/modals/ModalFieldLabel";
 import {
@@ -27,6 +28,8 @@ const GeneralStep = ({
   validation,
   onFieldChange,
 }) => {
+  const minExpirationDate = startOfDay(new Date());
+  const maxExpirationDate = addYears(minExpirationDate, 10);
   const filteredUnits = units.filter((currentUnit) => {
     const normalizedUnit = currentUnit.toLowerCase();
     return normalizedUnit !== "kg" && normalizedUnit !== "bottle";
@@ -234,6 +237,8 @@ const GeneralStep = ({
               value={formData.expiryDate}
               onValueChange={(value) => onFieldChange("expiryDate", value)}
               placeholder="MM/DD/YYYY"
+              minDate={minExpirationDate}
+              maxDate={maxExpirationDate}
               invalid={showErrors && !validation.isExpiryValid}
               triggerClassName={controlClassName}
             />
