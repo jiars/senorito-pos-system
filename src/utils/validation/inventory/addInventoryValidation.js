@@ -1,3 +1,5 @@
+import { isValidMinimumLevel } from "@/utils/inventory/minimumLevel";
+
 export const validateAddInventoryItem = ({
   itemName,
   existingItems,
@@ -26,8 +28,7 @@ export const validateAddInventoryItem = ({
   const parsedCost = parseFloat(totalCost);
   const isCostValid = totalCost !== '' && !isNaN(parsedCost) && parsedCost > 0;
 
-  const parsedMin = parseFloat(minLevel);
-  const isMinValid = minLevel !== '' && !isNaN(parsedMin) && parsedMin >= 1;
+  const isMinValid = isValidMinimumLevel(minLevel, unit);
 
   const parsedMultiplier = parseFloat(purchaseMultiplier);
   const isMultiplierValid =

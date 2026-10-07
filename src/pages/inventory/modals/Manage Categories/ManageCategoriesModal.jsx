@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getCategoryInlineFeedback, getCategoryStatusFeedback, getCategoryToastFeedback } from "@/utils/inventory/feedback/categoryFeedback";
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
+import { toast } from "@/components/ui/toast";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { validateInventoryCategory } from "@/utils/validation/inventory/categoryValidation";
 import {
   addInventoryCategory,
   updateInventoryCategory,
@@ -20,102 +28,192 @@ const ManageCategoriesModalContent = ({
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newTouched, setNewTouched] = useState(false);
+  const [editTouched, setEditTouched] = useState(false);
+  const operationInFlight = useRef(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const savedOperation = useRef(null);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getCategoryInlineFeedback);
+  const fieldsDisabled = isSubmitting || hasSaved || hasUnconfirmedSave || Boolean(deleteTarget);
 
-  // Validation helpers
-  const checkDuplicate = (name, excludeId = null) => {
-    const trimmed = name.trim().toLowerCase();
-    return categories.some(
-      (cat) =>
-        cat.id !== excludeId && cat.category_name.toLowerCase() === trimmed,
-    );
+  const newValidation = validateInventoryCategory(newCategory, categories);
+  const editValidation = validateInventoryCategory(editName, categories, editingId);
+  const isAddDisabled = !newValidation.isFormValid || fieldsDisabled;
+  const isSaveDisabled = !editValidation.isFormValid || fieldsDisabled;
+
+  // JSX controls visibility, not the validation rules or message wording.
+  let newError = "";
+  if (newTouched || newCategory !== "") newError = newValidation.errors.name || "";
+  let editError = "";
+  if (editTouched || editName !== "") editError = editValidation.errors.name || "";
+
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved && !deleteTarget) onClose();
   };
 
-  const isNewEmpty = newCategory.trim() === "";
-  const isNewDuplicate = !isNewEmpty && checkDuplicate(newCategory);
-  const isAddDisabled = isNewEmpty || isNewDuplicate || isSubmitting;
-
-  const isEditEmpty = editName.trim() === "";
-  const isEditDuplicate = !isEditEmpty && checkDuplicate(editName, editingId);
-  const isSaveDisabled = isEditEmpty || isEditDuplicate || isSubmitting;
-
-  // ─── 1. Add Category ───
-  const handleAddCategory = async () => {
-    if (isAddDisabled) return;
-    setIsSubmitting(true);
+  // A confirmed change only retries its read, never its mutation.
+  const refreshSavedCategories = async () => {
     try {
-      await addInventoryCategory(newCategory.trim());
-      if (refetchInventory) await refetchInventory();
+      if (refetchInventory) {
+        const result = await refetchInventory();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
+
+    let toastCode = "CATEGORY_ADDED";
+    if (savedOperation.current.type === "edit") toastCode = "CATEGORY_UPDATED";
+    if (savedOperation.current.type === "delete") toastCode = "CATEGORY_DELETED";
+    toast.add(getCategoryToastFeedback(toastCode, { categoryName: savedOperation.current.name }));
+
+    if (savedOperation.current.type === "add") {
       setNewCategory("");
-    } catch (error) {
-      console.error("Failed to add category:", error);
+      setNewTouched(false);
+    }
+    if (savedOperation.current.type === "edit" || savedOperation.current.id === editingId) {
+      setEditingId(null);
+      setEditName("");
+      setEditTouched(false);
+    }
+    savedOperation.current = null;
+    setHasSaved(false);
+    clearFeedback();
+  };
+
+  const saveCategoryChange = async (type, id, name) => {
+    if (operationInFlight.current || isSubmitting || hasSaved || hasUnconfirmedSave) return;
+    if (deleteTarget && type !== "delete") return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    clearFeedback();
+    try {
+      try {
+        if (type === "add") await addInventoryCategory(name);
+        if (type === "edit") await updateInventoryCategory(id, name);
+        if (type === "delete") await deleteInventoryCategory(id);
+      } catch (error) {
+        let code = getInventorySaveErrorCode(error);
+        if (type === "delete" && error.response && error.response.status === 409) {
+          code = "CATEGORY_IN_USE";
+        }
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED") setHasUnconfirmedSave(true);
+        return;
+      }
+      savedOperation.current = { type, id, name };
+      setHasSaved(true);
+      await refreshSavedCategories();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
-  // ─── 2. Save Edit ───
+  const handleAddCategory = () => {
+    if (isAddDisabled) return;
+    return saveCategoryChange("add", null, newCategory.trim());
+  };
+
   const handleSaveEdit = async (id) => {
-    if (isSaveDisabled) return;
-    setIsSubmitting(true);
-    try {
-      await updateInventoryCategory(id, editName.trim());
-      if (refetchInventory) await refetchInventory();
-      setEditingId(null);
-    } catch (error) {
-      console.error("Failed to update category:", error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    if (isSaveDisabled || id !== editingId) return;
+    return saveCategoryChange("edit", id, editName.trim());
   };
 
   // ─── 3. Delete Category ───
   const handleDeleteCategory = async (id) => {
-    if (isSubmitting) return;
+    if (operationInFlight.current || fieldsDisabled) return;
+    const category = categories.find((currentCategory) => currentCategory.id === id);
+    if (!category || Number(category.inventory_items_count ?? 0) > 0) return;
+    clearFeedback();
+    setDeleteTarget(category);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget || operationInFlight.current) return;
+    const category = categories.find((currentCategory) => currentCategory.id === deleteTarget.id);
+    setDeleteTarget(null);
+    if (!category) return;
+    if (Number(category.inventory_items_count ?? 0) > 0) {
+      showFeedback("CATEGORY_IN_USE");
+      return;
+    }
+    return saveCategoryChange("delete", category.id, category.category_name);
+  };
+
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
     setIsSubmitting(true);
     try {
-      await deleteInventoryCategory(id);
-      if (refetchInventory) await refetchInventory();
-    } catch (error) {
-      console.error("Failed to delete category:", error);
+      await refreshSavedCategories();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "CATEGORY_SAVING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getCategoryStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) {
+    blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+  }
+
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !hasSaved}
+      onClose={handleClose}
       maxWidth="28rem"
       maxHeight="min(85svh, 42rem)"
     >
       <ModalHeader
         title="Manage Inventory Categories"
         iconClassName="bi bi-tags"
-        closeDisabled={isSubmitting}
+        closeDisabled={isSubmitting || Boolean(deleteTarget)}
       />
 
       <ModalBody>
         <ModalContent>
+          <InlineFeedback feedback={feedback} id="inventory-category-operation-feedback" />
+          <fieldset disabled={fieldsDisabled} aria-busy={isSubmitting} className="contents">
           <div className="flex items-start gap-[var(--app-space-2)] max-sm:flex-col">
             <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)] max-sm:w-full">
               <Input
+                id="inventory-category-add-name"
+                aria-label="New category name"
+                disabled={fieldsDisabled}
+                onBlur={() => setNewTouched(true)}
                 type="text"
-                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isNewDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
+                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${newError ? "border-[var(--app-color-danger)]" : ""}`}
                 placeholder="New Category Name"
                 value={newCategory}
-                onChange={(event) => setNewCategory(event.target.value)}
-                aria-invalid={isNewDuplicate}
+                onChange={(event) => {
+                  if (operationInFlight.current || fieldsDisabled) return;
+                  clearFeedback();
+                  setNewCategory(event.target.value);
+                }}
+                aria-invalid={Boolean(newError)}
                 aria-describedby={
-                  isNewDuplicate ? "inventory-category-add-error" : undefined
+                  newError ? "inventory-category-add-error" : undefined
                 }
               />
-              {isNewDuplicate && (
+              {newError && (
                 <small
                   id="inventory-category-add-error"
                   className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
                 >
-                  Category already exists.
+                  {newError}
                 </small>
               )}
             </div>
@@ -154,26 +252,32 @@ const ManageCategoriesModalContent = ({
                       <>
                         <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)]">
                           <Input
+                            id={`inventory-category-edit-name-${category.id}`}
+                            aria-label={`Category name for ${category.category_name}`}
+                            disabled={fieldsDisabled}
+                            onBlur={() => setEditTouched(true)}
                             type="text"
-                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isEditDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
+                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${editError ? "border-[var(--app-color-danger)]" : ""}`}
                             value={editName}
-                            onChange={(event) =>
-                              setEditName(event.target.value)
-                            }
+                            onChange={(event) => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
+                              setEditName(event.target.value);
+                            }}
                             autoFocus
-                            aria-invalid={isEditDuplicate}
+                            aria-invalid={Boolean(editError)}
                             aria-describedby={
-                              isEditDuplicate
+                              editError
                                 ? `inventory-category-edit-error-${category.id}`
                                 : undefined
                             }
                           />
-                          {isEditDuplicate && (
+                          {editError && (
                             <small
                               id={`inventory-category-edit-error-${category.id}`}
                               className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
                             >
-                              Category already exists.
+                              {editError}
                             </small>
                           )}
                         </div>
@@ -196,9 +300,13 @@ const ManageCategoriesModalContent = ({
                             size="icon"
                             className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-text)]"
                             onClick={() => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
                               setEditingId(null);
                               setEditName("");
+                              setEditTouched(false);
                             }}
+                            disabled={fieldsDisabled}
                             aria-label={`Cancel editing ${category.category_name}`}
                           >
                             <i className="bi bi-x-lg" aria-hidden="true" />
@@ -223,9 +331,13 @@ const ManageCategoriesModalContent = ({
                             size="icon"
                             className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)]"
                             onClick={() => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
                               setEditingId(category.id);
                               setEditName(category.category_name);
+                              setEditTouched(false);
                             }}
+                            disabled={fieldsDisabled}
                             aria-label={`Edit ${category.category_name}`}
                           >
                             <i className="bi bi-pencil" aria-hidden="true" />
@@ -236,7 +348,7 @@ const ManageCategoriesModalContent = ({
                               variant="ghost"
                               size="icon"
                               className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-danger)] hover:bg-[var(--app-color-danger-surface)] hover:text-[var(--app-color-danger)]"
-                              disabled={isSubmitting}
+                              disabled={fieldsDisabled}
                               onClick={() => handleDeleteCategory(category.id)}
                               aria-label={`Delete ${category.category_name}`}
                             >
@@ -251,9 +363,36 @@ const ManageCategoriesModalContent = ({
               })}
             </div>
           )}
+          </fieldset>
         </ModalContent>
       </ModalBody>
+      <ActionAlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !operationInFlight.current) setDeleteTarget(null);
+        }}
+        type="destructive"
+        title="Delete category?"
+        description={
+          <>
+            Permanently delete <strong className="font-semibold">{deleteTarget && deleteTarget.category_name}</strong>?
+            {" "}This action cannot be undone.
+          </>
+        }
+        actions={[
+          { key: "cancel", label: "Cancel", close: true },
+          { key: "confirm", label: "Confirm", onClick: handleConfirmDelete, disabled: isSubmitting },
+        ]}
+      />
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

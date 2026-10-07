@@ -103,7 +103,10 @@ class InventoryRestockOrchestrator extends Controller
                 ]);
             }
 
-            return $item->refresh();
+            return [
+                'item' => $item->refresh(),
+                'batch' => $batch->refresh(),
+            ];
         });
     }
 }

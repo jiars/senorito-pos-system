@@ -15,14 +15,14 @@ class InventoryAddController extends Controller
 {
     public function store(Request $request)
     {
-        // Keep basic duplicate-name validation for now.
+        // Validate basic item fields before starting any database writes.
         $request->validate([
             'itemData.item_name' => 'required|string|unique:inventory_items,item_name',
-        ], [
-            'itemData.item_name.unique' => 'This inventory item already exists.',
             'itemData.minimum_level' => 'required|numeric|min:1',
             'itemData.category_id' => 'required|exists:inventory_categories,id',
             'itemData.supplier' => 'nullable|string|max:255',
+        ], [
+            'itemData.item_name.unique' => 'This inventory item already exists.',
         ]);
 
         $item = DB::transaction(function () use ($request) {

@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
@@ -7,10 +9,18 @@ import ModalFooter from "@/components/modals/ModalFooter";
 import ModalHeader from "@/components/modals/ModalHeader";
 import ModalStepper from "@/components/modals/ModalStepper";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
 import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
 import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { addInventoryItem } from "@/services/inventory/inventoryItemsService";
 import { getStandardUnitMultiplier } from "@/utils/inventory/unitConversion";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import {
+  getAddInventoryInlineFeedback,
+  getAddInventoryStatusFeedback,
+  getAddInventoryToastFeedback,
+} from "@/utils/inventory/feedback/addInventoryFeedback";
 import { validateAddInventoryItem } from "@/utils/validation/inventory/addInventoryValidation";
 
 import GeneralStep from "./steps/GeneralStep";
@@ -46,6 +56,7 @@ const createEmptyConversion = () => ({
 
 const AddInventoryItemModalContent = ({
   onClose,
+  onAddAnotherItem,
   existingItems = [],
   categories = [],
   units = [],
@@ -60,7 +71,24 @@ const AddInventoryItemModalContent = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [attemptedSteps, setAttemptedSteps] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState("");
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const operationInFlight = useRef(false);
+  const savedItem = useRef(null);
+  const fieldsRef = useRef(null);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getAddInventoryInlineFeedback);
+
+  const clearSaveError = () => {
+    if (!hasUnconfirmedSave) clearFeedback();
+  };
+
+  const focusInvalidField = () => {
+    requestAnimationFrame(() => {
+      if (!fieldsRef.current) return;
+      const field = fieldsRef.current.querySelector('[aria-invalid="true"]');
+      if (field) field.focus();
+    });
+  };
 
   const validation = validateAddInventoryItem({
     itemName: formData.itemName,
@@ -98,7 +126,8 @@ const AddInventoryItemModalContent = ({
   const showCurrentStepErrors = Boolean(attemptedSteps[currentStep]);
 
   const updateField = (fieldName, value) => {
-    setApiError("");
+    if (operationInFlight.current || hasSaved) return;
+    clearSaveError();
     setFormData((currentForm) => {
       const nextForm = { ...currentForm, [fieldName]: value };
 
@@ -112,7 +141,8 @@ const AddInventoryItemModalContent = ({
   };
 
   const handlePurchaseUnitChange = (value) => {
-    setApiError("");
+    if (operationInFlight.current || hasSaved) return;
+    clearSaveError();
     setFormData((currentForm) => ({
       ...currentForm,
       purchaseUnit: value,
@@ -122,7 +152,8 @@ const AddInventoryItemModalContent = ({
   };
 
   const handleAddConversion = () => {
-    setApiError("");
+    if (operationInFlight.current || hasSaved) return;
+    clearSaveError();
     setConversions((currentConversions) => [
       ...currentConversions,
       createEmptyConversion(),
@@ -130,7 +161,8 @@ const AddInventoryItemModalContent = ({
   };
 
   const handleRemoveConversion = (conversionId) => {
-    setApiError("");
+    if (operationInFlight.current || hasSaved) return;
+    clearSaveError();
     setConversions((currentConversions) => {
       if (currentConversions.length === 1) {
         return [createEmptyConversion()];
@@ -143,7 +175,8 @@ const AddInventoryItemModalContent = ({
   };
 
   const handleConversionChange = (conversionId, fieldName, value) => {
-    setApiError("");
+    if (operationInFlight.current || hasSaved) return;
+    clearSaveError();
     setConversions((currentConversions) => {
       return currentConversions.map((conversion) => {
         if (conversion.id !== conversionId) return conversion;
@@ -179,26 +212,70 @@ const AddInventoryItemModalContent = ({
   };
 
   const handleNext = () => {
+    if (operationInFlight.current || hasSaved) return;
     markStepAttempted(currentStep);
-    if (!stepValidity[currentStep]) return;
+    if (!stepValidity[currentStep]) {
+      focusInvalidField();
+      return;
+    }
 
     clearStepAttempt(currentStep);
-    setApiError("");
+    clearSaveError();
     setCurrentStep((step) => Math.min(step + 1, steps.length - 1));
   };
 
   const handlePrevious = () => {
+    if (operationInFlight.current || hasSaved) return;
     clearStepAttempt(currentStep);
-    setApiError("");
+    clearSaveError();
     setCurrentStep((step) => Math.max(step - 1, 0));
   };
 
-  const handleSubmit = async () => {
-    markStepAttempted(currentStep);
-    if (!validation.isFormValid || isSubmitting) return;
+  // After a confirmed save, recovery repeats only the inventory read.
+  const refreshSavedInventory = async () => {
+    try {
+      if (refetchInventory) {
+        const result = await refetchInventory();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
 
+    clearFeedback();
+    let toastId;
+    const details = { ...savedItem.current };
+    if (onAddAnotherItem) {
+      details.onAddAnotherItem = () => {
+        toast.close(toastId);
+        onAddAnotherItem();
+      };
+    }
+    toastId = toast.add(getAddInventoryToastFeedback("ITEM_ADDED", details));
+    onClose();
+    Promise.allSettled([refreshAuditLogs(), refreshValuation()]);
+  };
+
+  const handleSubmit = async () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave) return;
+    markStepAttempted(currentStep);
+    if (!validation.isFormValid) {
+      const invalidStep = stepValidity.findIndex((valid) => !valid);
+      if (invalidStep >= 0) {
+        markStepAttempted(invalidStep);
+        setCurrentStep(invalidStep);
+      }
+      focusInvalidField();
+      return;
+    }
+
+    operationInFlight.current = true;
     setIsSubmitting(true);
-    setApiError("");
+    clearFeedback();
 
     try {
       const baseQuantity = getBaseQuantity();
@@ -214,47 +291,93 @@ const AddInventoryItemModalContent = ({
           equivalent_base_amount: Number(conversion.equivalent),
         }));
 
-      await addInventoryItem({
-        itemData: {
-          item_name: formData.itemName.trim(),
-          category_id: formData.category,
-          base_unit: formData.unit,
-          minimum_level: Number(formData.minLevel),
-          supplier: formData.supplier.trim() || null,
-          cost_per_unit: computedCostPerUnit,
-          current_stock: baseQuantity,
-          track_expiry: formData.trackExpiry,
-        },
-        purchaseData: {
-          quantity_purchased: validation.parsedQty,
-          purchase_unit: formData.purchaseUnit.trim(),
-          purchase_multiplier: validation.parsedMultiplier,
-          total_cost: validation.parsedCost,
-          cost_per_unit: computedCostPerUnit,
-          supplier: formData.supplier.trim() || null,
-          expiration_date: formData.trackExpiry ? formData.expiryDate : null,
-          note: formData.note.trim() || null,
-        },
-        conversionsData,
-      });
-
-      if (refetchInventory) {
-        await refetchInventory();
+      let response;
+      try {
+        response = await addInventoryItem({
+          itemData: {
+            item_name: formData.itemName.trim(),
+            category_id: formData.category,
+            base_unit: formData.unit,
+            minimum_level: Number(formData.minLevel),
+            supplier: formData.supplier.trim() || null,
+            cost_per_unit: computedCostPerUnit,
+            current_stock: baseQuantity,
+            track_expiry: formData.trackExpiry,
+          },
+          purchaseData: {
+            quantity_purchased: validation.parsedQty,
+            purchase_unit: formData.purchaseUnit.trim(),
+            purchase_multiplier: validation.parsedMultiplier,
+            total_cost: validation.parsedCost,
+            cost_per_unit: computedCostPerUnit,
+            supplier: formData.supplier.trim() || null,
+            expiration_date: formData.trackExpiry ? formData.expiryDate : null,
+            note: formData.note.trim() || null,
+          },
+          conversionsData,
+        });
+      } catch (error) {
+        const errorCode = getInventorySaveErrorCode(error);
+        showFeedback(errorCode);
+        if (errorCode === "SAVE_UNCONFIRMED") setHasUnconfirmedSave(true);
+        return;
       }
 
-      onClose();
-      Promise.allSettled([refreshAuditLogs(), refreshValuation()]);
-    } catch (error) {
-      setApiError(error.message || "Failed to add inventory item.");
+      savedItem.current = {
+        itemName: formData.itemName.trim(),
+        initialStock: baseQuantity,
+        unit: formData.unit,
+        totalCost: validation.parsedCost,
+      };
+      if (response && response.item) {
+        savedItem.current.itemName = response.item.item_name;
+        savedItem.current.initialStock = response.item.current_stock;
+        savedItem.current.unit = response.item.base_unit;
+      }
+      setHasSaved(true);
+      await refreshSavedInventory();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved) onClose();
+  };
+
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedInventory();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "ITEM_SAVING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getAddInventoryStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) {
+    blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+  }
+  let primaryLabel = "Next";
+  if (currentStep === steps.length - 1) {
+    primaryLabel = "Add Item";
+    if (hasUnconfirmedSave && feedback) primaryLabel = feedback.buttonLabel;
+  }
+
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !hasSaved}
+      onClose={handleClose}
       maxWidth="42rem"
       maxHeight="min(90svh, 48rem)"
     >
@@ -272,15 +395,9 @@ const AddInventoryItemModalContent = ({
         <ModalContent className="gap-[var(--app-gap-section)]">
           <ModalStepper steps={steps} currentStep={currentStep} />
 
-          {apiError && (
-            <p
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-              role="alert"
-            >
-              {apiError}
-            </p>
-          )}
+          <InlineFeedback feedback={feedback} id="add-inventory-action-feedback" />
 
+          <fieldset ref={fieldsRef} disabled={isSubmitting || hasSaved} className="contents">
           {currentStep === 0 && (
             <GeneralStep
               formData={formData}
@@ -315,6 +432,7 @@ const AddInventoryItemModalContent = ({
               onConversionChange={handleConversionChange}
             />
           )}
+          </fieldset>
         </ModalContent>
       </ModalBody>
 
@@ -324,7 +442,7 @@ const AddInventoryItemModalContent = ({
             type="button"
             variant="outline"
             disabled={isSubmitting}
-            onClick={onClose}
+            onClick={handleClose}
             className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
           >
             Cancel
@@ -343,18 +461,22 @@ const AddInventoryItemModalContent = ({
 
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={isSubmitting || hasSaved || (hasUnconfirmedSave && currentStep === steps.length - 1)}
           onClick={currentStep === steps.length - 1 ? handleSubmit : handleNext}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isSubmitting
-            ? "Saving..."
-            : currentStep === steps.length - 1
-              ? "Add Item"
-              : "Next"}
+          {primaryLabel}
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

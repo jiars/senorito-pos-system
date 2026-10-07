@@ -1,160 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { fetchItemAuditLogs } from '../../../../services/inventory/inventoryStockService';
-import { formatCurrency } from '../../../../utils/currencyFormatters';
-import './stockHistoryModal.css';
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import DataTable from "@/components/data-table/DataTable";
+import DataTablePagination from "@/components/data-table/DataTablePagination";
+import Modal from "@/components/modals/Modal";
+import ModalBody from "@/components/modals/ModalBody";
+import ModalContent from "@/components/modals/ModalContent";
+import ModalFooter from "@/components/modals/ModalFooter";
+import ModalHeader from "@/components/modals/ModalHeader";
+import { Button } from "@/components/ui/button";
+import { fetchItemAuditLogs } from "@/services/inventory/inventoryStockService";
+import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatDateTime } from "@/utils/dateFormatters";
+import { getAuditBatch, getAuditPerformer } from "@/utils/inventory/inventoryAuditLogUtils";
 
-const ROWS_PER_PAGE = 10;
-
-const StockHistoryModal = ({ isOpen, onClose, item }) => {
+const StockHistoryModalContent = ({ onClose, item }) => {
   const [currentPage, setCurrentPage] = useState(1);
-  const [logs, setLogs] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Fetch logs when modal opens
-  useEffect(() => {
-    if (isOpen && item) {
-      setCurrentPage(1);
-      setIsLoading(true);
-      fetchItemAuditLogs(item.id)
-        .then(data => {
-          setLogs(data || []);
-        })
-        .catch(err => console.error("Error fetching audit logs:", err))
-        .finally(() => setIsLoading(false));
-    }
-  }, [isOpen, item]);
-
-  if (!isOpen || !item) return null;
-
-  const totalPages = Math.max(1, Math.ceil(logs.length / ROWS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-  const currentRows = logs.slice(startIndex, startIndex + ROWS_PER_PAGE);
-
-  const getActionChipClass = (action) => {
-    switch (action) {
-      case 'Manual Adjustment': return 'history-action-chip--correction';
-      case 'Sale': return 'history-action-chip--sale';
-      case 'Purchase': return 'history-action-chip--restock';
-      case 'Wastage': return 'history-action-chip--wastage';
-      default: return 'history-action-chip--correction'; // fallback
-    }
-  };
-
-  const getChangeClass = (changeNumber) => {
-    if (changeNumber > 0) return 'history-change--positive';
-    if (changeNumber < 0) return 'history-change--negative';
-    return 'history-change--neutral';
-  };
+  const [pageSize, setPageSize] = useState(10);
+  // Keep the existing audit service; React Query owns loading/error/retry.
+  const query = useQuery({
+    queryKey: ["inventory-item-audit-logs", item.id],
+    queryFn: () => fetchItemAuditLogs(item.id),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const logs = query.data || [];
+  const totalPages = Math.max(1, Math.ceil(logs.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const currentRows = logs.slice((safeCurrentPage - 1) * pageSize, safeCurrentPage * pageSize);
+  const columns = useMemo(() => [
+    {
+      accessorKey: "created_at", header: "Date",
+      meta: { width: "11rem" },
+      cell: ({ row }) => formatDateTime(row.original.created_at),
+    },
+    {
+      accessorKey: "action", header: "Action", meta: { width: "10rem" },
+      cell: ({ row }) => {
+        const action = row.original.action;
+        let tone = "bg-[var(--app-color-filter-bg)] text-[var(--app-color-text-muted)]";
+        if (action === "Purchase") tone = "bg-[var(--app-color-success-surface)] text-[var(--app-color-confirm-success)]";
+        if (action === "Sale" || action === "Wastage") tone = "bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]";
+        return <span className={`inline-flex rounded-full px-[var(--app-space-2)] py-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] font-medium ${tone}`}>{action}</span>;
+      },
+    },
+    {
+      id: "change", header: "Change", meta: { width: "6rem" },
+      cell: ({ row }) => {
+        // Preserve the original history calculation rather than changing to quantity_change.
+        const change = Number(row.original.stock_after) - Number(row.original.stock_before);
+        let tone = "text-[var(--app-color-text-muted)]";
+        if (change > 0) tone = "text-[var(--app-color-confirm-success)]";
+        if (change < 0) tone = "text-[var(--app-color-danger)]";
+        return <span className={`font-semibold ${tone}`}>{change > 0 ? "+" : ""}{change}</span>;
+      },
+    },
+    { accessorKey: "stock_before", header: "Before", meta: { width: "6rem" } },
+    { accessorKey: "stock_after", header: "After", meta: { width: "6rem" } },
+    {
+      id: "batch", header: "Batch", meta: { width: "10rem" },
+      cell: ({ row }) => {
+        const batch = getAuditBatch(row.original);
+        return batch && batch.batch_number ? batch.batch_number : "—";
+      },
+    },
+    {
+      id: "cost", header: "Cost Per Unit", meta: { width: "8rem" },
+      cell: ({ row }) => {
+        const batch = getAuditBatch(row.original);
+        if (!batch || !batch.inventory_purchase_history || batch.inventory_purchase_history.length === 0) return "—";
+        const cost = batch.inventory_purchase_history[0].cost_per_unit;
+        if (cost === null || cost === undefined) return "—";
+        return formatCurrency(cost);
+      },
+    },
+    {
+      accessorKey: "reason_reference", header: "Reason", meta: { width: "15rem" },
+      cell: ({ row }) => row.original.reason_reference || "—",
+    },
+    {
+      id: "performer", header: "Changed By", meta: { width: "10rem" },
+      cell: ({ row }) => {
+        const performer = getAuditPerformer(row.original);
+        if (!performer) return "Unknown";
+        return `${performer.first_name || ""} ${performer.last_name || ""}`.trim() || "Unknown";
+      },
+    },
+  ], []);
 
   return (
-    <div className="history-modal-overlay">
-      <div className="history-modal-content" style={{ maxWidth: '1200px' }}>
-        <div className="history-modal-header">
-          <h3>Stock History</h3>
-          <span className="history-modal-subtitle">{item.item_name}</span>
-          <button className="history-modal-close" onClick={onClose} aria-label="Close">
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
-
-        <div className="history-modal-body">
-          {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>Loading history...</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Action</th>
-                    <th>Change</th>
-                    <th>Before</th>
-                    <th>After</th>
-                    <th>Batch</th>
-                    <th>Cost Per Unit</th>
-                    <th>Reason</th>
-                    <th>Changed By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {currentRows.length === 0 ? (
-                    <tr>
-                      <td colSpan="9" style={{ textAlign: 'center' }}>No history found for this item.</td>
-                    </tr>
-                  ) : (
-                    currentRows.map((log) => {
-                      // Calculate the true change
-                      const diff = log.stock_after - log.stock_before;
-                      const changeStr = diff > 0 ? `+${diff}` : `${diff}`;
-
-                      // Format Date
-                      const dateObj = new Date(log.created_at);
-                      const dateStr = dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-
-                      // Batch Number & Cost
-                      const batchNumber = log.inventory_batches?.batch_number || '-';
-                      let costPerUnit = '-';
-                      if (log.inventory_batches && log.inventory_batches.inventory_purchase_history && log.inventory_batches.inventory_purchase_history.length > 0) {
-                        const cost = log.inventory_batches.inventory_purchase_history[0].cost_per_unit;
-                        if (cost !== null && cost !== undefined) {
-                          costPerUnit = formatCurrency(cost);
-                        }
-                      }
-
-                      // Name
-                      const changedBy = log.profiles ? `${log.profiles.first_name} ${log.profiles.last_name}` : 'Unknown';
-
-                      return (
-                        <tr key={log.id}>
-                          <td>{dateStr}</td>
-                          <td>
-                            <span className={`history-action-chip ${getActionChipClass(log.action)}`}>
-                              {log.action}
-                            </span>
-                          </td>
-                          <td className={getChangeClass(diff)}>{changeStr}</td>
-                          <td>{log.stock_before}</td>
-                          <td>{log.stock_after}</td>
-                          <td className="history-batch-text">{batchNumber}</td>
-                          <td>{costPerUnit}</td>
-                          <td>{log.reason_reference || '-'}</td>
-                          <td>{changedBy}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="history-modal-footer">
-            <span className="history-pagination-info">
-              Page {currentPage} of {totalPages}
-            </span>
-            <div className="history-pagination-controls">
-              <button
-                className="history-pagination-btn"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              >
-                Previous
-              </button>
-              <button
-                className="history-pagination-btn"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              >
-                Next
-              </button>
-            </div>
-          </div>
+    <Modal isOpen={true} onClose={onClose} maxWidth="72rem" maxHeight="min(90svh, 48rem)">
+      <ModalHeader title="Stock History" description={item.item_name} iconClassName="bi bi-clock-history" />
+      <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-10rem)]">
+        <ModalContent>
+          <section aria-label={`Stock history for ${item.item_name}`} className="min-w-0">
+            <DataTable
+              columns={columns} data={currentRows} getRowId={(log) => String(log.id)}
+              tableLabel="Item stock history" isLoading={query.isPending || query.isFetching}
+              skeletonRowCount={5} errorMessage={query.isError ? "Couldn’t load stock history. Please retry." : ""}
+              emptyMessage="No history found for this item." tableClassName="table-fixed"
+              scrollbarOrientation="both" scrollAreaClassName="max-h-[min(48svh,26rem)] w-full"
+            />
+            {query.isError && !query.isFetching && (
+              <Button type="button" variant="outline" onClick={() => query.refetch()}
+                className="mt-[var(--app-space-4)] min-h-[var(--app-touch-target-min)] text-[length:var(--app-font-size-body-secondary)]">
+                Retry history
+              </Button>
+            )}
+          </section>
+        </ModalContent>
+      </ModalBody>
+      <ModalFooter className="!block">
+        {!query.isError && (
+          <DataTablePagination totalItems={logs.length} pageSize={pageSize} currentPage={safeCurrentPage}
+            onPageChange={setCurrentPage} onPageSizeChange={setPageSize}
+            isLoading={query.isPending || query.isFetching}
+            pageSizeSelectContentProps={{ positionerClassName: "!z-[1100]", className: "!z-[1100]" }}
+          />
         )}
-      </div>
-    </div>
+      </ModalFooter>
+    </Modal>
   );
 };
 
+const StockHistoryModal = ({ isOpen, item, ...modalProps }) => {
+  if (!isOpen || !item) return null;
+  return <StockHistoryModalContent key={item.id} item={item} {...modalProps} />;
+};
 export default StockHistoryModal;

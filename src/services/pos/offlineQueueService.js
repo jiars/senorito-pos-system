@@ -2,7 +2,7 @@ import { db } from "../../utils/offlineDB";
 import { summarizeOfflineQueue } from "../../utils/sync/syncStatus";
 import { readPOSRefreshState } from "./posCacheService";
 
-// Read this browser's saved orders and return counts only.
+// Read saved-order counts, display details, and unfinished refresh state.
 export async function readOfflineQueue(cashierId) {
   if (!cashierId)
     throw new Error("A signed-in cashier is required to inspect the queue.");

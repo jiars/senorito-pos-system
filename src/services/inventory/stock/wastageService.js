@@ -12,8 +12,6 @@ export const recordInventoryWastage = async (itemId, payload) => {
   } catch (error) {
     console.error("Error recording inventory wastage:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to record inventory wastage",
-    );
+    throw error;
   }
 };

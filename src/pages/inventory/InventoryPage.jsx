@@ -95,6 +95,35 @@ const InventoryPage = () => {
   const closeModal = () => setModal({ type: null, item: null });
   const openItemModal = (type, item = null) => setModal({ type, item });
 
+  const handleAddAnotherItem = () => {
+    setModal((currentModal) => {
+      if (currentModal.type) return currentModal;
+      return { type: "add-item", item: null };
+    });
+  };
+
+  const handleRestockAgain = () => {
+    // A toast action must not replace another open workflow.
+    setModal((currentModal) => {
+      if (currentModal.type) return currentModal;
+      return { type: "restock", item: null };
+    });
+  };
+
+  const handleWastageAgain = () => {
+    setModal((currentModal) => {
+      if (currentModal.type) return currentModal;
+      return { type: "wastage", item: null };
+    });
+  };
+
+  const handleCorrectionAgain = () => {
+    setModal((currentModal) => {
+      if (currentModal.type) return currentModal;
+      return { type: "correction", item: null };
+    });
+  };
+
   const openStockPrintQr = () => {
     setModal({
       type: "print-qr",
@@ -235,6 +264,7 @@ const InventoryPage = () => {
       <AddInventoryItemModal
         isOpen={modal.type === "add-item"}
         onClose={closeModal}
+        onAddAnotherItem={handleAddAnotherItem}
         existingItems={inventoryItems.map((item) => item.item_name)}
         categories={categories}
         units={units}
@@ -285,6 +315,7 @@ const InventoryPage = () => {
       <RestockModal
         isOpen={modal.type === "restock"}
         onClose={closeModal}
+        onRestockAgain={handleRestockAgain}
         refetchInventory={refetchInventoryManagement}
         inventoryItems={inventoryItems}
         item={modal.item}
@@ -293,6 +324,7 @@ const InventoryPage = () => {
       <WastageModal
         isOpen={modal.type === "wastage"}
         onClose={closeModal}
+        onWastageAgain={handleWastageAgain}
         refetchInventory={refetchInventoryManagement}
         inventoryItems={inventoryItems}
         item={modal.item}
@@ -301,6 +333,7 @@ const InventoryPage = () => {
       <CorrectionModal
         isOpen={modal.type === "correction"}
         onClose={closeModal}
+        onCorrectionAgain={handleCorrectionAgain}
         refetchInventory={refetchInventoryManagement}
         inventoryItems={inventoryItems}
         item={modal.item}

@@ -13,6 +13,7 @@ Schedule::command('inventory:cleanup-expired')
     ->timezone('Asia/Manila')
     ->withoutOverlapping();
 
-Schedule::command('auth:clear-resets')
+// Preserve setup tokens by using the longer expiry for shared-table cleanup.
+Schedule::command('auth:clear-resets employee_setup')
     ->everyFifteenMinutes()
     ->withoutOverlapping();

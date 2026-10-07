@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
@@ -17,14 +19,23 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { updateInventoryItem } from "@/services/inventory/inventoryItemsService";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import {
+  getEditInventoryInlineFeedback,
+  getEditInventoryStatusFeedback,
+  getEditInventoryToastFeedback,
+} from "@/utils/inventory/feedback/editInventoryFeedback";
 import { formatCurrency } from "@/utils/currencyFormatters";
 import { validateEditInventoryItem } from "@/utils/validation/inventory/editInventoryValidation";
+import { getMinimumLevelRules } from "@/utils/inventory/minimumLevel";
 
 const labelClassName =
   "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
@@ -69,7 +80,8 @@ const EditItemModalContent = ({
 }) => {
   const name = item.item_name || "";
   const unit = item.base_unit || "";
-  const reorderLevel = item.minimum_level?.toString() || "0";
+  const minimumLevelRules = getMinimumLevelRules(unit);
+  const [reorderLevel, setReorderLevel] = useState(item.minimum_level?.toString() || "0");
   const hasBatches = (item.inventory_batches || []).length > 0;
 
   const [category, setCategory] = useState(item.category_id || "");
@@ -80,9 +92,14 @@ const EditItemModalContent = ({
   );
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState("");
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const fieldsRef = useRef(null);
+  const operationInFlight = useRef(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getEditInventoryInlineFeedback);
+  const fieldsDisabled = isSubmitting || hasSaved;
 
-  const { errors, conversionsValid, isFormValid } =
+  const { errors, isFormValid } =
     validateEditInventoryItem({
       name,
       originalName: item.item_name || "",
@@ -99,28 +116,33 @@ const EditItemModalContent = ({
       (currentCategory) => String(currentCategory.id) === String(category),
     ) || null;
 
+  const clearSaveError = () => {
+    // Editing fields does not resolve a save whose outcome is still unknown.
+    if (!hasUnconfirmedSave) clearFeedback();
+  };
+
   const handleCategoryChange = (value) => {
-    setApiError("");
+    clearSaveError();
     setCategory(value ? String(value.id) : "");
   };
 
   const handleCostChange = (value) => {
-    setApiError("");
+    clearSaveError();
     setCost(value);
   };
 
   const handleSupplierChange = (value) => {
-    setApiError("");
+    clearSaveError();
     setSupplier(value);
   };
 
   const handleAddConversion = () => {
-    setApiError("");
+    clearSaveError();
     setConversions((current) => [...current, createEmptyConversion()]);
   };
 
   const handleRemoveConversion = (clientId) => {
-    setApiError("");
+    clearSaveError();
     setConversions((current) => {
       if (current.length === 1) return [createEmptyConversion()];
       return current.filter((conversion) => conversion.clientId !== clientId);
@@ -128,7 +150,7 @@ const EditItemModalContent = ({
   };
 
   const handleConversionChange = (clientId, field, value) => {
-    setApiError("");
+    clearSaveError();
     setConversions((current) =>
       current.map((conversion) =>
         conversion.clientId === clientId
@@ -138,47 +160,109 @@ const EditItemModalContent = ({
     );
   };
 
-  const handleSave = async () => {
-    setHasAttemptedSubmit(true);
-    if (!isFormValid || isSubmitting) return;
+  // A confirmed edit may only retry the refresh, never the update request.
+  const refreshSavedInventory = async () => {
+    try {
+      if (refetchInventory) {
+        const result = await refetchInventory();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
 
+    clearFeedback();
+    toast.add(getEditInventoryToastFeedback("ITEM_UPDATED", { itemName: name }));
+    onClose();
+  };
+
+  const handleSave = async () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave) return;
+    setHasAttemptedSubmit(true);
+    if (!isFormValid) {
+      requestAnimationFrame(() => {
+        if (!fieldsRef.current) return;
+        const firstInvalidField = fieldsRef.current.querySelector('[aria-invalid="true"]');
+        if (firstInvalidField) firstInvalidField.focus();
+      });
+      return;
+    }
+
+    operationInFlight.current = true;
     setIsSubmitting(true);
-    setApiError("");
+    clearFeedback();
 
     try {
-      await updateInventoryItem(item.id, {
-        itemData: {
-          item_name: name.trim(),
-          base_unit: unit,
-          category_id: category,
-          cost_per_unit: Number(cost),
-          minimum_level: Number(reorderLevel),
-          supplier: supplier.trim() || null,
-        },
-        conversionsData: conversions
-          .filter((conversion) => {
-            return conversion.unit.trim() || conversion.equivalent;
-          })
-          .map((conversion) => ({
-            ...(conversion.id ? { id: conversion.id } : {}),
-            converted_unit: conversion.unit.trim(),
-            equivalent_base_amount: Number(conversion.equivalent),
-          })),
-      });
+      try {
+        await updateInventoryItem(item.id, {
+          itemData: {
+            item_name: name.trim(),
+            base_unit: unit,
+            category_id: category,
+            cost_per_unit: Number(cost),
+            minimum_level: Number(reorderLevel),
+            supplier: supplier.trim() || null,
+          },
+          conversionsData: conversions
+            .filter((conversion) => {
+              return conversion.unit.trim() || conversion.equivalent;
+            })
+            .map((conversion) => ({
+              ...(conversion.id ? { id: conversion.id } : {}),
+              converted_unit: conversion.unit.trim(),
+              equivalent_base_amount: Number(conversion.equivalent),
+            })),
+        });
+      } catch (error) {
+        const errorCode = getInventorySaveErrorCode(error);
+        showFeedback(errorCode);
+        if (errorCode === "SAVE_UNCONFIRMED") setHasUnconfirmedSave(true);
+        return;
+      }
 
-      if (refetchInventory) await refetchInventory();
-      onClose();
-    } catch (error) {
-      setApiError(error.message || "Failed to update inventory item.");
+      setHasSaved(true);
+      await refreshSavedInventory();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved) onClose();
+  };
+
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedInventory();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "ITEM_SAVING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getEditInventoryStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) {
+    blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+  }
+
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !hasSaved}
+      onClose={handleClose}
       maxWidth="38rem"
       maxHeight="min(90svh, 46rem)"
     >
@@ -186,20 +270,14 @@ const EditItemModalContent = ({
         title="Edit Inventory Item"
         description="Update the item details and recipe conversion units."
         iconClassName="bi bi-pencil-square"
-        closeDisabled={isSubmitting}
+        closeDisabled={fieldsDisabled}
       />
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
         <ModalContent>
-          {apiError && (
-            <p
-              role="alert"
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-            >
-              {apiError}
-            </p>
-          )}
+          <InlineFeedback feedback={feedback} id="edit-inventory-action-feedback" />
 
+          <fieldset ref={fieldsRef} disabled={fieldsDisabled} aria-busy={isSubmitting} className="flex min-w-0 flex-col gap-[var(--app-gap-related)] border-0 p-0">
           <section
             aria-labelledby="edit-inventory-details"
             className="flex flex-col gap-[var(--app-gap-related)]"
@@ -208,29 +286,29 @@ const EditItemModalContent = ({
               Inventory item details
             </h2>
 
-            <Field data-invalid={hasAttemptedSubmit && Boolean(errors.name)}>
-              <FieldLabel
-                htmlFor="edit-inventory-name"
-                className={labelClassName}
-              >
-                Item Name
-                <span className="text-[var(--app-color-danger)]">*</span>
-              </FieldLabel>
-              <Input
-                id="edit-inventory-name"
-                value={name}
-                disabled
-                title="Item name cannot be changed after creation."
-                className={`${controlClassName} ${disabledControlClassName}`}
-              />
-              {hasAttemptedSubmit && errors.name && (
-                <FieldError className={errorClassName}>
-                  {errors.name}
-                </FieldError>
-              )}
-            </Field>
+            <div className="grid grid-cols-1 items-start gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field data-invalid={hasAttemptedSubmit && Boolean(errors.name)}>
+                <FieldLabel
+                  htmlFor="edit-inventory-name"
+                  className={labelClassName}
+                >
+                  Item Name
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <Input
+                  id="edit-inventory-name"
+                  value={name}
+                  disabled
+                  title="Item name cannot be changed after creation."
+                  className={`${controlClassName} ${disabledControlClassName}`}
+                />
+                {hasAttemptedSubmit && errors.name && (
+                  <FieldError className={errorClassName}>
+                    {errors.name}
+                  </FieldError>
+                )}
+              </Field>
 
-            <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
               <Field
                 data-invalid={
                   hasAttemptedSubmit && Boolean(errors.category)
@@ -247,6 +325,7 @@ const EditItemModalContent = ({
                   items={categories}
                   value={selectedCategory}
                   onValueChange={handleCategoryChange}
+                  disabled={fieldsDisabled}
                   itemToStringLabel={(value) => value?.category_name || ""}
                   itemToStringValue={(value) => String(value?.id || "")}
                   isItemEqualToValue={(option, value) =>
@@ -255,6 +334,7 @@ const EditItemModalContent = ({
                 >
                   <ComboboxInput
                     id="edit-inventory-category"
+                    disabled={fieldsDisabled}
                     placeholder="Select category"
                     aria-invalid={
                       hasAttemptedSubmit && Boolean(errors.category)
@@ -285,6 +365,48 @@ const EditItemModalContent = ({
                   </FieldError>
                 )}
               </Field>
+            </div>
+
+            <div className="grid grid-cols-1 items-start gap-[var(--app-gap-related)] sm:grid-cols-2">
+              <Field
+                data-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
+              >
+                <FieldLabel
+                  htmlFor="edit-inventory-cost"
+                  className={labelClassName}
+                >
+                  Cost Per {unit || "Unit"}
+                  <span className="text-[var(--app-color-danger)]">*</span>
+                </FieldLabel>
+                <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
+                  <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
+                    ₱
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="edit-inventory-cost"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={cost}
+                    disabled={hasBatches || fieldsDisabled}
+                    onChange={(event) => handleCostChange(event.target.value)}
+                    placeholder="0.00"
+                    aria-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
+                    className={`h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] ${disabledControlClassName}`}
+                  />
+                </InputGroup>
+                {hasBatches && (
+                  <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                    Cost is calculated automatically from the item&apos;s
+                    batches.
+                  </p>
+                )}
+                {hasAttemptedSubmit && errors.cost && (
+                  <FieldError className={errorClassName}>
+                    {errors.cost}
+                  </FieldError>
+                )}
+              </Field>
 
               <Field
                 data-invalid={hasAttemptedSubmit && Boolean(errors.unit)}
@@ -312,42 +434,34 @@ const EditItemModalContent = ({
             </div>
 
             <div className="grid grid-cols-1 items-start gap-[var(--app-gap-related)] sm:grid-cols-2">
-              <Field
-                data-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
-              >
-                <FieldLabel
-                  htmlFor="edit-inventory-cost"
+              <Field data-invalid={hasAttemptedSubmit && Boolean(errors.reorderLevel)}>
+                <ModalFieldLabel
+                  htmlFor="edit-inventory-minimum-level"
+                  label={`Minimum Level (${unit || "unit"})`}
+                  tooltip="Your low-stock threshold. The system will alert you to restock when your inventory drops below this number."
+                  required
                   className={labelClassName}
-                >
-                  Cost Per {unit || "Unit"}
-                  <span className="text-[var(--app-color-danger)]">*</span>
-                </FieldLabel>
-                <InputGroup className="h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)] focus-within:ring-0">
-                  <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-brand-number)]">
-                    ₱
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="edit-inventory-cost"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={cost}
-                    disabled={hasBatches}
-                    onChange={(event) => handleCostChange(event.target.value)}
-                    placeholder="0.00"
-                    aria-invalid={hasAttemptedSubmit && Boolean(errors.cost)}
-                    className={`h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] ${disabledControlClassName}`}
-                  />
-                </InputGroup>
-                {hasBatches && (
-                  <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-                    Cost is calculated automatically from the item&apos;s
-                    batches.
-                  </p>
-                )}
-                {hasAttemptedSubmit && errors.cost && (
+                />
+                <Input
+                  id="edit-inventory-minimum-level"
+                  type="text"
+                  inputMode={minimumLevelRules.inputMode}
+                  pattern={minimumLevelRules.pattern}
+                  value={reorderLevel}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (minimumLevelRules.inputPattern.test(value)) {
+                      clearSaveError();
+                      setReorderLevel(value);
+                    }
+                  }}
+                  placeholder="Enter minimum stock level"
+                  aria-invalid={hasAttemptedSubmit && Boolean(errors.reorderLevel)}
+                  className={controlClassName}
+                />
+                {hasAttemptedSubmit && errors.reorderLevel && (
                   <FieldError className={errorClassName}>
-                    {errors.cost}
+                    {errors.reorderLevel}
                   </FieldError>
                 )}
               </Field>
@@ -517,14 +631,7 @@ const EditItemModalContent = ({
             </Button>
           </section>
 
-          {hasAttemptedSubmit && (!isFormValid || !conversionsValid) && (
-            <p
-              role="alert"
-              className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-            >
-              Please complete all required fields.
-            </p>
-          )}
+          </fieldset>
         </ModalContent>
       </ModalBody>
 
@@ -532,8 +639,8 @@ const EditItemModalContent = ({
         <Button
           type="button"
           variant="outline"
-          onClick={onClose}
-          disabled={isSubmitting}
+          onClick={handleClose}
+          disabled={fieldsDisabled}
           className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
         >
           Cancel
@@ -541,13 +648,22 @@ const EditItemModalContent = ({
         <Button
           type="button"
           onClick={handleSave}
-          disabled={isSubmitting}
+          disabled={fieldsDisabled || hasUnconfirmedSave}
+          aria-describedby={feedback ? "edit-inventory-action-feedback" : undefined}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isSubmitting ? "Saving..." : "Save Changes"}
+          {hasUnconfirmedSave && feedback ? feedback.buttonLabel : "Save Changes"}
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

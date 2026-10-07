@@ -12,8 +12,7 @@ export const restockInventoryItem = async (itemId, payload) => {
   } catch (error) {
     console.error("Error restocking inventory item:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to restock inventory item",
-    );
+    // Preserve the HTTP status and validation details for module feedback.
+    throw error;
   }
 };

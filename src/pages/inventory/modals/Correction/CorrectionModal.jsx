@@ -1,5 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
@@ -16,6 +19,7 @@ import {
 } from "@/components/ui/combobox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/toast";
 import {
   Select,
   SelectContent,
@@ -23,11 +27,18 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
 import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import { correctInventoryStock } from "@/services/inventory/stock/correctionService";
 import { getSortedStockActionBatches } from "@/utils/inventory/inventoryStockActionUtils";
+import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import {
+  getCorrectionInlineFeedback,
+  getCorrectionStatusFeedback,
+  getCorrectionToastFeedback,
+} from "@/utils/inventory/feedback/correctionFeedback";
 import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
 
 const correctionReasons = [
@@ -50,6 +61,7 @@ const readonlyClassName =
 
 const CorrectionModalContent = ({
   onClose,
+  onCorrectionAgain,
   refetchInventory,
   inventoryItems,
   item,
@@ -66,6 +78,13 @@ const CorrectionModalContent = ({
   const [actualItemCount, setActualItemCount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const fieldsRef = useRef(null);
+  const operationInFlight = useRef(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getCorrectionInlineFeedback);
+  const fieldsDisabled = isSubmitting || isConfirmationOpen || hasSaved;
 
   const unit = selectedItem?.base_unit || "pcs";
   const batches = useMemo(
@@ -125,48 +144,134 @@ const CorrectionModalContent = ({
     setReason(nextReason);
   };
 
-  const handleSave = async () => {
+  const validateForm = () => {
     setHasAttemptedSubmit(true);
+    clearFeedback();
+    if (Object.keys(errors).length > 0 || !selectedItem) {
+      requestAnimationFrame(() => {
+        if (!fieldsRef.current) return;
+        const firstInvalidField = fieldsRef.current.querySelector('[aria-invalid="true"]');
+        if (firstInvalidField) firstInvalidField.focus();
+      });
+      return false;
+    }
+    return true;
+  };
 
-    if (Object.keys(errors).length > 0 || isSubmitting || !selectedItem) return;
+  const handleReview = () => {
+    if (operationInFlight.current || isConfirmationOpen || hasSaved || hasUnconfirmedSave) return;
+    if (validateForm()) setIsConfirmationOpen(true);
+  };
 
+  const handleClose = () => {
+    if (!operationInFlight.current && !isConfirmationOpen && !hasSaved) onClose();
+  };
+
+  // After saving, recovery repeats only the read, never the correction.
+  const refreshSavedInventory = async () => {
+    try {
+      if (refetchInventory) {
+        const result = await refetchInventory();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
+
+    clearFeedback();
+    const toastDetails = {
+      itemName: selectedItem.item_name,
+      actualCount: Number(actualItemCount),
+      unit,
+      reason: reason.trim(),
+      batchNumber: selectedBatch.batch_number,
+    };
+    let toastId;
+    if (onCorrectionAgain) {
+      toastDetails.onCorrectionAgain = () => {
+        toast.close(toastId);
+        onCorrectionAgain();
+      };
+    }
+    toastId = toast.add(getCorrectionToastFeedback("CORRECTION_SAVED", toastDetails));
+    onClose();
+
+    // Preserve existing consumers; this toast confirms Inventory only.
+    Promise.allSettled([
+      refreshAuditLogs(),
+      refreshValuation(),
+      refreshMenuManagement(),
+      refreshPosManagement(),
+    ]);
+  };
+
+  const handleSave = async () => {
+    if (operationInFlight.current || hasSaved || hasUnconfirmedSave) return;
+    setIsConfirmationOpen(false);
+    if (!validateForm()) return;
+
+    // Guard immediately, before React renders the disabled controls.
+    operationInFlight.current = true;
     setIsSubmitting(true);
 
     try {
-      await correctInventoryStock(selectedItem.id, {
-        stockData: {
-          actual_batch_quantity: Number(actualItemCount),
-          reason: reason.trim(),
-          notes: notes.trim() || null,
-        },
-        batchData: {
-          selected_batch_id: effectiveBatchId,
-        },
-      });
-
-      if (refetchInventory) {
-        await refetchInventory();
+      try {
+        await correctInventoryStock(selectedItem.id, {
+          stockData: {
+            actual_batch_quantity: Number(actualItemCount),
+            reason: reason.trim(),
+            notes: notes.trim() || null,
+          },
+          batchData: {
+            selected_batch_id: effectiveBatchId,
+          },
+        });
+      } catch (error) {
+        const errorCode = getInventorySaveErrorCode(error);
+        showFeedback(errorCode);
+        if (errorCode === "SAVE_UNCONFIRMED") setHasUnconfirmedSave(true);
+        return;
       }
 
-      onClose();
-
-      Promise.allSettled([
-        refreshAuditLogs(),
-        refreshValuation(),
-        refreshMenuManagement(),
-        refreshPosManagement(),
-      ]);
-    } catch (error) {
-      alert(error.message);
+      setHasSaved(true);
+      await refreshSavedInventory();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedInventory();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "STOCK_SAVING";
+  if (hasSaved) blockingCode = "INVENTORY_REFRESHING";
+  if (isRefreshError) blockingCode = "INVENTORY_REFRESH_FAILED";
+  const blockingFeedback = getCorrectionStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) {
+    blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+  }
+
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !hasSaved}
+      onClose={handleClose}
       maxWidth="32rem"
       maxHeight="min(90svh, 46rem)"
     >
@@ -174,12 +279,13 @@ const CorrectionModalContent = ({
         title="Inventory Correction"
         description="Adjust stock based on the actual physical item count."
         iconClassName="bi bi-arrow-counterclockwise"
-        closeDisabled={isSubmitting}
+        closeDisabled={fieldsDisabled}
       />
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
         <ModalContent>
-          <div className="flex flex-col gap-[var(--app-gap-related)]">
+          <InlineFeedback feedback={feedback} id="correction-action-feedback" />
+          <fieldset ref={fieldsRef} disabled={fieldsDisabled} aria-busy={isSubmitting} className="flex min-w-0 flex-col gap-[var(--app-gap-related)] border-0 p-0">
             <Field data-invalid={hasAttemptedSubmit && Boolean(errors.item)}>
               <FieldLabel className={labelClassName}>
                 Item Name
@@ -198,11 +304,11 @@ const CorrectionModalContent = ({
                 isItemEqualToValue={(inventoryItem, value) =>
                   inventoryItem?.id === value?.id
                 }
-                disabled={Boolean(item)}
+                disabled={Boolean(item) || fieldsDisabled}
               >
                 <ComboboxInput
                   placeholder="Select an inventory item"
-                  disabled={Boolean(item)}
+                  disabled={Boolean(item) || fieldsDisabled}
                   aria-invalid={hasAttemptedSubmit && Boolean(errors.item)}
                   className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
                 />
@@ -249,7 +355,7 @@ const CorrectionModalContent = ({
               <Select
                 value={effectiveBatchId ? String(effectiveBatchId) : null}
                 onValueChange={setSelectedBatchId}
-                disabled={!selectedItem}
+                disabled={!selectedItem || fieldsDisabled}
               >
                 <SelectTrigger
                   id="correction-batch"
@@ -334,6 +440,7 @@ const CorrectionModalContent = ({
                   <Select
                     value={reason || null}
                     onValueChange={handleReasonChange}
+                    disabled={fieldsDisabled}
                   >
                     <SelectTrigger
                       id="correction-reason"
@@ -449,7 +556,7 @@ const CorrectionModalContent = ({
                 />
               </Field>
             </div>
-          </div>
+          </fieldset>
         </ModalContent>
       </ModalBody>
 
@@ -457,28 +564,56 @@ const CorrectionModalContent = ({
         <Button
           type="button"
           variant="outline"
-          disabled={isSubmitting}
-          onClick={onClose}
+          disabled={fieldsDisabled}
+          onClick={handleClose}
           className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
         >
           Cancel
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
-          onClick={handleSave}
+          disabled={fieldsDisabled || hasUnconfirmedSave}
+          onClick={handleReview}
+          aria-describedby={feedback ? "correction-action-feedback" : undefined}
           className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
-          {isSubmitting ? "Saving..." : "Apply Correction"}
+          {hasUnconfirmedSave && feedback ? feedback.buttonLabel : "Apply Correction"}
         </Button>
       </ModalFooter>
+      <ActionAlertDialog
+        open={isConfirmationOpen}
+        onOpenChange={setIsConfirmationOpen}
+        type="small"
+        title="Confirm correction?"
+        description={
+          <>
+            Adjust batch <strong className="font-semibold">{selectedBatch && selectedBatch.batch_number}</strong> of{" "}
+            <strong className="font-semibold">{selectedItem && selectedItem.item_name}</strong>:{" "}
+            <strong className="font-semibold">{selectedBatchStock} {unit} → {numericActualCount} {unit}</strong>?
+            {" "}Difference: {difference > 0 ? "+" : ""}{difference} {unit}.
+          </>
+        }
+        actions={[
+          { key: "cancel", label: "Cancel", close: true },
+          { key: "confirm", label: "Confirm", onClick: handleSave, disabled: isSubmitting },
+        ]}
+      />
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 
 const CorrectionModal = ({
   isOpen,
   onClose,
+  onCorrectionAgain,
   refetchInventory,
   inventoryItems = [],
   item = null,
@@ -488,6 +623,7 @@ const CorrectionModal = ({
   return (
     <CorrectionModalContent
       onClose={onClose}
+      onCorrectionAgain={onCorrectionAgain}
       refetchInventory={refetchInventory}
       inventoryItems={inventoryItems}
       item={item}

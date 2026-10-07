@@ -7,9 +7,8 @@ export const addInventoryCategory = async (categoryName) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Failed to add inventory category",
-    );
+    console.error("Failed to add inventory category:", error.message);
+    throw error;
   }
 };
 
@@ -20,9 +19,8 @@ export const updateInventoryCategory = async (id, newCategoryName) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Failed to update inventory category",
-    );
+    console.error("Failed to update inventory category:", error.message);
+    throw error;
   }
 };
 
@@ -31,8 +29,7 @@ export const deleteInventoryCategory = async (id) => {
     const response = await api.delete(`/inventory-management/categories/${id}`);
     return response.data;
   } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Failed to delete inventory category",
-    );
+    console.error("Failed to delete inventory category:", error.message);
+    throw error;
   }
 };

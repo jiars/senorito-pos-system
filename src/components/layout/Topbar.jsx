@@ -74,7 +74,13 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
         </div>
 
         <div className="layout-topbar-right">
-          <SyncStatusButton statusKey={syncStatus.key} label={syncStatus.label} />
+          <SyncStatusButton
+            key={profile.id}
+            statusKey={syncStatus.key}
+            label={syncStatus.label}
+            state={syncStatusInput}
+            queue={queue}
+          />
 
           <DropdownMenu>
             <DropdownMenuTrigger

@@ -54,6 +54,8 @@ export function summarizeOfflineQueue(orders, cashierId) {
     otherCashierCount: 0,
     unknownOwnerCount: 0,
     connectionFailureCount: 0,
+    pendingOrders: [],
+    attentionOrders: [],
   };
 
   const pendingStatuses = [
@@ -75,15 +77,26 @@ export function summarizeOfflineQueue(orders, cashierId) {
       continue;
     }
 
+    // Expose only the fields needed by the read-only order lists.
+    const orderDetails = {
+      id: order.id,
+      orderNumber: order.offline_order_number || `Local order #${order.id}`,
+      status: order.status,
+      lastError: order.last_error || null,
+      lastErrorStatus: order.last_error_status || null,
+    };
+
     const hasRequiredPayload =
       order.checkout_payload && order.client_transaction_id;
 
     if (!hasRequiredPayload || !pendingStatuses.includes(order.status)) {
       summary.attentionCount++;
+      summary.attentionOrders.push(orderDetails);
       continue;
     }
 
     summary.pendingCount++;
+    summary.pendingOrders.push(orderDetails);
 
     if (order.status === "failed") summary.connectionFailureCount++;
 

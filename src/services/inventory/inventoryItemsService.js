@@ -59,9 +59,7 @@ export const addInventoryItem = async (payload) => {
     return response.data;
   } catch (error) {
     console.error("Error adding inventory item:", error.message);
-    throw new Error(
-      error.response?.data?.message || "Failed to add inventory item.",
-    );
+    throw error;
   }
 };
 
@@ -76,9 +74,7 @@ export const updateInventoryItem = async (id, payload) => {
   } catch (error) {
     console.error("Error updating inventory item:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to update inventory item.",
-    );
+    throw error;
   }
 };
 
@@ -87,9 +83,8 @@ export const archiveInventoryItem = async (id) => {
     const response = await api.delete(`/inventory-management/items/${id}`);
     return response.data;
   } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Failed to archive inventory item.",
-    );
+    console.error("Failed to archive inventory item:", error.message);
+    throw error;
   }
 };
 
@@ -100,8 +95,7 @@ export const unarchiveInventoryItem = async (id) => {
     );
     return response.data;
   } catch (error) {
-    throw new Error(
-      error.response?.data?.message || "Failed to restore inventory item.",
-    );
+    console.error("Failed to restore inventory item:", error.message);
+    throw error;
   }
 };

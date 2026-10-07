@@ -340,17 +340,10 @@ const POSPage = () => {
   // Pending remains true until the upload and required refresh finish.
   const { mutateAsync: syncOfflineOrders, isPending: isSyncing } =
     useOfflineSync({
-      onSuccess: async (result) => {
-        if (result.failed > 0) {
-          setCheckoutError(
-            `${result.failed} offline order(s) could not be synchronized.`,
-          );
-        }
-
+      // The hook waits for refresh and owns the single sync-result toast.
+      refreshAfterSync: requestSyncRefresh,
+      onSuccess: (result) => {
         if (result.synced > 0) {
-          // Keep the POS locked until the required refresh actually succeeds.
-          await requestSyncRefresh();
-
           console.log(
             `Successfully auto-synced ${result.synced} offline orders!`,
           );
@@ -364,13 +357,6 @@ const POSPage = () => {
             refreshSalesReport(),
           ]);
         }
-      },
-      onError: (error) => {
-        // The blocking refresh dialog owns recovery for already-saved orders.
-        if (syncRefreshRequiredRef.current) return;
-        setCheckoutError(
-          error.message || "Unable to synchronize offline orders.",
-        );
       },
       onSettled: () => {
         syncInFlightRef.current = false;
@@ -390,7 +376,7 @@ const POSPage = () => {
     }
     syncInFlightRef.current = true;
     // Receipt refresh can await an already-running sync without starting
-    // another upload. Existing mutation callbacks still own sync errors.
+    // another upload. The hook owns feedback; refresh errors keep recovery locked.
     syncCompletionRef.current = syncOfflineOrders(cashierId).catch(() => {});
   });
 

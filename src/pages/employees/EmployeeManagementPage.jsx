@@ -1,14 +1,11 @@
 import { useState } from "react";
 
 import PageLayout from "@/components/layout/PageLayout";
-import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { Button } from "@/components/ui/button";
 import { useEmployeeManagement } from "@/hooks/useEmployeeManagement";
 import {
   approvePasswordResetRequest,
   cancelPasswordResetRequest,
-  deactivateEmployee,
-  reactivateEmployee,
   resendPasswordResetLink,
 } from "@/services/employees/employeeAccountsService";
 
@@ -18,6 +15,7 @@ import EmployeeTable from "./components/EmployeeTable";
 import AddEmployeeModal from "./modals/Add Employee/AddEmployeeModal";
 import EditEmployeeModal from "./modals/Edit Employee/EditEmployeeModal";
 import PasswordResetRequestModal from "./modals/Password Reset Request/PasswordResetRequestModal";
+import EmployeeStatusModal from "./modals/Account Status/EmployeeStatusModal";
 
 const EmployeeManagementPage = () => {
   const {
@@ -36,8 +34,6 @@ const EmployeeManagementPage = () => {
   const [passwordRequestAction, setPasswordRequestAction] = useState("");
   const [passwordRequestError, setPasswordRequestError] = useState("");
   const [statusConfirmation, setStatusConfirmation] = useState(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [statusError, setStatusError] = useState("");
 
   const handleReviewPasswordRequest = (employee, request) => {
     setPasswordRequestError("");
@@ -72,35 +68,7 @@ const EmployeeManagementPage = () => {
   };
 
   const handleStatusClick = (employee, nextStatus) => {
-    setStatusError("");
     setStatusConfirmation({ employee, nextStatus });
-  };
-
-  const handleConfirmStatusChange = async () => {
-    if (!statusConfirmation || isUpdatingStatus) return;
-
-    const { employee, nextStatus } = statusConfirmation;
-
-    setStatusError("");
-    setIsUpdatingStatus(true);
-
-    try {
-      const updateStatus =
-        nextStatus === "Deactivated" ? deactivateEmployee : reactivateEmployee;
-
-      await updateStatus(employee.id);
-
-      await refetchEmployeeManagement();
-      setStatusConfirmation(null);
-    } catch (statusUpdateError) {
-      setStatusError(
-        statusUpdateError.response?.data?.message ||
-          statusUpdateError.message ||
-          "Failed to update the employee status.",
-      );
-    } finally {
-      setIsUpdatingStatus(false);
-    }
   };
 
   const pageActions = (
@@ -113,18 +81,6 @@ const EmployeeManagementPage = () => {
       Add Employee
     </Button>
   );
-
-  const statusEmployee = statusConfirmation?.employee;
-  const nextStatus = statusConfirmation?.nextStatus;
-  const isDeactivating = nextStatus === "Deactivated";
-
-  const statusEmployeeName = statusEmployee
-    ? `${statusEmployee.first_name || ""} ${
-        statusEmployee.last_name || ""
-      }`.trim() ||
-      statusEmployee.username ||
-      "Employee"
-    : "Employee";
 
   return (
     <PageLayout
@@ -193,42 +149,15 @@ const EmployeeManagementPage = () => {
         error={passwordRequestError}
       />
 
-      <ConfirmationModal
-        open={Boolean(statusConfirmation)}
-        onOpenChange={(open) => {
-          if (!open && !isUpdatingStatus) {
-            setStatusConfirmation(null);
-            setStatusError("");
-          }
-        }}
-        title={isDeactivating ? "Deactivate Account" : "Reactivate Account"}
-        description={
-          isDeactivating
-            ? `Are you sure you want to deactivate ${statusEmployeeName}? This account can be reactivated later.`
-            : `Reactivate ${statusEmployeeName} and restore access to the account?`
-        }
-        iconClassName={isDeactivating ? "bi bi-person-x" : "bi bi-person-check"}
-        tone={isDeactivating ? "danger" : "success"}
-        error={statusError}
-        actions={[
-          {
-            key: "confirm-status",
-            label: isDeactivating ? "Deactivate" : "Reactivate",
-            loadingLabel: isDeactivating
-              ? "Deactivating..."
-              : "Reactivating...",
-            tone: isDeactivating ? "danger" : "success",
-            isLoading: isUpdatingStatus,
-            onClick: handleConfirmStatusChange,
-          },
-          {
-            key: "cancel",
-            label: "Cancel",
-            tone: "secondary",
-            close: true,
-          },
-        ]}
-      />
+      {statusConfirmation && (
+        <EmployeeStatusModal
+          key={`${statusConfirmation.employee.id}-${statusConfirmation.nextStatus}`}
+          employee={statusConfirmation.employee}
+          nextStatus={statusConfirmation.nextStatus}
+          refetchEmployeeManagement={refetchEmployeeManagement}
+          onClose={() => setStatusConfirmation(null)}
+        />
+      )}
     </PageLayout>
   );
 };
