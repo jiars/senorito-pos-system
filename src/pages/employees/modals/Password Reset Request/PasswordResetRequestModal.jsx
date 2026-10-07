@@ -164,6 +164,7 @@ const PasswordResetRequestModal = ({
           </>
         }
         iconClassName="bi bi-key"
+        showCloseButton={isPending}
         actions={actions}
       >
         <InlineFeedback feedback={feedback} id="employee-password-request-feedback" />

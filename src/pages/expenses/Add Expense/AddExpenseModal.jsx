@@ -34,6 +34,7 @@ import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { addExpense } from "@/services/expenses/expenseService";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
 import { validateExpenseForm } from "@/utils/validation/expenses/expenseValidation";
+import { getExpenseDateLimits } from "@/utils/expenses/expenseDateLimits";
 
 const emptyForm = {
   category_id: "",
@@ -112,6 +113,7 @@ const AddExpenseModalContent = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
   const [isCustomReason, setIsCustomReason] = useState(false);
+  const [dateLimits] = useState(() => getExpenseDateLimits());
 
   const selectedCategory = categories.find((category) => {
     return category.id === formData.category_id;
@@ -130,8 +132,8 @@ const AddExpenseModalContent = ({
   const unit = selectedItem?.base_unit || "pcs";
 
   const errors = useMemo(() => {
-    return validateExpenseForm(formData, { isPurchase, selectedItem });
-  }, [formData, isPurchase, selectedItem]);
+    return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits });
+  }, [formData, isPurchase, selectedItem, dateLimits]);
   const isFormValid = Object.keys(errors).length === 0;
 
   const errorFor = (fieldName) => {
@@ -394,6 +396,8 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-date"
+                      minDate={dateLimits.minExpenseDate}
+                      maxDate={dateLimits.maxExpenseDate}
                       value={formData.expense_date}
                       onValueChange={(value) => {
                         updateField("expense_date", value);
@@ -623,6 +627,8 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-expiration-date"
+                      minDate={dateLimits.minExpirationDate}
+                      maxDate={dateLimits.maxExpirationDate}
                       value={formData.expiration_date}
                       onValueChange={(value) => {
                         updateField("expiration_date", value);
@@ -789,6 +795,8 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-date"
+                      minDate={dateLimits.minExpenseDate}
+                      maxDate={dateLimits.maxExpenseDate}
                       value={formData.expense_date}
                       onValueChange={(value) => {
                         updateField("expense_date", value);
