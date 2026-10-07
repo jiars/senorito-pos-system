@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import DataTable from "@/components/data-table/DataTable";
 import DataTablePagination from "@/components/data-table/DataTablePagination";
@@ -7,9 +7,7 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import ConfirmationModal from "@/components/modals/ConfirmationModal";
-import { useRefreshEmployeeManagement } from "@/hooks/useEmployeeManagement";
-import { resendEmployeeSetupLink } from "@/services/employees/employeeAccountsService";
+import ResendSetupLinkModal from "../modals/Resend Setup Link/ResendSetupLinkModal";
 
 import EmployeeActionsMenu from "./EmployeeActionsMenu";
 
@@ -31,7 +29,6 @@ const EmployeeActionCell = ({ row }) => {
       onReviewPasswordRequest={actions.onReviewPasswordRequest}
       onResendSetupLink={actions.onResendSetupLink}
       cooldown={cooldown}
-      isSendingSetupLink={actions.isSendingSetupLink && actions.setupLinkEmployee?.id === employee.id}
     />
   );
 };
@@ -153,18 +150,9 @@ const EmployeeTable = ({
   const [filters, setFilters] = useState({ roles: [], statuses: [] });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [actionFeedback, setActionFeedback] = useState(null);
   const [cooldownEndsAtByEmployee, setCooldownEndsAtByEmployee] = useState({});
   const [cooldownClock, setCooldownClock] = useState(() => Date.now());
   const [setupLinkEmployee, setSetupLinkEmployee] = useState(null);
-  const [isSendingSetupLink, setIsSendingSetupLink] = useState(false);
-  const [setupLinkError, setSetupLinkError] = useState("");
-  const setupLinkInFlight = useRef(false);
-  const refreshEmployeeManagement = useRefreshEmployeeManagement();
-
-  const setupEmployeeName = setupLinkEmployee
-    ? `${setupLinkEmployee.first_name || ""} ${setupLinkEmployee.last_name || ""}`.trim() || setupLinkEmployee.username || "Employee"
-    : "Employee";
   const setupLinkCooldown = Math.max(0, Math.ceil(
     ((cooldownEndsAtByEmployee[String(setupLinkEmployee?.id)] || 0) - cooldownClock) / 1000,
   ));
@@ -195,58 +183,6 @@ const EmployeeTable = ({
     }));
     setCooldownClock(Date.now());
   };
-
-  const handleConfirmSetupLink = async () => {
-    if (!setupLinkEmployee || setupLinkInFlight.current) return;
-    const employee = employees.find((item) => String(item.id) === String(setupLinkEmployee.id));
-    const roleName = employee?.role?.role_name || employee?.role_name || "";
-    if (!employee || roleName.toLowerCase() === "owner" || !employee.requires_password_setup || String(employee.status || "Active").toLowerCase() !== "active") {
-      setSetupLinkError("This employee is no longer eligible for a setup link. Close this dialog and refresh the list.");
-      return;
-    }
-    if ((cooldownEndsAtByEmployee[String(employee.id)] || 0) > Date.now()) return;
-
-    setupLinkInFlight.current = true;
-    setIsSendingSetupLink(true);
-    setSetupLinkError("");
-    try {
-      const response = await resendEmployeeSetupLink(employee.id);
-      const retryAfter = Number(response.retry_after);
-      handleCooldownStart(employee.id, retryAfter > 0 ? retryAfter : 60);
-      setActionFeedback({ type: "success", message: `Setup link sent to ${setupEmployeeName}.` });
-      setSetupLinkEmployee(null);
-    } catch (requestError) {
-      const retryAfter = Number(requestError.response?.data?.retry_after);
-      if (retryAfter > 0) handleCooldownStart(employee.id, retryAfter);
-      if (requestError.response?.status === 409) {
-        setSetupLinkEmployee(null);
-        setActionFeedback({ type: "success", message: `${setupEmployeeName} has already completed password setup.` });
-        try {
-          await refreshEmployeeManagement();
-        } catch {
-          setActionFeedback({ type: "error", message: "Password setup is already complete, but the employee list could not refresh. Please reload the page." });
-        }
-      } else {
-        setSetupLinkError(requestError.message || "Unable to send the setup link. Please try again.");
-      }
-    } finally {
-      setupLinkInFlight.current = false;
-      setIsSendingSetupLink(false);
-    }
-  };
-
-  // Keep row-action feedback visible after its dropdown closes.
-  useEffect(() => {
-    if (!actionFeedback) {
-      return undefined;
-    }
-
-    const timerId = window.setTimeout(() => {
-      setActionFeedback(null);
-    }, 5000);
-
-    return () => window.clearTimeout(timerId);
-  }, [actionFeedback]);
 
   const requestByEmployeeId = useMemo(
     () =>
@@ -391,7 +327,7 @@ const EmployeeTable = ({
     <EmployeeActionContext.Provider value={{
       cooldownClock, cooldownEndsAtByEmployee, requestByEmployeeId,
       onEdit, onChangeStatus, onReviewPasswordRequest,
-      onResendSetupLink: setSetupLinkEmployee, isSendingSetupLink, setupLinkEmployee,
+      onResendSetupLink: setSetupLinkEmployee,
     }}>
     <section className="grid min-w-0 gap-[var(--app-gap-section)]">
       <EmployeeTableToolbar
@@ -406,27 +342,6 @@ const EmployeeTable = ({
         }}
         onApplyFilters={handleApplyFilters}
       />
-
-      {actionFeedback && (
-        <div
-          role={actionFeedback.type === "error" ? "alert" : "status"}
-          className={`flex items-center justify-between gap-[var(--app-space-3)] rounded-[var(--app-radius-control)] border px-[var(--app-space-4)] py-[var(--app-space-3)] text-[length:var(--app-font-size-body-secondary)] ${
-            actionFeedback.type === "error"
-              ? "border-[var(--app-color-danger)]/30 bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger)]"
-              : "border-[var(--app-color-success)]/30 bg-[var(--app-color-success-surface)] text-[var(--app-color-success)]"
-          }`}
-        >
-          <span>{actionFeedback.message}</span>
-          <button
-            type="button"
-            onClick={() => setActionFeedback(null)}
-            aria-label="Dismiss message"
-            className="grid size-8 shrink-0 place-items-center rounded-full hover:bg-black/5"
-          >
-            <i aria-hidden="true" className="bi bi-x-lg" />
-          </button>
-        </div>
-      )}
 
       <DataTable
         columns={columns}
@@ -452,32 +367,17 @@ const EmployeeTable = ({
         isLoading={isLoading}
       />
 
-      <ConfirmationModal
-        open={Boolean(setupLinkEmployee)}
-        onOpenChange={(open) => {
-          if (!open && !setupLinkInFlight.current) {
-            setSetupLinkEmployee(null);
-            setSetupLinkError("");
-          }
-        }}
-        title="Resend Setup Link"
-        description={`Send a password setup link to ${setupEmployeeName}?`}
-        iconClassName="bi bi-envelope-arrow-up"
-        tone="success"
-        error={setupLinkError}
-        actions={[
-          {
-            key: "send",
-            label: setupLinkCooldown > 0 ? `Send Again in ${setupLinkCooldown}s` : "Send Setup Link",
-            loadingLabel: "Sending...",
-            tone: "success",
-            isLoading: isSendingSetupLink,
-            disabled: setupLinkCooldown > 0,
-            onClick: handleConfirmSetupLink,
-          },
-          { key: "cancel", label: "Cancel", tone: "secondary", close: true },
-        ]}
-      />
+      {setupLinkEmployee && (
+        <ResendSetupLinkModal
+          key={setupLinkEmployee.id}
+          employee={setupLinkEmployee}
+          employees={employees}
+          cooldown={setupLinkCooldown}
+          cooldownEndsAt={cooldownEndsAtByEmployee[String(setupLinkEmployee.id)] || 0}
+          onCooldownStart={handleCooldownStart}
+          onClose={() => setSetupLinkEmployee(null)}
+        />
+      )}
     </section>
     </EmployeeActionContext.Provider>
   );

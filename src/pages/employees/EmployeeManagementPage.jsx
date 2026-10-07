@@ -1,13 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { useEmployeeManagement } from "@/hooks/useEmployeeManagement";
-import {
-  approvePasswordResetRequest,
-  cancelPasswordResetRequest,
-  resendPasswordResetLink,
-} from "@/services/employees/employeeAccountsService";
 
 import "./employeeManagement.css";
 import EmployeeTable from "./components/EmployeeTable";
@@ -31,35 +26,31 @@ const EmployeeManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [passwordRequestReview, setPasswordRequestReview] = useState(null);
-  const [passwordRequestAction, setPasswordRequestAction] = useState("");
-  const [passwordRequestError, setPasswordRequestError] = useState("");
   const [statusConfirmation, setStatusConfirmation] = useState(null);
+  const [resetCooldownEndsAtByRequest, setResetCooldownEndsAtByRequest] = useState({});
+  const [resetCooldownClock, setResetCooldownClock] = useState(() => Date.now());
+  const hasResetCooldown = Object.values(resetCooldownEndsAtByRequest).some(
+    (endsAt) => endsAt > resetCooldownClock,
+  );
 
-  const handleReviewPasswordRequest = (employee, request) => {
-    setPasswordRequestError("");
-    setPasswordRequestReview({ employee, request });
+  // Keep deadlines outside the modal so closing it does not reset the timer.
+  useEffect(() => {
+    if (!hasResetCooldown) return undefined;
+    const timerId = window.setInterval(() => setResetCooldownClock(Date.now()), 1000);
+    return () => window.clearInterval(timerId);
+  }, [hasResetCooldown]);
+
+  const handleResetCooldownStart = (requestId, seconds) => {
+    const now = Date.now();
+    setResetCooldownEndsAtByRequest((current) => ({
+      ...current,
+      [String(requestId)]: now + seconds * 1000,
+    }));
+    setResetCooldownClock(now);
   };
 
-  const handlePasswordRequestAction = async (action, operation) => {
-    const requestId = passwordRequestReview?.request?.id;
-    if (!requestId || passwordRequestAction) return;
-
-    setPasswordRequestError("");
-    setPasswordRequestAction(action);
-
-    try {
-      await operation(requestId);
-      await refetchEmployeeManagement();
-      setPasswordRequestReview(null);
-    } catch (requestError) {
-      setPasswordRequestError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "The password request could not be updated.",
-      );
-    } finally {
-      setPasswordRequestAction("");
-    }
+  const handleReviewPasswordRequest = (employee, request) => {
+    setPasswordRequestReview({ employee, request });
   };
 
   const handleEditClick = (employee) => {
@@ -116,38 +107,26 @@ const EmployeeManagementPage = () => {
       <EditEmployeeModal
         isOpen={isEditModalOpen}
         roles={roles}
+        refetchEmployeeManagement={refetchEmployeeManagement}
         onClose={() => {
           setIsEditModalOpen(false);
           setSelectedEmployee(null);
-          refetchEmployeeManagement();
         }}
         employee={selectedEmployee}
       />
 
-      <PasswordResetRequestModal
-        open={Boolean(passwordRequestReview)}
-        onOpenChange={(open) => {
-          if (!open && !passwordRequestAction) {
-            setPasswordRequestReview(null);
-            setPasswordRequestError("");
-          }
-        }}
-        employee={passwordRequestReview?.employee}
-        request={passwordRequestReview?.request}
-        onApprove={() =>
-          handlePasswordRequestAction("approve", approvePasswordResetRequest)
-        }
-        onCancelRequest={() =>
-          handlePasswordRequestAction("cancel", cancelPasswordResetRequest)
-        }
-        onResend={() =>
-          handlePasswordRequestAction("resend", resendPasswordResetLink)
-        }
-        isApproving={passwordRequestAction === "approve"}
-        isCancelling={passwordRequestAction === "cancel"}
-        isResending={passwordRequestAction === "resend"}
-        error={passwordRequestError}
-      />
+      {passwordRequestReview && (
+        <PasswordResetRequestModal
+          key={`${passwordRequestReview.employee.id}-${passwordRequestReview.request.id}`}
+          employee={passwordRequestReview.employee}
+          request={passwordRequestReview.request}
+          cooldownEndsAt={resetCooldownEndsAtByRequest[String(passwordRequestReview.request.id)] || 0}
+          cooldownClock={resetCooldownClock}
+          onCooldownStart={handleResetCooldownStart}
+          refetchEmployeeManagement={refetchEmployeeManagement}
+          onClose={() => setPasswordRequestReview(null)}
+        />
+      )}
 
       {statusConfirmation && (
         <EmployeeStatusModal

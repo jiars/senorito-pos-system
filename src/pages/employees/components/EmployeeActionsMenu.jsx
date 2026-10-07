@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +14,6 @@ const EmployeeActionsMenu = ({
   onReviewPasswordRequest,
   onResendSetupLink,
   cooldown = 0,
-  isSendingSetupLink = false,
 }) => {
 
   const roleName = employee.role?.role_name || employee.role_name || "";
@@ -24,10 +22,6 @@ const EmployeeActionsMenu = ({
   const requiresPasswordSetup = Boolean(employee.requires_password_setup);
   const canResendSetupLink = isActive && requiresPasswordSetup;
   const isOwner = roleName.toLowerCase() === "owner";
-  const employeeName =
-    `${employee.first_name || ""} ${employee.last_name || ""}`.trim() ||
-    employee.username ||
-    "Employee";
 
   if (isOwner) {
     return <span className="text-[var(--app-color-text-muted)]">—</span>;
@@ -35,8 +29,7 @@ const EmployeeActionsMenu = ({
 
   let resendLabel = "Resend Setup Link";
 
-  if (isSendingSetupLink) resendLabel = "Sending...";
-  else if (cooldown > 0) resendLabel = `Send Again in ${cooldown}s`;
+  if (cooldown > 0) resendLabel = `Send Again in ${cooldown}s`;
 
 
   return (
@@ -62,7 +55,7 @@ const EmployeeActionsMenu = ({
 
         {canResendSetupLink && (
           <DropdownMenuItem
-            disabled={cooldown > 0 || isSendingSetupLink}
+            disabled={cooldown > 0}
             onClick={() => onResendSetupLink(employee)}
           >
             <i aria-hidden="true" className="bi bi-envelope-arrow-up" />
