@@ -27,6 +27,8 @@ const ActionAlertDialog = ({
   title,
   description,
   iconClassName,
+  showCloseButton = false,
+  contentClassName = "",
   actions = [],
   error = "",
   children,
@@ -55,9 +57,18 @@ const ActionAlertDialog = ({
       <AlertDialogContent
         size="sm"
         overlayClassName="!z-[1200]"
-        className="!z-[1201] max-h-[90svh] w-[calc(100%-2rem)] overflow-y-auto rounded-[var(--app-radius-panel-standard)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] ring-0"
+        className={`!z-[1201] max-h-[90svh] w-[calc(100%-2rem)] overflow-y-auto rounded-[var(--app-radius-panel-standard)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] ring-0 ${contentClassName}`}
       >
-        <AlertDialogHeader>
+        {showCloseButton && (
+          <AlertDialogCancel
+            aria-label="Close dialog"
+            disabled={isBusy}
+            className="absolute right-[var(--app-space-1)] top-[var(--app-space-1)] min-h-[var(--app-touch-target-min)] min-w-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-0 bg-transparent p-0 text-[var(--app-color-text-muted)] shadow-none hover:bg-[var(--app-color-control-hover)]"
+          >
+            <i className="bi bi-x-lg" aria-hidden="true" />
+          </AlertDialogCancel>
+        )}
+        <AlertDialogHeader className={showCloseButton ? "px-[var(--app-space-4)]" : ""}>
           {hasMedia && (
             <AlertDialogMedia className={`rounded-[var(--app-radius-nested)] ${mediaTone}`}>
               <i className={`${mediaIcon} text-[length:var(--app-font-size-h2)]`} aria-hidden="true" />
@@ -91,6 +102,7 @@ const ActionAlertDialog = ({
             if (actions.length > 2 && actions.length % 2 === 1 && index === actions.length - 1) {
               className += " col-span-2";
             }
+            if (actions.length === 1) className += " col-span-2";
 
             if (action.close) {
               return (
