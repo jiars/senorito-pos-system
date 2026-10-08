@@ -11,9 +11,8 @@ export const addExpenseCategory = async (categoryName) => {
   } catch (error) {
     console.error("Error adding expense categories", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to add expense category",
-    );
+    // Keep HTTP status and validation details available to category feedback.
+    throw error;
   }
 };
 
@@ -31,9 +30,7 @@ export const updateExpenseCategory = async (categoryId, categoryName) => {
   } catch (error) {
     console.error("Error updating expense categories", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to update expense category",
-    );
+    throw error;
   }
 };
 
@@ -48,8 +45,6 @@ export const deleteExpenseCategory = async (categoryId) => {
   } catch (error) {
     console.error("Error deleting expense categories", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to delete expense category",
-    );
+    throw error;
   }
 };

@@ -4,7 +4,7 @@ export const categoryValidationMessages = {
   nameDuplicate: "Category already exists.",
 };
 
-export const validateInventoryCategory = (
+export const validateExpenseCategory = (
   name,
   categories,
   excludeId = null,

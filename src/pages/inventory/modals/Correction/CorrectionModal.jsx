@@ -103,8 +103,9 @@ const CorrectionModalContent = ({
   const numericActualCount = Number(actualItemCount) || 0;
   const difference = numericActualCount - selectedBatchStock;
 
-  const errors = useMemo(() => {
-    const nextErrors = validateStockLog({
+  const validation = useMemo(() => {
+    return validateStockLog({
+      selectedItem,
       actionType: "correct",
       quantity: actualItemCount,
       currentStock: Number(selectedItem?.current_stock || 0),
@@ -116,11 +117,6 @@ const CorrectionModalContent = ({
       reason,
     });
 
-    if (!selectedItem) {
-      nextErrors.item = "Please select an inventory item.";
-    }
-
-    return nextErrors;
   }, [
     actualItemCount,
     effectiveBatchId,
@@ -128,6 +124,7 @@ const CorrectionModalContent = ({
     selectedBatchStock,
     selectedItem,
   ]);
+  const { errors, isFormValid } = validation;
 
   const handleItemChange = (nextItem) => {
     setSelectedItem(nextItem);
@@ -147,7 +144,7 @@ const CorrectionModalContent = ({
   const validateForm = () => {
     setHasAttemptedSubmit(true);
     clearFeedback();
-    if (Object.keys(errors).length > 0 || !selectedItem) {
+    if (!isFormValid) {
       requestAnimationFrame(() => {
         if (!fieldsRef.current) return;
         const firstInvalidField = fieldsRef.current.querySelector('[aria-invalid="true"]');

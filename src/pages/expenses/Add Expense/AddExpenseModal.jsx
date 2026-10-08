@@ -147,11 +147,11 @@ const AddExpenseModalContent = ({
   const finalStock = currentStock + quantityToAdd;
   const unit = selectedItem?.base_unit || "pcs";
 
-  const validationErrors = useMemo(() => {
+  const validation = useMemo(() => {
     return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits, categories, paymentMethods });
   }, [formData, isPurchase, selectedItem, dateLimits, categories]);
-  const errors = { ...serverFieldErrors, ...validationErrors };
-  const isFormValid = Object.keys(errors).length === 0;
+  const errors = { ...serverFieldErrors, ...validation.errors };
+  const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
   const formLocked = isSubmitting || isConfirmationOpen || Boolean(savedResult) || saveBlocked;
 
   const errorFor = (fieldName) => {

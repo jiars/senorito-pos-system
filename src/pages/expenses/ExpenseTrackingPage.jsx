@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useExpenseManagement } from "../../hooks/useExpenseManagement";
-import { useSalesReport } from "../../hooks/useSalesReport";
+import { useExpenseManagement } from "@/hooks/useExpenseManagement";
+import { useSalesReport } from "@/hooks/useSalesReport";
 
 import ManageExpenseCategoriesModal from "./Manage Expense Categories/ManageExpenseCategoriesModal";
 import AddExpenseModal from "./Add Expense/AddExpenseModal";
@@ -9,7 +9,7 @@ import EditExpenseModal from "./Edit Expense/EditExpenseModal";
 import ArchiveExpenseModal from "./Archive Expense/ArchiveExpenseModal";
 
 // CBA Components
-import PageLayout from "../../components/layout/PageLayout";
+import PageLayout from "@/components/layout/PageLayout";
 import ExpenseSummaryCards from "./components/ExpenseSummaryCards";
 import ExpenseOverview from "./components/ExpenseOverview";
 import ExpenseRecordsTable from "./components/ExpenseRecordsTable";
@@ -108,24 +108,15 @@ const ExpenseTrackingPage = () => {
   // --- Handlers ---
   const handleEditExpense = (record) => {
     const categoryName = record.expense_categories?.category_name;
-    if (categoryName === "Inventory Purchase") {
-      alert(
-        "System-generated inventory expenses cannot be edited here. Please use the Inventory module.",
-      );
-      return;
-    }
+    // The table disables this action; retain the guard for direct handler calls.
+    if (categoryName === "Inventory Purchase") return;
     setExpenseToEdit(record);
     setIsEditExpenseOpen(true);
   };
 
   const handleArchiveExpense = (record) => {
     const categoryName = record.expense_categories?.category_name;
-    if (categoryName === "Inventory Purchase") {
-      alert(
-        "System-generated inventory expenses cannot be archived here. Please use the Inventory module.",
-      );
-      return;
-    }
+    if (categoryName === "Inventory Purchase") return;
     setExpenseToArchive(record);
     setIsArchiveExpenseOpen(true);
   };

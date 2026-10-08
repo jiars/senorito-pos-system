@@ -1,25 +1,39 @@
 import { isValidEmployeeContactNumber } from "@/utils/employees/employeeContactNumber";
 
+export const addEmployeeValidationMessages = {
+  roleRequired: "Role is required.",
+  roleUnavailable: "Select an available employee role.",
+  firstNameRequired: "First Name is required.",
+  lastNameRequired: "Last Name is required.",
+  nameTooLong: "Use 100 characters or fewer.",
+  emailRequired: "Email is required.",
+  emailInvalid: "Enter a valid email address.",
+  emailTooLong: "Use 255 characters or fewer.",
+  contactRequired: "Contact Number is required.",
+  contactInvalid: "Enter a valid Philippine mobile number.",
+};
+
 // Validation owns input rules and field messages, not toast/loading behavior.
 export const validateAddEmployee = (formData, allowedRoles) => {
   const errors = {};
+  const messages = addEmployeeValidationMessages;
   const selectedRole = allowedRoles.find((role) => role.id === formData.roleId);
-  if (!formData.roleId) errors.roleId = "Role is required.";
-  else if (!selectedRole) errors.roleId = "Select an available employee role.";
+  if (!formData.roleId) errors.roleId = messages.roleRequired;
+  else if (!selectedRole) errors.roleId = messages.roleUnavailable;
 
-  if (!formData.firstName.trim()) errors.firstName = "First Name is required.";
-  else if (formData.firstName.trim().length > 100) errors.firstName = "Use 100 characters or fewer.";
-  if (!formData.lastName.trim()) errors.lastName = "Last Name is required.";
-  else if (formData.lastName.trim().length > 100) errors.lastName = "Use 100 characters or fewer.";
+  if (!formData.firstName.trim()) errors.firstName = messages.firstNameRequired;
+  else if (formData.firstName.trim().length > 100) errors.firstName = messages.nameTooLong;
+  if (!formData.lastName.trim()) errors.lastName = messages.lastNameRequired;
+  else if (formData.lastName.trim().length > 100) errors.lastName = messages.nameTooLong;
 
   const email = formData.email.trim();
-  if (!email) errors.email = "Email is required.";
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
-  else if (email.length > 255) errors.email = "Use 255 characters or fewer.";
+  if (!email) errors.email = messages.emailRequired;
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = messages.emailInvalid;
+  else if (email.length > 255) errors.email = messages.emailTooLong;
 
-  if (!formData.contactNumber.trim()) errors.contactNumber = "Contact Number is required.";
+  if (!formData.contactNumber.trim()) errors.contactNumber = messages.contactRequired;
   else if (!isValidEmployeeContactNumber(formData.contactNumber)) {
-    errors.contactNumber = "Enter a valid Philippine mobile number.";
+    errors.contactNumber = messages.contactInvalid;
   }
   return { errors, isFormValid: Object.keys(errors).length === 0 };
 };
