@@ -141,8 +141,9 @@ const WastageModalContent = ({
     return getWastageSpilloverPreview(selectedItem, effectiveBatchId, quantity);
   }, [hasSpillover, selectedItem, effectiveBatchId, quantity]);
 
-  const errors = useMemo(() => {
-    const nextErrors = validateStockLog({
+  const validation = useMemo(() => {
+    return validateStockLog({
+      selectedItem,
       actionType: "wastage",
       quantity,
       currentStock,
@@ -154,11 +155,6 @@ const WastageModalContent = ({
       reason,
     });
 
-    if (!selectedItem) {
-      nextErrors.item = "Please select an inventory item.";
-    }
-
-    return nextErrors;
   }, [
     currentStock,
     effectiveBatchId,
@@ -167,6 +163,7 @@ const WastageModalContent = ({
     selectedBatchStock,
     selectedItem,
   ]);
+  const { errors, isFormValid } = validation;
 
   const handleItemChange = (nextItem) => {
     setSelectedItem(nextItem);
@@ -187,7 +184,7 @@ const WastageModalContent = ({
     setHasAttemptedSubmit(true);
     clearFeedback();
 
-    if (Object.keys(errors).length > 0 || !selectedItem) {
+    if (!isFormValid) {
       requestAnimationFrame(() => {
         if (!fieldsRef.current) return;
         const firstInvalidField = fieldsRef.current.querySelector('[aria-invalid="true"]');

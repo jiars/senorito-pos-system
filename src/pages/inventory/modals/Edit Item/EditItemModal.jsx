@@ -518,17 +518,12 @@ const EditItemModalContent = ({
             {conversions.map((conversion, index) => {
               const equivalent = Number(conversion.equivalent);
               const hasUnit = Boolean(conversion.unit.trim());
-              const hasEquivalent = conversion.equivalent !== "";
-              const isBlankAddedRow =
-                index > 0 && !hasUnit && !hasEquivalent;
-              const isUnitInvalid =
-                isBlankAddedRow || (hasEquivalent && !hasUnit);
-              const isEquivalentInvalid =
-                isBlankAddedRow ||
-                (hasUnit &&
-                  (!hasEquivalent ||
-                    !Number.isFinite(equivalent) ||
-                    equivalent <= 0));
+              let rowErrors = {};
+              if (errors.conversions) {
+                rowErrors = errors.conversions[conversion.clientId] || {};
+              }
+              const isUnitInvalid = Boolean(rowErrors.unit);
+              const isEquivalentInvalid = Boolean(rowErrors.equivalent);
               const numericCost = Number(cost);
               const conversionCost =
                 Number.isFinite(numericCost) &&
@@ -563,7 +558,7 @@ const EditItemModalContent = ({
                     />
                     {hasAttemptedSubmit && isUnitInvalid && (
                       <FieldError className={errorClassName}>
-                        Converted unit is required.
+                        {rowErrors.unit}
                       </FieldError>
                     )}
                   </Field>
@@ -599,7 +594,7 @@ const EditItemModalContent = ({
                     )}
                     {hasAttemptedSubmit && isEquivalentInvalid && (
                       <FieldError className={errorClassName}>
-                        Equivalent amount must be greater than 0.
+                        {rowErrors.equivalent}
                       </FieldError>
                     )}
                   </Field>

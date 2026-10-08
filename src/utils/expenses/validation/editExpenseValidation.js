@@ -1,28 +1,38 @@
 import { format, isValid, parse } from "date-fns";
-import { validateExpenseForm } from "./addExpenseValidation";
+import { addExpenseValidationMessages, validateExpenseForm } from "./addExpenseValidation";
+
+// Reuse common expense copy; Edit adds its own field-length message.
+export const editExpenseValidationMessages = {
+  ...addExpenseValidationMessages,
+  textTooLong: (limit) => {
+    return `Use ${limit} characters or fewer.`;
+  },
+};
 
 // Keep an existing historical date; newly chosen dates follow the shared bounds.
 export const validateEditExpenseForm = (formData, categories, paymentMethods, originalPaymentMethod, dateLimits, originalExpenseDate) => {
-  const errors = validateExpenseForm(formData);
+  const validation = validateExpenseForm(formData);
+  const errors = validation.errors;
+  const messages = editExpenseValidationMessages;
   if (formData.category_id && !categories.some((category) => String(category.id) === String(formData.category_id))) {
-    errors.category_id = "Select an available expense category.";
+    errors.category_id = messages.categoryUnavailable;
   }
   if (formData.expense_date) {
     const date = parse(formData.expense_date, "yyyy-MM-dd", new Date());
     if (!isValid(date) || format(date, "yyyy-MM-dd") !== formData.expense_date) {
-      errors.expense_date = "Enter a valid expense date.";
+      errors.expense_date = messages.dateInvalid;
     } else if (formData.expense_date !== originalExpenseDate && (date < dateLimits.minExpenseDate || date > dateLimits.maxExpenseDate)) {
-      errors.expense_date = `Choose a date from ${format(dateLimits.minExpenseDate, "MM/dd/yyyy")} through ${format(dateLimits.maxExpenseDate, "MM/dd/yyyy")}.`;
+      errors.expense_date = messages.dateOutsideRange(dateLimits);
     }
   }
   if (formData.payment_method && !paymentMethods.includes(formData.payment_method) && formData.payment_method !== originalPaymentMethod) {
-    errors.payment_method = "Select an available payment method.";
+    errors.payment_method = messages.paymentUnavailable;
   }
   const textLimits = { description: 1000, vendor: 255, receipt_reference: 255 };
   for (const [field, limit] of Object.entries(textLimits)) {
-    if (formData[field].trim().length > limit) errors[field] = `Use ${limit} characters or fewer.`;
+    if (formData[field].trim().length > limit) errors[field] = messages.textTooLong(limit);
   }
-  return errors;
+  return { errors, isFormValid: Object.keys(errors).length === 0 };
 };
 
 export const getEditExpenseServerFieldErrors = (backendErrors) => {

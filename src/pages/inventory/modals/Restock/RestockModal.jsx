@@ -105,8 +105,10 @@ const RestockModalContent = ({
   const unit = selectedItem?.base_unit || "pcs";
   const isExpiryTracked = Boolean(selectedItem?.track_expiry);
 
-  const errors = useMemo(() => {
-    const nextErrors = validateStockLog({
+  const validation = useMemo(() => {
+    return validateStockLog({
+      selectedItem,
+      isExpirationInputValid,
       actionType: "restock",
       quantity,
       currentStock,
@@ -120,15 +122,8 @@ const RestockModalContent = ({
       reason,
     });
 
-    if (!selectedItem) {
-      nextErrors.item = "Please select an inventory item.";
-    }
-    if (!isExpirationInputValid) {
-      nextErrors.expirationDate = "Enter a complete, valid expiration date within the allowed range.";
-    }
-
-    return nextErrors;
   }, [currentStock, expirationDate, quantity, reason, selectedItem, totalCost, today, maxExpirationDate, isExpirationInputValid]);
+  const { errors, isFormValid } = validation;
 
   // A saved stock change must only retry the read, never the stock mutation.
   const refreshSavedInventory = async () => {
@@ -178,7 +173,7 @@ const RestockModalContent = ({
     setHasAttemptedSubmit(true);
     clearFeedback();
 
-    if (Object.keys(errors).length > 0 || !selectedItem) {
+    if (!isFormValid) {
       requestAnimationFrame(() => {
         if (fieldsRef.current) {
           const firstInvalidField = fieldsRef.current.querySelector(

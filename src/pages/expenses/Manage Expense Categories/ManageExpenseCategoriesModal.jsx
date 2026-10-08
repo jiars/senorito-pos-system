@@ -1,16 +1,27 @@
-import { useState } from "react";
-
+import { useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getCategoryInlineFeedback,
+  getCategoryStatusFeedback,
+  getCategoryToastFeedback,
+  getExpenseCategoryErrorCode,
+} from "@/utils/expenses/feedback/categoryFeedback";
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
+import { toast } from "@/components/ui/toast";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { validateExpenseCategory } from "@/utils/expenses/validation/categoryValidation";
 import {
   addExpenseCategory,
-  deleteExpenseCategory,
   updateExpenseCategory,
-} from "../../../services/expenses/expenseCategoriesService";
+  deleteExpenseCategory,
+} from "@/services/expenses/expenseCategoriesService";
 
 const ManageExpenseCategoriesModalContent = ({
   onClose,
@@ -21,113 +32,192 @@ const ManageExpenseCategoriesModalContent = ({
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const [newTouched, setNewTouched] = useState(false);
+  const [editTouched, setEditTouched] = useState(false);
+  const operationInFlight = useRef(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [hasUnconfirmedSave, setHasUnconfirmedSave] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const savedOperation = useRef(null);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getCategoryInlineFeedback);
+  const fieldsDisabled = isSubmitting || hasSaved || hasUnconfirmedSave || Boolean(deleteTarget);
 
-  const isDuplicate = (name, excludedId = null) => {
-    const normalizedName = name.trim().toLowerCase();
+  const newValidation = validateExpenseCategory(newCategory, categories);
+  const editValidation = validateExpenseCategory(editName, categories, editingId);
+  const isAddDisabled = !newValidation.isFormValid || fieldsDisabled;
+  const isSaveDisabled = !editValidation.isFormValid || fieldsDisabled;
 
-    return categories.some((category) => {
-      return category.id !== excludedId
-        && category.category_name.toLowerCase() === normalizedName;
-    });
+  // JSX controls visibility, not the validation rules or message wording.
+  let newError = "";
+  if (newTouched || newCategory !== "") newError = newValidation.errors.name || "";
+  let editError = "";
+  if (editTouched || editName !== "") editError = editValidation.errors.name || "";
+
+  const handleClose = () => {
+    if (!operationInFlight.current && !hasSaved && !deleteTarget) onClose();
   };
 
-  const isNewDuplicate = Boolean(newCategory.trim()) && isDuplicate(newCategory);
-  const isAddDisabled = !newCategory.trim() || isNewDuplicate || isSubmitting;
-  const isEditDuplicate = Boolean(editName.trim())
-    && isDuplicate(editName, editingId);
-  const isSaveDisabled = !editName.trim() || isEditDuplicate || isSubmitting;
-
-  const runRequest = async (request) => {
+  // A confirmed change only retries its read, never its mutation.
+  const refreshSavedCategories = async () => {
     try {
-      setIsSubmitting(true);
-      setError("");
-      await request();
-      await refetch();
-      return true;
-    } catch (requestError) {
-      setError(requestError.message);
-      return false;
+      if (refetch) {
+        const result = await refetch();
+        if (result && (result.isError || result.error)) {
+          showFeedback("REFRESH_FAILED");
+          return;
+        }
+      }
+    } catch {
+      showFeedback("REFRESH_FAILED");
+      return;
+    }
+
+    let toastCode = "CATEGORY_ADDED";
+    if (savedOperation.current.type === "edit") toastCode = "CATEGORY_UPDATED";
+    if (savedOperation.current.type === "delete") toastCode = "CATEGORY_DELETED";
+    toast.add(getCategoryToastFeedback(toastCode, { categoryName: savedOperation.current.name }));
+
+    if (savedOperation.current.type === "add") {
+      setNewCategory("");
+      setNewTouched(false);
+    }
+    if (savedOperation.current.type === "edit" || savedOperation.current.id === editingId) {
+      setEditingId(null);
+      setEditName("");
+      setEditTouched(false);
+    }
+    savedOperation.current = null;
+    setHasSaved(false);
+    clearFeedback();
+  };
+
+  const saveCategoryChange = async (type, id, name) => {
+    if (operationInFlight.current || isSubmitting || hasSaved || hasUnconfirmedSave) return;
+    if (deleteTarget && type !== "delete") return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    clearFeedback();
+    try {
+      try {
+        if (type === "add") await addExpenseCategory(name);
+        if (type === "edit") await updateExpenseCategory(id, name);
+        if (type === "delete") await deleteExpenseCategory(id);
+      } catch (error) {
+        let code = getExpenseCategoryErrorCode(error);
+        if (type === "delete" && error.response && error.response.status === 409) {
+          code = "CATEGORY_IN_USE";
+        }
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setHasUnconfirmedSave(true);
+        return;
+      }
+      savedOperation.current = { type, id, name };
+      setHasSaved(true);
+      await refreshSavedCategories();
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
-  const handleAdd = async () => {
+  const handleAddCategory = () => {
     if (isAddDisabled) return;
+    return saveCategoryChange("add", null, newCategory.trim());
+  };
 
-    const saved = await runRequest(() => {
-      return addExpenseCategory(newCategory.trim());
-    });
+  const handleSaveEdit = (id) => {
+    if (isSaveDisabled || id !== editingId) return;
+    return saveCategoryChange("edit", id, editName.trim());
+  };
 
-    if (saved) {
-      setNewCategory("");
+  // Confirm only unused categories; the backend checks usage again on deletion.
+  const handleDeleteCategory = (id) => {
+    if (operationInFlight.current || fieldsDisabled) return;
+    const category = categories.find((currentCategory) => currentCategory.id === id);
+    if (!category || Number(category.expenses_count ?? 0) > 0) return;
+    clearFeedback();
+    setDeleteTarget(category);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget || operationInFlight.current) return;
+    const category = categories.find((currentCategory) => currentCategory.id === deleteTarget.id);
+    setDeleteTarget(null);
+    if (!category) return;
+    if (Number(category.expenses_count ?? 0) > 0) {
+      showFeedback("CATEGORY_IN_USE");
+      return;
+    }
+    return saveCategoryChange("delete", category.id, category.category_name);
+  };
+
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !hasSaved) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedCategories();
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
     }
   };
 
-  const handleSaveEdit = async (categoryId) => {
-    if (isSaveDisabled) return;
-
-    const saved = await runRequest(() => {
-      return updateExpenseCategory(categoryId, editName.trim());
-    });
-
-    if (saved) {
-      setEditingId(null);
-      setEditName("");
-    }
-  };
-
-  const handleDelete = async (categoryId) => {
-    if (isSubmitting) return;
-
-    await runRequest(() => {
-      return deleteExpenseCategory(categoryId);
-    });
-  };
+  const isRefreshError = hasSaved && !isSubmitting;
+  let blockingCode = "CATEGORY_SAVING";
+  if (hasSaved) blockingCode = "EXPENSES_REFRESHING";
+  if (isRefreshError) blockingCode = "EXPENSES_REFRESH_FAILED";
+  const blockingFeedback = getCategoryStatusFeedback(blockingCode);
+  let blockingAction;
+  if (isRefreshError) {
+    blockingAction = { label: blockingFeedback.buttonLabel, onClick: handleRetryRefresh };
+  }
 
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !hasSaved}
+      onClose={handleClose}
       maxWidth="32rem"
       maxHeight="min(85svh, 42rem)"
     >
       <ModalHeader
         title="Manage Expense Categories"
         iconClassName="bi bi-tags"
-        closeDisabled={isSubmitting}
+        closeDisabled={isSubmitting || Boolean(deleteTarget)}
       />
 
       <ModalBody>
         <ModalContent>
-          {error && (
-            <p
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-
+          <InlineFeedback feedback={feedback} id="expense-category-operation-feedback" />
+          <fieldset disabled={fieldsDisabled} aria-busy={isSubmitting} className="contents">
           <div className="flex items-start gap-[var(--app-space-2)] max-sm:flex-col">
             <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)] max-sm:w-full">
               <Input
+                id="expense-category-add-name"
+                aria-label="New category name"
+                disabled={fieldsDisabled}
+                onBlur={() => setNewTouched(true)}
                 type="text"
-                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isNewDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
+                className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${newError ? "border-[var(--app-color-danger)]" : ""}`}
                 placeholder="New Category Name"
                 value={newCategory}
-                onChange={(event) => setNewCategory(event.target.value)}
-                disabled={isSubmitting}
-                aria-invalid={isNewDuplicate}
-                aria-describedby={isNewDuplicate ? "expense-category-add-error" : undefined}
+                onChange={(event) => {
+                  if (operationInFlight.current || fieldsDisabled) return;
+                  clearFeedback();
+                  setNewCategory(event.target.value);
+                }}
+                aria-invalid={Boolean(newError)}
+                aria-describedby={
+                  newError ? "expense-category-add-error" : undefined
+                }
               />
-              {isNewDuplicate && (
+              {newError && (
                 <small
                   id="expense-category-add-error"
                   className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
                 >
-                  Category already exists.
+                  {newError}
                 </small>
               )}
             </div>
@@ -136,7 +226,7 @@ const ManageExpenseCategoriesModalContent = ({
               type="button"
               className="h-[var(--app-touch-target-min)] shrink-0 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)] max-sm:w-full"
               disabled={isAddDisabled}
-              onClick={handleAdd}
+              onClick={handleAddCategory}
             >
               + Add Category
             </Button>
@@ -155,7 +245,7 @@ const ManageExpenseCategoriesModalContent = ({
             <div className="flex flex-col">
               {categories.map((category) => {
                 const isEditing = editingId === category.id;
-                const usedByCount = Number(category.expenses_count || 0);
+                const usedByCount = Number(category.expenses_count ?? 0);
 
                 return (
                   <div
@@ -166,21 +256,32 @@ const ManageExpenseCategoriesModalContent = ({
                       <>
                         <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)]">
                           <Input
+                            id={`expense-category-edit-name-${category.id}`}
+                            aria-label={`Category name for ${category.category_name}`}
+                            disabled={fieldsDisabled}
+                            onBlur={() => setEditTouched(true)}
                             type="text"
-                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${isEditDuplicate ? "border-[var(--app-color-danger)]" : ""}`}
+                            className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${editError ? "border-[var(--app-color-danger)]" : ""}`}
                             value={editName}
-                            onChange={(event) => setEditName(event.target.value)}
+                            onChange={(event) => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
+                              setEditName(event.target.value);
+                            }}
                             autoFocus
-                            disabled={isSubmitting}
-                            aria-invalid={isEditDuplicate}
-                            aria-describedby={isEditDuplicate ? `expense-category-edit-error-${category.id}` : undefined}
+                            aria-invalid={Boolean(editError)}
+                            aria-describedby={
+                              editError
+                                ? `expense-category-edit-error-${category.id}`
+                                : undefined
+                            }
                           />
-                          {isEditDuplicate && (
+                          {editError && (
                             <small
                               id={`expense-category-edit-error-${category.id}`}
                               className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
                             >
-                              Category already exists.
+                              {editError}
                             </small>
                           )}
                         </div>
@@ -203,10 +304,13 @@ const ManageExpenseCategoriesModalContent = ({
                             size="icon"
                             className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-text)]"
                             onClick={() => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
                               setEditingId(null);
                               setEditName("");
+                              setEditTouched(false);
                             }}
-                            disabled={isSubmitting}
+                            disabled={fieldsDisabled}
                             aria-label={`Cancel editing ${category.category_name}`}
                           >
                             <i className="bi bi-x-lg" aria-hidden="true" />
@@ -231,10 +335,13 @@ const ManageExpenseCategoriesModalContent = ({
                             size="icon"
                             className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)]"
                             onClick={() => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
                               setEditingId(category.id);
                               setEditName(category.category_name);
+                              setEditTouched(false);
                             }}
-                            disabled={isSubmitting}
+                            disabled={fieldsDisabled}
                             aria-label={`Edit ${category.category_name}`}
                           >
                             <i className="bi bi-pencil" aria-hidden="true" />
@@ -245,8 +352,8 @@ const ManageExpenseCategoriesModalContent = ({
                               variant="ghost"
                               size="icon"
                               className="size-[var(--app-touch-target-min)] rounded-full text-[var(--app-color-danger)] hover:bg-[var(--app-color-danger-surface)] hover:text-[var(--app-color-danger)]"
-                              disabled={isSubmitting}
-                              onClick={() => handleDelete(category.id)}
+                              disabled={fieldsDisabled}
+                              onClick={() => handleDeleteCategory(category.id)}
                               aria-label={`Delete ${category.category_name}`}
                             >
                               <i className="bi bi-trash" aria-hidden="true" />
@@ -260,16 +367,43 @@ const ManageExpenseCategoriesModalContent = ({
               })}
             </div>
           )}
+          </fieldset>
         </ModalContent>
       </ModalBody>
+      <ActionAlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !operationInFlight.current) setDeleteTarget(null);
+        }}
+        type="destructive"
+        title="Delete category?"
+        description={
+          <>
+            Permanently delete <strong className="font-semibold">{deleteTarget && deleteTarget.category_name}</strong>?
+            {" "}This action cannot be undone.
+          </>
+        }
+        actions={[
+          { key: "cancel", label: "Cancel", close: true },
+          { key: "confirm", label: "Confirm", onClick: handleConfirmDelete, disabled: isSubmitting },
+        ]}
+      />
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || hasSaved}
+      status={isRefreshError ? "error" : "loading"}
+      title={blockingFeedback.title}
+      message={blockingFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 
 const ManageExpenseCategoriesModal = ({
   isOpen,
   onClose,
-  categories,
+  categories = [],
   refetch,
 }) => {
   if (!isOpen) {

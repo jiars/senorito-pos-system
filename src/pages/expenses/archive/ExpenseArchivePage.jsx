@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { useExpenseManagement } from "@/hooks/useExpenseManagement";
-import { unarchiveExpense } from "@/services/expenses/expenseService";
+import RestoreExpenseModal from "../Restore Expense/RestoreExpenseModal";
 import { buildCategoryColorMap } from "@/utils/expenses/expenseCalculations";
 
 import ExpenseArchiveTable from "./components/ExpenseArchiveTable";
@@ -13,7 +13,7 @@ import "./expenseArchive.css";
 
 const ExpenseArchivePage = () => {
   const navigate = useNavigate();
-  const [restoringExpenseId, setRestoringExpenseId] = useState(null);
+  const [expenseToRestore, setExpenseToRestore] = useState(null);
   const {
     archivedExpenses,
     categories,
@@ -28,20 +28,9 @@ const ExpenseArchivePage = () => {
     return categoryColorMap[categoryName] || "#888888";
   };
 
-  const handleRestoreExpense = async (expense) => {
-    if (restoringExpenseId !== null) {
-      return;
-    }
-
-    try {
-      setRestoringExpenseId(expense.id);
-      await unarchiveExpense(expense.id);
-      await refetchExpenseManagement();
-    } catch (requestError) {
-      alert(requestError.message || "Failed to restore expense.");
-    } finally {
-      setRestoringExpenseId(null);
-    }
+  const handleRestoreExpense = (expense) => {
+    if (expenseToRestore) return;
+    setExpenseToRestore(expense);
   };
 
   const pageActions = (
@@ -69,11 +58,17 @@ const ExpenseArchivePage = () => {
           categories={categories}
           isLoading={isLoading}
           error={error}
-          restoringExpenseId={restoringExpenseId}
+          restoringExpenseId={expenseToRestore ? expenseToRestore.id : null}
           getCategoryColor={getCategoryColor}
           onRestoreExpense={handleRestoreExpense}
         />
       </div>
+      <RestoreExpenseModal
+        isOpen={Boolean(expenseToRestore)}
+        expense={expenseToRestore}
+        onClose={() => setExpenseToRestore(null)}
+        refetch={refetchExpenseManagement}
+      />
     </PageLayout>
   );
 };

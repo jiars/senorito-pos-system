@@ -90,11 +90,11 @@ const EditExpenseModalContent = ({
   const showVendor =
     vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor) || Boolean(serverFieldErrors.vendor);
 
-  const validationErrors = useMemo(() => {
+  const validation = useMemo(() => {
     return validateEditExpenseForm(formData, categories, paymentMethods, expenseData.payment_method, dateLimits, originalExpenseDate);
   }, [formData, categories, expenseData.payment_method, dateLimits, originalExpenseDate]);
-  const errors = { ...serverFieldErrors, ...validationErrors };
-  const isFormValid = Object.keys(errors).length === 0;
+  const errors = { ...serverFieldErrors, ...validation.errors };
+  const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
   const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
 
   const errorFor = (fieldName) => {

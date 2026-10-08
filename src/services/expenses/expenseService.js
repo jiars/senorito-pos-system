@@ -61,8 +61,7 @@ export const unarchiveExpense = async (expenseId) => {
   } catch (error) {
     console.error("Error restoring expense:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to restore expense",
-    );
+    // Preserve HTTP details for restore feedback without changing the endpoint.
+    throw error;
   }
 };
