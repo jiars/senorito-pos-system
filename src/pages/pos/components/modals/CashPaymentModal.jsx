@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { validateCashPayment } from "@/utils/pos/validation/cashPaymentValidation";
 
 const labelClassName = "text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]";
 const inputGroupClassName = "h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)]";
@@ -31,18 +32,20 @@ const CashPaymentModal = ({
   isCheckoutBlocked = false,
 }) => {
   const [showError, setShowError] = useState(false);
-  const paid = parseFloat(amountPaid) || 0;
-  const isValid = paid >= total && total > 0;
-  const hasAmountError = showError && !isValid;
+  const validation = validateCashPayment({ amountPaid, total });
+  const amountError = validation.errors.amountPaid || validation.errors.total;
+  const hasAmountError = showError && Boolean(amountError);
+  const isPaymentLocked = isProcessingOrder || isCheckoutBlocked;
 
   const handleAmountChange = (event) => {
+    if (isPaymentLocked) return;
     setAmountPaid(event.target.value.replace(/[^0-9.]/g, ""));
     setShowError(false);
   };
 
   const handleProcessClick = () => {
-    if (isProcessingOrder || isCheckoutBlocked) return;
-    if (!isValid) {
+    if (isPaymentLocked) return;
+    if (!validation.isFormValid) {
       setShowError(true);
       return;
     }
@@ -84,7 +87,7 @@ const CashPaymentModal = ({
                 <select
                   className="bg-[var(--app-color-canvas)] border border-[var(--app-color-border-subtle)] rounded px-[var(--app-space-1)] py-[2px] outline-none cursor-pointer text-[var(--app-color-text-muted)]"
                   value={discountType}
-                  disabled={isProcessingOrder}
+                  disabled={isPaymentLocked}
                   onChange={(e) => setDiscountType(e.target.value)}
                 >
                   <option value="None">None</option>
@@ -114,7 +117,9 @@ const CashPaymentModal = ({
               <InputGroupInput
                 id="pos-cash-received"
                 type="number"
-                min="1"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
                 className={inputClassName}
                 value={amountPaid}
                 onChange={handleAmountChange}
@@ -122,13 +127,13 @@ const CashPaymentModal = ({
                 aria-required="true"
                 aria-invalid={hasAmountError}
                 aria-describedby={hasAmountError ? "pos-cash-error" : undefined}
-                disabled={isProcessingOrder}
+                disabled={isPaymentLocked}
                 autoFocus
               />
             </InputGroup>
             {hasAmountError && (
               <FieldError id="pos-cash-error" className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)] font-medium">
-                Amount paid must be at least {formatCurrency(total)}.
+                {amountError}
               </FieldError>
             )}
           </Field>
@@ -161,7 +166,7 @@ const CashPaymentModal = ({
         <Button
           type="button"
           className={`${buttonClassName} bg-[var(--app-color-brand)] text-white hover:bg-[var(--app-color-brand-hover)]`}
-          disabled={isProcessingOrder || isCheckoutBlocked}
+          disabled={isPaymentLocked}
           onClick={handleProcessClick}
         >
           {isProcessingOrder ? "Processing..." : "Process Order"}

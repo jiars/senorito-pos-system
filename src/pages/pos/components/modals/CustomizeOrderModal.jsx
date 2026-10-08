@@ -1,12 +1,13 @@
 import { useId, useState } from "react";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
+import { getPOSSelectionValidationCode } from "@/utils/pos/feedback/posFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { validateCustomizeOrder } from "@/utils/pos/validation/customizeOrderValidation";
 import {
   getPOSProductVariants,
   getPOSAddonOptions,
   getPOSSelectedAddons,
-  getPOSSelectionStockStatus,
   isPOSAddonSelectable,
 } from "@/utils/pos/posSelectionUtils";
 import Modal from "@/components/modals/Modal";
@@ -36,25 +37,27 @@ const CustomizeOrderModal = ({
   }
 
   const addonOptions = getPOSAddonOptions(product, allAddons, cartItems, selection);
-  const stockStatus = getStockStatusForSelection(addonOptions);
-  const hasUnavailableAddons = addonOptions.some(
-    (addon) => addon.selected && !isPOSAddonSelectable(addon),
-  ) || selection.some((addon) => !addonOptions.some((option) => option.id === addon.id));
-  const persistentCode = !variant?.isAvailable ? "VARIANT_UNAVAILABLE"
-    : hasUnavailableAddons ? "ADDON_UNAVAILABLE"
-      : !stockStatus.hasEnoughStock ? "ADDON_STOCK_INSUFFICIENT" : null;
+  const validation = validateSelection(addonOptions, selection);
+  const persistentCode = getPOSSelectionValidationCode(validation);
   const { feedback, showFeedback } =
     usePOSFeedback(persistentCode);
 
-  function getStockStatusForSelection(options) {
-    const selectedAddons = getPOSSelectedAddons(options);
-    return getPOSSelectionStockStatus(product, variant?.id, initialQty, selectedAddons, cartItems);
+  function validateSelection(options, nextSelection, isIncreasingQuantity = false) {
+    return validateCustomizeOrder({
+      product,
+      selectedVariant: variant,
+      quantity: initialQty,
+      addonOptions: options,
+      selection: nextSelection,
+      cartItems,
+      isIncreasingQuantity,
+    });
   }
 
   const updateSelection = (options) => {
-    setSelection(getPOSSelectedAddons(options));
-    showFeedback(getStockStatusForSelection(options).hasEnoughStock
-      ? null : "ADDON_STOCK_INSUFFICIENT");
+    const nextSelection = getPOSSelectedAddons(options);
+    setSelection(nextSelection);
+    showFeedback(getPOSSelectionValidationCode(validateSelection(options, nextSelection)));
   };
 
   const handleToggleAddOn = (id) => {
@@ -78,24 +81,19 @@ const CustomizeOrderModal = ({
       return addon;
     });
 
-    if (delta > 0 && !getStockStatusForSelection(updated).hasEnoughStock) {
-      showFeedback("STOCK_LIMIT_REACHED");
+    const nextValidation = validateSelection(
+      updated, getPOSSelectedAddons(updated), delta > 0,
+    );
+    if (delta > 0 && !nextValidation.isFormValid) {
+      showFeedback(getPOSSelectionValidationCode(nextValidation));
       return;
     }
     updateSelection(updated);
   };
 
   const handleConfirm = () => {
-    if (!variant?.isAvailable) {
-      showFeedback("VARIANT_UNAVAILABLE");
-      return;
-    }
-    if (hasUnavailableAddons) {
-      showFeedback("ADDON_UNAVAILABLE");
-      return;
-    }
-    if (!stockStatus.hasEnoughStock) {
-      showFeedback("ADDON_STOCK_INSUFFICIENT");
+    if (!validation.isFormValid) {
+      showFeedback(getPOSSelectionValidationCode(validation));
       return;
     }
     onSaveAddons(getPOSSelectedAddons(addonOptions));
