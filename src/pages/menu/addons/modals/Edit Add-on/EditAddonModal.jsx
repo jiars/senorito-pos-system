@@ -16,7 +16,7 @@ import {
   calculateMargin,
   calculateProfit,
 } from "@/utils/menu/pricingCalculations";
-import { validateAddonForm } from "@/utils/validation/menuValidation";
+import { validateAddonForm } from "@/utils/menu/validation/menuValidation";
 import {
   controlClassName,
   errorClassName,

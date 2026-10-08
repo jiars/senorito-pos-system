@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatFullName, formatPhoneNumber } from '../../../utils/stringFormatters';
+import { formatFullName, formatPhoneNumber } from '@/utils/shared/formatters/stringFormatters';
 
 const PersonalInfoPanel = ({ user, profile }) => {
   let fullName = formatFullName(profile.first_name, profile.last_name);

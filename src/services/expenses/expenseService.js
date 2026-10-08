@@ -12,7 +12,8 @@ export const addExpense = async (expenseData) => {
   } catch (error) {
     console.error("Error adding expense:", error.message);
 
-    throw new Error(error.response?.data?.message || "Failed to add expense");
+    // Preserve HTTP status and field errors for the module's feedback/validation.
+    throw error;
   }
 };
 
@@ -28,9 +29,8 @@ export const updateExpense = async (expenseId, expenseData) => {
   } catch (error) {
     console.error("Error updating expense:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to update expense",
-    );
+    // Keep HTTP details available to Edit validation and feedback.
+    throw error;
   }
 };
 
@@ -45,9 +45,8 @@ export const archiveExpense = async (expenseId) => {
   } catch (error) {
     console.error("Error archiving expense:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to archive expense",
-    );
+    // Preserve HTTP details for archive feedback.
+    throw error;
   }
 };
 

@@ -1,6 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getAddExpenseErrorCode, getAddExpenseInlineFeedback,
+  getAddExpenseStatusFeedback, getAddExpenseToastFeedback,
+} from "@/utils/expenses/feedback/addExpenseFeedback";
 
 import Modal from "@/components/modals/Modal";
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
 import ModalFooter from "@/components/modals/ModalFooter";
@@ -33,8 +43,9 @@ import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
 import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { addExpense } from "@/services/expenses/expenseService";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
-import { validateExpenseForm } from "@/utils/validation/expenses/expenseValidation";
+import { validateExpenseForm, getAddExpenseServerFieldErrors } from "@/utils/expenses/validation/addExpenseValidation";
 import { getExpenseDateLimits } from "@/utils/expenses/expenseDateLimits";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const emptyForm = {
   category_id: "",
@@ -111,7 +122,12 @@ const AddExpenseModalContent = ({
   }));
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState("");
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const operationInFlight = useRef(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getAddExpenseInlineFeedback);
   const [isCustomReason, setIsCustomReason] = useState(false);
   const [dateLimits] = useState(() => getExpenseDateLimits());
 
@@ -131,10 +147,12 @@ const AddExpenseModalContent = ({
   const finalStock = currentStock + quantityToAdd;
   const unit = selectedItem?.base_unit || "pcs";
 
-  const errors = useMemo(() => {
-    return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits });
-  }, [formData, isPurchase, selectedItem, dateLimits]);
+  const validationErrors = useMemo(() => {
+    return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits, categories, paymentMethods });
+  }, [formData, isPurchase, selectedItem, dateLimits, categories]);
+  const errors = { ...serverFieldErrors, ...validationErrors };
   const isFormValid = Object.keys(errors).length === 0;
+  const formLocked = isSubmitting || isConfirmationOpen || Boolean(savedResult) || saveBlocked;
 
   const errorFor = (fieldName) => {
     if (!hasAttemptedSubmit) return "";
@@ -142,6 +160,9 @@ const AddExpenseModalContent = ({
   };
 
   const updateField = (fieldName, value) => {
+    if (operationInFlight.current || formLocked) return;
+    clearFeedback();
+    setServerFieldErrors({});
     setFormData((currentForm) => {
       return {
         ...currentForm,
@@ -151,6 +172,7 @@ const AddExpenseModalContent = ({
   };
 
   const handleCategoryChange = (category) => {
+    if (operationInFlight.current || formLocked) return;
     const nextCategoryId = category ? category.id : "";
 
     setFormData((currentForm) => {
@@ -161,7 +183,8 @@ const AddExpenseModalContent = ({
       };
     });
     setHasAttemptedSubmit(false);
-    setApiError("");
+    clearFeedback();
+    setServerFieldErrors({});
     setIsCustomReason(false);
   };
 
@@ -171,6 +194,7 @@ const AddExpenseModalContent = ({
   };
 
   const handleReasonChange = (nextReason) => {
+    if (operationInFlight.current || formLocked) return;
     if (nextReason === "Others") {
       setIsCustomReason(true);
       updateField("reason", "");
@@ -181,76 +205,144 @@ const AddExpenseModalContent = ({
   };
 
   const resetAndClose = () => {
+    if (operationInFlight.current || savedResult || isConfirmationOpen) return;
     setFormData(emptyForm);
     setHasAttemptedSubmit(false);
-    setApiError("");
+    clearFeedback();
+    setServerFieldErrors({});
     setIsCustomReason(false);
     onClose();
   };
 
-  const handleSubmit = async () => {
-    setHasAttemptedSubmit(true);
-
-    if (!isFormValid || isSubmitting) return;
-
+  // A saved expense/purchase retries required reads only, never its write.
+  const refreshSavedExpense = async (resultDetails) => {
     try {
-      setIsSubmitting(true);
-      setApiError("");
+      const requiredReads = [refetch()];
+      if (resultDetails.isPurchase) requiredReads.push(refetchInventoryManagement());
+      const results = await Promise.all(requiredReads);
+      if (results.some((result) => result && (result.isError || result.error))) return;
+    } catch {
+      return;
+    }
+    if (resultDetails.isPurchase) {
+      // Report caches refresh independently; they do not gate form readiness.
+      void Promise.allSettled([refreshAuditLogs(), refreshValuation()]);
+    }
+    const code = resultDetails.isPurchase ? "PURCHASE_SAVED" : "EXPENSE_SAVED";
+    toast.add(getAddExpenseToastFeedback(code, resultDetails));
+    onClose();
+  };
 
-      if (isPurchase) {
-        const purchaseNotes = [
-          `Description: ${formData.description.trim()}`,
-          formData.notes.trim() ? `Note: ${formData.notes.trim()}` : "",
-        ]
-          .filter(Boolean)
-          .join(" | ");
+  const handleSubmit = () => {
+    if (operationInFlight.current || savedResult || saveBlocked || isConfirmationOpen) return;
+    setHasAttemptedSubmit(true);
+    if (!isFormValid) {
+      const fieldIds = {
+        category_id: "add-expense-category", expense_date: "add-expense-date",
+        description: isPurchase ? "add-expense-purchase-description" : "add-expense-description",
+        amount: isPurchase ? "add-expense-purchase-cost" : "add-expense-amount",
+        inventory_item_id: "add-expense-inventory-item", quantity_to_add: "add-expense-quantity",
+        expiration_date: "add-expense-expiration-date", reason: "add-expense-purchase-reason",
+        payment_method: "add-expense-payment-method",
+      };
+      const input = document.getElementById(fieldIds[Object.keys(errors)[0]]);
+      if (input) input.focus();
+      return;
+    }
+    clearFeedback();
+    setIsConfirmationOpen(true);
+  };
 
-        await restockInventoryItem(selectedItem.id, {
-          stockData: {
-            quantity: Number(formData.quantity_to_add),
-            reason: formData.reason.trim(),
-            notes: purchaseNotes,
-          },
-          purchaseData: {
-            total_cost: Number(formData.amount),
-            supplier: formData.vendor.trim() || null,
-            expiration_date: formData.expiration_date || null,
+  const handleConfirmAdd = async () => {
+    if (operationInFlight.current || savedResult || saveBlocked || !isConfirmationOpen) return;
+    if (!isFormValid) {
+      setIsConfirmationOpen(false);
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    operationInFlight.current = true;
+    setIsConfirmationOpen(false);
+    setIsSubmitting(true);
+    clearFeedback();
+    const resultDetails = {
+      isPurchase, description: formData.description.trim(), amount: Number(formData.amount),
+      itemName: selectedItem ? selectedItem.item_name : "", quantity: quantityToAdd, unit,
+    };
+    try {
+      try {
+        if (isPurchase) {
+          const purchaseNotes = [
+            `Description: ${formData.description.trim()}`,
+            formData.notes.trim() ? `Note: ${formData.notes.trim()}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          await restockInventoryItem(selectedItem.id, {
+            origin: "expense_purchase",
+            stockData: {
+              quantity: Number(formData.quantity_to_add),
+              reason: formData.reason.trim(),
+              notes: purchaseNotes,
+            },
+            purchaseData: {
+              total_cost: Number(formData.amount),
+              supplier: formData.vendor.trim() || null,
+              expiration_date: formData.expiration_date || null,
+              expense_date: formData.expense_date,
+              description: formData.description.trim(),
+            },
+          });
+        } else {
+          await addExpense({
+            category_id: formData.category_id,
             expense_date: formData.expense_date,
-          },
-        });
-
-        await refetch();
-        resetAndClose();
-
-        Promise.allSettled([
-          refetchInventoryManagement(),
-          refreshAuditLogs(),
-          refreshValuation(),
-        ]);
+            description: formData.description.trim(),
+            amount: Number(formData.amount),
+            vendor: formData.vendor.trim() || null,
+            payment_method: formData.payment_method,
+            receipt_reference: formData.receipt_reference.trim() || null,
+          });
+        }
+      } catch (error) {
+        const code = getAddExpenseErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          setServerFieldErrors(getAddExpenseServerFieldErrors(error.response.data.errors));
+        }
         return;
       }
-
-      await addExpense({
-        category_id: formData.category_id,
-        expense_date: formData.expense_date,
-        description: formData.description.trim(),
-        amount: Number(formData.amount),
-        vendor: formData.vendor.trim() || null,
-        payment_method: formData.payment_method,
-        receipt_reference: formData.receipt_reference.trim() || null,
-      });
-      await refetch();
-      resetAndClose();
-    } catch (error) {
-      setApiError(error.message);
+      setSavedResult(resultDetails);
+      await refreshSavedExpense(resultDetails);
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !savedResult) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedExpense(savedResult);
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  let statusCode = "EXPENSE_SAVING";
+  if (savedResult) statusCode = "EXPENSES_REFRESHING";
+  if (isRefreshError) statusCode = "EXPENSES_REFRESH_FAILED";
+  const statusFeedback = getAddExpenseStatusFeedback(statusCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen={true}
+      isOpen={!isSubmitting && !savedResult}
       onClose={resetAndClose}
       maxWidth="32rem"
       maxHeight="min(90svh, 48rem)"
@@ -259,28 +351,23 @@ const AddExpenseModalContent = ({
         title="Add Expense"
         description="Record a business expense or inventory purchase."
         iconClassName="bi bi-wallet2"
-        closeDisabled={isSubmitting}
+        closeDisabled={isSubmitting || isConfirmationOpen}
       />
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
         <ModalContent>
-          {apiError && (
-            <p
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-              role="alert"
-            >
-              {apiError}
-            </p>
-          )}
+          <InlineFeedback feedback={feedback} id="add-expense-feedback" />
 
+          <fieldset disabled={formLocked} className="contents">
           <div className="flex flex-col gap-[var(--app-gap-related)]">
             <Field data-invalid={Boolean(errorFor("category_id"))}>
-              <FieldLabel className={labelClassName}>
+              <FieldLabel htmlFor="add-expense-category" className={labelClassName}>
                 Category
                 <span className="text-[var(--app-color-danger)]">*</span>
               </FieldLabel>
 
               <Combobox
+                disabled={formLocked}
                 items={categories}
                 value={selectedCategory || null}
                 onValueChange={handleCategoryChange}
@@ -295,6 +382,7 @@ const AddExpenseModalContent = ({
                 }}
               >
                 <ComboboxInput
+                  id="add-expense-category"
                   placeholder="Select an expense category"
                   aria-invalid={Boolean(errorFor("category_id"))}
                   className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
@@ -398,6 +486,7 @@ const AddExpenseModalContent = ({
                       id="add-expense-date"
                       minDate={dateLimits.minExpenseDate}
                       maxDate={dateLimits.maxExpenseDate}
+                      defaultMonth={dateLimits.minExpirationDate}
                       value={formData.expense_date}
                       onValueChange={(value) => {
                         updateField("expense_date", value);
@@ -429,6 +518,7 @@ const AddExpenseModalContent = ({
                     <span className="text-[var(--app-color-danger)]">*</span>
                   </FieldLabel>
                   <Combobox
+                    disabled={formLocked}
                     items={inventoryItems}
                     value={selectedItem || null}
                     onValueChange={handleItemChange}
@@ -443,6 +533,7 @@ const AddExpenseModalContent = ({
                     }}
                   >
                     <ComboboxInput
+                      id="add-expense-inventory-item"
                       placeholder="Select an inventory item"
                       aria-invalid={Boolean(errorFor("inventory_item_id"))}
                       className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
@@ -797,6 +888,7 @@ const AddExpenseModalContent = ({
                       id="add-expense-date"
                       minDate={dateLimits.minExpenseDate}
                       maxDate={dateLimits.maxExpenseDate}
+                      defaultMonth={dateLimits.minExpirationDate}
                       value={formData.expense_date}
                       onValueChange={(value) => {
                         updateField("expense_date", value);
@@ -900,15 +992,8 @@ const AddExpenseModalContent = ({
               </>
             )}
 
-            {hasAttemptedSubmit && !isFormValid && (
-              <p
-                className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-                role="alert"
-              >
-                Please fill in all required fields (*).
-              </p>
-            )}
           </div>
+          </fieldset>
         </ModalContent>
       </ModalBody>
 
@@ -924,14 +1009,39 @@ const AddExpenseModalContent = ({
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={formLocked}
           onClick={handleSubmit}
           className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
           {isSubmitting ? "Saving..." : "Add Expense"}
         </Button>
       </ModalFooter>
+      <ActionAlertDialog
+        open={isConfirmationOpen}
+        onOpenChange={setIsConfirmationOpen}
+        type="small"
+        title="Add expense?"
+        description={
+          isPurchase ? (
+            <>Record a purchase of <span className="font-semibold text-[var(--app-color-text)]">{quantityToAdd} {unit}</span> to <span className="font-semibold text-[var(--app-color-text)] [overflow-wrap:anywhere]">{selectedItem?.item_name}</span> with the price of <span className="font-semibold text-[var(--app-color-text)]">{formatCurrency(formData.amount)}</span>?</>
+          ) : (
+            <>Record a purchase of <span className="font-semibold text-[var(--app-color-text)] [overflow-wrap:anywhere]">{formData.description.trim()}</span> as a <span className="font-semibold text-[var(--app-color-text)]">{selectedCategory?.category_name}</span> expense of <span className="font-semibold text-[var(--app-color-text)]">{formatCurrency(formData.amount)}</span>?</>
+          )
+        }
+        actions={[
+          { key: "cancel", label: "Cancel", close: true },
+          { key: "confirm", label: "Confirm", tone: "success", onClick: handleConfirmAdd, disabled: isSubmitting },
+        ]}
+      />
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

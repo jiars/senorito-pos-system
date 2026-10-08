@@ -6,7 +6,7 @@ import { useSalesReport } from "../../hooks/useSalesReport";
 import ManageExpenseCategoriesModal from "./Manage Expense Categories/ManageExpenseCategoriesModal";
 import AddExpenseModal from "./Add Expense/AddExpenseModal";
 import EditExpenseModal from "./Edit Expense/EditExpenseModal";
-import ConfirmDeleteExpenseModal from "./Confirm Delete Expense/ConfirmDeleteExpenseModal";
+import ArchiveExpenseModal from "./Archive Expense/ArchiveExpenseModal";
 
 // CBA Components
 import PageLayout from "../../components/layout/PageLayout";
@@ -23,11 +23,11 @@ import {
   calculateExpenseSummary,
   calculateCategoryBreakdown,
   calculateExpenseDistributionData,
-} from "../../utils/expense/expenseCalculations";
-import { filterExpenseRecords } from "../../utils/expense/expenseFilters";
-import { exportExpensesToExcel } from "../../utils/expense/expenseExportUtils";
-import { calculateSalesSummary } from "../../utils/reports/salesReportCalculations";
-import { filterSalesOrders } from "../../utils/reports/salesReportFilters";
+} from "@/utils/expenses/expenseCalculations";
+import { filterExpenseRecords } from "@/utils/expenses/expenseFilters";
+import { exportExpensesToExcel } from "@/utils/expenses/expenseExportUtils";
+import { calculateSalesSummary } from "@/utils/reports/salesReportCalculations";
+import { filterSalesOrders } from "@/utils/reports/salesReportFilters";
 
 const ExpenseTrackingPage = () => {
   const navigate = useNavigate();
@@ -253,7 +253,7 @@ const ExpenseTrackingPage = () => {
         refetch={refetchExpenseManagement}
       />
 
-      <ConfirmDeleteExpenseModal
+      <ArchiveExpenseModal
         isOpen={isArchiveExpenseOpen}
         onClose={() => setIsArchiveExpenseOpen(false)}
         expense={expenseToArchive}

@@ -1,5 +1,5 @@
 import { resolveErrorFeedback } from "@/utils/feedback/errorFeedback";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 // Restock copy only; shared policies own timing and presentation behavior.
 export const RESTOCK_FEEDBACK = {

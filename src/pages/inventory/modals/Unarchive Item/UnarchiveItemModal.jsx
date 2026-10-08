@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import { useFeedback } from "@/hooks/feedback/useFeedback";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import { getRestoreInlineFeedback, getRestoreStatusFeedback, getRestoreToastFeedback } from "@/utils/inventory/feedback/restoreFeedback";
 import { toast } from "@/components/ui/toast";
 import Modal from "@/components/modals/Modal";

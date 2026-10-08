@@ -7,8 +7,8 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { formatDate, formatDateTime } from "@/utils/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate, formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 
 import ExpenseCategoryBadge from "../../components/ExpenseCategoryBadge";
 

@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import AuthBrand from "./components/AuthBrand";
 import LoginForm from "./components/LoginForm";
 
-import { getLoginFeedback } from "../../utils/auth/loginFeedback";
+import { getLoginFeedback } from "@/utils/auth/feedback/loginFeedback";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");

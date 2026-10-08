@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './confirmDeleteAddonModal.css';
 
 import { archiveAddon } from '../../../../../services/menu/addonsService';
-import { formatCurrency } from '../../../../../utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 
 const ConfirmDeleteAddonModal = ({ isOpen, onClose, addon, refetchAddons }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);

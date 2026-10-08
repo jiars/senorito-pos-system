@@ -34,6 +34,7 @@ const DatePicker = ({
   disabled = false,
   minDate,
   maxDate,
+  defaultMonth,
   invalid = false,
   align = "start",
   triggerClassName = "",
@@ -48,7 +49,7 @@ const DatePicker = ({
   if (draft.sourceValue === value && draft.text) inputText = draft.text;
   const earliestDate = minDate ? startOfDay(minDate) : undefined;
   const latestDate = maxDate ? startOfDay(maxDate) : undefined;
-  let initialMonth = selectedDate;
+  let initialMonth = selectedDate || defaultMonth;
   if (earliestDate && (!initialMonth || initialMonth < earliestDate)) {
     initialMonth = earliestDate;
   }

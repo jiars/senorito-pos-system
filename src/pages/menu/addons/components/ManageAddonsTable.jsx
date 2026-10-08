@@ -1,4 +1,4 @@
-import { formatCurrency } from "../../../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const ManageAddonsTable = ({
   addons,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
-import { formatRoleKey } from "../../utils/stringFormatters";
+import { formatRoleKey } from "@/utils/shared/formatters/stringFormatters";
 
 import sidebarLogo from "../../assets/images/white - senorito.png";
 

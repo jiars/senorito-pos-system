@@ -33,13 +33,13 @@ import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import { correctInventoryStock } from "@/services/inventory/stock/correctionService";
 import { getSortedStockActionBatches } from "@/utils/inventory/inventoryStockActionUtils";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import {
   getCorrectionInlineFeedback,
   getCorrectionStatusFeedback,
   getCorrectionToastFeedback,
 } from "@/utils/inventory/feedback/correctionFeedback";
-import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
+import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
 
 const correctionReasons = [
   "Physical Count Mismatch",

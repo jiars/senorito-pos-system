@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
   createValuationChartSegments,
   getValuationCategoryColor,

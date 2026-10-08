@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import PageLayout from "../../components/layout/PageLayout";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
-import { formatCurrency } from "../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 import ViewOrderDetails from "./View Order Details/ViewOrderDetails";
 import OrdersFilterBar from "./components/OrdersFilterBar";

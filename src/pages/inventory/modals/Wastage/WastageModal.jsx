@@ -37,14 +37,14 @@ import {
   getSortedStockActionBatches,
   getWastageSpilloverPreview,
 } from "@/utils/inventory/inventoryStockActionUtils";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import {
   WASTAGE_FEEDBACK,
   getWastageInlineFeedback,
   getWastageStatusFeedback,
   getWastageToastFeedback,
 } from "@/utils/inventory/feedback/wastageFeedback";
-import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
+import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
 
 const wastageReasons = [
   "Expired",

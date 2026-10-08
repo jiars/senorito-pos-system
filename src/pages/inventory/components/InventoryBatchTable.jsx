@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate } from "@/utils/dateFormatters";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
   filterAndSortInventoryBatches,
   flattenInventoryBatches,

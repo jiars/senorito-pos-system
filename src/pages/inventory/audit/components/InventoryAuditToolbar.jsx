@@ -41,6 +41,7 @@ const reasonOptions = [
 const sourceOptions = [
   { label: "POS", value: "POS" },
   { label: "Stock Log Modal", value: "Stock Log Modal" },
+  { label: "Expense Tracking", value: "Expense Tracking" },
   { label: "Purchase Order", value: "Purchase Order" },
   { label: "System", value: "System" },
 ];

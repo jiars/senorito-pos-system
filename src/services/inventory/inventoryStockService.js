@@ -1,5 +1,5 @@
 import { supabase } from "../supabaseClient";
-import { formatDecimal } from "../../utils/numberFormatters";
+import { formatDecimal } from "@/utils/shared/formatters/numberFormatters";
 
 // --- STOCK LOG & BATCH FUNCTIONS ---
 

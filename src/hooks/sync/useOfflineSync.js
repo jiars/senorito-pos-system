@@ -8,7 +8,7 @@ import { readOfflineQueue } from "../../services/pos/offlineQueueService";
 import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
 
 import { toast } from "../../components/ui/toast";
-import { getPOSSyncToastFeedback } from "../../utils/pos/posFeedback";
+import { getPOSSyncToastFeedback } from "@/utils/pos/feedback/posFeedback";
 
 export function useOfflineSync({
   refreshAfterSync,

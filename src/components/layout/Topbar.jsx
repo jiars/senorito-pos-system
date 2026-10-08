@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-import { formatFullName, formatInitials } from "../../utils/stringFormatters";
+import { formatFullName, formatInitials } from "@/utils/shared/formatters/stringFormatters";
 import { useAuth } from "../../hooks/useAuth";
 import { useOfflineQueue } from "../../hooks/sync/useOfflineQueue";
 import { useOfflineSyncState } from "../../hooks/sync/useOfflineSync";

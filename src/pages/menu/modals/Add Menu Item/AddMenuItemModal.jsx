@@ -8,14 +8,14 @@ import ModalStepper from "@/components/modals/ModalStepper";
 import ModalFooter from "@/components/modals/ModalFooter";
 import { Button } from "@/components/ui/button";
 import { addMenuItem } from "@/services/menu/menuItemsService";
-import { uploadMenuImage } from "@/utils/imageUploadHelper";
+import { uploadMenuImage } from "@/utils/menu/imageUploadHelper";
 import {
   calculateEstCost,
   calculateProfit,
   calculateMargin,
 } from "@/utils/menu/pricingCalculations";
 import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
-import { validateMenuItemForm } from "@/utils/validation/menuValidation";
+import { validateMenuItemForm } from "@/utils/menu/validation/menuValidation";
 
 import GeneralStep from "./steps/GeneralStep";
 import RecipePricingStep from "./steps/RecipePricingStep";

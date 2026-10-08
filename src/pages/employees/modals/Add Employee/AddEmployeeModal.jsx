@@ -29,10 +29,10 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import EmployeeContactInput from "../../components/EmployeeContactInput";
-import { validateAddEmployee, getAddEmployeeServerFieldErrors } from "@/utils/validation/employees/addEmployeeValidation";
+import { validateAddEmployee, getAddEmployeeServerFieldErrors } from "@/utils/employees/validation/addEmployeeValidation";
 
 import { addEmployee } from "../../../../services/employees/employeeAccountsService";
-import { generateEmployeeUsername } from "../../../../utils/employee/employeeUsernameUtils";
+import { generateEmployeeUsername } from "@/utils/employees/employeeUsernameUtils";
 
 const ROLE_ACCESS_MAP = {
   Cashier: "Dashboard, POS, Order History, and Profile",

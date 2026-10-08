@@ -1,5 +1,5 @@
 import DataTable from "@/components/data-table/DataTable";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const valuationColumns = [
   {

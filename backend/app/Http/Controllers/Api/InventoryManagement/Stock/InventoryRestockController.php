@@ -12,12 +12,15 @@ class InventoryRestockController extends Controller
     {
         // Basic validation while Form Requests are postponed.
         $request->validate([
+            'origin' => 'sometimes|required|in:inventory_restock,expense_purchase',
             'stockData.quantity' => 'required|numeric|gt:0',
             'stockData.reason' => 'required|string|max:255',
             'stockData.notes' => 'nullable|string|max:1000',
             'purchaseData.total_cost' => 'required|numeric|min:1',
             'purchaseData.supplier' => 'nullable|string|max:255',
             'purchaseData.expiration_date' => 'nullable|date',
+            'purchaseData.expense_date' => 'required_if:origin,expense_purchase|nullable|date_format:Y-m-d',
+            'purchaseData.description' => 'required_if:origin,expense_purchase|nullable|string|max:1000',
         ]);
 
         $result = app(InventoryRestockOrchestrator::class)

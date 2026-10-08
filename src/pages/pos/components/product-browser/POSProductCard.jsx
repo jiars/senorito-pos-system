@@ -1,8 +1,8 @@
 import { useId, useState } from "react";
 import defaultImage from "../../../../assets/images/default_menu_picture.jpg";
-import { formatCurrency } from "../../../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { toast } from "@/components/ui/toast";
-import { getPOSUnavailableMessage } from "@/utils/pos/posFeedback";
+import { getPOSUnavailableMessage } from "@/utils/pos/feedback/posFeedback";
 import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import CustomizeOrderModal from "../modals/CustomizeOrderModal";

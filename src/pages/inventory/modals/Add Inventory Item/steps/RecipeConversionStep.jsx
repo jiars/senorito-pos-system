@@ -2,7 +2,7 @@ import ModalFieldLabel from "@/components/modals/ModalFieldLabel";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 import {
   controlClassName,
@@ -13,6 +13,7 @@ import {
 import { addInventoryItemTooltips } from "../addInventoryItemTooltips";
 
 const RecipeConversionStep = ({
+  validation,
   conversions,
   baseUnit,
   showErrors,
@@ -56,16 +57,9 @@ const RecipeConversionStep = ({
       {conversions.map((conversion, index) => {
         const equivalent = Number(conversion.equivalent);
         const hasUnit = Boolean(conversion.unit.trim());
-        const hasEquivalent = conversion.equivalent !== "";
-        const isBlankAddedRow = index > 0 && !hasUnit && !hasEquivalent;
-        const isUnitInvalid =
-          isBlankAddedRow || (hasEquivalent && !hasUnit);
-        const isEquivalentInvalid =
-          isBlankAddedRow ||
-          (hasUnit &&
-            (!hasEquivalent ||
-              !Number.isFinite(equivalent) ||
-              equivalent <= 0));
+        const rowErrors = validation.errors.conversions?.[conversion.id] || {};
+        const isUnitInvalid = Boolean(rowErrors.unit);
+        const isEquivalentInvalid = Boolean(rowErrors.equivalent);
         const conversionCost =
           baseUnitCost !== null && hasUnit && !isEquivalentInvalid
             ? baseUnitCost * equivalent
@@ -94,7 +88,7 @@ const RecipeConversionStep = ({
               />
               {showErrors && isUnitInvalid && (
                 <FieldError className={errorClassName}>
-                  Converted unit is required.
+                  {rowErrors.unit}
                 </FieldError>
               )}
             </Field>
@@ -126,7 +120,7 @@ const RecipeConversionStep = ({
               )}
               {showErrors && isEquivalentInvalid && (
                 <FieldError className={errorClassName}>
-                  Equivalent amount must be greater than 0.
+                  {rowErrors.equivalent}
                 </FieldError>
               )}
             </Field>

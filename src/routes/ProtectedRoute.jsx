@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 
-import { formatRoleKey } from "../utils/stringFormatters";
+import { formatRoleKey } from "@/utils/shared/formatters/stringFormatters";
 
 import { useAuth } from "../hooks/useAuth";
 import { ROLE_ROUTES } from "./roleRoutes";

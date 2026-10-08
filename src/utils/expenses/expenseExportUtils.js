@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { formatDate } from "../dateFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 
 /**
  * Exports the filtered expenses and summary data to an Excel file.

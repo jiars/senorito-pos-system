@@ -27,14 +27,14 @@ import {
 } from "@/components/ui/input-group";
 import { updateInventoryItem } from "@/services/inventory/inventoryItemsService";
 import { useFeedback } from "@/hooks/feedback/useFeedback";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import {
   getEditInventoryInlineFeedback,
   getEditInventoryStatusFeedback,
   getEditInventoryToastFeedback,
 } from "@/utils/inventory/feedback/editInventoryFeedback";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { validateEditInventoryItem } from "@/utils/validation/inventory/editInventoryValidation";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { validateEditInventoryItem } from "@/utils/inventory/validation/editInventoryValidation";
 import { getMinimumLevelRules } from "@/utils/inventory/minimumLevel";
 
 const labelClassName =

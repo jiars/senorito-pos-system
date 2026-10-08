@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useResetPassword } from "@/hooks/usePasswordRecovery";
-import { isPasswordValid } from "@/utils/validation/passwordValidation";
+import { isPasswordValid } from "@/utils/auth/validation/passwordValidation";
 
 import PasswordForm from "./components/PasswordForm";
 

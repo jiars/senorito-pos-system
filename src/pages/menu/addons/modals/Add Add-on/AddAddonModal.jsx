@@ -13,7 +13,7 @@ import {
   calculateMargin,
 } from "@/utils/menu/pricingCalculations";
 import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
-import { validateAddonForm } from "@/utils/validation/menuValidation";
+import { validateAddonForm } from "@/utils/menu/validation/menuValidation";
 import { secondaryButtonClassName } from "@/pages/menu/modals/shared/menuModalClasses";
 import GeneralStep from "./steps/GeneralStep";
 import RecipePricingStep from "./steps/RecipePricingStep";

@@ -1,5 +1,5 @@
 import { resolveErrorFeedback } from "@/utils/feedback/errorFeedback";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 // Add Item copy only; timing and feedback presentation stay shared.
 export const ADD_INVENTORY_FEEDBACK = {

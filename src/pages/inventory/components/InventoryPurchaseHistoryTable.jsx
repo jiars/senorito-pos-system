@@ -7,8 +7,8 @@ import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { formatDateTime } from "@/utils/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import {
   filterAndSortInventoryPurchases,
   normalizeInventoryPurchaseHistory,

@@ -1,5 +1,5 @@
 import { DonutChart, PieChart, QuadBadge } from './SalesCharts';
-import { formatCurrency } from '../../../../utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 
 const SalesPrintLayout = ({
   datePreset,

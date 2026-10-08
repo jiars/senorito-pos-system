@@ -6,7 +6,7 @@ import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import SummaryCards from "@/components/summary-cards/SummaryCards";
 
-import { formatCurrency } from "../../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
   calculateSalesSummary,
   calculateSalesAnalytics,
@@ -16,12 +16,12 @@ import {
   calculateHourlyOverview,
   calculateHeatmapLimits,
   getQuadrantColorClass,
-} from "../../../utils/reports/salesReportCalculations";
+} from "@/utils/reports/salesReportCalculations";
 import {
   filterSalesOrders,
   filterWastageRecords,
-} from "../../../utils/reports/salesReportFilters";
-import { exportSalesReport } from "../../../utils/reports/salesReportExportUtils";
+} from "@/utils/reports/salesReportFilters";
+import { exportSalesReport } from "@/utils/reports/salesReportExportUtils";
 
 // Import components
 import SalesProfitabilityPanel from "./components/SalesProfitabilityPanel";
