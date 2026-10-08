@@ -40,6 +40,7 @@ import {
   getCorrectionToastFeedback,
 } from "@/utils/inventory/feedback/correctionFeedback";
 import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 
 const correctionReasons = [
   "Physical Count Mismatch",
@@ -520,6 +521,8 @@ const CorrectionModalContent = ({
                   id="correction-actual-count"
                   type="number"
                   min="1"
+                  step={getQuantityRules(unit).step}
+                  inputMode={getQuantityRules(unit).inputMode}
                   value={actualItemCount}
                   onChange={(event) => setActualItemCount(event.target.value)}
                   placeholder="0"

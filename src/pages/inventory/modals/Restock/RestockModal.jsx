@@ -46,6 +46,7 @@ import {
   getRestockToastFeedback,
 } from "@/utils/inventory/feedback/restockFeedback";
 import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 
 const restockReasons = [
   "Initial Stock",
@@ -554,6 +555,8 @@ const RestockModalContent = ({
                   id="restock-quantity"
                   type="number"
                   min="1"
+                  step={getQuantityRules(unit).step}
+                  inputMode={getQuantityRules(unit).inputMode}
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
                   placeholder="0"

@@ -107,9 +107,6 @@ const ExpenseTrackingPage = () => {
 
   // --- Handlers ---
   const handleEditExpense = (record) => {
-    const categoryName = record.expense_categories?.category_name;
-    // The table disables this action; retain the guard for direct handler calls.
-    if (categoryName === "Inventory Purchase") return;
     setExpenseToEdit(record);
     setIsEditExpenseOpen(true);
   };

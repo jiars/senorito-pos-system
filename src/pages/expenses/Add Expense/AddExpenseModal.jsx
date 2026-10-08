@@ -44,7 +44,8 @@ import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { addExpense } from "@/services/expenses/expenseService";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
 import { validateExpenseForm, getAddExpenseServerFieldErrors } from "@/utils/expenses/validation/addExpenseValidation";
-import { getExpenseDateLimits } from "@/utils/expenses/expenseDateLimits";
+import { getExpenseDateLimits, getPurchaseExpirationMinDate } from "@/utils/expenses/expenseDateLimits";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const emptyForm = {
@@ -130,6 +131,13 @@ const AddExpenseModalContent = ({
   const { feedback, showFeedback, clearFeedback } = useFeedback(getAddExpenseInlineFeedback);
   const [isCustomReason, setIsCustomReason] = useState(false);
   const [dateLimits] = useState(() => getExpenseDateLimits());
+  const [isExpenseDateInputValid, setIsExpenseDateInputValid] = useState(true);
+  const [isExpirationInputValid, setIsExpirationInputValid] = useState(true);
+  const [expenseDateInput, setExpenseDateInput] = useState("");
+  const [expirationDateInput, setExpirationDateInput] = useState("");
+  const purchaseExpirationMinDate = getPurchaseExpirationMinDate(
+    formData.expense_date, dateLimits.minExpirationDate,
+  );
 
   const selectedCategory = categories.find((category) => {
     return category.id === formData.category_id;
@@ -148,8 +156,8 @@ const AddExpenseModalContent = ({
   const unit = selectedItem?.base_unit || "pcs";
 
   const validation = useMemo(() => {
-    return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits, categories, paymentMethods });
-  }, [formData, isPurchase, selectedItem, dateLimits, categories]);
+    return validateExpenseForm(formData, { isPurchase, selectedItem, dateLimits, categories, paymentMethods, isExpenseDateInputValid, isExpirationInputValid, expenseDateInput, expirationDateInput });
+  }, [formData, isPurchase, selectedItem, dateLimits, categories, isExpenseDateInputValid, isExpirationInputValid, expenseDateInput, expirationDateInput]);
   const errors = { ...serverFieldErrors, ...validation.errors };
   const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
   const formLocked = isSubmitting || isConfirmationOpen || Boolean(savedResult) || saveBlocked;
@@ -174,6 +182,8 @@ const AddExpenseModalContent = ({
   const handleCategoryChange = (category) => {
     if (operationInFlight.current || formLocked) return;
     const nextCategoryId = category ? category.id : "";
+    setIsExpenseDateInputValid(true);
+    setIsExpirationInputValid(true);
 
     setFormData((currentForm) => {
       return {
@@ -484,6 +494,10 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-date"
+                      editable
+                      showValidationMessage={false}
+                      onValidityChange={setIsExpenseDateInputValid}
+                      onInputValueChange={setExpenseDateInput}
                       minDate={dateLimits.minExpenseDate}
                       maxDate={dateLimits.maxExpenseDate}
                       defaultMonth={dateLimits.minExpirationDate}
@@ -718,7 +732,12 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-expiration-date"
-                      minDate={dateLimits.minExpirationDate}
+                      editable
+                      showValidationMessage={false}
+                      onValidityChange={setIsExpirationInputValid}
+                      onInputValueChange={setExpirationDateInput}
+                      minDate={purchaseExpirationMinDate}
+                      defaultMonth={purchaseExpirationMinDate}
                       maxDate={dateLimits.maxExpirationDate}
                       value={formData.expiration_date}
                       onValueChange={(value) => {
@@ -765,8 +784,9 @@ const AddExpenseModalContent = ({
                     <Input
                       id="add-expense-quantity"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min={getQuantityRules(unit).wholeNumbersOnly ? "1" : "0.01"}
+                      step={getQuantityRules(unit).step}
+                      inputMode={getQuantityRules(unit).inputMode}
                       value={formData.quantity_to_add}
                       onChange={(event) => {
                         updateField("quantity_to_add", event.target.value);
@@ -886,6 +906,10 @@ const AddExpenseModalContent = ({
                     </FieldLabel>
                     <DatePicker
                       id="add-expense-date"
+                      editable
+                      showValidationMessage={false}
+                      onValidityChange={setIsExpenseDateInputValid}
+                      onInputValueChange={setExpenseDateInput}
                       minDate={dateLimits.minExpenseDate}
                       maxDate={dateLimits.maxExpenseDate}
                       defaultMonth={dateLimits.minExpirationDate}

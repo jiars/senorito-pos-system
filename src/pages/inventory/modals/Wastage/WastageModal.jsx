@@ -45,6 +45,7 @@ import {
   getWastageToastFeedback,
 } from "@/utils/inventory/feedback/wastageFeedback";
 import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 
 const wastageReasons = [
   "Expired",
@@ -561,6 +562,8 @@ const WastageModalContent = ({
                   id="wastage-quantity"
                   type="number"
                   min="1"
+                  step={getQuantityRules(unit).step}
+                  inputMode={getQuantityRules(unit).inputMode}
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
                   placeholder="0"

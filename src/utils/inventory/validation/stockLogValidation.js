@@ -1,9 +1,11 @@
 import { format, isValid, parse } from "date-fns";
+import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
 
 export const stockLogValidationMessages = {
   itemRequired: "Please select an inventory item.",
   quantityRequired: "Quantity is required.",
   quantityInvalid: "Quantity must be greater than 0.",
+  quantityWholeRequired: "Quantity must be a whole number for this unit.",
   quantityUnchanged: "The batch already has this quantity.",
   stockExceeded: (currentStock) => {
     return `Cannot waste more than current stock (${currentStock}).`;
@@ -41,6 +43,8 @@ export const validateStockLog = ({
 
   if (quantity === "" || !Number.isFinite(numericQuantity))
     errors.quantity = messages.quantityRequired;
+  else if (selectedItem && !isWholeQuantityValid(quantity, selectedItem.base_unit))
+    errors.quantity = messages.quantityWholeRequired;
   else if (actionType === "correct") {
     if (numericQuantity < 1)
       errors.quantity = messages.quantityInvalid;

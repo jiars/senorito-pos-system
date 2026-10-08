@@ -249,7 +249,6 @@ const ExpenseRecordsTable = ({
 
               <DropdownMenuContent align="end" className="z-[100] w-40">
                 <DropdownMenuItem
-                  disabled={isSystemPurchase}
                   onClick={() => onEditExpense(record)}
                 >
                   <i aria-hidden="true" className="bi bi-pencil" />

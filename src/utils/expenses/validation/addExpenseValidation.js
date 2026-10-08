@@ -1,24 +1,49 @@
 import { format, isValid, parse } from "date-fns";
+import { getPurchaseExpirationMinDate } from "@/utils/expenses/expenseDateLimits";
+import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
 
 export const addExpenseValidationMessages = {
   categoryRequired: "Category is required.",
   categoryUnavailable: "Select an available expense category.",
   dateRequired: "Date is required.",
   dateInvalid: "Enter a valid expense date.",
-  dateOutsideRange: (dateLimits) => {
-    return `Choose a date from ${format(dateLimits.minExpenseDate, "MM/dd/yyyy")} through ${format(dateLimits.maxExpenseDate, "MM/dd/yyyy")}.`;
-  },
+  dateFuture: "Expense date cannot be in the future.",
+  dateTooOld: "Expense date can only go back up to 3 months.",
   amountInvalid: "Amount must be greater than 0.",
   descriptionRequired: "Description is required.",
   reasonRequired: "Reason is required.",
   itemRequired: "Inventory item is required.",
   itemUnavailable: "Select an available inventory item.",
   quantityInvalid: "Quantity must be greater than 0.",
+  quantityWholeRequired: "Quantity must be a whole number for this unit.",
   expirationRequired: "Expiration date is required.",
   expirationInvalid: "Enter a valid expiration date.",
-  expirationOutsideRange: "Choose an expiration from today through 10 years from today.",
+  expirationBeforePurchase: "Expiration cannot be earlier than the purchase date.",
+  expirationTooLate: "Expiration cannot exceed 10 years from today.",
   paymentRequired: "Payment method is required.",
   paymentUnavailable: "Select an available payment method.",
+};
+
+export const getExpenseDateError = (value, dateLimits, originalDate = null, dateFormat = "yyyy-MM-dd") => {
+  const date = parse(value, dateFormat, new Date());
+  const messages = addExpenseValidationMessages;
+  if (!isValid(date) || format(date, dateFormat) !== value) return messages.dateInvalid;
+  if (!dateLimits) return "";
+  if (date > dateLimits.maxExpenseDate) return messages.dateFuture;
+  if (format(date, "yyyy-MM-dd") !== originalDate && date < dateLimits.minExpenseDate) {
+    return messages.dateTooOld;
+  }
+  return "";
+};
+
+const getExpirationDateError = (value, purchaseDate, dateLimits, dateFormat = "yyyy-MM-dd") => {
+  const date = parse(value, dateFormat, new Date());
+  const messages = addExpenseValidationMessages;
+  if (!isValid(date) || format(date, dateFormat) !== value) return messages.expirationInvalid;
+  const minimum = getPurchaseExpirationMinDate(purchaseDate, dateLimits.minExpirationDate);
+  if (date < minimum) return messages.expirationBeforePurchase;
+  if (date > dateLimits.maxExpirationDate) return messages.expirationTooLate;
+  return "";
 };
 
 /**
@@ -30,7 +55,7 @@ export const addExpenseValidationMessages = {
  * @returns {Object} Field errors and overall form validity.
  */
 export const validateExpenseForm = (formData, options = {}) => {
-  const { isPurchase = false, selectedItem = null, dateLimits = null, categories = null, paymentMethods = null } = options;
+  const { isPurchase = false, selectedItem = null, dateLimits = null, categories = null, paymentMethods = null, isExpenseDateInputValid = true, isExpirationInputValid = true, expenseDateInput = "", expirationDateInput = "" } = options;
   const errors = {};
   const messages = addExpenseValidationMessages;
 
@@ -43,12 +68,12 @@ export const validateExpenseForm = (formData, options = {}) => {
   }
   if (!formData.expense_date) errors.expense_date = messages.dateRequired;
   else if (dateLimits) {
-    const date = parse(formData.expense_date, "yyyy-MM-dd", new Date());
-    if (!isValid(date) || format(date, "yyyy-MM-dd") !== formData.expense_date) {
-      errors.expense_date = messages.dateInvalid;
-    } else if (date < dateLimits.minExpenseDate || date > dateLimits.maxExpenseDate) {
-      errors.expense_date = messages.dateOutsideRange(dateLimits);
-    }
+    const error = getExpenseDateError(formData.expense_date, dateLimits);
+    if (error) errors.expense_date = error;
+  }
+
+  if (!isExpenseDateInputValid) {
+    errors.expense_date = getExpenseDateError(expenseDateInput, dateLimits, null, "MM/dd/yyyy");
   }
 
   if (!formData.amount || !Number.isFinite(Number(formData.amount)) || Number(formData.amount) <= 0) {
@@ -69,17 +94,19 @@ export const validateExpenseForm = (formData, options = {}) => {
     }
     if (!formData.quantity_to_add || !Number.isFinite(Number(formData.quantity_to_add)) || Number(formData.quantity_to_add) <= 0) {
       errors.quantity_to_add = messages.quantityInvalid;
+    } else if (selectedItem && !isWholeQuantityValid(formData.quantity_to_add, selectedItem.base_unit)) {
+      errors.quantity_to_add = messages.quantityWholeRequired;
     }
     if (selectedItem?.track_expiry && !formData.expiration_date) {
       errors.expiration_date = messages.expirationRequired;
     }
     if (formData.expiration_date && dateLimits) {
-      const expiration = parse(formData.expiration_date, "yyyy-MM-dd", new Date());
-      if (!isValid(expiration) || format(expiration, "yyyy-MM-dd") !== formData.expiration_date) {
-        errors.expiration_date = messages.expirationInvalid;
-      } else if (expiration < dateLimits.minExpirationDate || expiration > dateLimits.maxExpirationDate) {
-        errors.expiration_date = messages.expirationOutsideRange;
-      }
+      const error = getExpirationDateError(formData.expiration_date, formData.expense_date, dateLimits);
+      if (error) errors.expiration_date = error;
+    }
+
+    if (!isExpirationInputValid) {
+      errors.expiration_date = getExpirationDateError(expirationDateInput, formData.expense_date, dateLimits, "MM/dd/yyyy");
     }
 
     return { errors, isFormValid: Object.keys(errors).length === 0 };
