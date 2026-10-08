@@ -1,5 +1,4 @@
-import { format, isValid, parse } from "date-fns";
-import { addExpenseValidationMessages, validateExpenseForm } from "./addExpenseValidation";
+import { addExpenseValidationMessages, getExpenseDateError, validateExpenseForm } from "./addExpenseValidation";
 
 // Reuse common expense copy; Edit adds its own field-length message.
 export const editExpenseValidationMessages = {
@@ -9,8 +8,8 @@ export const editExpenseValidationMessages = {
   },
 };
 
-// Keep an existing historical date; newly chosen dates follow the shared bounds.
-export const validateEditExpenseForm = (formData, categories, paymentMethods, originalPaymentMethod, dateLimits, originalExpenseDate) => {
+// Keep an existing historical date; future dates are never allowed.
+export const validateEditExpenseForm = (formData, categories, paymentMethods, originalPaymentMethod, dateLimits, originalExpenseDate, isExpenseDateInputValid = true, expenseDateInput = "") => {
   const validation = validateExpenseForm(formData);
   const errors = validation.errors;
   const messages = editExpenseValidationMessages;
@@ -18,12 +17,11 @@ export const validateEditExpenseForm = (formData, categories, paymentMethods, or
     errors.category_id = messages.categoryUnavailable;
   }
   if (formData.expense_date) {
-    const date = parse(formData.expense_date, "yyyy-MM-dd", new Date());
-    if (!isValid(date) || format(date, "yyyy-MM-dd") !== formData.expense_date) {
-      errors.expense_date = messages.dateInvalid;
-    } else if (formData.expense_date !== originalExpenseDate && (date < dateLimits.minExpenseDate || date > dateLimits.maxExpenseDate)) {
-      errors.expense_date = messages.dateOutsideRange(dateLimits);
-    }
+    const error = getExpenseDateError(formData.expense_date, dateLimits, originalExpenseDate);
+    if (error) errors.expense_date = error;
+  }
+  if (!isExpenseDateInputValid) {
+    errors.expense_date = getExpenseDateError(expenseDateInput, dateLimits, null, "MM/dd/yyyy");
   }
   if (formData.payment_method && !paymentMethods.includes(formData.payment_method) && formData.payment_method !== originalPaymentMethod) {
     errors.payment_method = messages.paymentUnavailable;

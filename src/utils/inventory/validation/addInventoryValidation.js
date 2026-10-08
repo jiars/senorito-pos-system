@@ -2,6 +2,7 @@ import {
   getMinimumLevelRules,
   isValidMinimumLevel,
 } from "@/utils/inventory/minimumLevel";
+import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
 
 export const addInventoryValidationMessages = {
   itemNameRequired: "Item name is required.",
@@ -9,6 +10,8 @@ export const addInventoryValidationMessages = {
   categoryRequired: "Category is required.",
   unitRequired: "Base unit is required.",
   quantityInvalid: "Quantity must be greater than 0.",
+  quantityWholeRequired: "Quantity must be a whole number for this purchase unit.",
+  convertedQuantityWholeRequired: "Converted stock must be a whole number for this base unit.",
   purchaseUnitRequired: "Purchase unit is required.",
   multiplierInvalid: "Enter a value greater than 0.",
   costInvalid: "Total cost must be greater than 0.",
@@ -42,18 +45,19 @@ export const validateAddInventoryItem = ({
   });
 
   // Validate the required numeric purchase fields.
-  const parsedQty = parseFloat(qtyPurchased);
-  const isQtyValid = qtyPurchased !== '' && !isNaN(parsedQty) && parsedQty > 0;
+  const parsedQty = Number(qtyPurchased);
+  const isQtyValid = qtyPurchased !== '' && Number.isFinite(parsedQty) && parsedQty > 0 &&
+    isWholeQuantityValid(qtyPurchased, purchaseUnit || unit);
 
   const parsedCost = parseFloat(totalCost);
   const isCostValid = totalCost !== '' && !isNaN(parsedCost) && parsedCost > 0;
 
   const isMinValid = isValidMinimumLevel(minLevel, unit);
 
-  const parsedMultiplier = parseFloat(purchaseMultiplier);
+  const parsedMultiplier = Number(purchaseMultiplier);
   const isMultiplierValid =
     purchaseMultiplier !== '' &&
-    !isNaN(parsedMultiplier) &&
+    Number.isFinite(parsedMultiplier) &&
     parsedMultiplier > 0;
 
   // Every visible conversion row must be complete and positive.
@@ -112,6 +116,11 @@ export const validateAddInventoryItem = ({
   if (!category) errors.category = messages.categoryRequired;
   if (!unit) errors.unit = messages.unitRequired;
   if (!isQtyValid) errors.qtyPurchased = messages.quantityInvalid;
+  if (Number.isFinite(parsedQty) && parsedQty > 0 && !isWholeQuantityValid(qtyPurchased, purchaseUnit || unit)) {
+    errors.qtyPurchased = messages.quantityWholeRequired;
+  } else if (isQtyValid && isMultiplierValid && !isWholeQuantityValid(parsedQty * parsedMultiplier, unit)) {
+    errors.qtyPurchased = messages.convertedQuantityWholeRequired;
+  }
   if (!purchaseUnit.trim()) errors.purchaseUnit = messages.purchaseUnitRequired;
   if (!isMultiplierValid) errors.purchaseMultiplier = messages.multiplierInvalid;
   if (!isCostValid) errors.totalCost = messages.costInvalid;

@@ -9,6 +9,7 @@ import {
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatUnitConversionAmount } from "@/utils/inventory/unitConversion";
 import { getMinimumLevelRules } from "@/utils/inventory/minimumLevel";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 
 import {
   controlClassName,
@@ -29,6 +30,7 @@ const InitialPurchaseStep = ({
 }) => {
   const { errors } = validation;
   const minimumLevelRules = getMinimumLevelRules(formData.unit);
+  const quantityRules = getQuantityRules(formData.purchaseUnit || formData.unit);
   const hasValidPurchaseCost =
     validation.isQtyValid && validation.isCostValid;
   const costPerPurchaseUnit = hasValidPurchaseCost
@@ -86,8 +88,9 @@ const InitialPurchaseStep = ({
           <Input
             id="add-inventory-quantity"
             type="number"
-            min="0.01"
-            step="any"
+            min={quantityRules.wholeNumbersOnly ? "1" : "0.01"}
+            step={quantityRules.step}
+            inputMode={quantityRules.inputMode}
             value={formData.qtyPurchased}
             onChange={(event) =>
               onFieldChange("qtyPurchased", event.target.value)

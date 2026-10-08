@@ -79,6 +79,8 @@ const EditExpenseModalContent = ({
   const { feedback, showFeedback, clearFeedback } = useFeedback(getEditExpenseInlineFeedback);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [dateLimits] = useState(() => getExpenseDateLimits());
+  const [isExpenseDateInputValid, setIsExpenseDateInputValid] = useState(true);
+  const [expenseDateInput, setExpenseDateInput] = useState("");
   const originalExpenseDate = normalizeDateValue(expenseData.expense_date);
 
   const selectedCategory = categories.find((category) => {
@@ -87,12 +89,13 @@ const EditExpenseModalContent = ({
   const normalizedCategoryName = selectedCategory
     ? selectedCategory.category_name.trim().toLowerCase()
     : "";
+  const isInventoryPurchase = normalizedCategoryName === "inventory purchase";
   const showVendor =
-    vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor) || Boolean(serverFieldErrors.vendor);
+    isInventoryPurchase || vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor) || Boolean(serverFieldErrors.vendor);
 
   const validation = useMemo(() => {
-    return validateEditExpenseForm(formData, categories, paymentMethods, expenseData.payment_method, dateLimits, originalExpenseDate);
-  }, [formData, categories, expenseData.payment_method, dateLimits, originalExpenseDate]);
+    return validateEditExpenseForm(formData, categories, paymentMethods, expenseData.payment_method, dateLimits, originalExpenseDate, isExpenseDateInputValid, expenseDateInput);
+  }, [formData, categories, expenseData.payment_method, dateLimits, originalExpenseDate, isExpenseDateInputValid, expenseDateInput]);
   const errors = { ...serverFieldErrors, ...validation.errors };
   const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
   const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
@@ -104,6 +107,8 @@ const EditExpenseModalContent = ({
 
   const updateField = (fieldName, value) => {
     if (operationInFlight.current || formLocked) return;
+    if (fieldName === "category_id") return;
+    if (isInventoryPurchase && (fieldName === "amount" || fieldName === "expense_date")) return;
     clearFeedback();
     setServerFieldErrors({});
     setFormData((currentForm) => ({
@@ -150,9 +155,10 @@ const EditExpenseModalContent = ({
       try {
         await updateExpense(expenseData.id, {
           category_id: expenseData.category_id,
-          expense_date: formData.expense_date,
+          expense_date: isInventoryPurchase ? originalExpenseDate : formData.expense_date,
           description: formData.description.trim(),
-          amount: Number(formData.amount),
+          // Purchase cost stays unchanged; this update edits expense details only.
+          amount: Number(isInventoryPurchase ? expenseData.amount : formData.amount),
           vendor: formData.vendor.trim() || null,
           payment_method: formData.payment_method,
           receipt_reference: formData.receipt_reference.trim() || null,
@@ -203,7 +209,7 @@ const EditExpenseModalContent = ({
     >
       <ModalHeader
         title="Edit Expense"
-        description="Update the selected expense record."
+        description={isInventoryPurchase ? "Update expense details only. Purchase date and total cost stay unchanged." : "Update the selected expense record."}
         iconClassName="bi bi-pencil-square"
         closeDisabled={isSubmitting}
       />
@@ -282,7 +288,7 @@ const EditExpenseModalContent = ({
                       updateField("amount", event.target.value);
                     }}
                     placeholder="0.00"
-                    disabled={isSubmitting}
+                    disabled={formLocked || isInventoryPurchase}
                     aria-invalid={Boolean(errorFor("amount"))}
                     className="h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
                   />
@@ -304,6 +310,10 @@ const EditExpenseModalContent = ({
                 </FieldLabel>
                 <DatePicker
                   id="edit-expense-date"
+                  editable
+                  showValidationMessage={false}
+                  onValidityChange={setIsExpenseDateInputValid}
+                  onInputValueChange={setExpenseDateInput}
                   minDate={dateLimits.minExpenseDate}
                   maxDate={dateLimits.maxExpenseDate}
                   defaultMonth={dateLimits.minExpirationDate}
@@ -312,7 +322,7 @@ const EditExpenseModalContent = ({
                     updateField("expense_date", value);
                   }}
                   placeholder="MM/DD/YYYY"
-                  disabled={formLocked}
+                  disabled={formLocked || isInventoryPurchase}
                   invalid={Boolean(errorFor("expense_date"))}
                   triggerClassName={controlClassName}
                 />

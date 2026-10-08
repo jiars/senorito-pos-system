@@ -27,6 +27,7 @@ const DatePicker = ({
   value,
   onValueChange,
   onValidityChange,
+  onInputValueChange,
   editable = false,
   showValidationMessage = true,
   "aria-describedby": describedBy,
@@ -116,6 +117,7 @@ const DatePicker = ({
       nextValue = format(parse(text, "MM/dd/yyyy", new Date()), "yyyy-MM-dd");
     }
     setDraft({ sourceValue: nextValue, text });
+    if (onInputValueChange) onInputValueChange(text);
     onValueChange(nextValue);
     if (onValidityChange) onValidityChange(!error);
 
@@ -132,6 +134,7 @@ const DatePicker = ({
     if (date && isDateDisabled(date)) return;
     const nextValue = date ? format(date, "yyyy-MM-dd") : "";
     setDraft({ sourceValue: nextValue, text: "" });
+    if (onInputValueChange) onInputValueChange(date ? format(date, "MM/dd/yyyy") : "");
     setHasBlurred(false);
     onValueChange(nextValue);
     if (onValidityChange) onValidityChange(true);
