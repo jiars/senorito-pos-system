@@ -1,14 +1,10 @@
 import { resolveErrorFeedback } from "@/utils/feedback/errorFeedback";
+import { productSelectionValidationMessages } from "@/utils/pos/validation/productSelectionValidation";
+import { customizeOrderValidationMessages } from "@/utils/pos/validation/customizeOrderValidation";
 
-// POS messages/types only; shared policies own timing and presentation behavior.
+// Operation copy and validation presentation; shared policies own timing.
 export const POS_FEEDBACK = {
-  SIZE_REQUIRED: "Select a size first.",
-  STOCK_LIMIT_REACHED: "Stock limit reached.",
-  QUANTITY_STOCK_INSUFFICIENT: "Not enough stock. Reduce quantity.",
-  ADDON_STOCK_INSUFFICIENT:
-    "Not enough stock. Reduce quantity or remove an add-on.",
-  ADDON_UNAVAILABLE: "Remove unavailable add-ons to continue.",
-  VARIANT_UNAVAILABLE: "Select an available size.",
+  STOCK_LIMIT_REACHED: productSelectionValidationMessages.stockLimitReached,
   CART_STOCK_TITLE: "Not enough stock",
   CART_STOCK_DESCRIPTION:
     "Reduce quantity or check ingredient stock.",
@@ -17,6 +13,28 @@ export const POS_FEEDBACK = {
   CHECKOUT_REFRESHING: "Please wait while the menu and stock are refreshing.",
   ORDER_REFRESH_FAILED:
     "Your order is saved. Check your connection and retry to refresh menu and stock.",
+  CHECKOUT_FAILED: "Unable to process the order. Please try again.",
+};
+
+// Display selection errors in the same order on the card and Customize modal.
+export const getPOSSelectionValidationCode = (validation) => {
+  return validation.errorCodes.variant || validation.errorCodes.addons ||
+    validation.errorCodes.quantity || validation.errorCodes.stock || null;
+};
+
+// Validation owns the field copy; feedback owns its operation-level display.
+export const getPOSCheckoutValidationFeedback = (validation) => {
+  const field = Object.keys(validation.errors)[0];
+  if (!field) return null;
+  return resolveErrorFeedback({
+    code: validation.errorCodes[field],
+    type: "validation",
+    message: validation.errors[field],
+  });
+};
+
+export const getPOSCheckoutErrorMessage = (error) => {
+  return error.message || POS_FEEDBACK.CHECKOUT_FAILED;
 };
 
 export const POS_STATUS_FEEDBACK = {
@@ -66,26 +84,37 @@ export const getPOSStatusFeedback = (code) => {
 };
 
 export const POS_INLINE_ERRORS = {
-  SIZE_REQUIRED: { type: "validation", message: POS_FEEDBACK.SIZE_REQUIRED },
+  SIZE_REQUIRED: {
+    type: "validation",
+    message: productSelectionValidationMessages.sizeRequired,
+  },
+  QUANTITY_INVALID: {
+    type: "validation",
+    message: productSelectionValidationMessages.quantityInvalid,
+  },
   STOCK_LIMIT_REACHED: {
     type: "transient",
     message: POS_FEEDBACK.STOCK_LIMIT_REACHED,
   },
   QUANTITY_STOCK_INSUFFICIENT: {
     type: "validation",
-    message: POS_FEEDBACK.QUANTITY_STOCK_INSUFFICIENT,
+    message: productSelectionValidationMessages.quantityStockInsufficient,
   },
   ADDON_STOCK_INSUFFICIENT: {
     type: "validation",
-    message: POS_FEEDBACK.ADDON_STOCK_INSUFFICIENT,
+    message: customizeOrderValidationMessages.addonStockInsufficient,
   },
   ADDON_UNAVAILABLE: {
     type: "validation",
-    message: POS_FEEDBACK.ADDON_UNAVAILABLE,
+    message: customizeOrderValidationMessages.addonUnavailable,
+  },
+  ADDON_QUANTITY_INVALID: {
+    type: "validation",
+    message: customizeOrderValidationMessages.addonQuantityInvalid,
   },
   VARIANT_UNAVAILABLE: {
     type: "validation",
-    message: POS_FEEDBACK.VARIANT_UNAVAILABLE,
+    message: productSelectionValidationMessages.variantUnavailable,
   },
 };
 

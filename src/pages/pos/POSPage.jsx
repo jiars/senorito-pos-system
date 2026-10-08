@@ -35,7 +35,10 @@ import {
   getPOSAddedDescription,
   getPOSStatusFeedback,
   getPOSToastFeedback,
+  getPOSCheckoutValidationFeedback,
+  getPOSCheckoutErrorMessage,
 } from "@/utils/pos/feedback/posFeedback";
+import { validateCheckout } from "@/utils/pos/validation/checkoutValidation";
 import {
   savePosManagementCache,
   readPOSRefreshState,
@@ -490,12 +493,17 @@ const POSPage = () => {
       checkoutInFlightRef.current ||
       savedOrderRefreshRef.current ||
       syncRefreshRequiredRef.current ||
-      processedOrder ||
-      cartItems.length === 0
+      processedOrder
     )
       return;
     if (isSyncing || isLoading) {
       setCheckoutError(POS_FEEDBACK.CHECKOUT_REFRESHING);
+      return;
+    }
+
+    const validation = validateCheckout({ cartItems, paymentMethod, amountPaid, total });
+    if (!validation.isFormValid) {
+      setCheckoutError(getPOSCheckoutValidationFeedback(validation).message);
       return;
     }
 
@@ -651,9 +659,7 @@ const POSPage = () => {
       });
     } catch (error) {
       console.error("Failed to process order:", error);
-      setCheckoutError(
-        error.message || "Unable to process the order. Please try again.",
-      );
+      setCheckoutError(getPOSCheckoutErrorMessage(error));
     } finally {
       checkoutInFlightRef.current = false;
       setIsProcessingOrder(false);

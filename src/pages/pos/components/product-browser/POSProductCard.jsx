@@ -2,14 +2,17 @@ import { useId, useState } from "react";
 import defaultImage from "../../../../assets/images/default_menu_picture.jpg";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { toast } from "@/components/ui/toast";
-import { getPOSUnavailableMessage } from "@/utils/pos/feedback/posFeedback";
+import {
+  getPOSUnavailableMessage,
+  getPOSSelectionValidationCode,
+} from "@/utils/pos/feedback/posFeedback";
 import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { validateProductSelection } from "@/utils/pos/validation/productSelectionValidation";
 import CustomizeOrderModal from "../modals/CustomizeOrderModal";
 import {
   getPOSProductVariants,
   getPOSUnitPrice,
-  getPOSSelectionStockStatus,
 } from "@/utils/pos/posSelectionUtils";
 
 const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLocked = false }) => {
@@ -22,15 +25,22 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
 
   const variants = getPOSProductVariants(product);
   const selectedVariant = variants[selectedVariantIndex];
-  const canAddToOrder = Boolean(
-    selectedVariant && selectedVariant.isAvailable && product.isAvailable,
-  );
-  const hasInvalidQuantity = selectedVariant && !getPOSSelectionStockStatus(
-    product, selectedVariant.id, drinkQty, selectedAddons, cartItems,
-  ).hasEnoughStock;
+  const validation = validateSelection(selectedVariant, drinkQty);
+  const canAddToOrder = !validation.errors.variant;
   const { feedback: activeFeedback, showFeedback, clearFeedback } =
-    usePOSFeedback(hasInvalidQuantity ? "QUANTITY_STOCK_INSUFFICIENT" : null);
+    usePOSFeedback(validation.errorCodes.quantity || null);
   const feedback = product.isAvailable ? activeFeedback : null;
+
+  function validateSelection(variant, quantity, isIncreasingQuantity = false) {
+    return validateProductSelection({
+      product,
+      selectedVariant: variant,
+      quantity,
+      addons: selectedAddons,
+      cartItems,
+      isIncreasingQuantity,
+    });
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -49,39 +59,31 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
   const basePrice = selectedVariant ? selectedVariant.price : product.basePrice;
 
   const handleVariantClick = (idx) => {
+    if (isOrderLocked) return;
     if (variants[idx].isAvailable) {
-      setSelectedVariantIndex((prev) => (prev === idx ? null : idx));
-      const nextVariant = selectedVariantIndex === idx ? null : variants[idx];
-      showFeedback(nextVariant && !getPOSSelectionStockStatus(
-        product, nextVariant.id, drinkQty, selectedAddons, cartItems,
-      ).hasEnoughStock ? "QUANTITY_STOCK_INSUFFICIENT" : null);
+      const nextIndex = selectedVariantIndex === idx ? null : idx;
+      setSelectedVariantIndex(nextIndex);
+      const nextValidation = validateSelection(variants[nextIndex], drinkQty);
+      showFeedback(nextValidation.errorCodes.quantity || null);
     }
   };
 
   const handleAddQty = () => {
-    if (!selectedVariant) {
-      showFeedback("SIZE_REQUIRED");
-      return;
-    }
-    if (!selectedVariant.isAvailable) {
-      showFeedback("VARIANT_UNAVAILABLE");
-      return;
-    }
-    if (!getPOSSelectionStockStatus(
-      product, selectedVariant.id, drinkQty + 1, selectedAddons, cartItems,
-    ).hasEnoughStock) {
-      showFeedback("STOCK_LIMIT_REACHED");
+    if (isOrderLocked) return;
+    const nextValidation = validateSelection(selectedVariant, drinkQty + 1, true);
+    if (!nextValidation.isFormValid) {
+      showFeedback(getPOSSelectionValidationCode(nextValidation));
       return;
     }
     setDrinkQty(drinkQty + 1);
     clearFeedback();
   };
   const handleSubQty = () => {
+    if (isOrderLocked) return;
     const quantity = Math.max(1, drinkQty - 1);
     setDrinkQty(quantity);
-    showFeedback(selectedVariant && !getPOSSelectionStockStatus(
-      product, selectedVariant.id, quantity, selectedAddons, cartItems,
-    ).hasEnoughStock ? "QUANTITY_STOCK_INSUFFICIENT" : null);
+    const nextValidation = validateSelection(selectedVariant, quantity);
+    showFeedback(nextValidation.errorCodes.quantity || null);
   };
 
   const handleUnavailableClick = () => {
@@ -99,12 +101,8 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
 
   const handleAddToOrder = () => {
     if (isOrderLocked) return;
-    if (product.isAvailable && !selectedVariant) {
-      showFeedback("SIZE_REQUIRED");
-      return;
-    }
-    if (!canAddToOrder) {
-      showFeedback("VARIANT_UNAVAILABLE");
+    if (!validation.isFormValid) {
+      showFeedback(getPOSSelectionValidationCode(validation));
       return;
     }
 
@@ -155,7 +153,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
               aria-describedby={feedback ? sizeHintId : undefined}
               className={`relative after:absolute after:-inset-[11px] w-[1.375rem] h-[1.375rem] rounded-full border flex items-center justify-center text-[0.6rem] transition-colors ${drinkQty > 1 ? "border-[var(--app-color-text-subtle)] text-[var(--app-color-text-subtle)] hover:text-[var(--app-color-text)]" : "border-[var(--app-color-border-subtle)] text-[var(--app-color-text-muted)] cursor-not-allowed opacity-50"}`}
               onClick={handleSubQty}
-              disabled={drinkQty <= 1 || !product.isAvailable}
+              disabled={drinkQty <= 1 || !product.isAvailable || isOrderLocked}
             >
               <i className="bi bi-dash"></i>
             </button>
@@ -168,7 +166,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
               aria-describedby={feedback ? sizeHintId : undefined}
               className="relative after:absolute after:-inset-[11px] w-[1.375rem] h-[1.375rem] rounded-full border bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white flex items-center justify-center text-[0.6rem] transition-colors hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleAddQty}
-              disabled={!product.isAvailable}
+              disabled={!product.isAvailable || isOrderLocked}
             >
               <i className="bi bi-plus"></i>
             </button>
@@ -205,7 +203,7 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
                       : "bg-transparent border border-[var(--app-color-border)] text-[var(--app-color-text-subtle)] hover:bg-[var(--app-color-surface-soft)]"
                   } ${!v.isAvailable ? "opacity-50 cursor-not-allowed" : ""}`}
                   onClick={() => handleVariantClick(idx)}
-                  disabled={!v.isAvailable}
+                  disabled={!v.isAvailable || isOrderLocked}
                 >
                   {v.name}
                 </button>
@@ -221,11 +219,11 @@ const POSProductCard = ({ product, onAdd, allAddons, cartItems = [], isOrderLock
           {/* Row 3: Add-ons */}
           <button
             type="button"
-            disabled={!product.isAvailable}
+            disabled={!product.isAvailable || isOrderLocked}
             aria-label={`Customize add-ons for ${product.name}`}
             className={`flex flex-wrap justify-between items-center mt-1 mb-auto text-[var(--app-color-brand)] text-[length:var(--app-font-size-body-secondary)] transition-colors ${product.isAvailable ? "cursor-pointer hover:brightness-110" : "cursor-not-allowed opacity-50"}`}
             onClick={() => {
-              if (product.isAvailable) setIsAddonModalOpen(true);
+              if (product.isAvailable && !isOrderLocked) setIsAddonModalOpen(true);
             }}
           >
             <span>
