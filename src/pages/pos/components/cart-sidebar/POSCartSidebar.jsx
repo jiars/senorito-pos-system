@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import POSCartItem from './POSCartItem';
-import { formatCurrency } from '@/utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 import CashPaymentModal from '../modals/CashPaymentModal';
 import { Skeleton } from "@/components/ui/skeleton";
-import { POS_FEEDBACK, getPOSStatusFeedback } from "@/utils/pos/posFeedback";
+import { POS_FEEDBACK, getPOSStatusFeedback } from "@/utils/pos/feedback/posFeedback";
 
 const standardBtnClasses = "flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-[var(--app-radius-panel-standard,1rem)] border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex flex-wrap items-center justify-center gap-[var(--app-space-1)]";
 const btnActive = "bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white shadow-sm";

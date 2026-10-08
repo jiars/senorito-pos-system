@@ -1,4 +1,4 @@
-import { formatCurrency } from "../../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import SummaryCards from "@/components/summary-cards/SummaryCards";
 
 const DashboardSummaryCards = ({ metrics, isLoading }) => {

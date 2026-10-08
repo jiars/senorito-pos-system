@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import { useFeedback } from "@/hooks/feedback/useFeedback";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import { getCategoryInlineFeedback, getCategoryStatusFeedback, getCategoryToastFeedback } from "@/utils/inventory/feedback/categoryFeedback";
 import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
 import { toast } from "@/components/ui/toast";
@@ -12,7 +12,7 @@ import ModalContent from "@/components/modals/ModalContent";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { validateInventoryCategory } from "@/utils/validation/inventory/categoryValidation";
+import { validateInventoryCategory } from "@/utils/inventory/validation/categoryValidation";
 import {
   addInventoryCategory,
   updateInventoryCategory,

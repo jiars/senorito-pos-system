@@ -5,7 +5,7 @@ import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { useExpenseManagement } from "@/hooks/useExpenseManagement";
 import { unarchiveExpense } from "@/services/expenses/expenseService";
-import { buildCategoryColorMap } from "@/utils/expense/expenseCalculations";
+import { buildCategoryColorMap } from "@/utils/expenses/expenseCalculations";
 
 import ExpenseArchiveTable from "./components/ExpenseArchiveTable";
 

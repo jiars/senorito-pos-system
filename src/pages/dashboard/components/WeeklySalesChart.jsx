@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { formatCurrency } from "../../../utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
   ChartContainer,
   ChartTooltip,

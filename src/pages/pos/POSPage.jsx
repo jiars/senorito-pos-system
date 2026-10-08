@@ -20,7 +20,7 @@ import { db } from "../../utils/offlineDB";
 import {
   generateClientTransactionId,
   generateOfflineTransactionId,
-} from "../../utils/orderUtils";
+} from "@/utils/pos/transactionIds";
 import {
   calculateInventoryDeductions,
   hasEnoughInventoryStock,
@@ -35,7 +35,7 @@ import {
   getPOSAddedDescription,
   getPOSStatusFeedback,
   getPOSToastFeedback,
-} from "@/utils/pos/posFeedback";
+} from "@/utils/pos/feedback/posFeedback";
 import {
   savePosManagementCache,
   readPOSRefreshState,

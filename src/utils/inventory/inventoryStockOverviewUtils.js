@@ -1,4 +1,4 @@
-import { getExpiryInfo } from "@/utils/inventoryExpiryUtils";
+import { getExpiryInfo } from "@/utils/inventory/inventoryExpiryUtils";
 
 export const getInventoryStockStatus = (item) => {
   if (Number(item.current_stock) === 0) return "Out of Stock";

@@ -9,8 +9,8 @@ import ModalFooter from "@/components/modals/ModalFooter";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
 import { fetchItemAuditLogs } from "@/services/inventory/inventoryStockService";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { formatDateTime } from "@/utils/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import { getAuditBatch, getAuditPerformer } from "@/utils/inventory/inventoryAuditLogUtils";
 
 const StockHistoryModalContent = ({ onClose, item }) => {

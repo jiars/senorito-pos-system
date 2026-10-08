@@ -28,6 +28,7 @@ const GeneralStep = ({
   validation,
   onFieldChange,
 }) => {
+  const { errors } = validation;
   const minExpirationDate = startOfDay(new Date());
   const maxExpirationDate = addYears(minExpirationDate, 10);
   const filteredUnits = units.filter((currentUnit) => {
@@ -59,8 +60,7 @@ const GeneralStep = ({
 
       <Field
         data-invalid={
-          showErrors &&
-          (validation.isNameEmpty || validation.isDuplicateName)
+          showErrors && Boolean(errors.itemName)
         }
       >
         <FieldLabel htmlFor="add-inventory-item-name" className={labelClassName}>
@@ -73,27 +73,17 @@ const GeneralStep = ({
           onChange={(event) => onFieldChange("itemName", event.target.value)}
           placeholder="e.g. Espresso Beans, Kraft Cups"
           aria-invalid={
-            showErrors &&
-            (validation.isNameEmpty || validation.isDuplicateName)
+            showErrors && Boolean(errors.itemName)
           }
           className={controlClassName}
         />
-        {showErrors && validation.isNameEmpty && (
-          <FieldError className={errorClassName}>
-            Item name is required.
-          </FieldError>
+        {showErrors && errors.itemName && (
+          <FieldError className={errorClassName}>{errors.itemName}</FieldError>
         )}
-        {showErrors &&
-          !validation.isNameEmpty &&
-          validation.isDuplicateName && (
-            <FieldError className={errorClassName}>
-              This item already exists.
-            </FieldError>
-          )}
       </Field>
 
       <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
-        <Field data-invalid={showErrors && !formData.category}>
+        <Field data-invalid={showErrors && Boolean(errors.category)}>
           <FieldLabel
             htmlFor="add-inventory-category"
             className={labelClassName}
@@ -116,7 +106,7 @@ const GeneralStep = ({
             <ComboboxInput
               id="add-inventory-category"
               placeholder="Select category"
-              aria-invalid={showErrors && !formData.category}
+              aria-invalid={showErrors && Boolean(errors.category)}
               className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] shadow-none has-aria-invalid:border-[var(--app-color-danger)]"
             />
             <ComboboxContent
@@ -137,14 +127,14 @@ const GeneralStep = ({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {showErrors && !formData.category && (
+          {showErrors && Boolean(errors.category) && (
             <FieldError className={errorClassName}>
-              Category is required.
+              {errors.category}
             </FieldError>
           )}
         </Field>
 
-        <Field data-invalid={showErrors && !formData.unit}>
+        <Field data-invalid={showErrors && Boolean(errors.unit)}>
           <ModalFieldLabel
             htmlFor="add-inventory-base-unit"
             label="Base Unit"
@@ -162,7 +152,7 @@ const GeneralStep = ({
             <ComboboxInput
               id="add-inventory-base-unit"
               placeholder="Select base unit"
-              aria-invalid={showErrors && !formData.unit}
+              aria-invalid={showErrors && Boolean(errors.unit)}
               className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] shadow-none has-aria-invalid:border-[var(--app-color-danger)]"
             />
             <ComboboxContent
@@ -183,9 +173,9 @@ const GeneralStep = ({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {showErrors && !formData.unit && (
+          {showErrors && Boolean(errors.unit) && (
             <FieldError className={errorClassName}>
-              Base unit is required.
+              {errors.unit}
             </FieldError>
           )}
         </Field>
@@ -224,7 +214,7 @@ const GeneralStep = ({
         </Field>
 
         {formData.trackExpiry && (
-          <Field data-invalid={showErrors && !validation.isExpiryValid}>
+          <Field data-invalid={showErrors && Boolean(errors.expiryDate)}>
             <FieldLabel
               htmlFor="add-inventory-expiration-date"
               className={labelClassName}
@@ -239,21 +229,12 @@ const GeneralStep = ({
               placeholder="MM/DD/YYYY"
               minDate={minExpirationDate}
               maxDate={maxExpirationDate}
-              invalid={showErrors && !validation.isExpiryValid}
+              invalid={showErrors && Boolean(errors.expiryDate)}
               triggerClassName={controlClassName}
             />
-            {showErrors && validation.isExpiryEmpty && (
-              <FieldError className={errorClassName}>
-                Expiration date is required.
-              </FieldError>
+            {showErrors && errors.expiryDate && (
+              <FieldError className={errorClassName}>{errors.expiryDate}</FieldError>
             )}
-            {showErrors &&
-              !validation.isExpiryEmpty &&
-              !validation.hasValidFutureDate && (
-                <FieldError className={errorClassName}>
-                  Select today or a future date.
-                </FieldError>
-              )}
           </Field>
         )}
       </div>

@@ -28,7 +28,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import EmployeeContactInput from "../../components/EmployeeContactInput";
-import { validateEditEmployee, getEditEmployeeServerFieldErrors } from "@/utils/validation/employees/editEmployeeValidation";
+import { validateEditEmployee, getEditEmployeeServerFieldErrors } from "@/utils/employees/validation/editEmployeeValidation";
 import { updateEmployee } from "@/services/employees/employeeAccountsService";
 
 const labelClassName =

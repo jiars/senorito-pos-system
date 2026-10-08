@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 import { archiveMenuItem } from '../../../../services/menu/menuItemsService';
 
-import { formatCurrency } from '../../../../utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 
 import './confirmDeleteMenuItemModal.css';
 

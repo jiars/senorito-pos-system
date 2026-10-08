@@ -1,5 +1,5 @@
 import imgDefault from "../../assets/images/default_menu_picture.jpg";
-import { formatCurrency } from "../currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { getRecipeAvailabilityStatus } from "./checkoutCalculations";
 
 // Place the trusted usable stock inside every Menu and Add-on recipe.

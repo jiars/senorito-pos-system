@@ -1,4 +1,4 @@
-import { getPasswordRequirements } from "@/utils/validation/passwordValidation";
+import { getPasswordRequirements } from "@/utils/auth/validation/passwordValidation";
 
 const passwordRuleLabels = [
   { key: "length", label: "8+ characters" },

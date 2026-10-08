@@ -1,4 +1,4 @@
-import { supabase } from '../services/supabaseClient';
+import { supabase } from '@/services/supabaseClient';
 
 /**
  * Uploads an image to the 'menu-images' Supabase Storage bucket.

@@ -39,13 +39,13 @@ import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import { restockInventoryItem } from "@/services/inventory/stock/restockService";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import {
   getRestockInlineFeedback,
   getRestockStatusFeedback,
   getRestockToastFeedback,
 } from "@/utils/inventory/feedback/restockFeedback";
-import { validateStockLog } from "@/utils/validation/inventory/stockLogValidation";
+import { validateStockLog } from "@/utils/inventory/validation/stockLogValidation";
 
 const restockReasons = [
   "Initial Stock",
@@ -209,6 +209,7 @@ const RestockModalContent = ({
     try {
       try {
         savedRestockResponse.current = await restockInventoryItem(selectedItem.id, {
+          origin: "inventory_restock",
           stockData: {
             quantity: Number(quantity),
             reason: reason.trim(),

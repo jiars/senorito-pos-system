@@ -1,6 +1,6 @@
 import DataTable from "@/components/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const quadrantStyles = {
   star: "bg-[#e8f5e9] text-[#2e7d32]",

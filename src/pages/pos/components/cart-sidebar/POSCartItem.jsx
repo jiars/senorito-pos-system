@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { formatCurrency } from '../../../../utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 import defaultImage from '../../../../assets/images/default_menu_picture.jpg';
-import { POS_FEEDBACK } from '@/utils/pos/posFeedback';
+import { POS_FEEDBACK } from '@/utils/pos/feedback/posFeedback';
 
 const POSCartItem = ({ item, onUpdateQty, onRemoveItem, canIncreaseQuantity, isOrderLocked = false }) => {
   const [isAddonsExpanded, setIsAddonsExpanded] = useState(false);

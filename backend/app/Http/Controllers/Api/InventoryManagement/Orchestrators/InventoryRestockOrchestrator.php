@@ -28,6 +28,16 @@ class InventoryRestockOrchestrator extends Controller
 
             $stockData = $request->input('stockData');
             $purchaseData = $request->input('purchaseData');
+            // Older callers without an origin retain Inventory Restock defaults.
+            $isExpensePurchase = $request->input('origin', 'inventory_restock') === 'expense_purchase';
+            $auditSource = 'Stock Log Modal';
+            $expenseDescription = 'Restock: ' . $item->item_name;
+            $expenseDate = now()->toDateString();
+            if ($isExpensePurchase) {
+                $auditSource = 'Expense Tracking';
+                $expenseDescription = $purchaseData['description'];
+                $expenseDate = $purchaseData['expense_date'];
+            }
 
             if (
                 $item->track_expiry &&
@@ -81,7 +91,7 @@ class InventoryRestockOrchestrator extends Controller
                 'inventory_item_id' => $item->id,
                 'batch_id' => $batch->id,
                 'action' => 'Purchase',
-                'source' => 'Stock Log Modal',
+                'source' => $auditSource,
                 'quantity_change' => $quantity,
                 'stock_before' => $stockBefore,
                 'stock_after' => $stockAfter,
@@ -90,9 +100,10 @@ class InventoryRestockOrchestrator extends Controller
             ]);
 
             app(ExpenseController::class)->storeInventoryPurchase([
-                'description' => 'Restock: ' . $item->item_name,
+                'description' => $expenseDescription,
                 'amount' => $totalCost,
                 'vendor' => $purchaseData['supplier'] ?? null,
+                'expense_date' => $expenseDate,
             ], $userId);
 
             $fifoCost = $batchController->getEffectiveCost($item->id, (bool) $item->track_expiry);

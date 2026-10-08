@@ -1,6 +1,6 @@
 import React from 'react';
-import { formatFullName, formatPhoneNumber } from '../../../utils/stringFormatters';
-import { formatDate } from '../../../utils/dateFormatters';
+import { formatFullName, formatPhoneNumber } from '@/utils/shared/formatters/stringFormatters';
+import { formatDate } from '@/utils/shared/formatters/dateFormatters';
 
 const ProfileCard = ({ user, profile, role }) => {
     let fullName = formatFullName(profile.first_name, profile.last_name);

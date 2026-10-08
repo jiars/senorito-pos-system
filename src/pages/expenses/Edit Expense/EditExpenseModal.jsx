@@ -1,4 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getEditExpenseErrorCode, getEditExpenseInlineFeedback,
+  getEditExpenseStatusFeedback, getEditExpenseToastFeedback,
+} from "@/utils/expenses/feedback/editExpenseFeedback";
 
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
@@ -6,14 +14,6 @@ import ModalContent from "@/components/modals/ModalContent";
 import ModalFooter from "@/components/modals/ModalFooter";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
 import DatePicker from "@/components/ui/date-picker";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,8 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { updateExpense } from "@/services/expenses/expenseService";
-import { validateExpenseForm } from "@/utils/validation/expenses/expenseValidation";
+import { validateEditExpenseForm, getEditExpenseServerFieldErrors } from "@/utils/expenses/validation/editExpenseValidation";
+import { getExpenseDateLimits } from "@/utils/expenses/expenseDateLimits";
 
 const vendorCategoryNames = new Set([
   "cleaning supplies",
@@ -71,8 +72,14 @@ const EditExpenseModalContent = ({
     return createExpenseForm(expenseData);
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState("");
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const operationInFlight = useRef(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getEditExpenseInlineFeedback);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [dateLimits] = useState(() => getExpenseDateLimits());
+  const originalExpenseDate = normalizeDateValue(expenseData.expense_date);
 
   const selectedCategory = categories.find((category) => {
     return String(category.id) === String(formData.category_id);
@@ -81,12 +88,14 @@ const EditExpenseModalContent = ({
     ? selectedCategory.category_name.trim().toLowerCase()
     : "";
   const showVendor =
-    vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor);
+    vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor) || Boolean(serverFieldErrors.vendor);
 
-  const errors = useMemo(() => {
-    return validateExpenseForm(formData);
-  }, [formData]);
+  const validationErrors = useMemo(() => {
+    return validateEditExpenseForm(formData, categories, paymentMethods, expenseData.payment_method, dateLimits, originalExpenseDate);
+  }, [formData, categories, expenseData.payment_method, dateLimits, originalExpenseDate]);
+  const errors = { ...serverFieldErrors, ...validationErrors };
   const isFormValid = Object.keys(errors).length === 0;
+  const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
 
   const errorFor = (fieldName) => {
     if (!hasAttemptedSubmit) return "";
@@ -94,47 +103,101 @@ const EditExpenseModalContent = ({
   };
 
   const updateField = (fieldName, value) => {
+    if (operationInFlight.current || formLocked) return;
+    clearFeedback();
+    setServerFieldErrors({});
     setFormData((currentForm) => ({
       ...currentForm,
       [fieldName]: value,
     }));
   };
 
-  const handleCategoryChange = (category) => {
-    updateField("category_id", category?.id || "");
+  const handleClose = () => {
+    if (!operationInFlight.current && !savedResult) onClose();
+  };
+
+  // A confirmed update can retry reads only, never repeat the write.
+  const refreshSavedExpense = async (resultDetails) => {
+    try {
+      const result = await refetch();
+      if (result && (result.isError || result.error)) return;
+    } catch {
+      return;
+    }
+    toast.add(getEditExpenseToastFeedback(resultDetails.description));
+    onClose();
   };
 
   const handleSubmit = async () => {
+    if (operationInFlight.current || savedResult || saveBlocked) return;
     setHasAttemptedSubmit(true);
-    if (!isFormValid || isSubmitting) return;
-
+    if (!isFormValid) {
+      const fieldIds = {
+        category_id: "edit-expense-category", description: "edit-expense-description",
+        amount: "edit-expense-amount", expense_date: "edit-expense-date",
+        vendor: "edit-expense-vendor", payment_method: "edit-expense-payment-method",
+        receipt_reference: "edit-expense-receipt",
+      };
+      const input = document.getElementById(fieldIds[Object.keys(errors)[0]]);
+      if (input) input.focus();
+      return;
+    }
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    clearFeedback();
+    const resultDetails = { description: formData.description.trim() };
     try {
-      setIsSubmitting(true);
-      setApiError("");
-
-      await updateExpense(expenseData.id, {
-        category_id: formData.category_id,
-        expense_date: formData.expense_date,
-        description: formData.description.trim(),
-        amount: Number(formData.amount),
-        vendor: formData.vendor.trim() || null,
-        payment_method: formData.payment_method,
-        receipt_reference: formData.receipt_reference.trim() || null,
-      });
-
-      await refetch();
-      onClose();
-    } catch (error) {
-      setApiError(error.message);
+      try {
+        await updateExpense(expenseData.id, {
+          category_id: expenseData.category_id,
+          expense_date: formData.expense_date,
+          description: formData.description.trim(),
+          amount: Number(formData.amount),
+          vendor: formData.vendor.trim() || null,
+          payment_method: formData.payment_method,
+          receipt_reference: formData.receipt_reference.trim() || null,
+        });
+      } catch (error) {
+        const code = getEditExpenseErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          setServerFieldErrors(getEditExpenseServerFieldErrors(error.response.data.errors));
+        }
+        return;
+      }
+      setSavedResult(resultDetails);
+      await refreshSavedExpense(resultDetails);
     } finally {
+      operationInFlight.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (operationInFlight.current || !savedResult) return;
+    operationInFlight.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedExpense(savedResult);
+    } finally {
+      operationInFlight.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  let statusCode = "EXPENSE_SAVING";
+  if (savedResult) statusCode = "EXPENSES_REFRESHING";
+  if (isRefreshError) statusCode = "EXPENSES_REFRESH_FAILED";
+  const statusFeedback = getEditExpenseStatusFeedback(statusCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen={true}
-      onClose={onClose}
+      isOpen={!isSubmitting && !savedResult}
+      onClose={handleClose}
       maxWidth="32rem"
       maxHeight="min(90svh, 48rem)"
     >
@@ -147,61 +210,21 @@ const EditExpenseModalContent = ({
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
         <ModalContent>
-          {apiError && (
-            <p
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-              role="alert"
-            >
-              {apiError}
-            </p>
-          )}
-
+          <InlineFeedback feedback={feedback} id="edit-expense-feedback" />
+          <fieldset disabled={formLocked} className="contents">
           <div className="flex flex-col gap-[var(--app-gap-related)]">
             <Field data-invalid={Boolean(errorFor("category_id"))}>
-              <FieldLabel className={labelClassName}>
+              <FieldLabel htmlFor="edit-expense-category" className={labelClassName}>
                 Category
                 <span className="text-[var(--app-color-danger)]">*</span>
               </FieldLabel>
 
-              <Combobox
-                items={categories}
-                value={selectedCategory || null}
-                onValueChange={handleCategoryChange}
-                itemToStringLabel={(category) => {
-                  return category?.category_name || "";
-                }}
-                itemToStringValue={(category) => {
-                  return String(category?.id || "");
-                }}
-                isItemEqualToValue={(category, value) => {
-                  return String(category?.id) === String(value?.id);
-                }}
-              >
-                <ComboboxInput
-                  placeholder="Select an expense category"
-                  aria-invalid={Boolean(errorFor("category_id"))}
-                  className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] has-aria-invalid:border-[var(--app-color-danger)]"
-                />
-                <ComboboxContent
-                  positionerClassName="!z-[1100]"
-                  className="z-[1100] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)]  ring-0"
-                >
-                  <ComboboxEmpty>No expense category found.</ComboboxEmpty>
-                  <ComboboxList>
-                    {(category) => (
-                      <ComboboxItem
-                        key={category.id}
-                        value={category}
-                        className="min-h-[var(--app-touch-target-min)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
-                      >
-                        <span className="min-w-0 flex-1 truncate">
-                          {category.category_name}
-                        </span>
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
+              <Input
+                id="edit-expense-category"
+                value={selectedCategory?.category_name || "Unavailable category"}
+                disabled
+                className={controlClassName}
+              />
 
               {errorFor("category_id") && (
                 <FieldError className="text-[length:var(--app-font-size-caption)]">
@@ -281,12 +304,15 @@ const EditExpenseModalContent = ({
                 </FieldLabel>
                 <DatePicker
                   id="edit-expense-date"
+                  minDate={dateLimits.minExpenseDate}
+                  maxDate={dateLimits.maxExpenseDate}
+                  defaultMonth={dateLimits.minExpirationDate}
                   value={formData.expense_date}
                   onValueChange={(value) => {
                     updateField("expense_date", value);
                   }}
                   placeholder="MM/DD/YYYY"
-                  disabled={isSubmitting}
+                  disabled={formLocked}
                   invalid={Boolean(errorFor("expense_date"))}
                   triggerClassName={controlClassName}
                 />
@@ -312,7 +338,7 @@ const EditExpenseModalContent = ({
                   onValueChange={(value) => {
                     updateField("payment_method", value);
                   }}
-                  disabled={isSubmitting}
+                  disabled={formLocked}
                 >
                   <SelectTrigger
                     id="edit-expense-payment-method"
@@ -341,7 +367,7 @@ const EditExpenseModalContent = ({
                 )}
               </Field>
 
-              <Field>
+              <Field data-invalid={Boolean(errorFor("receipt_reference"))}>
                 <FieldLabel
                   htmlFor="edit-expense-receipt"
                   className={labelClassName}
@@ -350,6 +376,7 @@ const EditExpenseModalContent = ({
                 </FieldLabel>
                 <Input
                   id="edit-expense-receipt"
+                  aria-invalid={Boolean(errorFor("receipt_reference"))}
                   value={formData.receipt_reference}
                   onChange={(event) => {
                     updateField("receipt_reference", event.target.value);
@@ -358,11 +385,14 @@ const EditExpenseModalContent = ({
                   disabled={isSubmitting}
                   className={controlClassName}
                 />
+                {errorFor("receipt_reference") && (
+                  <FieldError className="text-[length:var(--app-font-size-caption)]">{errorFor("receipt_reference")}</FieldError>
+                )}
               </Field>
             </div>
 
             {showVendor && (
-              <Field>
+              <Field data-invalid={Boolean(errorFor("vendor"))}>
                 <FieldLabel
                   htmlFor="edit-expense-vendor"
                   className={labelClassName}
@@ -371,6 +401,7 @@ const EditExpenseModalContent = ({
                 </FieldLabel>
                 <Input
                   id="edit-expense-vendor"
+                  aria-invalid={Boolean(errorFor("vendor"))}
                   value={formData.vendor}
                   onChange={(event) => {
                     updateField("vendor", event.target.value);
@@ -379,18 +410,14 @@ const EditExpenseModalContent = ({
                   disabled={isSubmitting}
                   className={controlClassName}
                 />
+                {errorFor("vendor") && (
+                  <FieldError className="text-[length:var(--app-font-size-caption)]">{errorFor("vendor")}</FieldError>
+                )}
               </Field>
             )}
 
-            {hasAttemptedSubmit && !isFormValid && (
-              <p
-                className="text-right text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
-                role="alert"
-              >
-                Please fill in all required fields (*).
-              </p>
-            )}
           </div>
+          </fieldset>
         </ModalContent>
       </ModalBody>
 
@@ -399,14 +426,14 @@ const EditExpenseModalContent = ({
           type="button"
           variant="outline"
           disabled={isSubmitting}
-          onClick={onClose}
+          onClick={handleClose}
           className="min-h-[var(--app-touch-target-min)] min-w-24 rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-border-subtle)]"
         >
           Cancel
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={formLocked}
           onClick={handleSubmit}
           className="min-h-[var(--app-touch-target-min)] min-w-32 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
@@ -414,6 +441,14 @@ const EditExpenseModalContent = ({
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

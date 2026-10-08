@@ -1,5 +1,5 @@
 import SummaryCards from "@/components/summary-cards/SummaryCards";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const ExpenseSummaryCards = ({
   overallExpenses,

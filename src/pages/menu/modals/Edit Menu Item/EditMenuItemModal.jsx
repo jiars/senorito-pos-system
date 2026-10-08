@@ -6,8 +6,8 @@ import ModalContent from "@/components/modals/ModalContent";
 import ModalFooter from "@/components/modals/ModalFooter";
 import RecipeStatusBadge from "@/pages/menu/components/RecipeStatusBadge";
 import { syncMenuItem } from "@/services/menu/menuItemsService";
-import { uploadMenuImage } from "@/utils/imageUploadHelper";
-import { validateMenuItemForm } from "@/utils/validation/menuValidation";
+import { uploadMenuImage } from "@/utils/menu/imageUploadHelper";
+import { validateMenuItemForm } from "@/utils/menu/validation/menuValidation";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,

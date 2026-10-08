@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatCurrency } from '../../../../utils/currencyFormatters';
+import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 
 export const DonutChart = ({ data, total }) => {
   const [hovered, setHovered] = useState(null);

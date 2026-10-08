@@ -6,7 +6,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatUnitConversionAmount } from "@/utils/inventory/unitConversion";
 import { getMinimumLevelRules } from "@/utils/inventory/minimumLevel";
 
@@ -27,6 +27,7 @@ const InitialPurchaseStep = ({
   onPurchaseUnitChange,
   getBaseUnitCost,
 }) => {
+  const { errors } = validation;
   const minimumLevelRules = getMinimumLevelRules(formData.unit);
   const hasValidPurchaseCost =
     validation.isQtyValid && validation.isCostValid;
@@ -74,7 +75,7 @@ const InitialPurchaseStep = ({
       </Field>
 
       <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
-        <Field data-invalid={showErrors && !validation.isQtyValid}>
+        <Field data-invalid={showErrors && Boolean(errors.qtyPurchased)}>
           <FieldLabel
             htmlFor="add-inventory-quantity"
             className={labelClassName}
@@ -92,17 +93,17 @@ const InitialPurchaseStep = ({
               onFieldChange("qtyPurchased", event.target.value)
             }
             placeholder="Number of units purchased"
-            aria-invalid={showErrors && !validation.isQtyValid}
+            aria-invalid={showErrors && Boolean(errors.qtyPurchased)}
             className={controlClassName}
           />
-          {showErrors && !validation.isQtyValid && (
+          {showErrors && Boolean(errors.qtyPurchased) && (
             <FieldError className={errorClassName}>
-              Quantity must be greater than 0.
+              {errors.qtyPurchased}
             </FieldError>
           )}
         </Field>
 
-        <Field data-invalid={showErrors && !formData.purchaseUnit.trim()}>
+        <Field data-invalid={showErrors && Boolean(errors.purchaseUnit)}>
           <ModalFieldLabel
             htmlFor="add-inventory-purchase-unit"
             label="Purchase Unit"
@@ -115,12 +116,12 @@ const InitialPurchaseStep = ({
             value={formData.purchaseUnit}
             onChange={(event) => onPurchaseUnitChange(event.target.value)}
             placeholder="e.g. Box, Sack, kg"
-            aria-invalid={showErrors && !formData.purchaseUnit.trim()}
+            aria-invalid={showErrors && Boolean(errors.purchaseUnit)}
             className={controlClassName}
           />
-          {showErrors && !formData.purchaseUnit.trim() && (
+          {showErrors && Boolean(errors.purchaseUnit) && (
             <FieldError className={errorClassName}>
-              Purchase unit is required.
+              {errors.purchaseUnit}
             </FieldError>
           )}
         </Field>
@@ -137,7 +138,7 @@ const InitialPurchaseStep = ({
           {needsCustomMultiplier && (
             <Field
               className="min-w-0 sm:ml-auto sm:w-72"
-              data-invalid={showErrors && !validation.isMultiplierValid}
+              data-invalid={showErrors && Boolean(errors.purchaseMultiplier)}
             >
               <FieldLabel
                 htmlFor="add-inventory-purchase-multiplier"
@@ -156,14 +157,14 @@ const InitialPurchaseStep = ({
                   onChange={(event) =>
                     onFieldChange("purchaseMultiplier", event.target.value)
                   }
-                  aria-invalid={showErrors && !validation.isMultiplierValid}
+                  aria-invalid={showErrors && Boolean(errors.purchaseMultiplier)}
                   className={`${controlClassName} min-w-20 text-center`}
                 />
                 <span className="shrink-0">{formData.unit}</span>
               </div>
-              {showErrors && !validation.isMultiplierValid && (
+              {showErrors && Boolean(errors.purchaseMultiplier) && (
                 <FieldError className={errorClassName}>
-                  Enter a value greater than 0.
+                  {errors.purchaseMultiplier}
                 </FieldError>
               )}
             </Field>
@@ -172,7 +173,7 @@ const InitialPurchaseStep = ({
       )}
 
       <div className="grid grid-cols-1 gap-[var(--app-gap-related)] sm:grid-cols-2">
-        <Field data-invalid={showErrors && !validation.isMinValid}>
+        <Field data-invalid={showErrors && Boolean(errors.minLevel)}>
           <ModalFieldLabel
             htmlFor="add-inventory-minimum-level"
             label={`Minimum Level (${formData.unit || "unit"})`}
@@ -193,17 +194,17 @@ const InitialPurchaseStep = ({
               }
             }}
             placeholder="Enter minimum stock level"
-            aria-invalid={showErrors && !validation.isMinValid}
+            aria-invalid={showErrors && Boolean(errors.minLevel)}
             className={controlClassName}
           />
-          {showErrors && !validation.isMinValid && (
+          {showErrors && Boolean(errors.minLevel) && (
             <FieldError className={errorClassName}>
-              {minimumLevelRules.errorMessage}
+              {errors.minLevel}
             </FieldError>
           )}
         </Field>
 
-        <Field data-invalid={showErrors && !validation.isCostValid}>
+        <Field data-invalid={showErrors && Boolean(errors.totalCost)}>
           <FieldLabel
             htmlFor="add-inventory-total-cost"
             className={labelClassName}
@@ -225,13 +226,13 @@ const InitialPurchaseStep = ({
                 onFieldChange("totalCost", event.target.value)
               }
               placeholder="0.00"
-              aria-invalid={showErrors && !validation.isCostValid}
+              aria-invalid={showErrors && Boolean(errors.totalCost)}
               className="h-full px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
             />
           </InputGroup>
-          {showErrors && !validation.isCostValid && (
+          {showErrors && Boolean(errors.totalCost) && (
             <FieldError className={errorClassName}>
-              Total cost must be greater than 0.
+              {errors.totalCost}
             </FieldError>
           )}
         </Field>

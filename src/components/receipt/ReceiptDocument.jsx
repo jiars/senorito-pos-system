@@ -1,6 +1,6 @@
 import { Fragment } from "react";
-import { formatCurrency } from "../../utils/currencyFormatters";
-import { formatDate, formatTime } from "../../utils/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate, formatTime } from "@/utils/shared/formatters/dateFormatters";
 
 const ReceiptRow = ({ label, value, total = false, isAmount = false }) => (
   <div className={`receipt-row flex items-start justify-between gap-[var(--app-space-2)] ${total ? "receipt-total text-[length:var(--app-font-size-h3)] font-bold" : ""}`}>

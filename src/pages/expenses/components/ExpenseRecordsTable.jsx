@@ -15,9 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { formatDate } from "@/utils/dateFormatters";
-import { getDateRangeFromPreset } from "@/utils/expense/expenseFilters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import { getDateRangeFromPreset } from "@/utils/expenses/expenseFilters";
 
 import ExpenseCategoryBadge from "./ExpenseCategoryBadge";
 

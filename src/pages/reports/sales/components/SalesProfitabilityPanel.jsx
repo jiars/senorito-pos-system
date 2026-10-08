@@ -8,7 +8,7 @@ import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 import SalesProfitabilityTable, {
   sortProfitabilityRows,

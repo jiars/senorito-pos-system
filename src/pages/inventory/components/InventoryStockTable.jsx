@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getExpiryInfo } from "@/utils/inventoryExpiryUtils";
+import { getExpiryInfo } from "@/utils/inventory/inventoryExpiryUtils";
 import {
   filterAndSortInventoryItems,
   getInventoryLastUpdatedInfo,

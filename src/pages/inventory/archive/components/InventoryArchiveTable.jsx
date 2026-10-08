@@ -8,8 +8,8 @@ import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime } from "@/utils/dateFormatters";
-import { getExpiryInfo } from "@/utils/inventoryExpiryUtils";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
+import { getExpiryInfo } from "@/utils/inventory/inventoryExpiryUtils";
 import { getInventoryStockStatus } from "@/utils/inventory/inventoryStockOverviewUtils";
 
 const stockStatusOptions = [

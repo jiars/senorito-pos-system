@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import DataTable from "@/components/data-table/DataTable";
-import { formatCurrency } from "@/utils/currencyFormatters";
-import { formatDateTime } from "@/utils/dateFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 
 const getStatusClassName = (status) => {
   if (status === "Completed") {

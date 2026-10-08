@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { usePOSFeedback } from "@/hooks/feedback/usePOSFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 import {

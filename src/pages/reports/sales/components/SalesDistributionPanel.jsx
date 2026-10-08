@@ -3,7 +3,7 @@ import DataTableSheet from "@/components/data-table/DataTableSheet";
 import EmptyState from "@/components/feedback/data-state/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency } from "@/utils/currencyFormatters";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 import { DonutChart, PieChart } from "./SalesCharts";
 

@@ -15,13 +15,13 @@ import { useRefreshInventoryAuditLogs } from "@/hooks/useInventoryAuditLogs";
 import { useRefreshInventoryValuation } from "@/hooks/useInventoryValuation";
 import { addInventoryItem } from "@/services/inventory/inventoryItemsService";
 import { getStandardUnitMultiplier } from "@/utils/inventory/unitConversion";
-import { getInventorySaveErrorCode } from "@/utils/inventory/inventoryFeedback";
+import { getInventorySaveErrorCode } from "@/utils/inventory/feedback/inventoryFeedback";
 import {
   getAddInventoryInlineFeedback,
   getAddInventoryStatusFeedback,
   getAddInventoryToastFeedback,
 } from "@/utils/inventory/feedback/addInventoryFeedback";
-import { validateAddInventoryItem } from "@/utils/validation/inventory/addInventoryValidation";
+import { validateAddInventoryItem } from "@/utils/inventory/validation/addInventoryValidation";
 
 import GeneralStep from "./steps/GeneralStep";
 import InitialPurchaseStep from "./steps/InitialPurchaseStep";
@@ -105,19 +105,7 @@ const AddInventoryItemModalContent = ({
     expiryDate: formData.expiryDate,
   });
 
-  const stepValidity = [
-    !validation.isNameEmpty &&
-      !validation.isDuplicateName &&
-      Boolean(formData.unit) &&
-      Boolean(formData.category) &&
-      validation.isExpiryValid,
-    validation.isQtyValid &&
-      Boolean(formData.purchaseUnit.trim()) &&
-      validation.isMultiplierValid &&
-      validation.isCostValid &&
-      validation.isMinValid,
-    validation.conversionsValid,
-  ];
+  const stepValidity = validation.stepValidity;
 
   const standardMultiplier = getStandardUnitMultiplier(
     formData.unit,
@@ -423,6 +411,7 @@ const AddInventoryItemModalContent = ({
 
           {currentStep === 2 && (
             <RecipeConversionStep
+              validation={validation}
               conversions={conversions}
               baseUnit={formData.unit}
               showErrors={showCurrentStepErrors}
