@@ -40,15 +40,14 @@ const ArchiveMenuItemModalContent = ({ item, onClose, refetchMenu }) => {
   const refreshArchivedItem = async () => {
     try {
       if (!refetchMenu) {
-        showFeedback("REFRESH_FAILED");
-        return;
+        throw new Error("Menu refresh callback is missing.");
       }
       const result = await refetchMenu();
       if (result && (result.isError || result.error)) {
-        showFeedback("REFRESH_FAILED");
-        return;
+        throw result.error || new Error("Menu refresh failed.");
       }
-    } catch {
+    } catch (error) {
+      console.error("Menu item archived, but Menu/POS refresh failed:", error);
       showFeedback("REFRESH_FAILED");
       return;
     }
