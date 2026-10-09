@@ -18,11 +18,11 @@ import MenuAddonsTable from "./components/MenuAddonsTable";
 import ManageMenuCategoriesModal from "./modals/Menu Categories/ManageMenuCategoriesModal";
 import AddMenuItemModal from "./modals/Add Menu Item/AddMenuItemModal";
 import EditMenuItemModal from "./modals/Edit Menu Item/EditMenuItemModal";
-import ConfirmDeleteMenuItemModal from "./modals/Confirm Delete Menu Item/ConfirmDeleteMenuItemModal";
+import ArchiveMenuItemModal from "./modals/Archive Menu Item/ArchiveMenuItemModal";
 
 import AddAddonModal from "./addons/modals/Add Add-on/AddAddonModal";
 import EditAddonModal from "./addons/modals/Edit Add-on/EditAddonModal";
-import ConfirmDeleteAddonModal from "./addons/modals/Confirm Delete Add-on/ConfirmDeleteAddonModal";
+import ArchiveAddonModal from "./addons/modals/Archive Add-on/ArchiveAddonModal";
 
 import "./menuManagement.css";
 
@@ -31,7 +31,9 @@ const MenuManagementPage = () => {
 
   const {
     menuItems,
+    archivedMenuItems,
     addons,
+    archivedAddons,
     categories,
     ingredients,
     isLoading,
@@ -87,13 +89,13 @@ const MenuManagementPage = () => {
 
   const [isAddMenuItemModalOpen, setIsAddMenuItemModalOpen] = useState(false);
   const [isEditMenuItemModalOpen, setIsEditMenuItemModalOpen] = useState(false);
-  const [isDeleteMenuItemModalOpen, setIsDeleteMenuItemModalOpen] =
+  const [isArchiveMenuItemModalOpen, setIsArchiveMenuItemModalOpen] =
     useState(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState(null);
 
   const [isAddAddonModalOpen, setIsAddAddonModalOpen] = useState(false);
   const [isEditAddonModalOpen, setIsEditAddonModalOpen] = useState(false);
-  const [isDeleteAddonModalOpen, setIsDeleteAddonModalOpen] = useState(false);
+  const [isArchiveAddonModalOpen, setIsArchiveAddonModalOpen] = useState(false);
   const [selectedAddon, setSelectedAddon] = useState(null);
 
   const handleTabChange = (nextTab) => {
@@ -105,9 +107,9 @@ const MenuManagementPage = () => {
     setIsEditMenuItemModalOpen(true);
   };
 
-  const handleMenuDelete = (item) => {
+  const handleMenuArchive = (item) => {
     setSelectedMenuItem(item);
-    setIsDeleteMenuItemModalOpen(true);
+    setIsArchiveMenuItemModalOpen(true);
   };
 
   const handleAddonEdit = (addon) => {
@@ -115,9 +117,9 @@ const MenuManagementPage = () => {
     setIsEditAddonModalOpen(true);
   };
 
-  const handleAddonDelete = (addon) => {
+  const handleAddonArchive = (addon) => {
     setSelectedAddon(addon);
-    setIsDeleteAddonModalOpen(true);
+    setIsArchiveAddonModalOpen(true);
   };
 
   const pageActions = (
@@ -176,7 +178,7 @@ const MenuManagementPage = () => {
               items={filteredMenuItems}
               isLoading={isLoading}
               onEdit={handleMenuEdit}
-              onArchive={handleMenuDelete}
+              onArchive={handleMenuArchive}
             />
           }
           addonsContent={
@@ -185,7 +187,7 @@ const MenuManagementPage = () => {
               addons={filteredAddons}
               isLoading={isLoading}
               onEdit={handleAddonEdit}
-              onArchive={handleAddonDelete}
+              onArchive={handleAddonArchive}
             />
           }
         />
@@ -195,7 +197,8 @@ const MenuManagementPage = () => {
         isOpen={isCategoriesModalOpen}
         onClose={() => setIsCategoriesModalOpen(false)}
         categories={categories}
-        menuItems={menuItems}
+        menuItems={[...menuItems, ...archivedMenuItems]}
+        addons={[...addons, ...archivedAddons]}
         refetchMenu={refetchMenu}
       />
 
@@ -205,6 +208,7 @@ const MenuManagementPage = () => {
         refetchMenu={refetchMenu}
         categories={categories}
         inventoryItems={activeIngredients}
+        existingItems={[...menuItems, ...archivedMenuItems]}
       />
 
       <EditMenuItemModal
@@ -220,10 +224,10 @@ const MenuManagementPage = () => {
         supportsVariantArchiving={true}
       />
 
-      <ConfirmDeleteMenuItemModal
-        isOpen={isDeleteMenuItemModalOpen}
+      <ArchiveMenuItemModal
+        isOpen={isArchiveMenuItemModalOpen}
         onClose={() => {
-          setIsDeleteMenuItemModalOpen(false);
+          setIsArchiveMenuItemModalOpen(false);
           setSelectedMenuItem(null);
         }}
         item={selectedMenuItem}
@@ -236,6 +240,7 @@ const MenuManagementPage = () => {
         refetchAddons={refetchMenu}
         categories={categories}
         inventoryItems={activeIngredients}
+        existingAddons={[...addons, ...archivedAddons]}
       />
 
       <EditAddonModal
@@ -248,12 +253,13 @@ const MenuManagementPage = () => {
         refetchAddons={refetchMenu}
         categories={categories}
         inventoryItems={ingredients}
+        existingAddons={[...addons, ...archivedAddons]}
       />
 
-      <ConfirmDeleteAddonModal
-        isOpen={isDeleteAddonModalOpen}
+      <ArchiveAddonModal
+        isOpen={isArchiveAddonModalOpen}
         onClose={() => {
-          setIsDeleteAddonModalOpen(false);
+          setIsArchiveAddonModalOpen(false);
           setSelectedAddon(null);
         }}
         addon={selectedAddon}

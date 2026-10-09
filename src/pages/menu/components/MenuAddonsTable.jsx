@@ -27,7 +27,6 @@ const MenuAddonsTable = ({
   onEdit,
   onArchive,
   onRestore,
-  restoringAddonId = null,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -124,14 +123,13 @@ const MenuAddonsTable = ({
               <DropdownMenuContent align="end" className="z-[120] w-40">
                 {isArchiveMode ? (
                   <DropdownMenuItem
-                    disabled={restoringAddonId === addon.id}
                     onClick={() => onRestore?.(addon)}
                   >
                     <i
                       aria-hidden="true"
                       className="bi bi-arrow-counterclockwise"
                     />
-                    {restoringAddonId === addon.id ? "Restoring..." : "Restore"}
+                    Restore
                   </DropdownMenuItem>
                 ) : (
                   <>
@@ -155,7 +153,7 @@ const MenuAddonsTable = ({
         },
       },
     ],
-    [isArchiveMode, onArchive, onEdit, onRestore, restoringAddonId],
+    [isArchiveMode, onArchive, onEdit, onRestore],
   );
 
   return (

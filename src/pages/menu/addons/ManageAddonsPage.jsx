@@ -6,7 +6,7 @@ import ManageAddonsTable from './components/ManageAddonsTable';
 
 import AddAddonModal from './modals/Add Add-on/AddAddonModal';
 import EditAddonModal from './modals/Edit Add-on/EditAddonModal';
-import ConfirmDeleteAddonModal from './modals/Confirm Delete Add-on/ConfirmDeleteAddonModal';
+import ArchiveAddonModal from './modals/Archive Add-on/ArchiveAddonModal';
 
 import '../menuManagement.css';
 import { useMenuManagement } from '../../../hooks/useMenuManagement';
@@ -15,11 +15,11 @@ import { useInventoryManagement } from '../../../hooks/useInventoryManagement';
 const ManageAddonsPage = () => {
   const [isAddAddonModalOpen, setIsAddAddonModalOpen] = useState(false);
   const [isEditAddonModalOpen, setIsEditAddonModalOpen] = useState(false);
-  const [isDeleteAddonModalOpen, setIsDeleteAddonModalOpen] = useState(false);
+  const [isArchiveAddonModalOpen, setIsArchiveAddonModalOpen] = useState(false);
   const [selectedAddon, setSelectedAddon] = useState(null);
 
   const navigate = useNavigate();
-  const { addons, categories, isLoading, refetch: refetchAddons } = useMenuManagement();
+  const { addons, archivedAddons, categories, isLoading, refetch: refetchAddons } = useMenuManagement();
   const { inventoryItems } = useInventoryManagement();
 
   const handleEditClick = (item) => {
@@ -27,9 +27,9 @@ const ManageAddonsPage = () => {
     setIsEditAddonModalOpen(true);
   };
 
-  const handleDeleteClick = (item) => {
+  const handleArchiveClick = (item) => {
     setSelectedAddon(item);
-    setIsDeleteAddonModalOpen(true);
+    setIsArchiveAddonModalOpen(true);
   };
 
   return (
@@ -44,7 +44,7 @@ const ManageAddonsPage = () => {
         categories={categories}
         isLoading={isLoading}
         handleEditClick={handleEditClick}
-        handleDeleteClick={handleDeleteClick}
+        handleArchiveClick={handleArchiveClick}
       />
 
       <AddAddonModal
@@ -53,6 +53,7 @@ const ManageAddonsPage = () => {
         refetchAddons={refetchAddons}
         categories={categories}
         inventoryItems={inventoryItems}
+        existingAddons={[...addons, ...archivedAddons]}
       />
 
       <EditAddonModal
@@ -62,11 +63,12 @@ const ManageAddonsPage = () => {
         refetchAddons={refetchAddons}
         categories={categories}
         inventoryItems={inventoryItems}
+        existingAddons={[...addons, ...archivedAddons]}
       />
 
-      <ConfirmDeleteAddonModal
-        isOpen={isDeleteAddonModalOpen}
-        onClose={() => setIsDeleteAddonModalOpen(false)}
+      <ArchiveAddonModal
+        isOpen={isArchiveAddonModalOpen}
+        onClose={() => setIsArchiveAddonModalOpen(false)}
         addon={selectedAddon}
         refetchAddons={refetchAddons}
       />

@@ -1,4 +1,12 @@
 import { useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getEditAddonErrorCode, getEditAddonInlineFeedback,
+  getEditAddonStatusFeedback, getEditAddonToastFeedback,
+} from "@/utils/menu/feedback/editAddonFeedback";
 
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
@@ -16,7 +24,7 @@ import {
   calculateMargin,
   calculateProfit,
 } from "@/utils/menu/pricingCalculations";
-import { validateAddonForm } from "@/utils/menu/validation/menuValidation";
+import { validateEditAddon, getEditAddonServerFieldErrors } from "@/utils/menu/validation/editAddonValidation";
 import {
   controlClassName,
   errorClassName,
@@ -42,6 +50,7 @@ const EditAddonModalContent = ({
   refetchAddons,
   categories = [],
   inventoryItems = [],
+  existingAddons = [],
   maxWidth = "42rem",
   maxHeight = "min(90svh, 48rem)",
 }) => {
@@ -62,27 +71,43 @@ const EditAddonModalContent = ({
   }));
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getEditAddonInlineFeedback);
   const submittingRef = useRef(false);
 
   const estimatedCost = calculateEstCost(recipe.ingredients, inventoryItems);
   const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
   const margin = calculateMargin(profit, recipe.sellingPrice);
-  const allErrors = validateAddonForm(
+  const validation = validateEditAddon(
     addonName,
-    recipe.sellingPrice,
+    recipe,
     selectedCategories,
-    recipe.ingredients,
+    categories,
+    inventoryItems,
+    existingAddons,
+    addon.id,
   );
-  const errors = hasAttemptedSubmit ? allErrors : {};
+  const errors = hasAttemptedSubmit ? { ...serverFieldErrors, ...validation.errors } : {};
+  const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
+  const clearFormFeedback = () => {
+    clearFeedback();
+    setServerFieldErrors({});
+  };
+  const handleClose = () => {
+    if (!submittingRef.current && !savedResult) onClose();
+  };
 
   const updateRecipe = (updater) => {
-    setErrorMessage("");
+    if (submittingRef.current || formLocked) return;
+    clearFormFeedback();
     setRecipe(updater);
   };
 
   const toggleCategory = (categoryId) => {
-    setErrorMessage("");
+    if (submittingRef.current || formLocked) return;
+    clearFormFeedback();
     setSelectedCategories((current) =>
       current.includes(categoryId)
         ? current.filter((id) => id !== categoryId)
@@ -90,16 +115,30 @@ const EditAddonModalContent = ({
     );
   };
 
+  // Once saved, retry only the refresh, never the update request.
+  const refreshSavedAddon = async (resultDetails) => {
+    try {
+      if (!refetchAddons) return;
+      const result = await refetchAddons();
+      if (result && (result.isError || result.error)) return;
+    } catch {
+      return;
+    }
+    toast.add(getEditAddonToastFeedback(resultDetails.addonName));
+    onClose();
+  };
+
   const handleSave = async () => {
+    if (submittingRef.current || savedResult || saveBlocked) return;
     setHasAttemptedSubmit(true);
-    if (Object.keys(allErrors).length > 0 || submittingRef.current) return;
+    if (!validation.isFormValid || Object.keys(serverFieldErrors).length > 0) return;
 
     submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage("");
+    clearFeedback();
 
     try {
-      await updateAddon(addon.id, {
+      const payload = {
         base_info: {
           addon_name: addonName.trim(),
           selling_price: Number(recipe.sellingPrice) || 0,
@@ -133,25 +172,54 @@ const EditAddonModalContent = ({
                 Number(reference?.cost_per_unit || 0),
             };
           }),
-      });
-      if (refetchAddons) await refetchAddons();
-      onClose();
+      };
+      try {
+        await updateAddon(addon.id, payload);
+      } catch (error) {
+        const code = getEditAddonErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          setServerFieldErrors(getEditAddonServerFieldErrors(error.response.data.errors, recipe.ingredients));
+        }
+        return;
+      }
+      const resultDetails = { addonName: addonName.trim() };
+      setSavedResult(resultDetails);
+      await refreshSavedAddon(resultDetails);
     } catch (error) {
-      setErrorMessage(
-        error.message || "Unable to update the add-on. Please try again.",
-      );
+      console.error("Could not prepare add-on update:", error);
+      showFeedback("SAVE_FAILED");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (submittingRef.current || !savedResult) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedAddon(savedResult);
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  let statusCode = "ADDON_SAVING";
+  if (savedResult) statusCode = "MENU_REFRESHING";
+  if (isRefreshError) statusCode = "MENU_REFRESH_FAILED";
+  const statusFeedback = getEditAddonStatusFeedback(statusCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen
-      onClose={() => {
-        if (!submittingRef.current) onClose();
-      }}
+      isOpen={!isSubmitting && !savedResult}
+      onClose={handleClose}
       maxWidth={maxWidth}
       maxHeight={maxHeight}
     >
@@ -163,16 +231,9 @@ const EditAddonModalContent = ({
       />
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]">
         <ModalContent className="max-sm:!p-[var(--app-space-4)]">
-          {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
-            >
-              {errorMessage}
-            </p>
-          )}
+          <InlineFeedback feedback={feedback} id="edit-addon-feedback" />
           <fieldset
-            disabled={isSubmitting}
+            disabled={formLocked}
             className="flex min-w-0 flex-col gap-[var(--app-gap-section)] border-0 p-0"
           >
             <section
@@ -194,7 +255,8 @@ const EditAddonModalContent = ({
                   id="edit-addon-name"
                   value={addonName}
                   onChange={(event) => {
-                    setErrorMessage("");
+                    if (submittingRef.current || formLocked) return;
+                    clearFormFeedback();
                     setAddonName(event.target.value);
                   }}
                   className={controlClassName}
@@ -251,7 +313,8 @@ const EditAddonModalContent = ({
                 role="switch"
                 aria-checked={isAvailable}
                 onClick={() => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setIsAvailable((current) => !current);
                 }}
                 className={toggleClassName}
@@ -272,7 +335,7 @@ const EditAddonModalContent = ({
               recipe={recipe}
               inventoryItems={inventoryItems}
               errors={errors}
-              disabled={isSubmitting}
+              disabled={formLocked}
               className="!bg-[var(--app-color-canvas)]"
               onRecipeChange={updateRecipe}
               onAddIngredient={() =>
@@ -289,7 +352,7 @@ const EditAddonModalContent = ({
         <Button
           type="button"
           variant="outline"
-          onClick={onClose}
+          onClick={handleClose}
           disabled={isSubmitting}
           className={secondaryButtonClassName}
         >
@@ -298,13 +361,21 @@ const EditAddonModalContent = ({
         <Button
           type="button"
           onClick={handleSave}
-          disabled={isSubmitting}
+          disabled={formLocked}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
           {isSubmitting ? "Saving..." : "Save Changes"}
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

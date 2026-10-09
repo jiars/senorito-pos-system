@@ -14,7 +14,6 @@ const MenuItemCard = ({
   onEdit,
   onArchive,
   onRestore,
-  isRestoring = false,
 }) => {
   const prices = Array.isArray(item.menu_prices)
     ? item.menu_prices.filter((price) => !price.archived)
@@ -92,11 +91,10 @@ const MenuItemCard = ({
         <DropdownMenuContent align="end" className="z-[100] w-40">
           {isArchiveMode ? (
             <DropdownMenuItem
-              disabled={isRestoring}
               onClick={() => onRestore?.(item)}
             >
               <i aria-hidden="true" className="bi bi-arrow-counterclockwise" />
-              {isRestoring ? "Restoring..." : "Restore"}
+              Restore
             </DropdownMenuItem>
           ) : (
             <>

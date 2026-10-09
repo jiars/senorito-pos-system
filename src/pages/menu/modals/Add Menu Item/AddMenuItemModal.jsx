@@ -1,4 +1,12 @@
 import { useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getAddMenuItemErrorCode, getAddMenuItemInlineFeedback,
+  getAddMenuItemStatusFeedback, getAddMenuItemToastFeedback,
+} from "@/utils/menu/feedback/addMenuItemFeedback";
 
 import Modal from "@/components/modals/Modal";
 import ModalHeader from "@/components/modals/ModalHeader";
@@ -15,7 +23,7 @@ import {
   calculateMargin,
 } from "@/utils/menu/pricingCalculations";
 import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
-import { validateMenuItemForm } from "@/utils/menu/validation/menuValidation";
+import { validateAddMenuItem, getAddMenuItemServerFieldErrors } from "@/utils/menu/validation/addMenuItemValidation";
 
 import GeneralStep from "./steps/GeneralStep";
 import RecipePricingStep from "./steps/RecipePricingStep";
@@ -65,6 +73,7 @@ const AddMenuItemModalContent = ({
   refetchMenu,
   categories = [],
   inventoryItems = [],
+  existingItems = [],
   maxWidth = "42rem",
   maxHeight = "min(90svh, 48rem)",
   imageSize = 512,
@@ -79,52 +88,94 @@ const AddMenuItemModalContent = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [attemptedStep, setAttemptedStep] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const [operationStage, setOperationStage] = useState("ITEM_SAVING");
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getAddMenuItemInlineFeedback);
+  const uploadedImageRef = useRef(null);
   const submittingRef = useRef(false);
   const stepHeadingRef = useRef(null);
 
-  const errors = validateMenuItemForm(
-    baseInfo,
-    variants,
-    { requireImage: true },
-  );
-  const generalValid = !errors.name && !errors.category && !errors.image;
+  const validation = validateAddMenuItem(baseInfo, variants, categories, inventoryItems, existingItems);
+  const errors = { ...serverFieldErrors, ...validation.errors };
+  const generalValid = validation.stepValidity[0] && !errors.name && !errors.category && !errors.image;
   const showErrors = attemptedStep === currentStep;
+  const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
+
+  const clearFormFeedback = () => {
+    clearFeedback();
+    setServerFieldErrors({});
+  };
+
+  const handleClose = () => {
+    if (!submittingRef.current && !savedResult) onClose();
+  };
 
   const changeStep = (step) => {
+    if (submittingRef.current || formLocked) return;
     setAttemptedStep(null);
-    setErrorMessage("");
+    clearFeedback();
     setCurrentStep(step);
     window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
   };
 
   const updateRecipe = (variantId, updater) => {
-    setErrorMessage("");
-      setVariants((current) =>
-        current.map((variant) =>
-          variant.id === variantId ? updater(variant) : variant,
-        ),
-      );
+    if (submittingRef.current || formLocked) return;
+    clearFormFeedback();
+    setVariants((current) =>
+      current.map((variant) =>
+        variant.id === variantId ? updater(variant) : variant,
+      ),
+    );
+  };
+
+  // A successful write retries menu reads only, never another item creation.
+  const refreshSavedItem = async (resultDetails) => {
+    try {
+      if (!refetchMenu) return;
+      const result = await refetchMenu();
+      if (result && (result.isError || result.error)) return;
+    } catch {
+      return;
+    }
+    toast.add(getAddMenuItemToastFeedback(resultDetails.itemName));
+    onClose();
   };
 
   const handleSaveItem = async () => {
+    if (submittingRef.current || savedResult || saveBlocked) return;
     setAttemptedStep(currentStep);
-    if (Object.keys(errors).length > 0 || submittingRef.current) return;
+    if (!validation.isFormValid || Object.keys(serverFieldErrors).length > 0) {
+      if (!generalValid) {
+        setCurrentStep(0);
+        setAttemptedStep(0);
+      }
+      window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
+      return;
+    }
     submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage("");
+    clearFeedback();
+    setOperationStage("ITEM_SAVING");
 
     try {
-      let uploadedImageUrl = null;
-      if (baseInfo.image) {
+      let uploadedImageUrl;
+      const cachedImage = uploadedImageRef.current;
+      if (cachedImage && cachedImage.file === baseInfo.image && cachedImage.name === baseInfo.name && cachedImage.category === baseInfo.category) {
+        uploadedImageUrl = cachedImage.url;
+      } else {
         const category = categories.find(
           (item) => item.id === baseInfo.category,
         );
-        uploadedImageUrl = await uploadMenuImage(
-          baseInfo.image,
-          baseInfo.name,
-          category?.category_name || "Uncategorized",
-        );
+        try {
+          uploadedImageUrl = await uploadMenuImage(baseInfo.image, baseInfo.name, category.category_name);
+          if (!uploadedImageUrl) throw new Error("Image upload returned no URL");
+          uploadedImageRef.current = { file: baseInfo.image, name: baseInfo.name, category: baseInfo.category, url: uploadedImageUrl };
+        } catch {
+          showFeedback("UPLOAD_FAILED");
+          return;
+        }
       }
 
       // Keep the existing Fixed/Variants and recipe payload contract unchanged.
@@ -162,25 +213,57 @@ const AddMenuItemModalContent = ({
         }),
       };
 
-      await addMenuItem(payload);
-      if (refetchMenu) await refetchMenu();
-      onClose();
+      setOperationStage("ITEM_SAVING");
+      try {
+        await addMenuItem(payload);
+      } catch (error) {
+        const code = getAddMenuItemErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          const fieldErrors = getAddMenuItemServerFieldErrors(error.response.data.errors, variants);
+          setServerFieldErrors(fieldErrors);
+          if (fieldErrors.name || fieldErrors.category || fieldErrors.image) {
+            setCurrentStep(0);
+            setAttemptedStep(0);
+          }
+        }
+        return;
+      }
+      const resultDetails = { itemName: baseInfo.name.trim() };
+      setSavedResult(resultDetails);
+      setOperationStage("MENU_REFRESHING");
+      await refreshSavedItem(resultDetails);
     } catch (error) {
-      setErrorMessage(
-        error.message || "Unable to add menu item. Please try again.",
-      );
+      console.error("Could not prepare menu item:", error);
+      showFeedback("SAVE_FAILED");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (submittingRef.current || !savedResult) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedItem(savedResult);
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  const statusFeedback = getAddMenuItemStatusFeedback(isRefreshError ? "MENU_REFRESH_FAILED" : operationStage);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen
-      onClose={() => {
-        if (!submittingRef.current) onClose();
-      }}
+      isOpen={!isSubmitting && !savedResult}
+      onClose={handleClose}
       maxWidth={maxWidth}
       maxHeight={maxHeight}
     >
@@ -196,15 +279,8 @@ const AddMenuItemModalContent = ({
       >
         <ModalContent className="gap-[var(--app-gap-section)] max-sm:!p-[var(--app-space-4)]">
           <ModalStepper steps={steps} currentStep={currentStep} />
-          {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
-            >
-              {errorMessage}
-            </p>
-          )}
-          <fieldset disabled={isSubmitting} className="min-w-0 border-0 p-0">
+          <InlineFeedback feedback={feedback} id="add-menu-item-feedback" />
+          <fieldset disabled={formLocked} className="min-w-0 border-0 p-0">
             {currentStep === 0 ? (
               <GeneralStep
                 headingRef={stepHeadingRef}
@@ -213,7 +289,8 @@ const AddMenuItemModalContent = ({
                 categories={categories}
                 errors={showErrors ? errors : {}}
                 onChange={(field, value) => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setBaseInfo((current) => ({ ...current, [field]: value }));
                 }}
               />
@@ -223,7 +300,7 @@ const AddMenuItemModalContent = ({
                 variants={variants}
                 inventoryItems={inventoryItems}
                 errors={showErrors ? errors : {}}
-                disabled={isSubmitting}
+                disabled={formLocked}
                 onRecipeChange={updateRecipe}
                 onAddIngredient={(variantId) =>
                   updateRecipe(variantId, (recipe) => ({
@@ -232,11 +309,13 @@ const AddMenuItemModalContent = ({
                   }))
                 }
                 onAddVariant={() => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setVariants((current) => normalizeVariantNames([...current, createVariant()]));
                 }}
                 onRemoveVariant={(id) => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setVariants((current) =>
                     current.length > 1
                       ? normalizeVariantNames(current.filter((variant) => variant.id !== id))
@@ -254,13 +333,13 @@ const AddMenuItemModalContent = ({
           variant="outline"
           className={secondaryButtonClassName}
           disabled={isSubmitting}
-          onClick={currentStep === 0 ? onClose : () => changeStep(0)}
+          onClick={currentStep === 0 || saveBlocked ? handleClose : () => changeStep(0)}
         >
-          {currentStep === 0 ? "Cancel" : "Previous"}
+          {currentStep === 0 || saveBlocked ? "Cancel" : "Previous"}
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={formLocked}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
           onClick={
             currentStep === 1
@@ -275,6 +354,14 @@ const AddMenuItemModalContent = ({
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

@@ -1,8 +1,16 @@
-import { addExpenseValidationMessages, getExpenseDateError, validateExpenseForm } from "./addExpenseValidation";
+import { validateExpenseDate } from "./expenseDateValidation";
 
-// Reuse common expense copy; Edit adds its own field-length message.
 export const editExpenseValidationMessages = {
-  ...addExpenseValidationMessages,
+  categoryRequired: "Category is required.",
+  categoryUnavailable: "Select an available expense category.",
+  dateRequired: "Date is required.",
+  dateInvalid: "Enter a valid expense date.",
+  dateFuture: "Expense date cannot be in the future.",
+  dateTooOld: "Expense date can only go back up to 3 months.",
+  amountInvalid: "Amount must be greater than 0.",
+  descriptionRequired: "Description is required.",
+  paymentRequired: "Payment method is required.",
+  paymentUnavailable: "Select an available payment method.",
   textTooLong: (limit) => {
     return `Use ${limit} characters or fewer.`;
   },
@@ -10,18 +18,24 @@ export const editExpenseValidationMessages = {
 
 // Keep an existing historical date; future dates are never allowed.
 export const validateEditExpenseForm = (formData, categories, paymentMethods, originalPaymentMethod, dateLimits, originalExpenseDate, isExpenseDateInputValid = true, expenseDateInput = "") => {
-  const validation = validateExpenseForm(formData);
-  const errors = validation.errors;
+  const errors = {};
   const messages = editExpenseValidationMessages;
+  if (!formData.category_id) errors.category_id = messages.categoryRequired;
+  if (!formData.expense_date) errors.expense_date = messages.dateRequired;
+  if (!formData.description.trim()) errors.description = messages.descriptionRequired;
+  if (!formData.amount || !Number.isFinite(Number(formData.amount)) || Number(formData.amount) <= 0) {
+    errors.amount = messages.amountInvalid;
+  }
+  if (!formData.payment_method) errors.payment_method = messages.paymentRequired;
   if (formData.category_id && !categories.some((category) => String(category.id) === String(formData.category_id))) {
     errors.category_id = messages.categoryUnavailable;
   }
   if (formData.expense_date) {
-    const error = getExpenseDateError(formData.expense_date, dateLimits, originalExpenseDate);
+    const error = validateExpenseDate(formData.expense_date, dateLimits, originalExpenseDate, "yyyy-MM-dd", messages);
     if (error) errors.expense_date = error;
   }
   if (!isExpenseDateInputValid) {
-    errors.expense_date = getExpenseDateError(expenseDateInput, dateLimits, null, "MM/dd/yyyy");
+    errors.expense_date = validateExpenseDate(expenseDateInput, dateLimits, null, "MM/dd/yyyy", messages);
   }
   if (formData.payment_method && !paymentMethods.includes(formData.payment_method) && formData.payment_method !== originalPaymentMethod) {
     errors.payment_method = messages.paymentUnavailable;

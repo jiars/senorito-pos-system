@@ -6,7 +6,7 @@ export const addMenuItem = async (itemData) => {
     return response.data;
   } catch (error) {
     console.error("Error adding menu item:", error.message);
-    throw new Error(error.response?.data?.message || "Failed to add menu item");
+    throw error;
   }
 };
 
@@ -19,9 +19,7 @@ export const syncMenuItem = async (itemId, nestedPayload) => {
     return response.data;
   } catch (error) {
     console.error("Error syncing menu item:", error.message);
-    throw new Error(
-      error.response?.data?.message || "Failed to sync menu item",
-    );
+    throw error;
   }
 };
 
@@ -31,9 +29,7 @@ export const archiveMenuItem = async (itemId) => {
     return true;
   } catch (error) {
     console.error("Error archiving menu item:", error.message);
-    throw new Error(
-      error.response?.data?.message || "Failed to archive menu item",
-    );
+    throw error;
   }
 };
 
@@ -48,8 +44,6 @@ export const unarchiveMenuItem = async (itemId) => {
   } catch (error) {
     console.error("Error restoring menu item:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to restore menu item",
-    );
+    throw error;
   }
 };

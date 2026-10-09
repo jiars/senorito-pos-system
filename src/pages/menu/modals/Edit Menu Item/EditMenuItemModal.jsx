@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getEditMenuItemErrorCode, getEditMenuItemInlineFeedback,
+  getEditMenuItemStatusFeedback, getEditMenuItemToastFeedback,
+} from "@/utils/menu/feedback/editMenuItemFeedback";
 import Modal from "@/components/modals/Modal";
 import ModalHeader from "@/components/modals/ModalHeader";
 import ModalBody from "@/components/modals/ModalBody";
@@ -7,7 +15,9 @@ import ModalFooter from "@/components/modals/ModalFooter";
 import RecipeStatusBadge from "@/pages/menu/components/RecipeStatusBadge";
 import { syncMenuItem } from "@/services/menu/menuItemsService";
 import { uploadMenuImage } from "@/utils/menu/imageUploadHelper";
-import { validateMenuItemForm } from "@/utils/menu/validation/menuValidation";
+import { validateEditMenuItem, getEditMenuItemServerFieldErrors } from "@/utils/menu/validation/editMenuItemValidation";
+import { getSellingPriceError, MAX_SELLING_PRICE } from "@/utils/menu/validation/sellingPriceValidation";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -142,12 +152,17 @@ const EditMenuItemModalContent = ({
   const [variants, setVariants] = useState(initialDraft.variants);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getEditMenuItemInlineFeedback);
+  const uploadedImageRef = useRef(null);
   const submittingRef = useRef(false);
   const previewRef = useRef(null);
-  const allErrors = validateMenuItemForm(baseInfo, variants);
+  const validation = validateEditMenuItem(baseInfo, variants, inventoryItems);
+  const allErrors = { ...serverFieldErrors, ...validation.errors };
   const errors = hasAttemptedSubmit ? allErrors : {};
-  const isFormValid = Object.keys(allErrors).length === 0;
+  const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
   const category =
     categories.find((entry) => entry.id === baseInfo.category) || null;
   const recipes = variants.filter((variant) => !variant.archived);
@@ -165,22 +180,30 @@ const EditMenuItemModalContent = ({
   const archivePersistenceBlocked =
     !supportsVariantArchiving &&
     (hasArchiveChanges || archivedVariants.length > 0);
-  const disabled = isSubmitting;
+  const disabled = isSubmitting || Boolean(savedResult) || saveBlocked;
+
+  const clearFormFeedback = () => {
+    clearFeedback();
+    setServerFieldErrors({});
+  };
 
   useEffect(() => {
-    if (!baseInfo.image) return;
+    if (!baseInfo.image || isSubmitting) return;
     const url = URL.createObjectURL(baseInfo.image);
     if (previewRef.current) previewRef.current.src = url;
     return () => URL.revokeObjectURL(url);
-  }, [baseInfo.image]);
+  }, [baseInfo.image, isSubmitting]);
 
   const onChange = (field, value) => {
-    setErrorMessage("");
+    if (submittingRef.current || disabled) return;
+    if (field === "name" || field === "category") return;
+    clearFormFeedback();
     setBaseInfo((current) => ({ ...current, [field]: value }));
   };
 
   const onRecipeChange = (variantId, updater) => {
-    setErrorMessage("");
+    if (submittingRef.current || disabled) return;
+    clearFormFeedback();
     setVariants((current) =>
       current.map((variant) =>
         variant.id === variantId ? updater(variant) : variant,
@@ -196,14 +219,16 @@ const EditMenuItemModalContent = ({
   };
 
   const onAddVariant = () => {
-    setErrorMessage("");
+    if (submittingRef.current || disabled) return;
+    clearFormFeedback();
     setVariants((current) =>
       normalizeVariantNames([...current, createEditVariant()]),
     );
   };
 
   const onRemoveVariant = (variantId) => {
-    setErrorMessage("");
+    if (submittingRef.current || disabled) return;
+    clearFormFeedback();
     setVariants((current) => {
       if (current.filter((variant) => !variant.archived).length <= 1)
         return current;
@@ -223,7 +248,8 @@ const EditMenuItemModalContent = ({
   };
 
   const onRestoreVariant = (variantId) => {
-    setErrorMessage("");
+    if (submittingRef.current || disabled) return;
+    clearFormFeedback();
     setVariants((current) =>
       normalizeVariantNames(
         current.map((variant) =>
@@ -234,7 +260,7 @@ const EditMenuItemModalContent = ({
   };
 
   const handleClose = () => {
-    if (!submittingRef.current) onClose();
+    if (!submittingRef.current && !savedResult) onClose();
   };
 
   const updateIngredient = (variantId, ingredientId, field, value) => {
@@ -252,14 +278,28 @@ const EditMenuItemModalContent = ({
     }));
   };
 
+  // Refresh retry must never repeat a confirmed update.
+  const refreshSavedItem = async (resultDetails) => {
+    try {
+      if (!refetchMenu) return;
+      const result = await refetchMenu();
+      if (result && (result.isError || result.error)) return;
+    } catch {
+      return;
+    }
+    toast.add(getEditMenuItemToastFeedback(resultDetails.itemName));
+    onClose();
+  };
+
   const handleSaveEdit = async () => {
+    if (submittingRef.current || savedResult || saveBlocked) return;
     setHasAttemptedSubmit(true);
     if (!isFormValid || archivePersistenceBlocked || submittingRef.current)
       return;
 
     submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage("");
+    clearFeedback();
 
     try {
       let finalImageUrl = item.image_url;
@@ -268,18 +308,26 @@ const EditMenuItemModalContent = ({
         const categoryName = selectedCat
           ? selectedCat.category_name
           : "Uncategorized";
-        finalImageUrl = await uploadMenuImage(
-          baseInfo.image,
-          baseInfo.name,
-          categoryName,
-        );
+        const cachedImage = uploadedImageRef.current;
+        if (cachedImage && cachedImage.file === baseInfo.image && cachedImage.name === baseInfo.name && cachedImage.category === baseInfo.category) {
+          finalImageUrl = cachedImage.url;
+        } else {
+          try {
+            finalImageUrl = await uploadMenuImage(baseInfo.image, baseInfo.name, categoryName);
+            if (!finalImageUrl) throw new Error("Image upload returned no URL");
+            uploadedImageRef.current = { file: baseInfo.image, name: baseInfo.name, category: baseInfo.category, url: finalImageUrl };
+          } catch {
+            showFeedback("UPLOAD_FAILED");
+            return;
+          }
+        }
       }
 
       // Preserve the existing sync payload and saved record IDs.
       const payload = {
         base_info: {
-          item_name: baseInfo.name.trim(),
-          category_id: baseInfo.category,
+          item_name: item.item_name,
+          category_id: item.category_id,
           recipe_status: item.recipe_status || "Complete",
           pos_status: baseInfo.isAvailable ? "Available" : "Unavailable",
           pricing_type: recipes.length === 1 ? "Fixed" : "Variants",
@@ -335,26 +383,52 @@ const EditMenuItemModalContent = ({
         };
       });
 
-      // Save through the existing menu service.
-      await syncMenuItem(item.id, payload);
-
-      // Refresh the list after a successful save.
-      if (refetchMenu) {
-        await refetchMenu();
+      try {
+        await syncMenuItem(item.id, payload);
+      } catch (error) {
+        const code = getEditMenuItemErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          setServerFieldErrors(getEditMenuItemServerFieldErrors(error.response.data.errors, variants));
+        }
+        return;
       }
-      onClose();
+      const resultDetails = { itemName: baseInfo.name.trim() };
+      setSavedResult(resultDetails);
+      await refreshSavedItem(resultDetails);
     } catch (error) {
       console.error("Failed to update menu item:", error);
-      setErrorMessage(error.message || "Error updating item in database.");
+      showFeedback("SAVE_FAILED");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (submittingRef.current || !savedResult) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedItem(savedResult);
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  let statusCode = "ITEM_SAVING";
+  if (savedResult) statusCode = "MENU_REFRESHING";
+  if (isRefreshError) statusCode = "MENU_REFRESH_FAILED";
+  const statusFeedback = getEditMenuItemStatusFeedback(statusCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen
+      isOpen={!isSubmitting && !savedResult}
       onClose={handleClose}
       maxWidth={maxWidth}
       maxHeight={maxHeight}
@@ -367,16 +441,9 @@ const EditMenuItemModalContent = ({
       />
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)] max-sm:!max-h-[calc(var(--app-modal-max-height)-14.5rem)]">
         <ModalContent className="max-sm:!p-[var(--app-space-4)]">
-          {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
-            >
-              {errorMessage}
-            </p>
-          )}
+          <InlineFeedback feedback={feedback} id="edit-menu-item-feedback" />
           <fieldset
-            disabled={isSubmitting}
+            disabled={disabled}
             className="flex min-w-0 flex-col gap-[var(--app-gap-section)] border-0 p-0"
           >
             <section
@@ -453,7 +520,7 @@ const EditMenuItemModalContent = ({
                     <Input
                       id="edit-menu-name"
                       value={baseInfo.name}
-                      onChange={(event) => onChange("name", event.target.value)}
+                      disabled
                       placeholder="e.g. Blueberry Dream Frappe"
                       aria-invalid={Boolean(errors.name)}
                       aria-describedby={
@@ -479,7 +546,7 @@ const EditMenuItemModalContent = ({
                       <span className="text-[var(--app-color-danger)]">*</span>
                     </FieldLabel>
                     <Combobox
-                      disabled={isSubmitting}
+                      disabled
                       items={categories}
                       value={category}
                       onValueChange={(value) =>
@@ -586,11 +653,15 @@ const EditMenuItemModalContent = ({
                   recipe.ingredients,
                   inventoryItems,
                 );
-                const profit = calculateProfit(
-                  recipe.sellingPrice,
-                  estimatedCost,
-                );
-                const margin = calculateMargin(profit, recipe.sellingPrice);
+                const canPreviewPrice = !getSellingPriceError(recipe.sellingPrice) && Number.isFinite(estimatedCost);
+                let profitDisplay = "—";
+                let marginDisplay = "—";
+                if (canPreviewPrice) {
+                  const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
+                  const margin = calculateMargin(profit, recipe.sellingPrice);
+                  profitDisplay = profit.toFixed(2);
+                  marginDisplay = `${margin.toFixed(2)}%`;
+                }
                 const metrics = [
                   {
                     key: "price",
@@ -603,11 +674,11 @@ const EditMenuItemModalContent = ({
                     label: "Est. Cost",
                     value: estimatedCost.toFixed(2),
                   },
-                  { key: "profit", label: "Profit", value: profit.toFixed(2) },
+                  { key: "profit", label: "Profit", value: profitDisplay },
                   {
                     key: "margin",
                     label: "Margin",
-                    value: `${margin.toFixed(2)}%`,
+                    value: marginDisplay,
                     percentage: true,
                   },
                 ];
@@ -715,10 +786,11 @@ const EditMenuItemModalContent = ({
                       </Button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-[var(--app-space-2)] sm:grid-cols-4">
+                    <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-[var(--app-space-2)] sm:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
                       {metrics.map((metric) => (
                         <Field
                           key={metric.key}
+                          className="min-w-0"
                           data-invalid={Boolean(metric.editable && priceError)}
                         >
                           <FieldLabel
@@ -732,14 +804,7 @@ const EditMenuItemModalContent = ({
                               </span>
                             )}
                           </FieldLabel>
-                          {metric.percentage ? (
-                            <Input
-                              id={`${prefix}-${metric.key}`}
-                              readOnly
-                              value={metric.value}
-                              className={`${controlClassName} bg-[var(--app-color-filter-bg)]`}
-                            />
-                          ) : (
+                          {metric.editable ? (
                             <InputGroup
                               className={`${comboClassName} overflow-hidden ${!metric.editable ? "bg-[var(--app-color-filter-bg)]" : ""}`}
                             >
@@ -753,8 +818,9 @@ const EditMenuItemModalContent = ({
                                 id={`${prefix}-${metric.key}`}
                                 type={metric.editable ? "number" : "text"}
                                 readOnly={!metric.editable}
-                                min={metric.editable ? "0" : undefined}
-                                step={metric.editable ? "any" : undefined}
+                                min="0.01"
+                                max={MAX_SELLING_PRICE}
+                                step="0.01"
                                 placeholder="0.00"
                                 value={metric.value}
                                 onChange={
@@ -780,6 +846,11 @@ const EditMenuItemModalContent = ({
                                 className="min-w-0 text-[length:var(--app-font-size-body-secondary)]"
                               />
                             </InputGroup>
+                          ) : (
+                            <output id={`${prefix}-${metric.key}`} className="flex min-h-[var(--app-touch-target-min)] min-w-0 items-center gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-2)] py-[var(--app-space-1)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">
+                              {!metric.percentage && <span aria-hidden="true" className="shrink-0">₱</span>}
+                              <span className="min-w-0 [overflow-wrap:anywhere] tabular-nums">{metric.value}</span>
+                            </output>
                           )}
                           {metric.editable && priceError && (
                             <FieldError
@@ -964,7 +1035,8 @@ const EditMenuItemModalContent = ({
                               id={`${ingredientPrefix}-qty`}
                               type="number"
                               min="0"
-                              step="any"
+                              step={getQuantityRules(ingredient.unit).step}
+                              inputMode={getQuantityRules(ingredient.unit).inputMode}
                               placeholder="0"
                               value={ingredient.qty}
                               onChange={(event) =>
@@ -1187,13 +1259,21 @@ const EditMenuItemModalContent = ({
         <Button
           type="button"
           onClick={handleSaveEdit}
-          disabled={isSubmitting || archivePersistenceBlocked}
+          disabled={disabled || archivePersistenceBlocked}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
         >
           {isSubmitting ? "Saving..." : "Save Changes"}
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

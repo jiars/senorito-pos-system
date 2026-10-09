@@ -1,4 +1,12 @@
 import { useRef, useState } from "react";
+import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import { toast } from "@/components/ui/toast";
+import { useFeedback } from "@/hooks/feedback/useFeedback";
+import {
+  getAddAddonErrorCode, getAddAddonInlineFeedback,
+  getAddAddonStatusFeedback, getAddAddonToastFeedback,
+} from "@/utils/menu/feedback/addAddonFeedback";
 import Modal from "@/components/modals/Modal";
 import ModalHeader from "@/components/modals/ModalHeader";
 import ModalBody from "@/components/modals/ModalBody";
@@ -13,7 +21,7 @@ import {
   calculateMargin,
 } from "@/utils/menu/pricingCalculations";
 import { buildRecipePayload } from "@/utils/menu/buildRecipePayload";
-import { validateAddonForm } from "@/utils/menu/validation/menuValidation";
+import { validateAddAddon, getAddAddonServerFieldErrors } from "@/utils/menu/validation/addAddonValidation";
 import { secondaryButtonClassName } from "@/pages/menu/modals/shared/menuModalClasses";
 import GeneralStep from "./steps/GeneralStep";
 import RecipePricingStep from "./steps/RecipePricingStep";
@@ -34,6 +42,7 @@ const AddAddonModalContent = ({
   refetchAddons,
   categories = [],
   inventoryItems = [],
+  existingAddons = [],
   maxWidth = "42rem",
   maxHeight = "min(90svh, 48rem)",
 }) => {
@@ -47,35 +56,64 @@ const AddAddonModalContent = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [attemptedStep, setAttemptedStep] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [serverFieldErrors, setServerFieldErrors] = useState({});
+  const [savedResult, setSavedResult] = useState(null);
+  const [saveBlocked, setSaveBlocked] = useState(false);
+  const { feedback, showFeedback, clearFeedback } = useFeedback(getAddAddonInlineFeedback);
   const submittingRef = useRef(false);
   const headingRef = useRef(null);
-  const errors = validateAddonForm(
-    addonName,
-    recipe.sellingPrice,
-    selectedCategories,
-    recipe.ingredients,
-  );
+  const validation = validateAddAddon(addonName, recipe, selectedCategories, categories, inventoryItems, existingAddons);
+  const errors = { ...serverFieldErrors, ...validation.errors };
   const visibleErrors = attemptedStep === currentStep ? errors : {};
+  const formLocked = isSubmitting || Boolean(savedResult) || saveBlocked;
+  const clearFormFeedback = () => {
+    clearFeedback();
+    setServerFieldErrors({});
+  };
+  const handleClose = () => {
+    if (!submittingRef.current && !savedResult) onClose();
+  };
 
   const changeStep = (step) => {
+    if (submittingRef.current || formLocked) return;
     setCurrentStep(step);
     setAttemptedStep(null);
-    setErrorMessage("");
+    clearFeedback();
     window.requestAnimationFrame(() => headingRef.current?.focus());
   };
 
   const updateRecipe = (updater) => {
-    setErrorMessage("");
+    if (submittingRef.current || formLocked) return;
+    clearFormFeedback();
     setRecipe(updater);
   };
 
+  // Refresh retry must not create the saved add-on again.
+  const refreshSavedAddon = async (resultDetails) => {
+    try {
+      if (!refetchAddons) return;
+      const result = await refetchAddons();
+      if (result && (result.isError || result.error)) return;
+    } catch {
+      return;
+    }
+    toast.add(getAddAddonToastFeedback(resultDetails.addonName));
+    onClose();
+  };
   const handleSave = async () => {
+    if (submittingRef.current || savedResult || saveBlocked) return;
     setAttemptedStep(currentStep);
-    if (Object.keys(errors).length > 0 || submittingRef.current) return;
+    if (!validation.isFormValid || Object.keys(serverFieldErrors).length > 0) {
+      if (errors.addonName || errors.categories) {
+        setCurrentStep(0);
+        setAttemptedStep(0);
+      }
+      window.requestAnimationFrame(() => headingRef.current?.focus());
+      return;
+    }
     submittingRef.current = true;
     setIsSubmitting(true);
-    setErrorMessage("");
+    clearFeedback();
 
     try {
       const estimatedCost = calculateEstCost(
@@ -83,7 +121,7 @@ const AddAddonModalContent = ({
         inventoryItems,
       );
       const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
-      await addAddon({
+      const payload = {
         base_info: {
           addon_name: addonName.trim(),
           selling_price: parseFloat(recipe.sellingPrice) || 0,
@@ -95,25 +133,59 @@ const AddAddonModalContent = ({
         },
         categories: selectedCategories,
         recipes: buildRecipePayload(recipe.ingredients, inventoryItems),
-      });
-      if (refetchAddons) await refetchAddons();
-      onClose();
+      };
+      try {
+        await addAddon(payload);
+      } catch (error) {
+        const code = getAddAddonErrorCode(error);
+        showFeedback(code);
+        if (code === "SAVE_UNCONFIRMED" || code === "RECORD_CONFLICT") setSaveBlocked(true);
+        if (code === "VALIDATION_FAILED" && error.response.data && error.response.data.errors) {
+          const fieldErrors = getAddAddonServerFieldErrors(error.response.data.errors, recipe.ingredients);
+          setServerFieldErrors(fieldErrors);
+          if (fieldErrors.addonName || fieldErrors.categories) {
+            setCurrentStep(0);
+            setAttemptedStep(0);
+          }
+        }
+        return;
+      }
+      const resultDetails = { addonName: addonName.trim() };
+      setSavedResult(resultDetails);
+      await refreshSavedAddon(resultDetails);
     } catch (error) {
-      setErrorMessage(
-        error.message || "Unable to add add-on. Please try again.",
-      );
+      console.error("Could not prepare add-on:", error);
+      showFeedback("SAVE_FAILED");
     } finally {
       submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
 
+  const handleRetryRefresh = async () => {
+    if (submittingRef.current || !savedResult) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    try {
+      await refreshSavedAddon(savedResult);
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+  const isRefreshError = Boolean(savedResult) && !isSubmitting;
+  let statusCode = "ADDON_SAVING";
+  if (savedResult) statusCode = "MENU_REFRESHING";
+  if (isRefreshError) statusCode = "MENU_REFRESH_FAILED";
+  const statusFeedback = getAddAddonStatusFeedback(statusCode);
+  let blockingAction;
+  if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
   return (
+    <>
     <Modal
-      isOpen
-      onClose={() => {
-        if (!submittingRef.current) onClose();
-      }}
+      isOpen={!isSubmitting && !savedResult}
+      onClose={handleClose}
       maxWidth={maxWidth}
       maxHeight={maxHeight}
     >
@@ -129,15 +201,8 @@ const AddAddonModalContent = ({
       >
         <ModalContent className="gap-[var(--app-gap-section)] max-sm:!p-[var(--app-space-4)]">
           <ModalStepper steps={steps} currentStep={currentStep} />
-          {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-[var(--app-radius-nested)] bg-[var(--app-color-danger-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-danger)]"
-            >
-              {errorMessage}
-            </p>
-          )}
-          <fieldset disabled={isSubmitting} className="min-w-0 border-0 p-0">
+          <InlineFeedback feedback={feedback} id="add-addon-feedback" />
+          <fieldset disabled={formLocked} className="min-w-0 border-0 p-0">
             {currentStep === 0 ? (
               <GeneralStep
                 headingRef={headingRef}
@@ -147,15 +212,18 @@ const AddAddonModalContent = ({
                 selectedCategories={selectedCategories}
                 errors={visibleErrors}
                 onNameChange={(value) => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setAddonName(value);
                 }}
                 onAvailabilityChange={() => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setIsAvailable((current) => !current);
                 }}
                 onCategoryToggle={(categoryId) => {
-                  setErrorMessage("");
+                  if (submittingRef.current || formLocked) return;
+                  clearFormFeedback();
                   setSelectedCategories((current) =>
                     current.includes(categoryId)
                       ? current.filter((id) => id !== categoryId)
@@ -169,7 +237,7 @@ const AddAddonModalContent = ({
                 recipe={recipe}
                 inventoryItems={inventoryItems}
                 errors={visibleErrors}
-                disabled={isSubmitting}
+                disabled={formLocked}
                 onRecipeChange={updateRecipe}
                 onAddIngredient={() =>
                   updateRecipe((current) => ({
@@ -188,13 +256,13 @@ const AddAddonModalContent = ({
           variant="outline"
           className={secondaryButtonClassName}
           disabled={isSubmitting}
-          onClick={currentStep === 0 ? onClose : () => changeStep(0)}
+          onClick={currentStep === 0 || saveBlocked ? handleClose : () => changeStep(0)}
         >
-          {currentStep === 0 ? "Cancel" : "Previous"}
+          {currentStep === 0 || saveBlocked ? "Cancel" : "Previous"}
         </Button>
         <Button
           type="button"
-          disabled={isSubmitting}
+          disabled={formLocked}
           className="min-h-[var(--app-touch-target-min)] min-w-28 rounded-[var(--app-radius-nested)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] font-medium text-white hover:bg-[var(--app-color-brand-hover)]"
           onClick={
             currentStep === 1
@@ -213,6 +281,14 @@ const AddAddonModalContent = ({
         </Button>
       </ModalFooter>
     </Modal>
+    <BlockingFeedback
+      open={isSubmitting || Boolean(savedResult)}
+      status={isRefreshError ? "error" : "loading"}
+      title={statusFeedback.title}
+      message={statusFeedback.message}
+      action={blockingAction}
+    />
+    </>
   );
 };
 

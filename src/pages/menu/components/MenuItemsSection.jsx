@@ -28,7 +28,6 @@ const MenuItemsSection = ({
   onEdit,
   onArchive,
   onRestore,
-  restoringItemId = null,
 }) => {
   const isArchiveMode = mode === "archive";
 
@@ -80,7 +79,6 @@ const MenuItemsSection = ({
           onEdit={onEdit}
           onArchive={onArchive}
           onRestore={onRestore}
-          isRestoring={restoringItemId === item.id}
         />
       ))}
     </section>

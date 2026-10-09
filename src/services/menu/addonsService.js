@@ -17,7 +17,7 @@ export const addAddon = async (payload) => {
     return response.data;
   } catch (error) {
     console.error("Error adding addon:", error.message);
-    throw new Error(error.response?.data?.message || "Failed to add addon");
+    throw error;
   }
 };
 
@@ -31,7 +31,7 @@ export const updateAddon = async (addonId, payload) => {
     return response.data;
   } catch (error) {
     console.error("Error updating addon:", error.message);
-    throw new Error(error.response?.data?.message || "Failed to update addon");
+    throw error;
   }
 };
 
@@ -42,7 +42,7 @@ export const archiveAddon = async (addonId) => {
     return true;
   } catch (error) {
     console.error("Error archiving addon:", error.message);
-    throw new Error(error.response?.data?.message || "Failed to archive addon");
+    throw error;
   }
 };
 
@@ -57,8 +57,6 @@ export const unarchiveAddon = async (addonId) => {
   } catch (error) {
     console.error("Error restoring Add-on:", error.message);
 
-    throw new Error(
-      error.response?.data?.message || "Failed to restore Add-on",
-    );
+    throw error;
   }
 };

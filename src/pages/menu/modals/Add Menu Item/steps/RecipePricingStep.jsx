@@ -4,6 +4,8 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { calculateEstCost, calculateProfit, calculateMargin } from "@/utils/menu/pricingCalculations";
+import { getSellingPriceError, MAX_SELLING_PRICE } from "@/utils/menu/validation/sellingPriceValidation";
+import { getQuantityRules } from "@/utils/inventory/quantityRules";
 import IngredientStockNotice from "../../../components/IngredientStockNotice";
 import {
   addButtonClassName, comboClassName, controlClassName, errorClassName,
@@ -48,13 +50,20 @@ const RecipePricingStep = ({
         const priceError = errors[`${prefix}_price`];
         const nameError = errors[`${prefix}_name`];
         const estimatedCost = calculateEstCost(recipe.ingredients, inventoryItems);
-        const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
-        const margin = calculateMargin(profit, recipe.sellingPrice);
+        const canPreviewPrice = !getSellingPriceError(recipe.sellingPrice) && Number.isFinite(estimatedCost);
+        let profitDisplay = "—";
+        let marginDisplay = "—";
+        if (canPreviewPrice) {
+          const profit = calculateProfit(recipe.sellingPrice, estimatedCost);
+          const margin = calculateMargin(profit, recipe.sellingPrice);
+          profitDisplay = profit.toFixed(2);
+          marginDisplay = `${margin.toFixed(2)}%`;
+        }
         const metrics = [
           { key: "price", label: "Selling Price", value: recipe.sellingPrice, editable: true },
           { key: "cost", label: "Est. Cost", value: estimatedCost.toFixed(2) },
-          { key: "profit", label: "Profit", value: profit.toFixed(2) },
-          { key: "margin", label: "Margin", value: `${margin.toFixed(2)}%`, percentage: true },
+          { key: "profit", label: "Profit", value: profitDisplay },
+          { key: "margin", label: "Margin", value: marginDisplay, percentage: true },
         ];
 
         return (
@@ -76,17 +85,20 @@ const RecipePricingStep = ({
                 </Button>
               </div>
 
-            <div className="grid grid-cols-2 gap-[var(--app-space-2)] sm:grid-cols-4">
+            <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-[var(--app-space-2)] sm:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
               {metrics.map((metric) => (
-                <Field key={metric.key} data-invalid={Boolean(metric.editable && priceError)}>
+                <Field key={metric.key} className="min-w-0" data-invalid={Boolean(metric.editable && priceError)}>
                   <FieldLabel htmlFor={`${prefix}-${metric.key}`} className={labelClassName}>{metric.label}{metric.editable && <span className="text-[var(--app-color-danger)]">*</span>}</FieldLabel>
-                  {metric.percentage ? (
-                    <Input id={`${prefix}-${metric.key}`} readOnly value={metric.value} className={`${controlClassName} bg-[var(--app-color-filter-bg)]`} />
-                  ) : (
-                    <InputGroup className={`${comboClassName} overflow-hidden ${!metric.editable ? "bg-[var(--app-color-filter-bg)]" : ""}`}>
+                  {metric.editable ? (
+                    <InputGroup className={`${comboClassName} overflow-hidden`}>
                       <InputGroupAddon className="h-full border-r border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-2)]" aria-hidden="true">₱</InputGroupAddon>
-                      <InputGroupInput id={`${prefix}-${metric.key}`} type={metric.editable ? "number" : "text"} readOnly={!metric.editable} min={metric.editable ? "0" : undefined} step={metric.editable ? "any" : undefined} placeholder="0.00" value={metric.value} onChange={metric.editable ? (event) => onRecipeChange(variantId, (current) => ({ ...current, sellingPrice: event.target.value })) : undefined} aria-invalid={Boolean(metric.editable && priceError)} aria-describedby={metric.editable && priceError ? `${prefix}-price-error` : undefined} className="min-w-0 text-[length:var(--app-font-size-body-secondary)]" />
+                      <InputGroupInput id={`${prefix}-${metric.key}`} type="number" min="0.01" max={MAX_SELLING_PRICE} step="0.01" placeholder="0.00" value={metric.value} onChange={(event) => onRecipeChange(variantId, (current) => ({ ...current, sellingPrice: event.target.value }))} aria-invalid={Boolean(priceError)} aria-describedby={priceError ? `${prefix}-price-error` : undefined} className="min-w-0 text-[length:var(--app-font-size-body-secondary)]" />
                     </InputGroup>
+                  ) : (
+                    <output id={`${prefix}-${metric.key}`} className="flex min-h-[var(--app-touch-target-min)] min-w-0 items-center gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-2)] py-[var(--app-space-1)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">
+                      {!metric.percentage && <span aria-hidden="true" className="shrink-0">₱</span>}
+                      <span className="min-w-0 [overflow-wrap:anywhere] tabular-nums">{metric.value}</span>
+                    </output>
                   )}
                   {metric.editable && priceError && <FieldError id={`${prefix}-price-error`} className={errorClassName}>{priceError}</FieldError>}
                 </Field>
@@ -131,7 +143,7 @@ const RecipePricingStep = ({
                   </Field>
                   <Field className="min-w-0" data-invalid={Boolean(qtyError)}>
                     <FieldLabel htmlFor={`${ingredientPrefix}-qty`} className={`${labelClassName} sm:sr-only`}>Quantity {ingredientIndex + 1} *</FieldLabel>
-                    <Input id={`${ingredientPrefix}-qty`} type="number" min="0" step="any" placeholder="0" value={ingredient.qty} onChange={(event) => updateIngredient(variantId, ingredient.id, "qty", event.target.value)} className={controlClassName} aria-invalid={Boolean(qtyError)} aria-describedby={qtyError ? `${ingredientPrefix}-qty-error` : undefined} />
+                    <Input id={`${ingredientPrefix}-qty`} type="number" min="0" step={getQuantityRules(ingredient.unit).step} inputMode={getQuantityRules(ingredient.unit).inputMode} placeholder="0" value={ingredient.qty} onChange={(event) => updateIngredient(variantId, ingredient.id, "qty", event.target.value)} className={controlClassName} aria-invalid={Boolean(qtyError)} aria-describedby={qtyError ? `${ingredientPrefix}-qty-error` : undefined} />
                     {qtyError && <FieldError id={`${ingredientPrefix}-qty-error`} className={errorClassName}>{qtyError}</FieldError>}
                   </Field>
                   <Field className="min-w-0" data-invalid={Boolean(unitError)}>
