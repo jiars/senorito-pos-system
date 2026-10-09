@@ -15,6 +15,7 @@ import ModalFooter from "@/components/modals/ModalFooter";
 import RecipeStatusBadge from "@/pages/menu/components/RecipeStatusBadge";
 import { syncMenuItem } from "@/services/menu/menuItemsService";
 import { uploadMenuImage } from "@/utils/menu/imageUploadHelper";
+import { getMenuItemChanges } from "@/utils/menu/menuItemChanges";
 import { validateEditMenuItem, getEditMenuItemServerFieldErrors } from "@/utils/menu/validation/editMenuItemValidation";
 import { getSellingPriceError, MAX_SELLING_PRICE } from "@/utils/menu/validation/sellingPriceValidation";
 import { getQuantityRules } from "@/utils/inventory/quantityRules";
@@ -281,13 +282,16 @@ const EditMenuItemModalContent = ({
   // Refresh retry must never repeat a confirmed update.
   const refreshSavedItem = async (resultDetails) => {
     try {
-      if (!refetchMenu) return;
+      if (!refetchMenu) throw new Error("Menu refresh callback is missing.");
       const result = await refetchMenu();
-      if (result && (result.isError || result.error)) return;
-    } catch {
+      if (result && (result.isError || result.error)) {
+        throw result.error || new Error("Menu refresh failed.");
+      }
+    } catch (error) {
+      console.error("Menu item saved, but Menu/POS refresh failed:", error);
       return;
     }
-    toast.add(getEditMenuItemToastFeedback(resultDetails.itemName));
+    toast.add(getEditMenuItemToastFeedback(resultDetails.itemName, resultDetails.changes));
     onClose();
   };
 
@@ -394,7 +398,11 @@ const EditMenuItemModalContent = ({
         }
         return;
       }
-      const resultDetails = { itemName: baseInfo.name.trim() };
+      // Keep the same summary if a confirmed save needs a refresh retry.
+      const resultDetails = {
+        itemName: baseInfo.name.trim(),
+        changes: getMenuItemChanges(initialDraft, baseInfo, variants),
+      };
       setSavedResult(resultDetails);
       await refreshSavedItem(resultDetails);
     } catch (error) {

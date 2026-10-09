@@ -39,12 +39,42 @@ export const getEditMenuItemStatusFeedback = (code) => {
 export const EDIT_MENU_ITEM_TOAST_FEEDBACK = {
   ITEM_UPDATED: { type: "notification", display: "toast", toastType: "success", title: "Menu item updated successfully" },
 };
-export const getEditMenuItemToastFeedback = (itemName) => {
+// Feedback owns the wording; the comparison helper only reports changes.
+const getEditMenuItemSummary = (changes) => {
+  const summary = [];
+  if (changes.availabilityChanged) {
+    if (changes.isAvailable) summary.push("Available for Sale enabled");
+    else summary.push("Available for Sale disabled");
+  }
+  if (changes.pricesUpdated) summary.push("selling price updated");
+  if (changes.namesUpdated) summary.push("variant names updated");
+  if (changes.variantAvailabilityUpdated) summary.push("variant availability updated");
+  if (changes.recipesUpdated) summary.push("recipe updated");
+  if (changes.imageUpdated) summary.push("image updated");
+
+  const variantActions = [
+    { count: changes.variantsAdded, action: "added" },
+    { count: changes.variantsArchived, action: "archived" },
+    { count: changes.variantsRestored, action: "restored" },
+  ];
+  variantActions.forEach(({ count, action }) => {
+    if (!count) return;
+    let noun = "variant";
+    if (count > 1) noun = "variants";
+    summary.push(`${count} ${noun} ${action}`);
+  });
+
+  if (summary.length === 0) return "details saved";
+  return summary.join(", ");
+};
+
+export const getEditMenuItemToastFeedback = (itemName, changes = {}) => {
   const resolved = resolveErrorFeedback(EDIT_MENU_ITEM_TOAST_FEEDBACK.ITEM_UPDATED);
+  const caption = `: ${getEditMenuItemSummary(changes)}.`;
   return {
     type: resolved.toastType, title: resolved.title, timeout: resolved.duration,
-    description: `${itemName} has been updated.`,
-    data: { descriptionParts: [{ label: itemName }, { text: " has been updated." }] },
+    description: `${itemName}${caption}`,
+    data: { descriptionParts: [{ label: itemName }, { text: caption }] },
   };
 };
 export const getEditMenuItemErrorCode = (error) => {
