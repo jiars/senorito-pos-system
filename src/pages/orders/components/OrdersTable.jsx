@@ -125,7 +125,7 @@ const OrdersTable = ({
   handleViewOrder,
 }) => {
   const columns = getOrderHistoryColumns(handleViewOrder);
-  const errorMessage = error ? error.message || "Unable to load orders." : "";
+  const errorMessage = error || "";
 
   return (
     <div>

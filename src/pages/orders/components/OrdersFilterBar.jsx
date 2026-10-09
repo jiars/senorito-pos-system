@@ -6,6 +6,7 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import FilterSelectField from "@/components/filters/FilterSelectField";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getOrderReportPeriodDates } from "@/utils/orders/orderDates";
 
 const paymentMethodOptions = [
   { label: "Cash", value: "Cash" },
@@ -25,42 +26,6 @@ const reportPeriodOptions = [
   { label: "This Week", value: "week" },
   { label: "This Month", value: "month" },
 ];
-
-const toInputDateValue = (date) => {
-  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
-
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
-};
-
-const getReportPeriodDates = (period) => {
-  const today = new Date();
-  const toDate = toInputDateValue(today);
-
-  if (period === "all") {
-    return { fromDate: "", toDate: "" };
-  }
-
-  if (period === "today") {
-    return { fromDate: toDate, toDate };
-  }
-
-  if (period === "week") {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-
-    return {
-      fromDate: toInputDateValue(startOfWeek),
-      toDate,
-    };
-  }
-
-  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-  return {
-    fromDate: toInputDateValue(startOfMonth),
-    toDate,
-  };
-};
 
 const OrdersFilterBar = ({
   searchTerm,
@@ -107,7 +72,7 @@ const OrdersFilterBar = ({
   };
 
   const handleReportPeriodChange = (nextPeriod) => {
-    const dates = getReportPeriodDates(nextPeriod);
+    const dates = getOrderReportPeriodDates(nextPeriod);
 
     setDraftFilters((current) => ({
       ...current,

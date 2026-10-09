@@ -1,3 +1,21 @@
+import { resolveErrorFeedback } from "@/utils/feedback/errorFeedback";
+
+export const LOGIN_FLOW_MESSAGES = {
+  INVENTORY_SIGN_IN: "Sign in to restock this item.",
+};
+
+export const getInventoryAccessDeniedFeedback = () => {
+  return resolveErrorFeedback({
+    code: "INVENTORY_ACCESS_DENIED",
+    type: "critical",
+    display: "status",
+    tone: "error",
+    title: "Inventory access required",
+    message: "Your account does not have permission to restock inventory.",
+    showCode: true,
+  });
+};
+
 export const getLoginFeedback = (error) => {
   const feedback = {
     message: "Unable to log in. Please try again.",

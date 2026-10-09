@@ -1,10 +1,15 @@
 import { lazy, Suspense, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import PageLayout from "@/components/layout/PageLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventoryManagement } from "@/hooks/useInventoryManagement";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
+import {
+  clearInventoryQrRequest,
+  getInventoryQrRequest,
+} from "@/utils/inventory/inventoryQr";
 
 // Components
 import InventoryHeader from "./components/InventoryHeader";
@@ -78,6 +83,7 @@ const InventoryPage = () => {
   const refreshPosManagement = useRefreshPosManagement();
   const {
     inventoryItems,
+    archivedInventoryItems,
     categories,
     units,
     purchaseHistory,
@@ -92,7 +98,14 @@ const InventoryPage = () => {
   const [batchStatusFilters, setBatchStatusFilters] = useState([]);
   const [wastageQuickFilter, setWastageQuickFilter] = useState(null);
   const [modal, setModal] = useState({ type: null, item: null });
-  const closeModal = () => setModal({ type: null, item: null });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const qrRequest = getInventoryQrRequest(searchParams);
+  const closeModal = () => {
+    setModal({ type: null, item: null });
+    if (getInventoryQrRequest(searchParams)) {
+      setSearchParams(clearInventoryQrRequest(searchParams), { replace: true });
+    }
+  };
   const openItemModal = (type, item = null) => setModal({ type, item });
 
   const handleAddAnotherItem = () => {
@@ -128,25 +141,6 @@ const InventoryPage = () => {
     setModal({
       type: "print-qr",
       itemIds: itemSelection.selectedIds,
-      batchIds: [],
-      selectItemsByDefault: true,
-    });
-  };
-
-  const openBatchPrintQr = () => {
-    const ownerItemIds = inventoryItems
-      .filter((item) =>
-        (item.inventory_batches ?? []).some((batch) =>
-          batchSelection.selectedIds.includes(batch.id),
-        ),
-      )
-      .map((item) => item.id);
-
-    setModal({
-      type: "print-qr",
-      itemIds: ownerItemIds,
-      batchIds: batchSelection.selectedIds,
-      selectItemsByDefault: false,
     });
   };
 
@@ -220,7 +214,6 @@ const InventoryPage = () => {
                   selectedBatchIds={batchSelection.selectedIds}
                   onToggleVisibleBatches={batchSelection.toggleVisible}
                   onToggleBatch={batchSelection.toggleOne}
-                  onPrintQRCode={openBatchPrintQr}
                 />
               </div>
             </Suspense>
@@ -284,8 +277,6 @@ const InventoryPage = () => {
         selectedItems={inventoryItems.filter((item) =>
           (modal.itemIds ?? []).includes(item.id),
         )}
-        initialSelectedBatchIds={modal.batchIds ?? []}
-        selectItemsByDefault={modal.selectItemsByDefault ?? true}
       />
 
       <ArchiveItemModal
@@ -313,12 +304,17 @@ const InventoryPage = () => {
       />
 
       <RestockModal
-        isOpen={modal.type === "restock"}
+        key={qrRequest && !modal.type ? `qr-${qrRequest.itemId}` : "restock"}
+        isOpen={modal.type === "restock" || Boolean(qrRequest && !modal.type)}
         onClose={closeModal}
         onRestockAgain={handleRestockAgain}
         refetchInventory={refetchInventoryManagement}
         inventoryItems={inventoryItems}
         item={modal.item}
+        qrItemId={qrRequest && !modal.type ? qrRequest.itemId : null}
+        archivedInventoryItems={archivedInventoryItems}
+        isLoadingQr={isLoading}
+        qrLoadError={error}
       />
 
       <WastageModal

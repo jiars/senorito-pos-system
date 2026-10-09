@@ -9,6 +9,7 @@ const LoginForm = ({
   showPassword,
   errorMessage,
   successMessage,
+  noticeMessage = "",
   attemptsRemaining,
   cooldown,
   isLoggingIn,
@@ -87,6 +88,15 @@ const LoginForm = ({
             Forgot Password?
           </Link>
         </div>
+
+        {noticeMessage && errorMessage === "" && successMessage === "" && (
+          <div
+            className="mt-1 rounded-lg border border-[var(--app-color-brand-border)] bg-[var(--app-color-surface-soft)] px-4 py-3 text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-muted)]"
+            role="status"
+          >
+            {noticeMessage}
+          </div>
+        )}
 
         {successMessage !== "" && (
           <div

@@ -1,8 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addYears, format, parseISO } from "date-fns";
 
 import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
+import StatusFeedback from "@/components/feedback/status/StatusFeedback";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getQrStatusFeedback } from "@/utils/inventory/feedback/qrFeedback";
 import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
 import Modal from "@/components/modals/Modal";
 import ModalBody from "@/components/modals/ModalBody";
@@ -68,12 +71,33 @@ const RestockModalContent = ({
   refetchInventory,
   inventoryItems,
   item,
+  qrItemId,
+  isLoadingQr,
+  qrLoadError,
+  isQrArchived,
 }) => {
   const refreshAuditLogs = useRefreshInventoryAuditLogs();
   const refreshValuation = useRefreshInventoryValuation();
   const refreshMenuManagement = useRefreshMenuManagement();
   const refreshPosManagement = useRefreshPosManagement();
-  const [selectedItem, setSelectedItem] = useState(item ?? null);
+  const [selectedItem, setSelectedItem] = useState(() => {
+    if (qrItemId !== null && (isLoadingQr || qrLoadError || isQrArchived)) return null;
+    return item ?? null;
+  });
+  // Resolve the QR selection once; background refresh must not reset the form.
+  useEffect(() => {
+    if (qrItemId !== null && !selectedItem && !isLoadingQr && !qrLoadError && !isQrArchived && item) {
+      setSelectedItem(item);
+    }
+  }, [qrItemId, selectedItem, isLoadingQr, qrLoadError, isQrArchived, item]);
+
+  const showQrPlaceholder = qrItemId !== null && !selectedItem;
+  let qrFeedback = null;
+  if (showQrPlaceholder && !isLoadingQr) {
+    if (qrLoadError) qrFeedback = getQrStatusFeedback("QR_LOAD_FAILED");
+    else if (isQrArchived) qrFeedback = getQrStatusFeedback("QR_ITEM_ARCHIVED");
+    else if (!item) qrFeedback = getQrStatusFeedback("QR_ITEM_MISSING");
+  }
   const [supplier, setSupplier] = useState("");
   const [totalCost, setTotalCost] = useState("");
   const [reason, setReason] = useState("");
@@ -290,6 +314,20 @@ const RestockModalContent = ({
       />
 
       <ModalBody viewportClassName="!max-h-[calc(var(--app-modal-max-height)-9.75rem)]">
+        {showQrPlaceholder ? (
+          <ModalContent>
+            {qrFeedback ? <StatusFeedback feedback={qrFeedback} /> : (
+              <div aria-busy="true" aria-label="Loading restock form" className="grid gap-[var(--app-gap-related)]">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <div key={index} className="grid gap-[var(--app-space-2)]">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-[var(--app-touch-target-min)] w-full rounded-[var(--app-radius-nested)]" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </ModalContent>
+        ) : (
         <ModalContent>
           <InlineFeedback feedback={feedback} id="restock-action-feedback" />
           <fieldset
@@ -596,9 +634,17 @@ const RestockModalContent = ({
             <span>Restocking also records an Inventory Purchase expense.</span>
           </div>
         </ModalContent>
+        )}
       </ModalBody>
 
       <ModalFooter>
+        {showQrPlaceholder ? (
+          <>
+            <Button type="button" variant="outline" onClick={handleClose} className="min-h-[var(--app-touch-target-min)] text-[length:var(--app-font-size-body-secondary)]">Close</Button>
+            {!qrFeedback && <Button type="button" disabled className="min-h-[var(--app-touch-target-min)] bg-[var(--app-color-brand)] text-[length:var(--app-font-size-body-secondary)] text-white">Update Stock</Button>}
+          </>
+        ) : (
+        <>
         <Button
           type="button"
           variant="outline"
@@ -617,6 +663,8 @@ const RestockModalContent = ({
         >
           {hasUnconfirmedSave && feedback ? feedback.buttonLabel : "Update Stock"}
         </Button>
+        </>
+        )}
       </ModalFooter>
     {/* Nest the alert under the parent Dialog so focus/dismissal stays on top. */}
     <ActionAlertDialog
@@ -656,8 +704,19 @@ const RestockModal = ({
   refetchInventory,
   inventoryItems = [],
   item = null,
+  qrItemId = null,
+  archivedInventoryItems = [],
+  isLoadingQr = false,
+  qrLoadError = null,
 }) => {
   if (!isOpen) return null;
+
+  let restockItem = item;
+  let isQrArchived = false;
+  if (qrItemId !== null) {
+    restockItem = inventoryItems.find((record) => record.id === qrItemId) || null;
+    isQrArchived = archivedInventoryItems.some((record) => record.id === qrItemId) || Boolean(restockItem && restockItem.archived);
+  }
 
   return (
     <RestockModalContent
@@ -665,7 +724,11 @@ const RestockModal = ({
       onRestockAgain={onRestockAgain}
       refetchInventory={refetchInventory}
       inventoryItems={inventoryItems}
-      item={item}
+      item={restockItem}
+      qrItemId={qrItemId}
+      isLoadingQr={isLoadingQr}
+      qrLoadError={qrLoadError}
+      isQrArchived={isQrArchived}
     />
   );
 };
