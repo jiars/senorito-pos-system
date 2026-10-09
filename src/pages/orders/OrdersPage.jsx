@@ -3,6 +3,7 @@ import { useState } from "react";
 import PageLayout from "../../components/layout/PageLayout";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { getOrderDateKey } from "@/utils/orders/orderDates";
 
 import ViewOrderDetails from "./View Order Details/ViewOrderDetails";
 import OrdersFilterBar from "./components/OrdersFilterBar";
@@ -101,22 +102,13 @@ const OrdersPage = () => {
       return false;
     }
 
-    if (fromDate) {
-      const orderDate = new Date(order.order_datetime)
-        .toISOString()
-        .split("T")[0];
-
-      if (orderDate < fromDate) {
-        return false;
-      }
-    }
-
-    if (toDate) {
-      const orderDate = new Date(order.order_datetime)
-        .toISOString()
-        .split("T")[0];
-
-      if (orderDate > toDate) {
+    if (fromDate || toDate) {
+      const orderDate = getOrderDateKey(order.order_datetime);
+      if (
+        !orderDate ||
+        (fromDate && orderDate < fromDate) ||
+        (toDate && orderDate > toDate)
+      ) {
         return false;
       }
     }

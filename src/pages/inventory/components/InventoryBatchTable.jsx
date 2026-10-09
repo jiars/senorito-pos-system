@@ -7,7 +7,6 @@ import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/utils/shared/formatters/dateFormatters";
@@ -46,12 +45,10 @@ const InventoryBatchToolbar = ({
   categories,
   filters,
   sort,
-  selectedCount,
   isLoading,
   onSearchChange,
   onApplyFilters,
   onSortChange,
-  onPrintQRCode,
 }) => {
   const [draftFilters, setDraftFilters] = useState(filters);
   const categoryOptions = categories.map((category) => ({
@@ -200,16 +197,6 @@ const InventoryBatchToolbar = ({
         />
       </FilterPopover>
 
-      <Button
-        type="button"
-        variant="outline"
-        disabled={selectedCount === 0}
-        onClick={onPrintQRCode}
-        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)]  hover:bg-[var(--app-color-control-hover)]"
-      >
-        <i aria-hidden="true" className="bi bi-qr-code" />
-        Print QR
-      </Button>
     </div>
   );
 };
@@ -224,7 +211,6 @@ const InventoryBatchTable = ({
   selectedBatchIds,
   onToggleVisibleBatches,
   onToggleBatch,
-  onPrintQRCode,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilters, setCategoryFilters] = useState([]);
@@ -393,7 +379,6 @@ const InventoryBatchTable = ({
           categories={categories}
           filters={filters}
           sort={sort}
-          selectedCount={selectedBatchIds.length}
           isLoading={isLoading}
           onSearchChange={(value) => {
             setSearchTerm(value);
@@ -404,7 +389,6 @@ const InventoryBatchTable = ({
             setSort(nextSort);
             setCurrentPage(1);
           }}
-          onPrintQRCode={onPrintQRCode}
         />
       </div>
 

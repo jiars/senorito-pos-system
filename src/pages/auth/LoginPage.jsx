@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../hooks/useAuth";
 
 import AuthBrand from "./components/AuthBrand";
 import LoginForm from "./components/LoginForm";
 
-import { getLoginFeedback } from "@/utils/auth/feedback/loginFeedback";
+import { getLoginFeedback, LOGIN_FLOW_MESSAGES } from "@/utils/auth/feedback/loginFeedback";
+import { getInventoryQrReturnPath } from "@/utils/auth/loginRedirect";
 
 const LoginPage = () => {
+  const [searchParams] = useSearchParams();
+  const qrReturnPath = getInventoryQrReturnPath(searchParams.get("returnTo"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -64,7 +68,7 @@ const LoginPage = () => {
 
     try {
       await login(email, password);
-      window.location.href = "/dashboard";
+      window.location.replace(qrReturnPath || "/dashboard");
     } catch (error) {
       const feedback = getLoginFeedback(error);
 
@@ -89,6 +93,7 @@ const LoginPage = () => {
         showPassword={showPassword}
         errorMessage={errorMessage}
         successMessage={successMessage}
+        noticeMessage={qrReturnPath ? LOGIN_FLOW_MESSAGES.INVENTORY_SIGN_IN : ""}
         attemptsRemaining={attemptsRemaining}
         cooldown={cooldown}
         isLoggingIn={isLoggingIn}
