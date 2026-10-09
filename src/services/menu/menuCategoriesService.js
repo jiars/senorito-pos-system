@@ -18,7 +18,7 @@ export const addMenuCategory = async (categoryName) => {
     return response.data;
   } catch (error) {
     console.error("Error adding category:", error.message);
-    throw new Error(error.response?.data?.message || "Failed to add category");
+    throw error;
   }
 };
 
@@ -31,9 +31,7 @@ export const updateMenuCategory = async (categoryId, newName) => {
     return true;
   } catch (error) {
     console.error("Error updating category:", error.message);
-    throw new Error(
-      error.response?.data?.message || "Failed to update category",
-    );
+    throw error;
   }
 };
 
@@ -45,8 +43,6 @@ export const deleteMenuCategory = async (categoryId) => {
     return true;
   } catch (error) {
     console.error("Error deleting category:", error.message);
-    throw new Error(
-      error.response?.data?.message || "Failed to delete category",
-    );
+    throw error;
   }
 };

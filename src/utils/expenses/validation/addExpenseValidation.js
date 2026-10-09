@@ -1,6 +1,7 @@
 import { format, isValid, parse } from "date-fns";
 import { getPurchaseExpirationMinDate } from "@/utils/expenses/expenseDateLimits";
 import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
+import { validateExpenseDate } from "./expenseDateValidation";
 
 export const addExpenseValidationMessages = {
   categoryRequired: "Category is required.",
@@ -25,15 +26,7 @@ export const addExpenseValidationMessages = {
 };
 
 export const getExpenseDateError = (value, dateLimits, originalDate = null, dateFormat = "yyyy-MM-dd") => {
-  const date = parse(value, dateFormat, new Date());
-  const messages = addExpenseValidationMessages;
-  if (!isValid(date) || format(date, dateFormat) !== value) return messages.dateInvalid;
-  if (!dateLimits) return "";
-  if (date > dateLimits.maxExpenseDate) return messages.dateFuture;
-  if (format(date, "yyyy-MM-dd") !== originalDate && date < dateLimits.minExpenseDate) {
-    return messages.dateTooOld;
-  }
-  return "";
+  return validateExpenseDate(value, dateLimits, originalDate, dateFormat, addExpenseValidationMessages);
 };
 
 const getExpirationDateError = (value, purchaseDate, dateLimits, dateFormat = "yyyy-MM-dd") => {
@@ -47,7 +40,7 @@ const getExpirationDateError = (value, purchaseDate, dateLimits, dateFormat = "y
 };
 
 /**
- * Common expense field rules used by Add and reused by Edit's validator.
+ * Add Expense field rules, including Inventory Purchase inputs.
  * @param {Object} formData The expense form data.
  * @param {Object} options Configuration options.
  * @param {boolean} options.isPurchase Whether the selected category is 'Inventory Purchase'.

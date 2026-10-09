@@ -1,6 +1,11 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMenuManagement } from "@/services/menu/menuManagementService";
+import { useRefreshPosManagement } from "@/hooks/usePosManagement";
+import {
+  markPOSRefreshRequired,
+  completePOSRefresh,
+} from "@/services/pos/posCacheService";
 
 const MENU_MANAGEMENT_QUERY_KEY = ["menu-management"];
 
@@ -14,6 +19,26 @@ export const useMenuManagement = () => {
   const { data, isLoading, error, refetch } = useQuery({
     ...menuManagementQueryOptions,
   });
+  const refreshPosManagement = useRefreshPosManagement();
+
+  // Every Menu mutation already calls this refetch before its success toast.
+  const refetchMenuAndPos = useCallback(async (options) => {
+    const revision = await markPOSRefreshRequired();
+    const result = await refetch(options);
+
+    if (result.isError || result.error) {
+      return result;
+    }
+
+    // Update both React Query and the offline catalog before allowing success.
+    await refreshPosManagement();
+    const completed = await completePOSRefresh(revision);
+    if (!completed) {
+      throw new Error("Menu changed again. Retry refresh to load the latest POS data.");
+    }
+
+    return result;
+  }, [refetch, refreshPosManagement]);
 
   return {
     categories: data?.categories || [],
@@ -24,7 +49,7 @@ export const useMenuManagement = () => {
     ingredients: data?.ingredients || [],
     isLoading,
     error: error ? error.message : null,
-    refetch,
+    refetch: refetchMenuAndPos,
   };
 };
 

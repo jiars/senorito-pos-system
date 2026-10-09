@@ -4,7 +4,7 @@ const ManageAddonsTable = ({
   addons,
   isLoading,
   handleEditClick,
-  handleDeleteClick,
+  handleArchiveClick,
 }) => {
   return (
     <div className="menu-panel">
@@ -79,9 +79,9 @@ const ManageAddonsTable = ({
                           title={
                             item.archived === true
                               ? "Already Archived"
-                              : "Delete Add-on"
+                              : "Archive Add-on"
                           }
-                          onClick={() => handleDeleteClick(item)}
+                          onClick={() => handleArchiveClick(item)}
                           disabled={item.archived === true}
                           style={{
                             opacity: item.archived ? 0.4 : 1,

@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { useMenuManagement } from "@/hooks/useMenuManagement";
-import { unarchiveAddon } from "@/services/menu/addonsService";
-import { unarchiveMenuItem } from "@/services/menu/menuItemsService";
+import RestoreAddonModal from "../addons/modals/Restore Add-on/RestoreAddonModal";
+import RestoreMenuItemModal from "../modals/Restore Menu Item/RestoreMenuItemModal";
 import {
   filterAndSortAddons,
   filterAndSortMenuItems,
@@ -44,8 +44,8 @@ const MenuArchivePage = () => {
   const [addonFilters, setAddonFilters] = useState(createEmptyFilters);
   const [addonSort, setAddonSort] = useState("0-z");
 
-  const [restoringMenuItemId, setRestoringMenuItemId] = useState(null);
-  const [restoringAddonId, setRestoringAddonId] = useState(null);
+  const [selectedRestoreItem, setSelectedRestoreItem] = useState(null);
+  const [selectedRestoreAddon, setSelectedRestoreAddon] = useState(null);
 
   const filteredMenuItems = useMemo(
     () =>
@@ -71,36 +71,14 @@ const MenuArchivePage = () => {
     [addonFilters, addonSearchTerm, addonSort, archivedAddons],
   );
 
-  const handleRestoreMenuItem = async (item) => {
-    if (restoringMenuItemId !== null) {
-      return;
-    }
-
-    try {
-      setRestoringMenuItemId(item.id);
-      await unarchiveMenuItem(item.id);
-      await refetchMenu();
-    } catch (requestError) {
-      alert(requestError.message || "Failed to restore menu item.");
-    } finally {
-      setRestoringMenuItemId(null);
-    }
+  const handleRestoreMenuItem = (item) => {
+    if (selectedRestoreItem || selectedRestoreAddon) return;
+    setSelectedRestoreItem(item);
   };
 
-  const handleRestoreAddon = async (addon) => {
-    if (restoringAddonId !== null) {
-      return;
-    }
-
-    try {
-      setRestoringAddonId(addon.id);
-      await unarchiveAddon(addon.id);
-      await refetchMenu();
-    } catch (requestError) {
-      alert(requestError.message || "Failed to restore add-on.");
-    } finally {
-      setRestoringAddonId(null);
-    }
+  const handleRestoreAddon = (addon) => {
+    if (selectedRestoreItem || selectedRestoreAddon) return;
+    setSelectedRestoreAddon(addon);
   };
 
   const pageActions = (
@@ -161,7 +139,6 @@ const MenuArchivePage = () => {
               items={filteredMenuItems}
               isLoading={isLoading}
               mode="archive"
-              restoringItemId={restoringMenuItemId}
               onRestore={handleRestoreMenuItem}
             />
           }
@@ -171,12 +148,23 @@ const MenuArchivePage = () => {
               addons={filteredAddons}
               isLoading={isLoading}
               mode="archive"
-              restoringAddonId={restoringAddonId}
               onRestore={handleRestoreAddon}
             />
           }
         />
       </div>
+      <RestoreMenuItemModal
+        isOpen={Boolean(selectedRestoreItem)}
+        item={selectedRestoreItem}
+        onClose={() => setSelectedRestoreItem(null)}
+        refetchMenu={refetchMenu}
+      />
+      <RestoreAddonModal
+        isOpen={Boolean(selectedRestoreAddon)}
+        addon={selectedRestoreAddon}
+        onClose={() => setSelectedRestoreAddon(null)}
+        refetchAddons={refetchMenu}
+      />
     </PageLayout>
   );
 };
