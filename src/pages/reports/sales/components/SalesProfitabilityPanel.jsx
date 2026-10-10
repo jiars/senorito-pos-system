@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import DataTablePagination from "@/components/data-table/DataTablePagination";
@@ -18,33 +18,29 @@ const profitabilityMetricItems = [
   {
     id: "top-performer",
     label: "Top Performer",
-    caption: "Menu with high profit and high sales ",
+    caption: "Menu with high profit and high sales",
     icon: "bi-star-fill",
-    color: "text-[var(--app-color-success)]",
     countKey: "Top Performer",
   },
   {
     id: "promote-more",
     label: "Promote More",
     icon: "bi-megaphone-fill",
-    caption: "Menu with high profit and high sales ",
-    color: "text-[var(--app-color-info)]",
+    caption: "Menu with high profit and low sales",
     countKey: "Promote More",
   },
   {
     id: "improve-pricing",
     label: "Improve Pricing",
-    caption: "Menu with high profit with low sales ",
+    caption: "Menu with low profit and high sales",
     icon: "bi-tag-fill",
-    color: "text-[var(--app-color-accent)]",
     countKey: "Improve Pricing",
   },
   {
     id: "review-remove",
     label: "Review or Remove",
-    caption: "Menu with low profit with low sales ",
+    caption: "Menu with low profit and low sales",
     icon: "bi-x-circle-fill",
-    color: "text-[var(--app-color-danger)]",
     countKey: "Review or Remove",
   },
 ];
@@ -59,28 +55,23 @@ const profitabilitySortOptions = [
 const SalesProfitabilityPanel = ({
   isLoading,
   detailedProfitability,
-  profitabilitySort,
-  setProfitabilitySort,
   quadCounts,
-  heatmapActive,
-  setHeatmapActive,
   maxQty,
   maxRev,
   getQuadColorClass,
 }) => {
+  const [profitabilitySort, setProfitabilitySort] = useState("Highest Revenue");
+  const [heatmapActive, setHeatmapActive] = useState(null);
   const [detailCurrentPage, setDetailCurrentPage] = useState(1);
   const [detailPageSize, setDetailPageSize] = useState(10);
   const activeProfitabilityItem =
     heatmapActive === null ? null : detailedProfitability[heatmapActive];
-  const sortedProfitability = useMemo(
-    () => sortProfitabilityRows(detailedProfitability, profitabilitySort),
-    [detailedProfitability, profitabilitySort],
-  );
-  const visibleProfitability = useMemo(() => {
-    const startIndex = (detailCurrentPage - 1) * detailPageSize;
-
-    return sortedProfitability.slice(startIndex, startIndex + detailPageSize);
-  }, [detailCurrentPage, detailPageSize, sortedProfitability]);
+  const sortedProfitability = sortProfitabilityRows(detailedProfitability, profitabilitySort);
+  // Keep the table on an existing page when filters reduce its rows.
+  const totalPages = Math.max(1, Math.ceil(sortedProfitability.length / detailPageSize));
+  const currentPage = Math.min(detailCurrentPage, totalPages);
+  const startIndex = (currentPage - 1) * detailPageSize;
+  const visibleProfitability = sortedProfitability.slice(startIndex, startIndex + detailPageSize);
 
   useEffect(() => {
     setDetailCurrentPage(1);
@@ -136,7 +127,7 @@ const SalesProfitabilityPanel = ({
               totalItems={sortedProfitability.length}
               pageSize={detailPageSize}
               pageSizeOptions={[10, 20, 30]}
-              currentPage={detailCurrentPage}
+              currentPage={currentPage}
               onPageChange={setDetailCurrentPage}
               onPageSizeChange={setDetailPageSize}
             />

@@ -6,13 +6,15 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import FilterSelectField from "@/components/filters/FilterSelectField";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getBusinessDateKey, getBusinessPeriodDates } from "@/utils/shared/formatters/businessDates";
+import { validateAuditFilterDates } from "@/utils/inventory/validation/auditFilterValidation";
 
 const EMPTY_FILTERS = {
   fromDate: "",
   toDate: "",
   reportPeriod: "all",
   recordedBy: [],
-  reasons: [],
+  actions: [],
   sources: [],
 };
 
@@ -28,59 +30,22 @@ const recordedByOptions = [
   { label: "Inventory Manager", value: "Inventory Manager" },
 ];
 
-const reasonOptions = [
+const actionOptions = [
+  { label: "Purchase", value: "Purchase" },
+  { label: "POS Sale", value: "POS Sale" },
+  { label: "Wastage", value: "Wastage" },
+  { label: "Manual Adjustment", value: "Manual Adjustment" },
   { label: "Expired", value: "Expired" },
-  { label: "Spoiled", value: "Spoiled" },
-  { label: "Damaged", value: "Damaged" },
-  { label: "Spillage", value: "Spillage" },
-  { label: "Wrong Preparation", value: "Wrong Preparation" },
-  { label: "Burnt / Overcooked", value: "Burnt / Overcooked" },
-  { label: "Contaminated", value: "Contaminated" },
 ];
 
 const sourceOptions = [
-  { label: "POS", value: "POS" },
+  { label: "POS Checkout", value: "POS Checkout" },
+  { label: "Add Item Modal", value: "Add Item Modal" },
   { label: "Stock Log Modal", value: "Stock Log Modal" },
   { label: "Expense Tracking", value: "Expense Tracking" },
   { label: "Purchase Order", value: "Purchase Order" },
   { label: "System", value: "System" },
 ];
-
-const toInputDateValue = (date) => {
-  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
-
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
-};
-
-const getReportPeriodDates = (period) => {
-  const today = new Date();
-  const toDate = toInputDateValue(today);
-
-  if (period === "all") {
-    return { fromDate: "", toDate: "" };
-  }
-
-  if (period === "today") {
-    return { fromDate: toDate, toDate };
-  }
-
-  if (period === "week") {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-
-    return {
-      fromDate: toInputDateValue(startOfWeek),
-      toDate,
-    };
-  }
-
-  return {
-    fromDate: toInputDateValue(
-      new Date(today.getFullYear(), today.getMonth(), 1),
-    ),
-    toDate,
-  };
-};
 
 const InventoryAuditToolbar = ({
   filters,
@@ -94,11 +59,21 @@ const InventoryAuditToolbar = ({
     toDate: filters.toDate,
     reportPeriod: filters.reportPeriod,
     recordedBy: filters.recordedBy,
-    reasons: filters.reasons,
+    actions: filters.actions,
     sources: filters.sources,
   });
 
+  const today = getBusinessDateKey(new Date());
+  const validation = validateAuditFilterDates(
+    draftFilters.fromDate,
+    draftFilters.toDate,
+    today,
+    draftFilters.reportPeriod === "Custom",
+  );
+  const dateError = validation.errors.dateRange;
+
   const handleApply = () => {
+    if (!validation.isFormValid) return;
     onApplyFilters({
       ...filters,
       ...draftFilters,
@@ -111,9 +86,10 @@ const InventoryAuditToolbar = ({
   };
 
   const handleReportPeriodChange = (reportPeriod) => {
+    const nextDates = getBusinessPeriodDates(reportPeriod);
     setDraftFilters((current) => ({
       ...current,
-      ...getReportPeriodDates(reportPeriod),
+      ...nextDates,
       reportPeriod,
     }));
   };
@@ -150,7 +126,14 @@ const InventoryAuditToolbar = ({
             fromDate={draftFilters.fromDate}
             toDate={draftFilters.toDate}
             onRangeChange={handleManualDateRangeChange}
+            maxDate={today}
+            errorId={dateError ? "audit-filter-date-error" : undefined}
           />
+          {dateError && (
+            <p id="audit-filter-date-error" role="status" className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]">
+              {dateError}
+            </p>
+          )}
 
           <FilterOptionGroup
             id="audit-recorded-by"
@@ -166,18 +149,18 @@ const InventoryAuditToolbar = ({
       ),
     },
     {
-      id: "reason",
-      label: "Reason",
+      id: "action",
+      label: "Action",
       icon: "bi-card-text",
-      indicator: draftFilters.reasons.length > 0,
+      indicator: draftFilters.actions.length > 0,
       content: (
         <FilterOptionGroup
-          id="audit-reason"
-          label="Reason"
-          options={reasonOptions}
-          selectedValues={draftFilters.reasons}
-          onSelectedValuesChange={(reasons) =>
-            setDraftFilters((current) => ({ ...current, reasons }))
+          id="audit-action"
+          label="Action"
+          options={actionOptions}
+          selectedValues={draftFilters.actions}
+          onSelectedValuesChange={(actions) =>
+            setDraftFilters((current) => ({ ...current, actions }))
           }
           collapsible={false}
         />
@@ -219,7 +202,7 @@ const InventoryAuditToolbar = ({
     <section className="flex flex-wrap items-center justify-end gap-[var(--app-space-2)]">
       <div className="w-full sm:w-[22rem]">
         <ToolbarSearchInput
-          placeholder="Search item, reason, source..."
+          placeholder="Search item, action, reason, source..."
           value={filters.searchTerm}
           onValueChange={(value) => onFilterChange("searchTerm", value)}
         />
@@ -228,6 +211,7 @@ const InventoryAuditToolbar = ({
       <FilterPopover
         sidebarSections={sidebarSections}
         onApply={handleApply}
+        applyDisabled={!validation.isFormValid}
         onClear={handleClear}
       />
     </section>

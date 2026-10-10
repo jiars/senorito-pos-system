@@ -21,7 +21,7 @@ const EMPTY_FILTERS = {
   toDate: "",
   reportPeriod: "all",
   recordedBy: [],
-  reasons: [],
+  actions: [],
   sources: [],
 };
 

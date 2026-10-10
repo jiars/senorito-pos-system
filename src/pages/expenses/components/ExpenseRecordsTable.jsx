@@ -18,6 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 import { getDateRangeFromPreset } from "@/utils/expenses/expenseFilters";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+import { validateExpenseFilterDates } from "@/utils/expenses/validation/expenseFilterValidation";
 
 import ExpenseCategoryBadge from "./ExpenseCategoryBadge";
 
@@ -45,6 +47,20 @@ const ExpenseRecordsToolbar = ({
     toDate,
     categories: selectedCategories,
   });
+
+  const today = getBusinessDateKey(new Date());
+  const validation = validateExpenseFilterDates(
+    draftFilters.fromDate,
+    draftFilters.toDate,
+    today,
+    draftFilters.datePreset === "Custom",
+  );
+  const dateError = validation.errors.dateRange;
+
+  const handleApply = () => {
+    if (!validation.isFormValid) return;
+    onApplyFilters(draftFilters);
+  };
 
   const categoryOptions = categories.map((category) => ({
     label: category.category_name,
@@ -101,7 +117,8 @@ const ExpenseRecordsToolbar = ({
       </div>
 
       <FilterPopover
-        onApply={() => onApplyFilters(draftFilters)}
+        onApply={handleApply}
+        applyDisabled={!validation.isFormValid}
         onClear={handleClear}
       >
         <FilterSelectField
@@ -117,7 +134,14 @@ const ExpenseRecordsToolbar = ({
           fromDate={draftFilters.fromDate}
           toDate={draftFilters.toDate}
           onRangeChange={handleManualDateChange}
+          maxDate={today}
+          errorId={dateError ? "expense-filter-date-error" : undefined}
         />
+        {dateError && (
+          <p id="expense-filter-date-error" role="status" className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]">
+            {dateError}
+          </p>
+        )}
 
         <FilterOptionGroup
           id="expense-filter-categories"

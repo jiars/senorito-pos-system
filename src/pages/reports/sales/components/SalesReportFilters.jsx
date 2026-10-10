@@ -4,6 +4,9 @@ import FilterDateRange from "@/components/filters/FilterDateRange";
 import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import FilterSelectField from "@/components/filters/FilterSelectField";
+import { getSalesReportPresetDates } from "@/utils/reports/salesReportFilters";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+import { validateSalesReportDates } from "@/utils/reports/validation/salesReportValidation";
 
 const orderSourceOptions = [
   { label: "In-Store", value: "In-Store" },
@@ -17,42 +20,6 @@ const reportPeriodOptions = [
   { label: "This Week", value: "This Week" },
   { label: "This Month", value: "This Month" },
 ];
-
-const toInputDateValue = (date) => {
-  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
-
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
-};
-
-const getPresetDates = (reportPeriod) => {
-  const today = new Date();
-  const todayValue = toInputDateValue(today);
-
-  if (reportPeriod === "All Time") {
-    return { fromDate: "", toDate: "" };
-  }
-
-  if (reportPeriod === "Today") {
-    return { fromDate: todayValue, toDate: todayValue };
-  }
-
-  if (reportPeriod === "This Week") {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-
-    return {
-      fromDate: toInputDateValue(startOfWeek),
-      toDate: todayValue,
-    };
-  }
-
-  return {
-    fromDate: toInputDateValue(
-      new Date(today.getFullYear(), today.getMonth(), 1),
-    ),
-    toDate: todayValue,
-  };
-};
 
 const SalesReportFilters = ({
   datePreset,
@@ -89,8 +56,22 @@ const SalesReportFilters = ({
     };
   });
 
+  const today = getBusinessDateKey(new Date());
+  const validation = validateSalesReportDates(
+    draftFilters.fromDate,
+    draftFilters.toDate,
+    today,
+    draftFilters.datePreset === "Custom",
+  );
+  const dateError = validation.errors.dateRange;
+
+  const handleApply = () => {
+    if (!validation.isFormValid) return;
+    onApplyFilters(draftFilters);
+  };
+
   const handleReportPeriodChange = (nextPeriod) => {
-    const nextDates = getPresetDates(nextPeriod);
+    const nextDates = getSalesReportPresetDates(nextPeriod);
 
     setDraftFilters((currentFilters) => {
       return {
@@ -146,7 +127,18 @@ const SalesReportFilters = ({
             fromDate={draftFilters.fromDate}
             toDate={draftFilters.toDate}
             onRangeChange={handleManualDateRangeChange}
+            maxDate={today}
+            errorId={dateError ? "sales-filter-date-error" : undefined}
           />
+          {dateError && (
+            <p
+              id="sales-filter-date-error"
+              role="status"
+              className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-danger)]"
+            >
+              {dateError}
+            </p>
+          )}
         </div>
       ),
     },
@@ -202,7 +194,8 @@ const SalesReportFilters = ({
     <FilterPopover
       sidebarSections={sidebarSections}
       sidebarPanelClassName="!w-[28rem]"
-      onApply={() => onApplyFilters(draftFilters)}
+      onApply={handleApply}
+      applyDisabled={!validation.isFormValid}
       onClear={handleClear}
     />
   );

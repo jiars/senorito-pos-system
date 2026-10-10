@@ -1,4 +1,12 @@
 import * as XLSX from 'xlsx';
+import { getBusinessDateKey } from '@/utils/shared/formatters/businessDates';
+
+// Older logs used POS; current checkout writes POS Checkout.
+const normalizeAuditSource = (source) => {
+  const value = String(source || '').trim().toLowerCase();
+  if (value === 'pos') return 'pos checkout';
+  return value;
+};
 
 export const getAuditItem = (log) => {
   if (log.inventory_item) return log.inventory_item;
@@ -75,17 +83,19 @@ export const formatAuditLog = (log) => {
 };
 
 export const filterInventoryAuditLogs = (logs, filters) => {
+  const searchTerm = filters.searchTerm.trim().toLowerCase();
+  const selectedRecordedBy = filters.recordedBy || [];
+  const selectedActions = filters.actions || [];
+  const selectedSources = (filters.sources || []).map(normalizeAuditSource);
+
   return logs.filter((log) => {
     const formattedLog = formatAuditLog(log);
-    const searchTerm = filters.searchTerm.trim().toLowerCase();
-    const selectedRecordedBy = filters.recordedBy || [];
-    const selectedReasons = filters.reasons || [];
-    const selectedSources = filters.sources || [];
 
     if (searchTerm) {
       const searchableText = [
         formattedLog.itemName,
         formattedLog.reason,
+        formattedLog.action,
         formattedLog.source,
         formattedLog.batchNumber,
         formattedLog.reference,
@@ -94,19 +104,9 @@ export const filterInventoryAuditLogs = (logs, filters) => {
       if (!searchableText.includes(searchTerm)) return false;
     }
 
-    const logDate = new Date(log.created_at);
-
-    if (filters.fromDate) {
-      const fromDate = new Date(filters.fromDate);
-      fromDate.setHours(0, 0, 0, 0);
-      if (logDate < fromDate) return false;
-    }
-
-    if (filters.toDate) {
-      const toDate = new Date(filters.toDate);
-      toDate.setHours(23, 59, 59, 999);
-      if (logDate > toDate) return false;
-    }
+    const logDate = getBusinessDateKey(log.created_at);
+    if (filters.fromDate && logDate < filters.fromDate) return false;
+    if (filters.toDate && logDate > filters.toDate) return false;
 
     if (
       selectedRecordedBy.length > 0 &&
@@ -114,15 +114,13 @@ export const filterInventoryAuditLogs = (logs, filters) => {
     ) return false;
 
     if (
-      selectedReasons.length > 0 &&
-      !selectedReasons.some((reason) =>
-        formattedLog.reason.toLowerCase().includes(reason.toLowerCase()),
-      )
+      selectedActions.length > 0 &&
+      !selectedActions.includes(formattedLog.action)
     ) return false;
 
     if (
       selectedSources.length > 0 &&
-      !selectedSources.includes(formattedLog.source)
+      !selectedSources.includes(normalizeAuditSource(formattedLog.source))
     ) return false;
 
     return true;
