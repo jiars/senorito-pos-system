@@ -5,6 +5,8 @@ import { useSalesReport } from "../../../hooks/useSalesReport";
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import SummaryCards from "@/components/summary-cards/SummaryCards";
+import StatusFeedback from "@/components/feedback/status/StatusFeedback";
+import { getSalesReportStatusFeedback } from "@/utils/reports/feedback/salesReportFeedback";
 
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
@@ -38,10 +40,8 @@ const SalesReportPage = () => {
   const [datePreset, setDatePreset] = useState("All Time");
   const [filterSources, setFilterSources] = useState([]);
   const [filterCategories, setFilterCategories] = useState([]);
-  const [profitabilitySort, setProfitabilitySort] = useState("Highest Revenue");
-  const [heatmapActive, setHeatmapActive] = useState(null);
-
-  const { orders, wastageRecords, categories, isLoading } = useSalesReport();
+  const { orders, wastageRecords, categories, isLoading, error } = useSalesReport();
+  const isReportUnavailable = isLoading || Boolean(error);
 
   // Filter the cached init data without requesting Laravel again.
   const filteredOrders = filterSalesOrders(
@@ -141,6 +141,7 @@ const SalesReportPage = () => {
   };
 
   const handleExport = () => {
+    if (isReportUnavailable) return;
     exportSalesReport({
       summaryData,
       topSellingItems,
@@ -157,6 +158,7 @@ const SalesReportPage = () => {
         type="button"
         variant="outline"
         onClick={handleExport}
+        disabled={isReportUnavailable}
         className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
       >
         <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
@@ -177,6 +179,7 @@ const SalesReportPage = () => {
       <Button
         type="button"
         onClick={() => window.print()}
+        disabled={isReportUnavailable}
         className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-white hover:bg-[var(--app-color-brand-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
       >
         <i aria-hidden="true" className="bi bi-printer" />
@@ -184,6 +187,19 @@ const SalesReportPage = () => {
       </Button>
     </>
   );
+
+  // Failed reads must not look like a successful report with zero sales.
+  if (error) {
+    return (
+      <PageLayout
+        title="Sales"
+        subtitle="View and analyze your sales performance and profitability metrics."
+        actions={pageActions}
+      >
+        <StatusFeedback feedback={getSalesReportStatusFeedback("SALES_REPORT_LOAD_FAILED")} />
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout
@@ -205,11 +221,7 @@ const SalesReportPage = () => {
           <SalesProfitabilityPanel
             isLoading={isLoading}
             detailedProfitability={detailedProfitability}
-            profitabilitySort={profitabilitySort}
-            setProfitabilitySort={setProfitabilitySort}
             quadCounts={quadCounts}
-            heatmapActive={heatmapActive}
-            setHeatmapActive={setHeatmapActive}
             maxQty={maxQty}
             maxRev={maxRev}
             getQuadColorClass={getQuadrantColorClass}
@@ -239,7 +251,7 @@ const SalesReportPage = () => {
         </section>
       </div>
 
-      <SalesPrintLayout
+      {!isReportUnavailable && <SalesPrintLayout
         datePreset={datePreset}
         filterSource={filterSources.join(", ") || "All Order Sources"}
         filterCategory={filterCategories.join(", ") || "All Categories"}
@@ -257,7 +269,7 @@ const SalesReportPage = () => {
         maxOrders={maxOrders}
         peakHour={peakHour}
         totalOrders={totalOrders}
-      />
+      />}
     </PageLayout>
   );
 };

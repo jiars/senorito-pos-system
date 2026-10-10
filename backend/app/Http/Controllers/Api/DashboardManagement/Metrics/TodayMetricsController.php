@@ -10,10 +10,15 @@ class TodayMetricsController extends Controller
     // Get today's sales, orders, expenses, and low-stock count.
     public function fetch()
     {
-        $today = now()->toDateString();
+        $businessDay = now('Asia/Manila')->startOfDay();
+        $today = $businessDay->toDateString();
+        // Match the Philippine day against UTC order timestamps.
+        $start = $businessDay->copy()->utc();
+        $end = $businessDay->copy()->addDay()->utc();
 
         $orders = DB::table('orders')
-            ->whereDate('order_datetime', $today)
+            ->where('order_datetime', '>=', $start)
+            ->where('order_datetime', '<', $end)
             ->where('status', '!=', 'Cancelled')
             ->get();
 

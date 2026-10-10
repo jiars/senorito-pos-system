@@ -1,15 +1,13 @@
-const getLocalDate = (value) => {
-  const date = new Date(value);
+import {
+  getBusinessDateKey,
+  getBusinessPeriodDates,
+} from "@/utils/shared/formatters/businessDates";
 
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+export const getSalesReportPresetDates = (reportPeriod) => {
+  if (reportPeriod === "All Time") return getBusinessPeriodDates("all");
+  if (reportPeriod === "Today") return getBusinessPeriodDates("today");
+  if (reportPeriod === "This Week") return getBusinessPeriodDates("week");
+  return getBusinessPeriodDates("month");
 };
 
 const orderHasCategory = (order, selectedCategories = []) => {
@@ -40,7 +38,7 @@ export const filterSalesOrders = (
   selectedCategories = [],
 ) => {
   return orders.filter((order) => {
-    const orderDate = getLocalDate(order.order_datetime);
+    const orderDate = getBusinessDateKey(order.order_datetime);
     const orderSource = order.order_source || "In-Store";
 
     if (fromDate && orderDate < fromDate) return false;
@@ -63,7 +61,7 @@ export const filterSalesOrders = (
 // Wastage is affected only by the selected date range.
 export const filterWastageRecords = (records, fromDate, toDate) => {
   return records.filter((record) => {
-    const recordDate = getLocalDate(record.created_at);
+    const recordDate = getBusinessDateKey(record.created_at);
 
     if (fromDate && recordDate < fromDate) return false;
     if (toDate && recordDate > toDate) return false;

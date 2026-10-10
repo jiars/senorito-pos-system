@@ -42,6 +42,8 @@ const DatePickerRange = ({
   className = "",
   triggerClassName = "",
   onComplete,
+  disabled,
+  errorId,
 }) => {
   const picker = (
     <Popover>
@@ -49,6 +51,8 @@ const DatePickerRange = ({
         render={
           <Button
             id={id}
+            aria-invalid={Boolean(errorId)}
+            aria-describedby={errorId}
             type="button"
             variant="outline"
             className={`h-[var(--app-touch-target-min)] w-full justify-start gap-[var(--app-space-2)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-left text-[length:var(--app-font-size-body-secondary)] font-medium leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] hover:bg-[var(--app-color-control-hover)] ${triggerClassName}`}
@@ -69,6 +73,7 @@ const DatePickerRange = ({
           mode="range"
           defaultMonth={value?.from}
           selected={value}
+          disabled={disabled}
           onSelect={(range) => {
             onValueChange(range);
 

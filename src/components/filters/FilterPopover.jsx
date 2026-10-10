@@ -7,7 +7,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const FilterPopoverFooter = ({ onApply, onClear }) => {
+const FilterPopoverFooter = ({ onApply, onClear, applyDisabled }) => {
   return (
     <footer className="flex min-h-[var(--app-touch-target-min)] shrink-0 items-center justify-between border-t border-[var(--app-color-border-subtle)] bg-[var(--app-color-filter-bg)] px-[var(--app-space-4)] py-[var(--app-space-2)]">
       <Button
@@ -23,6 +23,7 @@ const FilterPopoverFooter = ({ onApply, onClear }) => {
         type="button"
         variant="ghost"
         onClick={onApply}
+        disabled={applyDisabled}
         className="h-auto p-0 text-[length:var(--app-font-size-body-secondary)] font-medium text-[var(--app-color-filter-apply)] hover:bg-transparent hover:text-[var(--app-color-filter-apply)]"
       >
         Apply
@@ -41,6 +42,7 @@ const FilterPopover = ({
   triggerIcon = "bi-funnel",
   onApply,
   onClear,
+  applyDisabled = false,
   showFooter = true,
   sidebarSections = [],
   sidebarPanelClassName = "!w-[28rem]",
@@ -57,6 +59,7 @@ const FilterPopover = ({
     sidebarSections[0];
 
   const handleApply = () => {
+    if (applyDisabled) return;
     onApply?.();
     setIsOpen(false);
   };
@@ -142,7 +145,7 @@ const FilterPopover = ({
             </div>
 
             {showFooter && (
-              <FilterPopoverFooter onClear={onClear} onApply={handleApply} />
+              <FilterPopoverFooter onClear={onClear} onApply={handleApply} applyDisabled={applyDisabled} />
             )}
           </>
         ) : (
@@ -153,7 +156,7 @@ const FilterPopover = ({
               </div>
             </div>
             {showFooter && (
-              <FilterPopoverFooter onClear={onClear} onApply={handleApply} />
+              <FilterPopoverFooter onClear={onClear} onApply={handleApply} applyDisabled={applyDisabled} />
             )}
           </>
         )}

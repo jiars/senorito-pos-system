@@ -23,6 +23,8 @@ const FilterDateRange = ({
   fromDate,
   toDate,
   onRangeChange,
+  maxDate,
+  errorId,
 }) => {
   const value =
     fromDate || toDate
@@ -37,6 +39,8 @@ const FilterDateRange = ({
       id={id}
       label={label}
       value={value}
+      disabled={maxDate ? { after: toCalendarDate(maxDate) } : undefined}
+      errorId={errorId}
       onValueChange={(range) => {
         onRangeChange(toInputDateValue(range?.from), toInputDateValue(range?.to));
       }}
