@@ -9,7 +9,7 @@ export const fetchInventoryAuditLogs = async () => {
     console.error("Error fetching inventory audit logs", error.message);
 
     throw new Error(
-      error.response?.data?.message || "Failed to fetch inventory audit s",
+      error.response?.data?.message || "Failed to fetch inventory audit logs",
     );
   }
 };

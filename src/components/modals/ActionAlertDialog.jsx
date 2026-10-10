@@ -29,6 +29,7 @@ const ActionAlertDialog = ({
   iconClassName,
   showCloseButton = false,
   contentClassName = "",
+  finalFocus,
   actions = [],
   error = "",
   children,
@@ -56,6 +57,8 @@ const ActionAlertDialog = ({
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent
         size="sm"
+        finalFocus={finalFocus}
+        aria-busy={isBusy || undefined}
         overlayClassName="!z-[1200]"
         className={`!z-[1201] max-h-[90svh] w-[calc(100%-2rem)] overflow-y-auto rounded-[var(--app-radius-panel-standard)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)] ring-0 ${contentClassName}`}
       >

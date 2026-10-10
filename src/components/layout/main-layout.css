@@ -1,32 +1,20 @@
 :root {
-  --layout-sidebar-bg: #3a1a0a;
-  --layout-sidebar-text: #f0e0d8;
-  --layout-sidebar-text-muted: #d9c0ae;
-  --layout-sidebar-hover: #5a2d15;
-  --layout-sidebar-active: #7a4b35;
-  --layout-sidebar-width: 300px;
-
   --layout-topbar-bg: #ffffff;
   --layout-topbar-height: 64px;
 
   --layout-main-bg: var(--app-color-canvas);
   --layout-text-dark: #2c1810;
 
-  --layout-transition: 0.3s ease-in-out;
 }
 
 .layout-container {
   min-height: 100vh;
   background-color: var(--layout-main-bg);
-  font-family:
-    "Inter",
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--app-font-family);
 }
 
 .layout-content-wrapper {
-  margin-left: var(--layout-sidebar-width);
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -57,27 +45,6 @@
 .layout-page-heading p {
   font-size: 0.9375rem;
   color: #6c757d;
-}
-
-.layout-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 95;
-  opacity: 0;
-  transition: opacity var(--layout-transition);
-}
-
-@media (max-width: 1440px) {
-  .layout-content-wrapper {
-    margin-left: 0;
-  }
-
-  .layout-overlay.open {
-    display: block;
-    opacity: 1;
-  }
 }
 
 @media (max-width: 480px) {

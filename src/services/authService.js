@@ -26,13 +26,18 @@ export const logoutUser = async () => {
     const token = localStorage.getItem("auth_token");
 
     // Tell Laravel to destroy the token in the database
-    await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/logout`, {
       method: "POST",
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
+
+    // Keep the local session if the server did not accept the logout.
+    if (!response.ok) {
+      throw new Error(`Logout failed (HTTP ${response.status}).`);
+    }
 
     // Delete the token from the browser
     localStorage.removeItem("auth_token");

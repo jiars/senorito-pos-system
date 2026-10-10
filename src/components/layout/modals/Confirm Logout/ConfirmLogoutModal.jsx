@@ -1,55 +1,58 @@
-import React from 'react';
-import './confirmLogoutModal.css';
+import ActionAlertDialog from "@/components/modals/ActionAlertDialog";
+import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
 
-const ConfirmLogoutModal = ({ isOpen, onClose, onConfirm, isLoggingOut }) => {
-  if (!isOpen) return null;
+const ConfirmLogoutModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoggingOut,
+  feedback,
+  onReturnFocus,
+}) => {
+  const handleOpenChange = (open) => {
+    if (!open) onClose();
+  };
 
   return (
-    <div className="clm-modal-overlay">
-      <div className="clm-modal-content">
-        {/* Header */}
-        <div className="clm-modal-header">
-          <div className="clm-header-icon">
-            <i className="bi bi-box-arrow-left"></i>
-          </div>
-          <h3>Confirm Logout</h3>
-          <span className="clm-modal-subtitle">Señorito Café POS</span>
-          <button className="clm-modal-close" onClick={onClose} aria-label="Close">
-            <i className="bi bi-x"></i>
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="clm-modal-body">
-          {/* High-visibility Warning Box */}
-          <div className="clm-warning-box">
-            <i className="bi bi-exclamation-triangle-fill clm-warning-icon"></i>
-            <p className="clm-warning-text">
-              <strong>Are you sure you want to log out?</strong> You will be returned to the login screen and will need to enter your credentials to access the system again.
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="clm-modal-footer">
-          <button className="clm-btn-cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="clm-btn-confirm" onClick={onConfirm} disabled={isLoggingOut}>
-            {isLoggingOut ? (
-              <>
-                <span className="pos-spinner"></span>
-              </>
-            ) : (
-              <>
-                <i className="bi bi-box-arrow-left"></i>
-                Logout
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ActionAlertDialog
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      type="small-media"
+      title="Log out?"
+      iconClassName="bi bi-box-arrow-left"
+      finalFocus={onReturnFocus}
+      contentClassName="motion-reduce:!animate-none motion-reduce:!transition-none"
+      description={
+        <>
+          You'll return to the{" "}
+          <span className="font-semibold text-[var(--app-color-text)]">
+            login screen
+          </span>
+          . Sign in again to continue.
+        </>
+      }
+      actions={[
+        { key: "cancel", label: "Cancel", close: true },
+        {
+          key: "logout",
+          label: "Log out",
+          tone: "brand",
+          onClick: onConfirm,
+          isLoading: isLoggingOut,
+          loadingLabel: (
+            <span className="inline-flex items-center gap-[var(--app-space-2)]">
+              <span
+                className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+              <span role="status">Logging out...</span>
+            </span>
+          ),
+        },
+      ]}
+    >
+      <InlineFeedback feedback={feedback} id="logout-action-feedback" />
+    </ActionAlertDialog>
   );
 };
 

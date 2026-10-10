@@ -148,7 +148,11 @@ export const getPOSToastFeedback = (code) => {
 // Build feedback for one attempt; this function does not display a toast.
 export function getPOSSyncToastFeedback(
   result,
-  { refreshFailed = false, syncFailed = false } = {},
+  {
+    refreshFailed = false,
+    syncFailed = false,
+    onViewDetails = null,
+  } = {},
 ) {
   let title = "Synchronization complete";
   let toastType = "success";
@@ -209,11 +213,30 @@ export function getPOSSyncToastFeedback(
     description: messages.join(" "),
   });
 
+  let actionProps;
+
+  // Required refresh failures already have their own blocking recovery dialog.
+  if (
+    typeof onViewDetails === "function" &&
+    toastType !== "success" &&
+    !refreshFailed
+  ) {
+    actionProps = {
+      children: "View details",
+      onClick: onViewDetails,
+    };
+  }
+
   return {
     type: feedback.toastType,
     title: feedback.title,
     description: feedback.description,
     timeout: feedback.duration,
+    data: {
+      width: actionProps ? "28rem" : "24rem",
+    },
+    actionProps,
+
   };
 }
 
