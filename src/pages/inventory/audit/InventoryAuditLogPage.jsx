@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/toast";
+import { getAuditLogToastFeedback } from "@/utils/inventory/feedback/auditLogFeedback";
 import { useInventoryAuditLogs } from "../../../hooks/useInventoryAuditLogs";
 
 import {
   exportInventoryAuditLogs,
   filterInventoryAuditLogs,
+  getAuditRecordedByOptions,
 } from "../../../utils/inventory/inventoryAuditLogUtils";
 
 import InventoryAuditTable from "./components/InventoryAuditTable";
@@ -30,10 +33,12 @@ const InventoryAuditLogPage = () => {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
+  const recordedByOptions = getAuditRecordedByOptions(logs);
 
   const filteredLogs = useMemo(() => {
     return filterInventoryAuditLogs(logs, filters);
   }, [logs, filters]);
+  const isExportDisabled = isLoading || Boolean(error) || filteredLogs.length === 0;
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLogs = filteredLogs.slice(
@@ -63,12 +68,14 @@ const InventoryAuditLogPage = () => {
   };
 
   const handleExport = () => {
-    if (filteredLogs.length === 0) {
-      alert("No logs to export based on current filters.");
-      return;
-    }
+    if (isExportDisabled) return;
 
-    exportInventoryAuditLogs(filteredLogs);
+    try {
+      exportInventoryAuditLogs(filteredLogs);
+    } catch (exportError) {
+      console.error("Failed to export inventory audit logs:", exportError);
+      toast.add(getAuditLogToastFeedback("AUDIT_EXPORT_FAILED"));
+    }
   };
 
   const headerActions = (
@@ -76,6 +83,7 @@ const InventoryAuditLogPage = () => {
       type="button"
       variant="outline"
       onClick={handleExport}
+      disabled={isExportDisabled}
       className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)]"
     >
       <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
@@ -94,6 +102,7 @@ const InventoryAuditLogPage = () => {
         <section className="audit-page-toolbar">
           <InventoryAuditToolbar
             filters={filters}
+            recordedByOptions={recordedByOptions}
             onFilterChange={handleFilterChange}
             onApplyFilters={handleApplyFilters}
             onReset={handleResetFilters}

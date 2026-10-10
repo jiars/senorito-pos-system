@@ -1,33 +1,21 @@
-import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import Breadcrumbs from "./Breadcrumbs";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./main-layout.css";
 
-const MainLayout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+const MainLayoutContent = () => {
+  const { open, openMobile, isMobile, toggleSidebar } = useSidebar();
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
+  const isSidebarOpen = isMobile ? openMobile : open;
 
   return (
-    <div className="layout-container">
-      {/* Mobile overlay */}
-      <div
-        className={`layout-overlay ${isSidebarOpen ? "open" : ""}`}
-        onClick={closeSidebar}
-        aria-hidden="true"
-      ></div>
-
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+    <>
+      <Sidebar />
 
       <div className="layout-content-wrapper">
         <Topbar toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
@@ -37,7 +25,17 @@ const MainLayout = () => {
           <Outlet />
         </main>
       </div>
-    </div>
+    </>
+  );
+};
+
+const MainLayout = () => {
+  return (
+    <TooltipProvider>
+      <SidebarProvider className="layout-container">
+        <MainLayoutContent />
+      </SidebarProvider>
+    </TooltipProvider>
   );
 };
 

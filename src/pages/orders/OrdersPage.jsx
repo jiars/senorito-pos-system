@@ -4,6 +4,7 @@ import PageLayout from "../../components/layout/PageLayout";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { getOrderDateKey } from "@/utils/orders/orderDates";
+import { getOrderCashierName, getOrderRecordedByOptions } from "@/utils/orders/orderFilters";
 
 import ViewOrderDetails from "./View Order Details/ViewOrderDetails";
 import OrdersFilterBar from "./components/OrdersFilterBar";
@@ -20,9 +21,11 @@ const OrdersPage = () => {
   const [toDate, setToDate] = useState("");
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [orderSources, setOrderSources] = useState([]);
+  const [recordedBy, setRecordedBy] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const recordedByOptions = getOrderRecordedByOptions(orders);
 
   const handleResetFilters = () => {
     setSearchTerm("");
@@ -31,6 +34,7 @@ const OrdersPage = () => {
     setToDate("");
     setPaymentMethods([]);
     setOrderSources([]);
+    setRecordedBy([]);
     setCurrentPage(1);
   };
 
@@ -64,15 +68,18 @@ const OrdersPage = () => {
     setCurrentPage(1);
   };
 
+  const handleRecordedByChange = (values) => {
+    setRecordedBy(values);
+    setCurrentPage(1);
+  };
+
   const handleViewOrder = (order) => {
     // Keep the existing order-details modal contract unchanged.
     setSelectedOrder({
       id: order.id,
       order_number: order.order_number,
       date: new Date(order.order_datetime),
-      cashier: order.cashier
-        ? `${order.cashier.first_name} ${order.cashier.last_name}`
-        : "Owner / System",
+      cashier: getOrderCashierName(order),
       orderSource: order.order_source,
       paymentMethod: order.payment_method,
       discountType: order.discount_type || "None",
@@ -96,7 +103,7 @@ const OrdersPage = () => {
     });
 
     const searchString =
-      `${order.order_number} ${order.cashier?.first_name} ${order.cashier?.last_name} ${order.order_source} ${order.payment_method} ${formattedDateForSearch} ${formatCurrency(order.total)}`.toLowerCase();
+      `${order.order_number} ${getOrderCashierName(order)} ${order.order_source} ${order.payment_method} ${formattedDateForSearch} ${formatCurrency(order.total)}`.toLowerCase();
 
     if (searchTerm && !searchString.includes(searchTerm.toLowerCase())) {
       return false;
@@ -121,6 +128,10 @@ const OrdersPage = () => {
     }
 
     if (orderSources.length > 0 && !orderSources.includes(order.order_source)) {
+      return false;
+    }
+
+    if (recordedBy.length > 0 && !recordedBy.includes(getOrderCashierName(order))) {
       return false;
     }
 
@@ -153,6 +164,9 @@ const OrdersPage = () => {
             setPaymentMethods={handlePaymentMethodsChange}
             orderSources={orderSources}
             setOrderSources={handleOrderSourcesChange}
+            recordedBy={recordedBy}
+            setRecordedBy={handleRecordedByChange}
+            recordedByOptions={recordedByOptions}
             handleResetFilters={handleResetFilters}
             isLoading={isLoading}
           />

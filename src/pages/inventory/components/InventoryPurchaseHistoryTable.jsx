@@ -78,6 +78,9 @@ const InventoryPurchaseHistoryToolbar = ({
       indicator: draftFilters.suppliers.length > 0,
       content: (
         <div className="flex flex-col gap-[var(--app-space-2)]">
+          <p className="text-[length:var(--app-font-size-body-secondary)] font-normal text-[var(--app-color-text-subtle)]">
+            Suppliers
+          </p>
           <ToolbarSearchInput
             placeholder="Search suppliers..."
             value={supplierSearch}
@@ -93,6 +96,7 @@ const InventoryPurchaseHistoryToolbar = ({
               setDraftFilters((current) => ({ ...current, suppliers }))
             }
             collapsible={false}
+            showLabel={false}
           />
         </div>
       ),

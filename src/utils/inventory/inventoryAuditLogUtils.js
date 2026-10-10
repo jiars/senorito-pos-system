@@ -26,46 +26,39 @@ export const getAuditPerformer = (log) => {
   return null;
 };
 
-export const getAuditActionClass = (action) => {
-  if (action === 'Wastage') return 'audit-chip--red';
-  if (action === 'Purchase') return 'audit-chip--green';
-  return 'audit-chip--teal';
+const getAuditPerformerName = (log) => {
+  const performer = getAuditPerformer(log);
+  if (!performer) return 'System';
+  const name = `${performer.first_name || ''} ${performer.last_name || ''}`.trim();
+  return name || 'System';
 };
 
-export const getAuditSourceClass = (source) => {
-  if (source === 'Stock Log Modal') return 'audit-chip--yellow';
-  if (source === 'Purchase Order') return 'audit-chip--green';
-  return 'audit-chip--teal';
-};
-
-export const getAuditChangeClass = (change) => {
-  if (Number(change) > 0) return 'audit-change-positive';
-  if (Number(change) < 0) return 'audit-change-negative';
-  return '';
+export const getAuditRecordedByOptions = (logs) => {
+  const names = [...new Set(logs.map(getAuditPerformerName))];
+  names.sort((first, second) => first.localeCompare(second));
+  return names.map((name) => {
+    return { label: name, value: name };
+  });
 };
 
 export const formatAuditLog = (log) => {
   const item = getAuditItem(log);
   const batch = getAuditBatch(log);
-  const performer = getAuditPerformer(log);
   const logDate = new Date(log.created_at);
   const unit = item ? item.base_unit || '' : '';
   const quantityChange = Number(log.quantity_change);
-
-  let performerName = 'System';
-  if (performer) {
-    performerName = `${performer.first_name || ''} ${performer.last_name || ''}`.trim();
-  }
 
   return {
     date: logDate.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+      timeZone: 'Asia/Manila',
     }),
     time: logDate.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
+      timeZone: 'Asia/Manila',
     }),
     itemName: item ? item.item_name || 'Unknown Item' : 'Unknown Item',
     action: log.action,
@@ -78,7 +71,7 @@ export const formatAuditLog = (log) => {
     batchNumber: batch ? batch.batch_number || '-' : '-',
     reason: log.reason_reference || '-',
     reference: log.log_number || '-',
-    performerName,
+    performerName: getAuditPerformerName(log),
   };
 };
 
@@ -177,6 +170,6 @@ export const exportInventoryAuditLogs = (logs) => {
     XLSX.utils.book_append_sheet(workbook, actionSheet, safeName || 'Other');
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getBusinessDateKey(new Date());
   XLSX.writeFile(workbook, `Inventory_Audit_Log_${today}.xlsx`);
 };

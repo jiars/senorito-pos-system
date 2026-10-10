@@ -25,11 +25,6 @@ const reportPeriodOptions = [
   { label: "This Month", value: "month" },
 ];
 
-const recordedByOptions = [
-  { label: "System Admin", value: "System Admin" },
-  { label: "Inventory Manager", value: "Inventory Manager" },
-];
-
 const actionOptions = [
   { label: "Purchase", value: "Purchase" },
   { label: "POS Sale", value: "POS Sale" },
@@ -49,6 +44,7 @@ const sourceOptions = [
 
 const InventoryAuditToolbar = ({
   filters,
+  recordedByOptions,
   onFilterChange,
   onApplyFilters,
   onReset,
@@ -61,6 +57,10 @@ const InventoryAuditToolbar = ({
     recordedBy: filters.recordedBy,
     actions: filters.actions,
     sources: filters.sources,
+  });
+  const [recordedBySearch, setRecordedBySearch] = useState("");
+  const visibleRecordedByOptions = recordedByOptions.filter((option) => {
+    return option.label.toLowerCase().includes(recordedBySearch.trim().toLowerCase());
   });
 
   const today = getBusinessDateKey(new Date());
@@ -81,6 +81,7 @@ const InventoryAuditToolbar = ({
   };
 
   const handleClear = () => {
+    setRecordedBySearch("");
     setDraftFilters(EMPTY_FILTERS);
     onReset();
   };
@@ -135,16 +136,32 @@ const InventoryAuditToolbar = ({
             </p>
           )}
 
-          <FilterOptionGroup
-            id="audit-recorded-by"
-            label="Recorded by"
-            options={recordedByOptions}
-            selectedValues={draftFilters.recordedBy}
-            onSelectedValuesChange={(recordedBy) =>
-              setDraftFilters((current) => ({ ...current, recordedBy }))
-            }
-            collapsible={false}
-          />
+          <div className="flex flex-col gap-[var(--app-space-2)]">
+            <p className="text-[length:var(--app-font-size-body-secondary)] font-normal text-[var(--app-color-text-subtle)]">
+              Recorded by
+            </p>
+            <ToolbarSearchInput
+              placeholder="Search names..."
+              value={recordedBySearch}
+              onValueChange={setRecordedBySearch}
+            />
+            <FilterOptionGroup
+              id="audit-recorded-by"
+              label="Recorded by"
+              options={visibleRecordedByOptions}
+              selectedValues={draftFilters.recordedBy}
+              onSelectedValuesChange={(recordedBy) =>
+                setDraftFilters((current) => ({ ...current, recordedBy }))
+              }
+              collapsible={false}
+              showLabel={false}
+            />
+            {visibleRecordedByOptions.length === 0 && (
+              <p role="status" className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-muted)]">
+                No matching names.
+              </p>
+            )}
+          </div>
         </div>
       ),
     },

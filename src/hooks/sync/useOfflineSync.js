@@ -16,8 +16,19 @@ export function useOfflineSync({
   onError,
   onSettled,
 }) {
-  function showFeedback(result, options = {}) {
-    const feedback = getPOSSyncToastFeedback(result, options);
+  function showFeedback(cashierId, result, options = {}) {
+    const feedback = getPOSSyncToastFeedback(result, {
+      ...options,
+      onViewDetails: () => {
+        // Ask the existing Topbar popover to open for this account.
+        window.dispatchEvent(
+          new CustomEvent("senorito:open-sync-details", {
+            detail: { cashierId },
+          }),
+        );
+      },
+    });
+
     if (feedback) toast.add(feedback);
   }
 
@@ -35,7 +46,7 @@ export function useOfflineSync({
       try {
         result = await syncPendingOfflineOrders(cashierId);
       } catch (error) {
-        showFeedback(null, { syncFailed: true });
+        showFeedback(cashierId, null, { syncFailed: true });
         throw error;
       }
 
@@ -44,12 +55,12 @@ export function useOfflineSync({
           // Do not announce completion before menu and stock are ready.
           await refreshAfterSync();
         } catch (error) {
-          showFeedback(result, { refreshFailed: true });
+          showFeedback(cashierId, result, { refreshFailed: true });
           throw error;
         }
       }
 
-      showFeedback(result);
+      showFeedback(cashierId, result);
       return result;
     },
 

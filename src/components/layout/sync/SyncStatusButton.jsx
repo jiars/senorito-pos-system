@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../../ui/button";
 import SyncOrderList from "./SyncOrderList";
 import {
@@ -23,8 +23,22 @@ const statusIcons = {
 };
 
 // Presentation only; queue reads and uploads stay outside this component.
-export default function SyncStatusButton({ statusKey, label, state, queue }) {
+export default function SyncStatusButton({ cashierId, statusKey, label, state, queue }) {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    function openRequestedDetails(event) {
+      // An older account's toast must not open this account's queue.
+      if (!cashierId || !event.detail || event.detail.cashierId !== cashierId) return;
+      setIsOpen(true);
+    }
+
+    window.addEventListener("senorito:open-sync-details", openRequestedDetails);
+    return () => {
+      window.removeEventListener("senorito:open-sync-details", openRequestedDetails);
+    };
+  }, [cashierId]);
+
   const icon = statusIcons[statusKey] || "bi-info-circle";
   let statusColors =
     "bg-[var(--app-color-canvas)] text-[var(--app-color-text)]";
