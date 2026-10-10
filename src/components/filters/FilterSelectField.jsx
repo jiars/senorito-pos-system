@@ -7,8 +7,8 @@ import {
 } from "@/components/ui/select";
 
 /**
- * Shared select field styled like FilterDateRange. Keep report-period options
- * to the approved presets; a manual range displays as Custom but is not a menu option.
+ * Shared select field styled like FilterDateRange. A manually selected range
+ * displays as Custom without adding another period option.
  */
 const FilterSelectField = ({
   id,

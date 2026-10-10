@@ -61,6 +61,7 @@ const SalesReportFilters = ({
     draftFilters.fromDate,
     draftFilters.toDate,
     today,
+    draftFilters.datePreset === "Custom",
   );
   const dateError = validation.errors.dateRange;
 

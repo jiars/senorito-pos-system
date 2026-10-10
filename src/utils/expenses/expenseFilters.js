@@ -1,8 +1,4 @@
-const toInputDateValue = (date) => {
-  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
-
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
-};
+import { getBusinessPeriodDates } from "@/utils/shared/formatters/businessDates";
 
 export const filterExpenseRecords = (
   visibleExpenses,
@@ -38,32 +34,12 @@ export const filterExpenseRecords = (
 };
 
 export const getDateRangeFromPreset = (preset) => {
-  const today = new Date();
-  const toDate = toInputDateValue(today);
-
   if (preset === "All Time" || preset === "Custom")
     return { start: "", end: "" };
 
-  if (preset === "This Day") return { start: toDate, end: toDate };
-
-  if (preset === "This Week") {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-
-    return {
-      start: toInputDateValue(startOfWeek),
-      end: toDate,
-    };
-  }
-
-  if (preset === "This Month") {
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    return {
-      start: toInputDateValue(startOfMonth),
-      end: toDate,
-    };
-  }
-
-  return { start: "", end: "" };
+  const periods = { "This Day": "today", "This Week": "week", "This Month": "month" };
+  const period = periods[preset];
+  if (!period) return { start: "", end: "" };
+  const dates = getBusinessPeriodDates(period);
+  return { start: dates.fromDate, end: dates.toDate };
 };
