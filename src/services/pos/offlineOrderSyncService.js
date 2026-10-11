@@ -1,22 +1,30 @@
 import { db } from "../../utils/offlineDB";
 import { processOnlineCheckout } from "./checkoutService";
 import { markPOSRefreshRequired } from "./posCacheService";
+import { canRetryOfflineOrder } from "../../utils/sync/syncStatus";
 
 let activeSyncPromise = null;
 
 // Synchronize queued offline orders one at a time.
-const runOfflineOrderSync = async (cashierId) => {
-  const pendingOrders = await db.offlineOrders
-    .where("status")
-    .anyOf("pending_sync", "failed", "syncing", "awaiting_auth")
-    .sortBy("created_at");
+const runOfflineOrderSync = async (cashierId, canContinue, retryOrderId) => {
+  let pendingOrders;
+
+  if (retryOrderId !== null) {
+    // Re-read the selected row: the popover may contain an older snapshot.
+    const order = await db.offlineOrders.get(retryOrderId);
+    pendingOrders = canRetryOfflineOrder(order) ? [order] : [];
+  } else {
+    pendingOrders = await db.offlineOrders
+      .where("status")
+      .anyOf("pending_sync", "failed", "syncing", "awaiting_auth")
+      .sortBy("created_at");
+  }
 
   if (pendingOrders.length === 0) {
     return {
       success: true,
       synced: 0,
       failed: 0,
-      skipped: 0,
       attention: 0,
       signInRequired: false,
       connectionIssue: false,
@@ -26,19 +34,27 @@ const runOfflineOrderSync = async (cashierId) => {
 
   let syncedCount = 0;
   let failedCount = 0;
-  let skippedCount = 0;
   let attentionCount = 0;
   let signInRequired = false;
   let connectionIssue = false;
+  let paused = false;
 
   for (const offlineOrder of pendingOrders) {
-    // Preserve orders belonging to another cashier or with unknown ownership.
-    if (!cashierId || offlineOrder.cashier_id !== cashierId) {
-      skippedCount++;
-      continue;
+    // A valid token alone is not permission to run an unattended uploader.
+    if (!cashierId || !canContinue()) {
+      paused = true;
+      break;
     }
 
     try {
+      if (!offlineOrder.cashier_id) {
+        const ownerError = new Error(
+          "Original cashier is missing. Please ask an administrator to review this order.",
+        );
+        ownerError.status = 422;
+        throw ownerError;
+      }
+
       if (
         !offlineOrder.checkout_payload ||
         !offlineOrder.client_transaction_id
@@ -56,10 +72,22 @@ const runOfflineOrderSync = async (cashierId) => {
         last_error_status: null,
       });
 
+      // The page/session may have changed while local storage was updating.
+      if (!canContinue()) {
+        await db.offlineOrders.update(offlineOrder.id, {
+          status: offlineOrder.status,
+          last_error: offlineOrder.last_error ?? null,
+          last_error_status: offlineOrder.last_error_status ?? null,
+        });
+        paused = true;
+        break;
+      }
+
       // Use the same Laravel checkout used by online orders.
       await processOnlineCheckout(
         {
           ...offlineOrder.checkout_payload,
+          cashier_id: offlineOrder.cashier_id,
           // Existing queued orders already saved this timestamp in Dexie.
           // Missing timestamps must fail validation, not become the upload time.
           offline_created_at: offlineOrder.created_at || null,
@@ -105,6 +133,7 @@ const runOfflineOrderSync = async (cashierId) => {
         sync_attempts: (offlineOrder.sync_attempts || 0) + 1,
         last_error: error.message,
         last_error_status: errorStatus,
+        last_sync_cashier_id: cashierId,
       });
 
       failedCount++;
@@ -122,24 +151,30 @@ const runOfflineOrderSync = async (cashierId) => {
   }
 
   return {
-    success: failedCount === 0 && skippedCount === 0,
+    success: failedCount === 0 && !paused,
     synced: syncedCount,
     failed: failedCount,
-    skipped: skippedCount,
     attention: attentionCount,
     signInRequired,
     connectionIssue,
-    message:
-      `Synced ${syncedCount} orders. ` +
-      `Failed: ${failedCount}. Skipped: ${skippedCount}.`,
+    paused,
+    message: `Synced ${syncedCount} orders. Failed: ${failedCount}.`,
   };
 };
 
 // Prevent two sync processes from running at the same time.
-export const syncPendingOfflineOrders = async (cashierId) => {
-  if (activeSyncPromise) return activeSyncPromise;
+export const syncPendingOfflineOrders = async (
+  cashierId,
+  canContinue = () => false,
+  retryOrderId = null,
+) => {
+  if (activeSyncPromise) {
+    // A new page/session must not inherit the previous uploader's result.
+    await activeSyncPromise.catch(() => null);
+    return syncPendingOfflineOrders(cashierId, canContinue, retryOrderId);
+  }
 
-  activeSyncPromise = runOfflineOrderSync(cashierId);
+  activeSyncPromise = runOfflineOrderSync(cashierId, canContinue, retryOrderId);
 
   try {
     return await activeSyncPromise;

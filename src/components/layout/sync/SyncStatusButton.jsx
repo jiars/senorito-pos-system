@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { useMatch } from "react-router-dom";
 import { Button } from "../../ui/button";
+import { toast } from "../../ui/toast";
+import { getPOSToastFeedback } from "../../../utils/pos/feedback/posFeedback";
 import SyncOrderList from "./SyncOrderList";
 import {
   Popover,
@@ -22,9 +25,27 @@ const statusIcons = {
   sign_in_required: "bi-lock",
 };
 
-// Presentation only; queue reads and uploads stay outside this component.
+// Request actions from POS; queue writes and uploads stay outside this component.
 export default function SyncStatusButton({ cashierId, statusKey, label, state, queue }) {
   const [isOpen, setIsOpen] = useState(false);
+  const isPOSPage = Boolean(useMatch("/pos"));
+  const retryDisabled = !isPOSPage || !cashierId || !state.isOnline ||
+    state.isSyncing || state.signInRequired || state.refreshRequired ||
+    state.refreshFailed || queue.isChecking || queue.queueReadFailed;
+
+  function requestOrderRetry(orderId) {
+    if (retryDisabled) return;
+
+    // Cancelable lets POS acknowledge the request immediately, without new state.
+    const request = new CustomEvent("senorito:retry-sync-order", {
+      detail: { cashierId, orderId },
+      cancelable: true,
+    });
+    window.dispatchEvent(request);
+    if (!request.defaultPrevented) {
+      toast.add(getPOSToastFeedback("SYNC_RETRY_NOT_READY"));
+    }
+  }
 
   useEffect(() => {
     function openRequestedDetails(event) {
@@ -134,22 +155,29 @@ export default function SyncStatusButton({ cashierId, statusKey, label, state, q
         {canShowCounts && (
           <div>
             <SyncOrderList title="Pending orders" orders={summary.pendingOrders} />
-            <SyncOrderList title="Orders needing attention" orders={summary.attentionOrders} needsAttention />
+            <SyncOrderList
+              title="Orders needing attention"
+              orders={summary.attentionOrders}
+              needsAttention
+              onRetry={requestOrderRetry}
+              retryDisabled={retryDisabled}
+            />
           </div>
         )}
 
         <div className="space-y-[var(--app-space-2)] text-[var(--app-color-text-muted)] empty:hidden">
           {queue.queueReadFailed && <p>Saved orders could not be read. Counts are unknown, not zero. Do not clear browser data.</p>}
-          {state.signInRequired && <p>Some pending orders require their cashier to sign in before synchronization can continue.</p>}
+          {state.signInRequired && <p>Sign in with an authorized Owner or Cashier account, then open POS to synchronize pending orders.</p>}
           {state.connectionIssue && <p>A synchronization request failed. Browser connectivity alone does not mean the server can be reached. Unsent orders remain saved.</p>}
           {state.syncFailed && <p>The last synchronization attempt did not finish successfully. This panel does not retry it.</p>}
           {(state.refreshRequired || state.refreshFailed) && (
             <p>Menu and stock still need a successful refresh. This does not mean an accepted sale must be submitted again.</p>
           )}
-          {canShowCounts && summary.attentionCount > 0 && <p>Some saved orders need review and are not automatically retried. These are separate from pending orders.</p>}
+          {canShowCounts && summary.attentionCount > 0 && (
+            <p>After correcting the problem, use Retry sync on eligible orders from POS while online. The same saved sale is checked again; orders without a retry button need administrator review.</p>
+          )}
           {canShowCounts && summary.awaitingAuthCount > 0 && <p>Pending sign-in orders are already included in the pending count.</p>}
-          {canShowCounts && summary.otherCashierCount > 0 && <p>Other cashiers also have saved orders on this browser. They are not included in your counts and are not uploaded by your session.</p>}
-          {canShowCounts && summary.unknownOwnerCount > 0 && <p>Some saved orders have no identified cashier and need review. They are not included in your counts.</p>}
+          {canShowCounts && summary.unknownOwnerCount > 0 && <p>Some saved orders have no identified cashier. They are included under orders needing attention and will not be assigned to you automatically.</p>}
         </div>
         </div>
 

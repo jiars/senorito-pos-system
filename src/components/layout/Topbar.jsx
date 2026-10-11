@@ -6,6 +6,7 @@ import { useOfflineSyncState } from "../../hooks/sync/useOfflineSync";
 import { useBrowserOnline } from "../../hooks/sync/useBrowserOnline";
 import {
   buildSyncStatusInput,
+  canUseOfflineQueue,
   getSyncStatus,
 } from "../../utils/sync/syncStatus";
 
@@ -17,8 +18,9 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
   const isBrowserOnline = useBrowserOnline();
 
   const { profile } = useAuth();
-  const queue = useOfflineQueue(profile.id);
-  const sync = useOfflineSyncState(profile.id);
+  const cashierId = canUseOfflineQueue(profile) ? profile.id : null;
+  const queue = useOfflineQueue(cashierId);
+  const sync = useOfflineSyncState(cashierId);
 
   // Display observed progress only; POS still owns the upload workflow.
   const syncStatusInput = buildSyncStatusInput({ isBrowserOnline, queue, sync });
@@ -46,14 +48,16 @@ const Topbar = ({ toggleSidebar, isSidebarOpen }) => {
       </div>
 
       <div className="layout-topbar-right">
-        <SyncStatusButton
-          key={profile.id}
-          cashierId={profile.id}
-          statusKey={syncStatus.key}
-          label={syncStatus.label}
-          state={syncStatusInput}
-          queue={queue}
-        />
+        {cashierId && (
+          <SyncStatusButton
+            key={cashierId}
+            cashierId={cashierId}
+            statusKey={syncStatus.key}
+            label={syncStatus.label}
+            state={syncStatusInput}
+            queue={queue}
+          />
+        )}
       </div>
     </header>
   );

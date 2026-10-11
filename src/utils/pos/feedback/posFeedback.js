@@ -124,12 +124,60 @@ export const getPOSInlineFeedback = (code) => {
 };
 
 export const POS_TOAST_FEEDBACK = {
+  SYNC_RETRY_NOT_READY: {
+    type: "notification",
+    toastType: "warning",
+    display: "toast",
+    title: "Retry is not ready yet",
+    description:
+      "Open POS online and finish any checkout or menu refresh, then retry this saved order.",
+  },
   ORDER_REFRESH_READY: {
     type: "notification",
     toastType: "success",
     display: "toast",
     title: "Ready for the next order",
     description: "Menu and stock updated.",
+  },
+  OFFLINE_READY: {
+    type: "notification",
+    toastType: "info",
+    display: "toast",
+    title: "You're offline",
+    description:
+      "You can continue taking orders on this device. Orders will be saved locally for synchronization.",
+  },
+  OFFLINE_SESSION_REQUIRED: {
+    type: "notification",
+    toastType: "warning",
+    display: "toast",
+    title: "A signed-in session is needed",
+    description:
+      "Connect to the internet and sign in before taking offline orders.",
+  },
+  OFFLINE_CACHE_REQUIRED: {
+    type: "notification",
+    toastType: "warning",
+    display: "toast",
+    title: "Offline data is not ready",
+    description:
+      "Connect to the internet and let POS finish saving menu and stock data on this device.",
+  },
+  OFFLINE_STORAGE_UNAVAILABLE: {
+    type: "notification",
+    toastType: "warning",
+    display: "toast",
+    title: "Device storage is unavailable",
+    description:
+      "Offline orders cannot be saved right now. Check browser storage settings. Do not clear site data if orders are waiting to sync.",
+  },
+  OFFLINE_REFRESH_REQUIRED: {
+    type: "notification",
+    toastType: "warning",
+    display: "toast",
+    title: "Menu and stock still need refreshing",
+    description:
+      "Reconnect and finish the required refresh before taking another order. Do not enter saved sales again.",
   },
 };
 
@@ -144,6 +192,22 @@ export const getPOSToastFeedback = (code) => {
     timeout: resolved.duration,
   };
 };
+
+// Choose one message; checking storage and displaying it belong elsewhere.
+export function getPOSOfflineToastFeedback(readiness) {
+  let code = "OFFLINE_READY";
+  if (!readiness.hasSession) {
+    code = "OFFLINE_SESSION_REQUIRED";
+  } else if (!readiness.storageAvailable) {
+    code = "OFFLINE_STORAGE_UNAVAILABLE";
+  } else if (readiness.refreshRequired) {
+    code = "OFFLINE_REFRESH_REQUIRED";
+  } else if (!readiness.hasCachedData) {
+    code = "OFFLINE_CACHE_REQUIRED";
+  }
+
+  return getPOSToastFeedback(code);
+}
 
 // Build feedback for one attempt; this function does not display a toast.
 export function getPOSSyncToastFeedback(
@@ -170,12 +234,6 @@ export function getPOSSyncToastFeedback(
     toastType = "warning";
   }
 
-  if (result && result.skipped > 0) {
-    messages.push("Other saved orders were not uploaded by this session.");
-    title = "Some orders remain on this device";
-    toastType = "warning";
-  }
-
   if (result && result.connectionIssue) {
     messages.push("Could not continue uploading. Unsent orders remain saved.");
     title = "Connection issue";
@@ -183,7 +241,7 @@ export function getPOSSyncToastFeedback(
   }
 
   if (result && result.signInRequired) {
-    messages.push("Sign in with the order's cashier account to continue.");
+    messages.push("Sign in with an authorized Owner or Cashier account to continue.");
     title = "Sign in required";
     toastType = "warning";
   }

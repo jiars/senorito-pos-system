@@ -9,17 +9,57 @@ use App\Http\Controllers\Api\OrderManagement\OrderItems\OrderItemController;
 use App\Http\Controllers\Api\OrderManagement\Orders\OrderController;
 use App\Http\Controllers\Controller;
 use App\Models\OrderManagement\Order;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 class CheckoutOrchestrator extends Controller
 {
     public function store(Request $request)
     {
+        // The route already restricts access to Owner and Cashier.
+        $uploader = $request->user();
+        if (strcasecmp($uploader->status ?? '', 'Active') !== 0) {
+            return response()->json([
+                'message' => 'This account is currently deactivated.',
+            ], 403);
+        }
+
         $clientTransactionId = $request->header('Idempotency-Key');
+        $cashierData = Validator::make([
+            'cashier_id' => $request->input('cashier_id', $uploader->id),
+            'client_transaction_id' => $clientTransactionId,
+        ], [
+            'cashier_id' => ['required', 'uuid'],
+            'client_transaction_id' => ['nullable', 'uuid'],
+        ])->validate();
+
+        // Current clients omit cashier_id; explicit attribution needs a retry key.
+        if ($request->exists('cashier_id') && !$clientTransactionId) {
+            throw ValidationException::withMessages([
+                'client_transaction_id' => 'An Idempotency-Key header is required when supplying the original cashier.',
+            ]);
+        }
+
+        $cashierId = Str::lower($cashierData['cashier_id']);
+
+        // This is trusted staff attribution, not proof of who entered the sale.
+        // A deactivated cashier may still have legitimate earlier offline sales.
+        $cashierExists = User::where('id', $cashierId)
+            ->whereHas('role', function ($query) {
+                $query->whereIn('role_name', ['Owner', 'Cashier']);
+            })
+            ->exists();
+
+        if (!$cashierExists) {
+            throw ValidationException::withMessages([
+                'cashier_id' => 'The original cashier must be an existing Owner or Cashier account.',
+            ]);
+        }
 
         // Return the saved order when the same checkout is retried.
         if ($clientTransactionId) {
@@ -29,7 +69,7 @@ class CheckoutOrchestrator extends Controller
             )->first();
 
             if ($existingOrder)
-                return $this->existingOrderResponse($existingOrder);
+                return $this->existingOrderResponse($existingOrder, $cashierId);
         }
 
         // Pass an explicit UTC string so the database cannot mistake Manila time for UTC.
@@ -59,14 +99,15 @@ class CheckoutOrchestrator extends Controller
         }
 
         try {
-            $order = DB::transaction(function () use ($request, $clientTransactionId, $orderDateTime) {
+            $order = DB::transaction(function () use ($request, $clientTransactionId, $cashierId, $uploader, $orderDateTime) {
                 $orderData = $request->input('order');
                 $itemsData = $request->input('items', []);
 
                 // Create the main receipt.
                 $order = app(OrderController::class)->store([
                     'order_number' => $orderData['order_number'] ?? 'ONLINE-' . (string) Str::uuid(),
-                    'cashier_id' => $request->user()->id,
+                    'cashier_id' => $cashierId,
+                    'uploaded_by' => $uploader->id,
                     'client_transaction_id' => $clientTransactionId,
                     'order_datetime' => $orderDateTime,
                     'order_source' => $orderData['order_source'],
@@ -123,7 +164,9 @@ class CheckoutOrchestrator extends Controller
                             'stock_before' => $stockBefore,
                             'stock_after' => $stockAfter,
                             'reason_reference' => 'Sold in Order #' . $order->order_number,
-                            'performed_by' => $request->user()->id,
+                            // Attribute the stock used for this sale to its original cashier.
+                            // The authenticated uploader remains recorded on the order.
+                            'performed_by' => $cashierId,
                         ]);
 
                         $runningStock = $stockAfter;
@@ -150,7 +193,7 @@ class CheckoutOrchestrator extends Controller
             if (!$existingOrder)
                 throw $exception;
 
-            return $this->existingOrderResponse($existingOrder);
+            return $this->existingOrderResponse($existingOrder, $cashierId);
         }
 
         return response()->json([
@@ -160,8 +203,15 @@ class CheckoutOrchestrator extends Controller
         ], 201);
     }
 
-    private function existingOrderResponse(Order $order)
+    private function existingOrderResponse(Order $order, string $cashierId)
     {
+        // A retry must never reassign an already accepted sale or its uploader.
+        if ($order->cashier_id !== $cashierId) {
+            return response()->json([
+                'message' => 'This transaction was already saved under a different cashier. Review the saved order before retrying.',
+            ], 409);
+        }
+
         return response()->json([
             'message' => 'Order was already processed.',
             'order' => $order->load([

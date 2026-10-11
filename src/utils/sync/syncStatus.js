@@ -1,3 +1,29 @@
+// Only permitted staff can view the shared-device queue or start its upload.
+// Laravel still checks the current token, account status, and role on every POST.
+export function canUseOfflineQueue(user) {
+  return Boolean(
+    user?.id &&
+      user.status?.toLowerCase() === "active" &&
+      ["Owner", "Cashier"].includes(user.role?.role_name),
+  );
+}
+
+// A manual retry rechecks a rejected sale; it never repairs missing order data.
+export function canRetryOfflineOrder(order) {
+  return Boolean(
+    order &&
+      order.status === "requires_attention" &&
+      order.last_error_status === 422 &&
+      order.cashier_id &&
+      order.client_transaction_id &&
+      order.created_at &&
+      order.checkout_payload &&
+      order.checkout_payload.order &&
+      Array.isArray(order.checkout_payload.items) &&
+      order.checkout_payload.items.length > 0,
+  );
+}
+
 // Choose one visible status without changing orders or sending requests.
 export function getSyncStatus(state = {}) {
   // A failed local check must never appear as Synced.
@@ -51,7 +77,6 @@ export function summarizeOfflineQueue(orders, cashierId) {
     pendingCount: 0,
     attentionCount: 0,
     awaitingAuthCount: 0,
-    otherCashierCount: 0,
     unknownOwnerCount: 0,
     connectionFailureCount: 0,
     pendingOrders: [],
@@ -67,27 +92,26 @@ export function summarizeOfflineQueue(orders, cashierId) {
 
   for (const order of orders) {
     // Never assume an unidentified order belongs to the current cashier.
-    if (!order.cashier_id) {
-      summary.unknownOwnerCount++;
-      continue;
-    }
+    if (!order.cashier_id) summary.unknownOwnerCount++;
 
-    if (order.cashier_id !== cashierId) {
-      summary.otherCashierCount++;
-      continue;
-    }
+    const signInRequired =
+      order.status === "awaiting_auth" &&
+      (order.last_sync_cashier_id || order.cashier_id) === cashierId;
 
-    // Expose only the fields needed by the read-only order lists.
+    // Expose display fields and retry eligibility, not the full checkout payload.
     const orderDetails = {
       id: order.id,
       orderNumber: order.offline_order_number || `Local order #${order.id}`,
+      cashierName: order.cashier_name || "Name unavailable",
+      signInRequired,
       status: order.status,
       lastError: order.last_error || null,
       lastErrorStatus: order.last_error_status || null,
+      canRetry: canRetryOfflineOrder(order),
     };
 
     const hasRequiredPayload =
-      order.checkout_payload && order.client_transaction_id;
+      order.cashier_id && order.checkout_payload && order.client_transaction_id;
 
     if (!hasRequiredPayload || !pendingStatuses.includes(order.status)) {
       summary.attentionCount++;
@@ -100,7 +124,7 @@ export function summarizeOfflineQueue(orders, cashierId) {
 
     if (order.status === "failed") summary.connectionFailureCount++;
 
-    if (order.status === "awaiting_auth") summary.awaitingAuthCount++;
+    if (signInRequired) summary.awaitingAuthCount++;
   }
 
   return summary;
@@ -133,8 +157,7 @@ export function buildSyncStatusInput({ isBrowserOnline, queue, sync }) {
     state.refreshRequired = summary.refreshRequired === true;
 
     // Do not claim this device is fully synced while other orders remain.
-    state.hasOtherOrders =
-      summary.otherCashierCount > 0 || summary.unknownOwnerCount > 0;
+    state.hasOtherOrders = summary.unknownOwnerCount > 0;
   }
 
   if (sync.latestSync && sync.latestSync.status === "error") {
