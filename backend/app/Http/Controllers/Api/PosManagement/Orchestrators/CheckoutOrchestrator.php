@@ -12,6 +12,7 @@ use App\Models\OrderManagement\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 class CheckoutOrchestrator extends Controller
@@ -31,8 +32,34 @@ class CheckoutOrchestrator extends Controller
                 return $this->existingOrderResponse($existingOrder);
         }
 
+        // Pass an explicit UTC string so the database cannot mistake Manila time for UTC.
+        $orderDateTime = now('UTC')->toISOString();
+
+        if ($request->exists('offline_created_at')) {
+            // Queued sales keep their original device timestamp, not the upload time.
+            // Allow five minutes of clock drift, but reject clearly future-dated sales.
+            $offlineData = Validator::make([
+                'offline_created_at' => $request->input('offline_created_at'),
+                'client_transaction_id' => $clientTransactionId,
+            ], [
+                'offline_created_at' => [
+                    'bail',
+                    'required',
+                    'date_format:Y-m-d\TH:i:s.v\Z',
+                    'before_or_equal:' . now('UTC')->addMinutes(5)->format('Y-m-d\TH:i:s.v\Z'),
+                ],
+                'client_transaction_id' => ['required', 'uuid'],
+            ], [
+                'offline_created_at.required' => 'The original offline sale time is missing. Please review this order.',
+                'offline_created_at.date_format' => 'The original offline sale time must be a valid UTC timestamp.',
+                'offline_created_at.before_or_equal' => 'The offline sale time is ahead of the server clock. Please review the device date and time.',
+            ])->validate();
+
+            $orderDateTime = $offlineData['offline_created_at'];
+        }
+
         try {
-            $order = DB::transaction(function () use ($request, $clientTransactionId) {
+            $order = DB::transaction(function () use ($request, $clientTransactionId, $orderDateTime) {
                 $orderData = $request->input('order');
                 $itemsData = $request->input('items', []);
 
@@ -41,7 +68,7 @@ class CheckoutOrchestrator extends Controller
                     'order_number' => $orderData['order_number'] ?? 'ONLINE-' . (string) Str::uuid(),
                     'cashier_id' => $request->user()->id,
                     'client_transaction_id' => $clientTransactionId,
-                    'order_datetime' => now('Asia/Manila'),
+                    'order_datetime' => $orderDateTime,
                     'order_source' => $orderData['order_source'],
                     'payment_method' => $orderData['payment_method'],
                     'discount_type' => $orderData['discount_type'] ?? 'None',

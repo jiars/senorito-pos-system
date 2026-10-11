@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDate, formatTime } from "@/utils/shared/formatters/dateFormatters";
+import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 
 const ReceiptRow = ({ label, value, total = false, isAmount = false }) => (
   <div className={`receipt-row flex items-start justify-between gap-[var(--app-space-2)] ${total ? "receipt-total text-[length:var(--app-font-size-h3)] font-bold" : ""}`}>
@@ -26,8 +27,8 @@ const ReceiptDocument = ({ receipt }) => {
 
       <hr className="receipt-divider my-[var(--app-space-4)] border-dashed border-[var(--app-color-border-subtle)]" />
       <dl className="receipt-section space-y-[var(--app-space-2)]">
-        <ReceiptRow label="Date" value={formatDate(receipt.date)} />
-        <ReceiptRow label="Time" value={formatTime(receipt.date)} />
+        <ReceiptRow label="Date" value={formatDate(receipt.date, BUSINESS_TIME_ZONE)} />
+        <ReceiptRow label="Time" value={formatTime(receipt.date, BUSINESS_TIME_ZONE)} />
         <ReceiptRow label="Cashier" value={receipt.cashier || "Cashier"} />
         <ReceiptRow label="Order Source" value={receipt.orderSource} />
         <ReceiptRow label="Payment Method" value={receipt.paymentMethod} />

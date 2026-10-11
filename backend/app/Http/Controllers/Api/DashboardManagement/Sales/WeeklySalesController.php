@@ -11,10 +11,15 @@ class WeeklySalesController extends Controller
     // Get sales totals from Sunday to Saturday.
     public function fetch()
     {
-        $startOfWeek = now()->startOfWeek(Carbon::SUNDAY);
+        $businessTimezone = config('app.business_timezone');
+        $startOfWeek = now($businessTimezone)->startOfWeek(Carbon::SUNDAY);
+        // Keep query boundaries unambiguous while grouping by Philippine days.
+        $start = $startOfWeek->copy()->utc()->toISOString();
+        $end = $startOfWeek->copy()->addWeek()->utc()->toISOString();
 
         $orders = DB::table('orders')
-            ->where('order_datetime', '>=', $startOfWeek)
+            ->where('order_datetime', '>=', $start)
+            ->where('order_datetime', '<', $end)
             ->where('status', '!=', 'Cancelled')
             ->select('order_datetime', 'total')
             ->get();
@@ -25,8 +30,9 @@ class WeeklySalesController extends Controller
             $currentDay = $startOfWeek->copy()->addDays($dayIndex);
 
             $dailyTotal = $orders
-                ->filter(function ($order) use ($currentDay) {
-                    return Carbon::parse($order->order_datetime)
+                ->filter(function ($order) use ($currentDay, $businessTimezone) {
+                    return Carbon::parse($order->order_datetime, 'UTC')
+                        ->setTimezone($businessTimezone)
                         ->isSameDay($currentDay);
                 })
                 ->sum('total');

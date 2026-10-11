@@ -10,11 +10,11 @@ class TodayMetricsController extends Controller
     // Get today's sales, orders, expenses, and low-stock count.
     public function fetch()
     {
-        $businessDay = now('Asia/Manila')->startOfDay();
+        $businessDay = now(config('app.business_timezone'))->startOfDay();
         $today = $businessDay->toDateString();
-        // Match the Philippine day against UTC order timestamps.
-        $start = $businessDay->copy()->utc();
-        $end = $businessDay->copy()->addDay()->utc();
+        // ISO strings keep the UTC offset explicit in database query bindings.
+        $start = $businessDay->copy()->utc()->toISOString();
+        $end = $businessDay->copy()->addDay()->utc()->toISOString();
 
         $orders = DB::table('orders')
             ->where('order_datetime', '>=', $start)

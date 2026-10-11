@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../services/supabaseClient';
+import { formatDateTime } from '@/utils/shared/formatters/dateFormatters';
 
 const RecentActivityPanel = ({ user, profile, role }) => {
     const [thirdSlot, setThirdSlot] = useState({ title: 'Loading...', date: null });
@@ -10,16 +11,16 @@ const RecentActivityPanel = ({ user, profile, role }) => {
         const fetchDynamicActivity = async () => {
             try {
                 if (role === 'Cashier') {
-                    // Fetch Last Order Processed
+                    // Use the original sale time, matching Order History (including offline sales).
                     const { data } = await supabase
                         .from('orders')
-                        .select('created_at')
+                        .select('order_datetime')
                         .eq('cashier_id', user.id)
-                        .order('created_at', { ascending: false })
+                        .order('order_datetime', { ascending: false })
                         .limit(1);
 
                     if (data && data.length > 0) {
-                        setThirdSlot({ title: 'Last Order Processed', date: data[0].created_at });
+                        setThirdSlot({ title: 'Last Order Processed', date: data[0].order_datetime });
                     } else {
                         setThirdSlot({ title: 'Last Order Processed', date: null });
                     }
@@ -51,12 +52,9 @@ const RecentActivityPanel = ({ user, profile, role }) => {
         fetchDynamicActivity();
     }, [user, profile, role]);
 
-    const formatDate = (dateString) => {
+    const formatActivityDate = (dateString) => {
         if (!dateString) return 'No activity yet';
-        return new Date(dateString).toLocaleString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: 'numeric', minute: '2-digit', hour12: true
-        });
+        return formatDateTime(dateString);
     };
 
     return (
@@ -75,7 +73,7 @@ const RecentActivityPanel = ({ user, profile, role }) => {
                         </div>
                         <div className="profile-activity-info">
                             <p className="profile-activity-title">Last Login</p>
-                            <p className="profile-activity-date">{formatDate(profile?.last_login_at)}</p>
+                            <p className="profile-activity-date">{formatActivityDate(profile?.last_login_at)}</p>
                         </div>
                     </div>
 
@@ -86,7 +84,7 @@ const RecentActivityPanel = ({ user, profile, role }) => {
                         </div>
                         <div className="profile-activity-info">
                             <p className="profile-activity-title">Last Password Change</p>
-                            <p className="profile-activity-date">{formatDate(profile?.last_password_change_at)}</p>
+                            <p className="profile-activity-date">{formatActivityDate(profile?.last_password_change_at)}</p>
                         </div>
                     </div>
 
@@ -97,7 +95,7 @@ const RecentActivityPanel = ({ user, profile, role }) => {
                         </div>
                         <div className="profile-activity-info">
                             <p className="profile-activity-title">{thirdSlot.title}</p>
-                            <p className="profile-activity-date">{formatDate(thirdSlot.date)}</p>
+                            <p className="profile-activity-date">{formatActivityDate(thirdSlot.date)}</p>
                         </div>
                     </div>
                 </div>

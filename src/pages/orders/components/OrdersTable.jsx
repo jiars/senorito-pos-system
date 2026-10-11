@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import DataTable from "@/components/data-table/DataTable";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
+import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 
 const getStatusClassName = (status) => {
   if (status === "Completed") {
@@ -88,7 +89,7 @@ const getOrderHistoryColumns = (handleViewOrder) => {
       cell: ({ row }) => {
         return (
           <span className="text-[var(--app-color-text-subtle)]">
-            {formatDateTime(row.original.order_datetime)}
+            {formatDateTime(row.original.order_datetime, BUSINESS_TIME_ZONE)}
           </span>
         );
       },

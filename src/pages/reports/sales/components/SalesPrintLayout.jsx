@@ -1,5 +1,6 @@
 import { DonutChart, PieChart, QuadBadge } from './SalesCharts';
 import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
+import { formatDate } from '@/utils/shared/formatters/dateFormatters';
 
 const SalesPrintLayout = ({
   datePreset,
@@ -20,6 +21,8 @@ const SalesPrintLayout = ({
   peakHour,
   totalOrders
 }) => {
+  const generatedDate = formatDate(new Date());
+
   return (
     <div className="sales-print-layout">
       <div className="print-sales-header-container">
@@ -27,7 +30,7 @@ const SalesPrintLayout = ({
           <h2>Sales Performance Report</h2>
           <div className="print-sales-meta">
             <span className="print-brand">SEÑORITO CAFÉ</span>
-            <span className="print-date">Generated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+            <span className="print-date">Generated: {generatedDate}</span>
             <span className="print-period">Report Period: {datePreset}</span>
           </div>
         </div>
@@ -187,7 +190,7 @@ const SalesPrintLayout = ({
       </div>
 
       <div className="print-footer">
-         Señorito Café — Point of Sale & Inventory Management System | Sales Report | Generated {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+         Señorito Café — Point of Sale & Inventory Management System | Sales Report | Generated {generatedDate}
       </div>
     </div>
   );

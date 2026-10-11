@@ -609,7 +609,8 @@ const POSPage = () => {
           status: "pending_sync",
           sync_attempts: 0,
           last_error: null,
-          created_at: new Date().toISOString(),
+          // Use the same sale time as the original offline receipt.
+          created_at: orderDetails.date.toISOString(),
         };
 
         // Deduct local stock and queue the order in one transaction.

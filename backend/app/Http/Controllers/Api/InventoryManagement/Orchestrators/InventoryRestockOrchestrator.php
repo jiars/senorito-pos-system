@@ -32,7 +32,7 @@ class InventoryRestockOrchestrator extends Controller
             $isExpensePurchase = $request->input('origin', 'inventory_restock') === 'expense_purchase';
             $auditSource = 'Stock Log Modal';
             $expenseDescription = 'Restock: ' . $item->item_name;
-            $expenseDate = now()->toDateString();
+            $expenseDate = now(config('app.business_timezone'))->toDateString();
             if ($isExpensePurchase) {
                 $auditSource = 'Expense Tracking';
                 $expenseDescription = $purchaseData['description'];

@@ -68,7 +68,7 @@ class InitPosManagementController extends Controller
             ->unique()
             ->values();
 
-        $today = now('Asia/Manila')->toDateString();
+        $today = now(config('app.business_timezone'))->toDateString();
 
         // Calculate usable stock from active and non-expired batches.
         $inventoryStock = InventoryItem::query()

@@ -22,7 +22,7 @@ class ExpenseController extends Controller
             'description' => $expenseData['description'],
             'amount' => $expenseData['amount'],
             'vendor' => $expenseData['vendor'] ?? null,
-            'expense_date' => $expenseData['expense_date'] ?? now()->toDateString(),
+            'expense_date' => $expenseData['expense_date'] ?? now(config('app.business_timezone'))->toDateString(),
             'recorded_by' => $userId,
         ]);
     }

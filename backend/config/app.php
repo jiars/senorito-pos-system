@@ -72,6 +72,9 @@ return [
 
     'timezone' => 'UTC',
 
+    // Business calendar days and user-facing times; keep system timestamps in UTC.
+    'business_timezone' => 'Asia/Manila',
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

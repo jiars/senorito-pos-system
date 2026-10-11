@@ -15,7 +15,7 @@ class InventoryExpiryCleanupOrchestrator extends Controller
 {
     public function cleanup()
     {
-        $today = now('Asia/Manila')->toDateString();
+        $today = now(config('app.business_timezone'))->toDateString();
 
         $expiryController = app(
             InventoryBatchExpiryController::class

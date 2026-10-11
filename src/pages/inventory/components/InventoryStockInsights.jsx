@@ -6,6 +6,7 @@ import receiveStockIcon from "@/assets/quick-action/inventory/receiveStock.svg";
 import SummaryCards from "@/components/summary-cards/SummaryCards";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 const quickActions = [
   {
@@ -37,6 +38,8 @@ const InventoryStockInsights = ({
   onOpenWastage,
   onOpenCorrection,
 }) => {
+  const currentBusinessMonth = getBusinessDateKey(new Date()).slice(0, 7);
+
   const stats = useMemo(() => {
     const totalItemsCount = inventoryItems.length;
     const inStockCount = inventoryItems.filter(
@@ -50,14 +53,10 @@ const InventoryStockInsights = ({
     const outOfStockCount = inventoryItems.filter(
       (item) => Number(item.current_stock) === 0,
     ).length;
-    const currentDate = new Date();
     const newItemsCount = inventoryItems.filter((item) => {
-      const itemDate = new Date(item.created_at);
+      const itemMonth = getBusinessDateKey(item.created_at).slice(0, 7);
 
-      return (
-        itemDate.getMonth() === currentDate.getMonth() &&
-        itemDate.getFullYear() === currentDate.getFullYear()
-      );
+      return itemMonth === currentBusinessMonth;
     }).length;
 
     return {
@@ -71,7 +70,7 @@ const InventoryStockInsights = ({
           ? 0
           : Math.round((inStockCount / totalItemsCount) * 100),
     };
-  }, [inventoryItems]);
+  }, [inventoryItems, currentBusinessMonth]);
 
   const cards = [
     {

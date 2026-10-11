@@ -1,11 +1,4 @@
-const getLocalDate = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-};
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 const getRequiredStock = (ingredient, quantity, unit) => {
   let equivalent = 1;
@@ -31,7 +24,7 @@ const getBatchStock = (ingredient) => {
 
   if (ingredient.track_expiry && batches.length > 0) {
     usableStock = 0;
-    const today = getLocalDate();
+    const today = getBusinessDateKey(new Date());
 
     batches.forEach((batch) => {
       const batchQuantity = Number(batch.quantity) || 0;
