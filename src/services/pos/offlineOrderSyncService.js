@@ -58,7 +58,12 @@ const runOfflineOrderSync = async (cashierId) => {
 
       // Use the same Laravel checkout used by online orders.
       await processOnlineCheckout(
-        offlineOrder.checkout_payload,
+        {
+          ...offlineOrder.checkout_payload,
+          // Existing queued orders already saved this timestamp in Dexie.
+          // Missing timestamps must fail validation, not become the upload time.
+          offline_created_at: offlineOrder.created_at || null,
+        },
         offlineOrder.client_transaction_id,
       );
 

@@ -19,7 +19,7 @@ class PasswordSetupCompletedNotification extends Notification
     {
         $setupAt = $notifiable->last_password_change_at
             ->copy()
-            ->timezone('Asia/Manila')
+            ->timezone(config('app.business_timezone'))
             ->format('M d, Y h:i A');
 
         return (new MailMessage)

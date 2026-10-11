@@ -1,3 +1,6 @@
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import { getBatchDaysLeft } from "@/utils/inventory/inventoryBatchUtils";
+
 export const getExpiryInfo = (item) => {
     if (!item.track_expiry) return { status: 'Non-Perishable', label: 'Does not expire', days: null };
     
@@ -8,8 +11,7 @@ export const getExpiryInfo = (item) => {
         if (logs.length > 0) {
             const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             const latest = sortedLogs[0];
-            const dateObj = new Date(latest.created_at);
-            const dateStr = dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const dateStr = formatDate(latest.created_at);
             
             if (latest.action === 'Expired') {
                 isExpiredLoss = true;
@@ -35,17 +37,9 @@ export const getExpiryInfo = (item) => {
     }
 
     const nearestBatch = activeBatches[0];
-    const expiryDate = new Date(nearestBatch.expiration_date);
+    const diffDays = getBatchDaysLeft(nearestBatch.expiration_date);
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const expiryDateOnly = new Date(nearestBatch.expiration_date);
-    expiryDateOnly.setHours(0, 0, 0, 0);
-
-    const diffTime = expiryDateOnly - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    const dateStr = expiryDate.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const dateStr = formatDate(nearestBatch.expiration_date);
 
     if (diffDays < 0) {
         return { status: 'Expired', label: `Expired: ${dateStr} (${Math.abs(diffDays)}d ago)`, days: diffDays };

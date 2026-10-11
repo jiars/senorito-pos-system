@@ -10,7 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('inventory:cleanup-expired')
     ->dailyAt('00:05')
-    ->timezone('Asia/Manila')
+    ->timezone(config('app.business_timezone'))
     ->withoutOverlapping();
 
 // Preserve setup tokens by using the longer expiry for shared-table cleanup.

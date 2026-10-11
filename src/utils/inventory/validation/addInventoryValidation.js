@@ -1,3 +1,6 @@
+import { format, isValid, parse } from "date-fns";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+
 import {
   getMinimumLevelRules,
   isValidMinimumLevel,
@@ -91,18 +94,12 @@ export const validateAddInventoryItem = ({
   let hasValidFutureDate = false;
 
   if (!isExpiryEmpty) {
-    const dateParts = expiryDate.split('-');
+    const selectedDate = parse(expiryDate, "yyyy-MM-dd", new Date());
 
-    if (dateParts.length === 3) {
-      const selectedDate = new Date(
-        dateParts[0],
-        dateParts[1] - 1,
-        dateParts[2]
-      );
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      hasValidFutureDate = selectedDate >= today;
+    // Validate the calendar label, then compare it with Philippine today.
+    if (isValid(selectedDate) && format(selectedDate, "yyyy-MM-dd") === expiryDate) {
+      const today = getBusinessDateKey(new Date());
+      hasValidFutureDate = expiryDate >= today;
     }
   }
 

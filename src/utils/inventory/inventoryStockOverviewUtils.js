@@ -1,4 +1,5 @@
 import { getExpiryInfo } from "@/utils/inventory/inventoryExpiryUtils";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 
 export const getInventoryStockStatus = (item) => {
   if (Number(item.current_stock) === 0) return "Out of Stock";
@@ -66,12 +67,7 @@ export const getInventoryLastUpdatedInfo = (item) => {
   )[0];
 
   return {
-    date: new Date(latestLog.created_at).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    }),
+    date: formatDateTime(latestLog.created_at),
     action: latestLog.action,
   };
 };

@@ -1,5 +1,7 @@
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+
 export const generateOfflineTransactionId = () => {
-  const dateStr = new Date().toISOString().slice(2, 10).replace(/-/g, ""); // YYMMDD
+  const dateStr = getBusinessDateKey(new Date()).slice(2).replace(/-/g, ""); // YYMMDD
 
   // Continuous increment (doesn't reset per day)
   const counterKey = "offline_global_count";

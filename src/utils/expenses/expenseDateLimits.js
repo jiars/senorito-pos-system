@@ -1,4 +1,5 @@
 import { addYears, format, isValid, parse, startOfDay, startOfMonth, subMonths } from "date-fns";
+import { getBusinessDateForPicker } from "@/utils/shared/formatters/businessDates";
 
 export const getPurchaseExpirationMinDate = (purchaseDate, fallbackDate) => {
   if (purchaseDate) {
@@ -11,7 +12,7 @@ export const getPurchaseExpirationMinDate = (purchaseDate, fallbackDate) => {
 };
 
 export const getExpenseDateLimits = (today = new Date()) => {
-  const currentDay = startOfDay(today);
+  const currentDay = getBusinessDateForPicker(today);
   return {
     minExpenseDate: startOfMonth(subMonths(currentDay, 3)),
     maxExpenseDate: currentDay,

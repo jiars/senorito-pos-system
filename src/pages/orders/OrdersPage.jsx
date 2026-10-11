@@ -3,6 +3,8 @@ import { useState } from "react";
 import PageLayout from "../../components/layout/PageLayout";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
+import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 import { getOrderDateKey } from "@/utils/orders/orderDates";
 import { getOrderCashierName, getOrderRecordedByOptions } from "@/utils/orders/orderFilters";
 
@@ -74,7 +76,6 @@ const OrdersPage = () => {
   };
 
   const handleViewOrder = (order) => {
-    // Keep the existing order-details modal contract unchanged.
     setSelectedOrder({
       id: order.id,
       order_number: order.order_number,
@@ -92,15 +93,10 @@ const OrdersPage = () => {
   };
 
   const filteredOrders = orders.filter((order) => {
-    const formattedDateForSearch = new Date(
+    const formattedDateForSearch = formatDateTime(
       order.order_datetime,
-    ).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+      BUSINESS_TIME_ZONE,
+    );
 
     const searchString =
       `${order.order_number} ${getOrderCashierName(order)} ${order.order_source} ${order.payment_method} ${formattedDateForSearch} ${formatCurrency(order.total)}`.toLowerCase();

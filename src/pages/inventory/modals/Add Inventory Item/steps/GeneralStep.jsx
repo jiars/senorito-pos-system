@@ -1,4 +1,5 @@
-import { addYears, startOfDay } from "date-fns";
+import { addYears } from "date-fns";
+import { getBusinessDateForPicker } from "@/utils/shared/formatters/businessDates";
 import DatePicker from "@/components/ui/date-picker";
 import ModalFieldLabel from "@/components/modals/ModalFieldLabel";
 import {
@@ -29,7 +30,7 @@ const GeneralStep = ({
   onFieldChange,
 }) => {
   const { errors } = validation;
-  const minExpirationDate = startOfDay(new Date());
+  const minExpirationDate = getBusinessDateForPicker();
   const maxExpirationDate = addYears(minExpirationDate, 10);
   const filteredUnits = units.filter((currentUnit) => {
     const normalizedUnit = currentUnit.toLowerCase();

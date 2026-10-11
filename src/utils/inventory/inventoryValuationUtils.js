@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { getBusinessDateKey } from '@/utils/shared/formatters/businessDates';
 
 const CATEGORY_COLORS = {
   Ingredient: '#5A2D15',
@@ -225,6 +226,6 @@ export const exportInventoryValuation = ({
     );
   });
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getBusinessDateKey(new Date());
   XLSX.writeFile(workbook, `Inventory_Valuation_${today}.xlsx`);
 };

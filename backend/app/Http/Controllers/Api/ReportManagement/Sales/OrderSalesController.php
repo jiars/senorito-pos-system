@@ -32,8 +32,8 @@ class OrderSalesController extends Controller
             $startDate = Carbon::createFromFormat(
                 'Y-m-d',
                 $request->query('from_date'),
-                'Asia/Manila'
-            )->startOfDay()->utc();
+                config('app.business_timezone')
+            )->startOfDay()->utc()->toISOString();
 
             $query->where('order_datetime', '>=', $startDate);
         }
@@ -42,10 +42,11 @@ class OrderSalesController extends Controller
             $endDate = Carbon::createFromFormat(
                 'Y-m-d',
                 $request->query('to_date'),
-                'Asia/Manila'
-            )->endOfDay()->utc();
+                config('app.business_timezone')
+            )->startOfDay()->addDay()->utc()->toISOString();
 
-            $query->where('order_datetime', '<=', $endDate);
+            // Include the whole selected day, stopping before next midnight.
+            $query->where('order_datetime', '<', $endDate);
         }
 
         $source = $request->query('source');

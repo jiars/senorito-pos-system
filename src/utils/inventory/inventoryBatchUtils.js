@@ -1,16 +1,24 @@
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+
 const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-const startOfDay = (value = new Date()) => {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
+const getInventoryDateKey = (value) => {
+  // Expiry/received dates are calendar labels; timestamps use the Manila day.
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+  return getBusinessDateKey(value);
 };
 
 export const getBatchDaysLeft = (expirationDate) => {
   if (!expirationDate) return null;
 
+  const expiryDay = getInventoryDateKey(expirationDate);
+  const today = getBusinessDateKey(new Date());
+  // UTC arithmetic measures whole calendar days, not device-local midnights.
   return Math.ceil(
-    (startOfDay(expirationDate).getTime() - startOfDay().getTime()) /
+    (new Date(`${expiryDay}T00:00:00Z`).getTime() -
+      new Date(`${today}T00:00:00Z`).getTime()) /
       DAY_IN_MILLISECONDS,
   );
 };
@@ -28,9 +36,11 @@ export const isDateWithinRange = (value, range) => {
   if (!range?.from && !range?.to) return true;
   if (!value) return false;
 
-  const date = startOfDay(value).getTime();
-  const from = range?.from ? startOfDay(range.from).getTime() : null;
-  const to = range?.to ? startOfDay(range.to).getTime() : null;
+  const date = getInventoryDateKey(value);
+  if (!date) return false;
+  // FilterDateRange already supplies YYYY-MM-DD labels from the calendar picker.
+  const from = range?.from || null;
+  const to = range?.to || null;
 
   return (from === null || date >= from) && (to === null || date <= to);
 };

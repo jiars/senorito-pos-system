@@ -28,8 +28,10 @@ class InventoryAlertsController extends Controller
                 return $item;
             });
 
-        $today = now()->startOfDay();
-        $nextWeek = now()->addDays(7)->endOfDay();
+        $businessTimezone = config('app.business_timezone');
+        $today = now($businessTimezone)->startOfDay();
+        // expiration_date is a DATE column, not a timestamp to convert to UTC.
+        $nextWeek = $today->copy()->addDays(7)->toDateString();
 
         $batches = DB::table('inventory_batches')
             ->join(
@@ -51,14 +53,17 @@ class InventoryAlertsController extends Controller
             ->orderBy('inventory_batches.expiration_date', 'asc')
             ->get();
 
-        $expiryItems = $batches->map(function ($batch) use ($today) {
-            $expirationDate = Carbon::parse($batch->expiration_date);
+        $expiryItems = $batches->map(function ($batch) use ($today, $businessTimezone) {
+            $expirationDate = Carbon::parse($batch->expiration_date, $businessTimezone)
+                ->startOfDay();
 
             return [
                 'name' => $batch->item_name,
                 'batch' => $batch->batch,
                 'size' => $batch->quantity . ' ' . $batch->base_unit,
                 'exp' => $expirationDate->format('M d, Y'),
+                // Both dates are Manila midnights, so this is a calendar-day count.
+                'days_left' => (int) $today->diffInDays($expirationDate, false),
                 'status' => $expirationDate->lt($today)
                     ? 'expired'
                     : 'expiring',

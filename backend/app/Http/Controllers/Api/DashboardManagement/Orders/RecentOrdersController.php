@@ -36,8 +36,10 @@ class RecentOrdersController extends Controller
                     'total' => (float) $order->total,
                     'payment' => $order->payment_method,
                     'status' => $order->status ?? 'Completed',
-                    'date' => Carbon::parse($order->order_datetime)
-                        ->format('m/d/Y H:i'),
+                    // The shared frontend formatter handles Philippine display.
+                    'date' => Carbon::parse($order->order_datetime, 'UTC')
+                        ->utc()
+                        ->toISOString(),
                 ];
             });
     }

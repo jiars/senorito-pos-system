@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addYears, format, parseISO } from "date-fns";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 import BlockingFeedback from "@/components/feedback/blocking/BlockingFeedback";
 import InlineFeedback from "@/components/feedback/inline/InlineFeedback";
@@ -117,7 +118,7 @@ const RestockModalContent = ({
     getRestockInlineFeedback,
   );
   const fieldsDisabled = isSubmitting || hasSaved || isConfirmationOpen;
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = getBusinessDateKey(new Date());
   const expirationLimits = useMemo(() => {
     const minDate = parseISO(today);
     return { minDate, maxDate: addYears(minDate, 10) };

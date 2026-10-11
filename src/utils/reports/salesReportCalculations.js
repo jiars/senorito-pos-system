@@ -1,3 +1,5 @@
+import { getBusinessHour } from "@/utils/shared/formatters/businessDates";
+
 const getCategoryName = (orderItem) => {
   const menuItem = orderItem.menu_item;
 
@@ -181,8 +183,7 @@ export const calculateOrderTrends = (orders) => {
     sourceTotals[source].value += orderTotal;
 
     if (order.order_datetime) {
-      const orderDate = new Date(order.order_datetime);
-      const hour = orderDate.getHours();
+      const hour = getBusinessHour(order.order_datetime);
 
       const bucketIndex = hourlyTotals.findIndex(
         (bucket) => hour >= bucket.startHour && hour < bucket.endHour,

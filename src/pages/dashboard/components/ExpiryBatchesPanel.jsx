@@ -11,11 +11,15 @@ const getExpiryStatus = (item) => {
     };
   }
 
-  const expiryDate = new Date(item.exp);
-  const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+  // Laravel supplies the count using the same business day as the status.
+  // Older cached responses can still show a useful label until refreshed.
+  let label = "Expiring soon";
+  if (Number.isFinite(item.days_left)) {
+    label = `${item.days_left}d left`;
+  }
 
   return {
-    label: `${daysLeft}d left`,
+    label,
     className:
       "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]",
   };

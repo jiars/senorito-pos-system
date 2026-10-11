@@ -1,9 +1,17 @@
-// Date and Time Formatters for Timestamps and Logs
+import { BUSINESS_TIME_ZONE } from "./businessDates";
 
-export const formatDate = (dateString) => {
+// Shared business display defaults to Philippine time, not the device timezone.
+
+export const formatDate = (dateString, timeZone = BUSINESS_TIME_ZONE) => {
   if (dateString) {
     const dateObj = new Date(dateString);
+    // A date-only value is a calendar label, not an instant to shift between zones.
+    let displayTimeZone = timeZone;
+    if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      displayTimeZone = 'UTC';
+    }
     return dateObj.toLocaleDateString('en-US', {
+      timeZone: displayTimeZone,
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -12,10 +20,11 @@ export const formatDate = (dateString) => {
   return 'Unknown Date';
 };
 
-export const formatTime = (dateString) => {
+export const formatTime = (dateString, timeZone = BUSINESS_TIME_ZONE) => {
   if (dateString) {
     const dateObj = new Date(dateString);
     return dateObj.toLocaleTimeString('en-US', {
+      timeZone,
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
@@ -24,11 +33,12 @@ export const formatTime = (dateString) => {
   return '';
 };
 
-export const formatDateTime = (dateString) => {
+export const formatDateTime = (dateString, timeZone = BUSINESS_TIME_ZONE) => {
   if (dateString) {
     const dateObj = new Date(dateString);
 
     return dateObj.toLocaleString('en-US', {
+      timeZone,
       year: 'numeric',
       month: 'short',
       day: 'numeric',

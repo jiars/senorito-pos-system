@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 const appendSheet = (workbook, rows, columns, sheetName) => {
   const sheet = XLSX.utils.json_to_sheet(rows);
@@ -93,6 +94,6 @@ export const exportSalesReport = ({
     "Hourly Sales",
   );
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getBusinessDateKey(new Date());
   XLSX.writeFile(workbook, "Sales_Report_" + today + ".xlsx");
 };

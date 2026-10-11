@@ -1,5 +1,7 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import { getBusinessWeekDates } from "@/utils/shared/formatters/businessDates";
 import {
   ChartContainer,
   ChartTooltip,
@@ -35,25 +37,7 @@ const WeeklySalesChart = ({ weeklySalesData, isLoading }) => {
     fontSize: 12,
   };
 
-  const getWeekRangeString = () => {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    const endOfWeek = new Date(today);
-
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    const dateOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    };
-
-    const startDate = startOfWeek.toLocaleDateString("en-US", dateOptions);
-    const endDate = endOfWeek.toLocaleDateString("en-US", dateOptions);
-
-    return `${startDate} - ${endDate}`;
-  };
+  const weekDates = getBusinessWeekDates();
 
   if (isLoading) {
     return (
@@ -87,12 +71,12 @@ const WeeklySalesChart = ({ weeklySalesData, isLoading }) => {
           </h3>
 
           <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-            Monitor sales trends and performance over the past 7 days.
+            Monitor sales trends from Sunday to Saturday this week.
           </p>
         </div>
 
         <time className="self-center text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] font-normal text-[var(--app-color-text-subtle)]">
-          {getWeekRangeString()}
+          {formatDate(weekDates.fromDate)} - {formatDate(weekDates.toDate)}
         </time>
       </header>
 

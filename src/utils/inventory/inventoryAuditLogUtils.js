@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { getBusinessDateKey } from '@/utils/shared/formatters/businessDates';
+import { formatDate, formatTime } from '@/utils/shared/formatters/dateFormatters';
 
 // Older logs used POS; current checkout writes POS Checkout.
 const normalizeAuditSource = (source) => {
@@ -44,22 +45,12 @@ export const getAuditRecordedByOptions = (logs) => {
 export const formatAuditLog = (log) => {
   const item = getAuditItem(log);
   const batch = getAuditBatch(log);
-  const logDate = new Date(log.created_at);
   const unit = item ? item.base_unit || '' : '';
   const quantityChange = Number(log.quantity_change);
 
   return {
-    date: logDate.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      timeZone: 'Asia/Manila',
-    }),
-    time: logDate.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZone: 'Asia/Manila',
-    }),
+    date: formatDate(log.created_at),
+    time: formatTime(log.created_at),
     itemName: item ? item.item_name || 'Unknown Item' : 'Unknown Item',
     action: log.action,
     source: log.source,

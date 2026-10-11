@@ -1,4 +1,5 @@
 import "./inventory-valuation-print-layout.css";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 
 const formatCurrency = (value) => {
   return Number(value).toLocaleString(undefined, {
@@ -15,11 +16,7 @@ const InventoryValuationPrintLayout = ({
   sort,
   filteredTotal,
 }) => {
-  const generatedDate = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const generatedDate = formatDate(new Date());
 
   return (
     <div className="val-print-layout">

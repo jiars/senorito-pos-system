@@ -10,7 +10,11 @@ class TopSellingItemsController extends Controller
     // Get the five best-selling items from the last seven days.
     public function fetch()
     {
-        $sevenDaysAgo = now()->subDays(7)->startOfDay();
+        $sevenDaysAgo = now(config('app.business_timezone'))
+            ->subDays(7)
+            ->startOfDay()
+            ->utc()
+            ->toISOString();
 
         return DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')

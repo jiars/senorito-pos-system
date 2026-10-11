@@ -35,7 +35,7 @@ class InventorySaleDeductionController extends Controller
                     ->orWhere(
                         'expiration_date',
                         '>=',
-                        now('Asia/Manila')->toDateString()
+                        now(config('app.business_timezone'))->toDateString()
                     );
             });
 

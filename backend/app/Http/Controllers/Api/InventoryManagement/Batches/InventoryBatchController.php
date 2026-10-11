@@ -14,7 +14,7 @@ class InventoryBatchController extends Controller
             'inventory_item_id' => $inventoryItemId,
             'quantity' => $baseQuantity,
             'expiration_date' => $purchaseData['expiration_date'] ?? null,
-            'received_date' => now(),
+            'received_date' => now(config('app.business_timezone'))->toDateString(),
             'source' => $purchaseData['source'] ?? $purchaseData['supplier'] ??    'Initial Stock',
             'status' => 'Active',
             'unit_cost' => $purchaseData['cost_per_unit'],
@@ -37,7 +37,7 @@ class InventoryBatchController extends Controller
                     ->orWhere(
                         'expiration_date',
                         '>=',
-                        now('Asia/Manila')->toDateString()
+                        now(config('app.business_timezone'))->toDateString()
                     );
             });
 

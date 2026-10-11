@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 /**
  * Exports the filtered expenses and summary data to an Excel file.
@@ -99,6 +100,6 @@ export const exportExpensesToExcel = (
   // ==========================================
   // Trigger Download
   // ==========================================
-  const fileName = `Expense_Report_${new Date().toISOString().split("T")[0]}.xlsx`;
+  const fileName = `Expense_Report_${getBusinessDateKey(new Date())}.xlsx`;
   XLSX.writeFile(workbook, fileName);
 };
