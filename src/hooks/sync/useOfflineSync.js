@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useMutation,
   useMutationState,
@@ -6,9 +6,19 @@ import {
 } from "@tanstack/react-query";
 import { readOfflineQueue } from "../../services/pos/offlineQueueService";
 import { syncPendingOfflineOrders } from "../../services/pos/offlineOrderSyncService";
+import {
+  checkPOSOfflineReadiness,
+  readPOSRefreshState,
+} from "../../services/pos/posCacheService";
+import { useAuth } from "../useAuth";
+import { isLogoutInProgress } from "../../services/authService";
+import { canUseOfflineQueue } from "../../utils/sync/syncStatus";
 
 import { toast } from "../../components/ui/toast";
-import { getPOSSyncToastFeedback } from "@/utils/pos/feedback/posFeedback";
+import {
+  getPOSSyncToastFeedback,
+  getPOSOfflineToastFeedback,
+} from "@/utils/pos/feedback/posFeedback";
 
 export function useOfflineSync({
   refreshAfterSync,
@@ -16,6 +26,19 @@ export function useOfflineSync({
   onError,
   onSettled,
 }) {
+  const { user } = useAuth();
+  const sessionRef = useRef(null);
+
+  useEffect(() => {
+    sessionRef.current = canUseOfflineQueue(user)
+      ? { cashierId: user.id, token: localStorage.getItem("auth_token") }
+      : null;
+
+    return () => {
+      sessionRef.current = null;
+    };
+  }, [user]);
+
   function showFeedback(cashierId, result, options = {}) {
     const feedback = getPOSSyncToastFeedback(result, {
       ...options,
@@ -37,29 +60,51 @@ export function useOfflineSync({
     networkMode: "always",
     retry: false,
 
-    mutationFn: async (cashierId) => {
-      // Preserve the current page behavior until we connect the new flow.
-      if (!refreshAfterSync) return syncPendingOfflineOrders(cashierId);
+    mutationFn: async (request) => {
+      // Automatic sync passes the cashier ID; manual retry also names one order.
+      const cashierId = typeof request === "string" ? request : request.cashierId;
+      const retryOrderId = typeof request === "string" ? null : request.retryOrderId;
+      const session = sessionRef.current;
+      const canContinue = () =>
+        Boolean(
+          session &&
+            sessionRef.current === session &&
+            session.cashierId === cashierId &&
+            session.token &&
+            session.token === localStorage.getItem("auth_token") &&
+            navigator.onLine &&
+            document.visibilityState === "visible" &&
+            !isLogoutInProgress(),
+        );
 
       let result;
 
       try {
-        result = await syncPendingOfflineOrders(cashierId);
+        result = await syncPendingOfflineOrders(cashierId, canContinue, retryOrderId);
       } catch (error) {
-        showFeedback(cashierId, null, { syncFailed: true });
+        if (canContinue()) showFeedback(cashierId, null, { syncFailed: true });
         throw error;
       }
 
-      if (result.synced > 0) {
+      if (result.paused || !canContinue()) return { ...result, paused: true };
+
+      // An earlier upload can finish after the page was hidden or closed.
+      // Its saved reminder must still be refreshed, even with an empty queue.
+      const refreshState = await readPOSRefreshState();
+      if (!canContinue()) return { ...result, paused: true };
+
+      if (refreshAfterSync && (result.synced > 0 || refreshState.required)) {
         try {
           // Do not announce completion before menu and stock are ready.
           await refreshAfterSync();
         } catch (error) {
-          showFeedback(cashierId, result, { refreshFailed: true });
+          if (canContinue())
+            showFeedback(cashierId, result, { refreshFailed: true });
           throw error;
         }
       }
 
+      if (!canContinue()) return { ...result, paused: true };
       showFeedback(cashierId, result);
       return result;
     },
@@ -69,6 +114,52 @@ export function useOfflineSync({
     onSettled,
   });
 }
+
+const OFFLINE_TOAST_ID = "pos-offline-notification";
+
+// Notify once per offline visit/transition, after active POS preparation settles.
+export function useOfflineNotification({
+  cashierId,
+  isOnline,
+  isPreparing,
+  refreshRequired,
+}) {
+  const episodeRef = useRef({ cashierId: null, notified: false });
+
+  useEffect(() => {
+    if (isOnline || episodeRef.current.cashierId !== cashierId) {
+      episodeRef.current = { cashierId, notified: false };
+      toast.close(OFFLINE_TOAST_ID);
+    }
+    if (isOnline || isPreparing || episodeRef.current.notified) return;
+
+    let cancelled = false;
+
+    async function notifyOffline() {
+      const readiness = await checkPOSOfflineReadiness(cashierId);
+      // Ignore a late result after reconnect, account change, or leaving POS.
+      if (cancelled || navigator.onLine) return;
+
+      // Include the page's unsatisfied receipt/refresh lock, not just Dexie.
+      if (refreshRequired) readiness.refreshRequired = true;
+      toast.add({
+        ...getPOSOfflineToastFeedback(readiness),
+        id: OFFLINE_TOAST_ID,
+      });
+      episodeRef.current.notified = true;
+    }
+
+    notifyOffline();
+    return () => {
+      cancelled = true;
+    };
+  }, [cashierId, isOnline, isPreparing, refreshRequired]);
+
+  useEffect(() => {
+    return () => toast.close(OFFLINE_TOAST_ID);
+  }, []);
+}
+
 // Read sync progress without starting another upload.
 export function useOfflineSyncState(cashierId) {
   const showSyncedConfirmation = useSyncConfirmation(cashierId);
@@ -90,7 +181,10 @@ export function useOfflineSyncState(cashierId) {
   let isSyncing = false;
 
   for (const state of syncStates) {
-    if (!cashierId || state.variables !== cashierId) continue;
+    const syncCashierId = typeof state.variables === "string"
+      ? state.variables
+      : state.variables?.cashierId;
+    if (!cashierId || syncCashierId !== cashierId) continue;
     if (state.status === "pending") isSyncing = true;
     if (!latestSync || state.submittedAt >= latestSync.submittedAt)
       latestSync = state;
@@ -153,7 +247,6 @@ function useSyncConfirmation(cashierId) {
           queue.refreshRequired ||
           queue.pendingCount > 0 ||
           queue.attentionCount > 0 ||
-          queue.otherCashierCount > 0 ||
           queue.unknownOwnerCount > 0
         ) {
           return;
@@ -180,7 +273,11 @@ function useSyncConfirmation(cashierId) {
       const isRefresh = key[0] === "offline-sync-refresh";
 
       if (!isUpload && !isRefresh) return;
-      if (mutation.state.variables !== source.cashierId) return;
+      const variables = mutation.state.variables;
+      const operationCashierId = typeof variables === "string"
+        ? variables
+        : variables?.cashierId;
+      if (operationCashierId !== source.cashierId) return;
 
       if (event.action.type === "pending" || event.action.type === "error") {
         clearConfirmation();

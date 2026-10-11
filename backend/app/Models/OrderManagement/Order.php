@@ -19,6 +19,7 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'cashier_id',
+        'uploaded_by',
         'client_transaction_id',
         'order_datetime',
         'order_source',
@@ -36,6 +37,12 @@ class Order extends Model
     public function cashier()
     {
         return $this->belongsTo(User::class, 'cashier_id', 'id');
+    }
+
+    // The authenticated user who first uploaded the sale.
+    public function uploader()
+    {
+        return $this->belongsTo(User::class, 'uploaded_by', 'id');
     }
 
     // Get all purchased items under this receipt.

@@ -9,9 +9,10 @@ class InitOrderManagementController extends Controller
 {
     public function index()
     {
-        // Fetch the receipt list with its cashier.
+        // Include only the staff identity fields needed by Order History.
         $orders = Order::with([
             'cashier:id,first_name,last_name',
+            'uploader:id,first_name,last_name',
         ])
             ->orderBy('order_datetime', 'desc')
             ->get();

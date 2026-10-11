@@ -13,6 +13,7 @@ class OrderController extends Controller
         return Order::create([
             'order_number' => $orderData['order_number'],
             'cashier_id' => $orderData['cashier_id'],
+            'uploaded_by' => $orderData['uploaded_by'],
             'client_transaction_id' => $orderData['client_transaction_id'],
             'order_datetime' => $orderData['order_datetime'],
             'order_source' => $orderData['order_source'],

@@ -6,11 +6,13 @@ import {
   CollapsibleTrigger,
 } from "../../ui/collapsible";
 
-// Both queue sections share the same read-only, touch-friendly layout.
+// Both queue sections share the layout; only eligible attention rows offer retry.
 export default function SyncOrderList({
   title,
   orders,
   needsAttention = false,
+  onRetry,
+  retryDisabled = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -47,9 +49,9 @@ export default function SyncOrderList({
             {orders.map((order) => {
               let message = "Waiting to synchronize.";
 
-              if (order.status === "awaiting_auth") {
+              if (order.signInRequired) {
                 message =
-                  "Sign in with this order's cashier account to synchronize.";
+                  "Sign in with an authorized Owner or Cashier account to synchronize.";
               } else if (order.status === "failed") {
                 message = "The last upload failed. This order remains saved.";
               } else if (order.status === "syncing") {
@@ -75,9 +77,25 @@ export default function SyncOrderList({
                   className="min-w-0 space-y-[var(--app-space-1)] [overflow-wrap:anywhere]"
                 >
                   <p className="font-medium">{order.orderNumber}</p>
+                  <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-muted)]">
+                    Cashier: {order.cashierName}
+                  </p>
                   <p className="text-[var(--app-color-text-muted)]">
                     {message}
                   </p>
+                  {needsAttention && order.canRetry && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={retryDisabled}
+                      onClick={() => onRetry(order.id)}
+                      aria-label={`Retry sync for ${order.orderNumber}`}
+                      className="min-h-[var(--app-touch-target-min)] rounded-full gap-[var(--app-space-2)] border-[var(--app-color-synced)] bg-[var(--app-color-success-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-synced)] hover:bg-[var(--app-color-synced)] hover:text-[var(--app-color-surface)]"
+                    >
+                      <i className="bi bi-arrow-repeat" aria-hidden="true" />
+                      Retry sync
+                    </Button>
+                  )}
                 </li>
               );
             })}

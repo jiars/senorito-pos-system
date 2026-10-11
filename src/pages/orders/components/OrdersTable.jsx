@@ -3,6 +3,7 @@ import DataTable from "@/components/data-table/DataTable";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
+import { getOrderUploaderName } from "@/utils/orders/orderFilters";
 
 const getStatusClassName = (status) => {
   if (status === "Completed") {
@@ -41,7 +42,19 @@ const getOrderHistoryColumns = (handleViewOrder) => {
       header: "Cashier",
       meta: { width: "10rem" },
       cell: ({ row }) => {
-        return getCashierName(row.original.cashier);
+        const uploadedByName = getOrderUploaderName(row.original);
+
+        // Internal upload details stay in Order History, outside the receipt.
+        return (
+          <div className="min-w-0 space-y-[var(--app-space-1)] whitespace-normal [overflow-wrap:anywhere]">
+            <span>{getCashierName(row.original.cashier)}</span>
+            {uploadedByName && (
+              <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)] print:hidden">
+                Uploaded by: {uploadedByName}
+              </p>
+            )}
+          </div>
+        );
       },
     },
     {

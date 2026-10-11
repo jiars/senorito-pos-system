@@ -1,6 +1,10 @@
 import api from "../utils/axios/axiosInstance";
 import { getLoginDeviceId } from "../utils/auth/loginDevice";
 
+let logoutInProgress = false;
+
+export const isLogoutInProgress = () => logoutInProgress;
+
 export const loginUser = async (login, password) => {
   try {
     const response = await api.post("/login", {
@@ -22,6 +26,7 @@ export const loginUser = async (login, password) => {
 };
 
 export const logoutUser = async () => {
+  logoutInProgress = true;
   try {
     const token = localStorage.getItem("auth_token");
 
@@ -44,5 +49,7 @@ export const logoutUser = async () => {
   } catch (error) {
     console.error("Error logging out:", error.message);
     throw error;
+  } finally {
+    logoutInProgress = false;
   }
 };

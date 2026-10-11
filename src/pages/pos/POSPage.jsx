@@ -26,7 +26,10 @@ import {
   hasEnoughInventoryStock,
   getInventoryStockStatus,
 } from "../../utils/pos/checkoutCalculations";
-import { useOfflineSync } from "../../hooks/sync/useOfflineSync";
+import {
+  useOfflineSync,
+  useOfflineNotification,
+} from "../../hooks/sync/useOfflineSync";
 import { useBrowserOnline } from "../../hooks/sync/useBrowserOnline";
 import { buildPOSCartWithItem } from "@/utils/pos/posCartUtils";
 import { toast } from "@/components/ui/toast";
@@ -346,7 +349,7 @@ const POSPage = () => {
       // The hook waits for refresh and owns the single sync-result toast.
       refreshAfterSync: requestSyncRefresh,
       onSuccess: (result) => {
-        if (result.synced > 0) {
+        if (!result.paused && result.synced > 0) {
           console.log(
             `Successfully auto-synced ${result.synced} offline orders!`,
           );
@@ -366,10 +369,36 @@ const POSPage = () => {
       },
     });
 
+  useOfflineNotification({
+    cashierId,
+    isOnline,
+    isPreparing:
+      isMenuLoading || isProcessingOrder || isSyncing || isSyncRefreshPending ||
+      orderRefreshStatus === "pending" || Boolean(processedOrder) ||
+      (!isRecoveryReady && !hasRecoveryCheckFailed) ||
+      (isRecoveryReady && !hasLoadedMenu && !isAwaitingSyncRefresh),
+    refreshRequired: isAwaitingSyncRefresh || isAwaitingOrderRefresh,
+  });
+
   // Read the latest callbacks without syncing again when menu data changes.
-  const onSyncRequested = React.useEffectEvent(() => {
+  const onSyncRequested = React.useEffectEvent((event) => {
+    const isManualRetry = event && event.type === "senorito:retry-sync-order";
+    if (
+      isManualRetry &&
+      (!event.detail ||
+        event.detail.cashierId !== cashierId ||
+        !Number.isInteger(event.detail.orderId) ||
+        isLoading ||
+        checkoutInFlightRef.current ||
+        processedOrder ||
+        savedOrderRefreshRef.current)
+    ) {
+      return;
+    }
+
     if (
       !navigator.onLine ||
+      document.visibilityState !== "visible" ||
       !cashierId ||
       !isRecoveryReady ||
       syncInFlightRef.current ||
@@ -378,9 +407,14 @@ const POSPage = () => {
       return;
     }
     syncInFlightRef.current = true;
+    // Acknowledge only when POS accepts the request; other pages never upload.
+    if (isManualRetry) event.preventDefault();
     // Receipt refresh can await an already-running sync without starting
     // another upload. The hook owns feedback; refresh errors keep recovery locked.
-    syncCompletionRef.current = syncOfflineOrders(cashierId).catch(() => {});
+    const request = isManualRetry
+      ? { cashierId, retryOrderId: event.detail.orderId }
+      : cashierId;
+    syncCompletionRef.current = syncOfflineOrders(request).catch(() => {});
   });
 
   React.useEffect(() => {
@@ -391,9 +425,13 @@ const POSPage = () => {
 
     // 2. Listen for when internet comes back online
     window.addEventListener("online", onSyncRequested);
+    window.addEventListener("senorito:retry-sync-order", onSyncRequested);
+    document.addEventListener("visibilitychange", onSyncRequested);
 
     return () => {
       window.removeEventListener("online", onSyncRequested);
+      window.removeEventListener("senorito:retry-sync-order", onSyncRequested);
+      document.removeEventListener("visibilitychange", onSyncRequested);
     };
   }, [cashierId, isRecoveryReady]);
 
@@ -603,6 +641,7 @@ const POSPage = () => {
 
         const offlinePayload = {
           cashier_id: user.id,
+          cashier_name: orderDetails.cashier_name,
           client_transaction_id: clientTransactionId,
           offline_order_number: transactionId,
           checkout_payload: checkoutPayload,
