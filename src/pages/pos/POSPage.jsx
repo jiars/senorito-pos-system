@@ -557,10 +557,10 @@ const POSPage = () => {
       const isCheckoutOnline = navigator.onLine;
       let transactionId = "";
       if (!isCheckoutOnline) {
-        // Offline: Gamitin yung bago nating Utility function
-        transactionId = generateOfflineTransactionId();
+        // Offline references reuse the random ID already created for this checkout.
+        transactionId = generateOfflineTransactionId(clientTransactionId);
       } else {
-        // Online: Ang Supabase Database ang bahalang mag-generate ng ORD-YYMMDD-XXXX nito
+        // Temporary display only; the database returns the final ORD reference.
         transactionId = `SC-${Date.now().toString().slice(-6)}`;
       }
 

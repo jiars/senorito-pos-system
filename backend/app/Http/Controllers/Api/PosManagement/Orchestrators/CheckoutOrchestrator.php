@@ -182,18 +182,27 @@ class CheckoutOrchestrator extends Controller
             });
         } catch (UniqueConstraintViolationException $exception) {
             // Handles two identical requests arriving together.
-            if (!$clientTransactionId)
-                throw $exception;
+            if ($clientTransactionId) {
+                $existingOrder = Order::where(
+                    'client_transaction_id',
+                    $clientTransactionId
+                )->first();
 
-            $existingOrder = Order::where(
-                'client_transaction_id',
-                $clientTransactionId
-            )->first();
+                if ($existingOrder) {
+                    return $this->existingOrderResponse($existingOrder, $cashierId);
+                }
+            }
 
-            if (!$existingOrder)
-                throw $exception;
+            // A matching readable number is not proof that this sale was saved.
+            // Inspect only the database error, not SQL bindings or other constraints.
+            $databaseError = $exception->errorInfo[2] ?? '';
+            if (str_contains($databaseError, 'unique constraint "orders_order_number_key"')) {
+                return response()->json([
+                    'message' => 'This order number is already used by another sale. Ask the owner to review the conflicting orders. Do not recreate or delete this sale.',
+                ], 409);
+            }
 
-            return $this->existingOrderResponse($existingOrder, $cashierId);
+            throw $exception;
         }
 
         return response()->json([
