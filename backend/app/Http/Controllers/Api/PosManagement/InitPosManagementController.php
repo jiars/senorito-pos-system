@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api\PosManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryManagement\InventoryItem;
+use App\Services\InventoryManagement\InventoryExpiryService;
 use App\Models\MenuManagement\Addon;
 use App\Models\MenuManagement\MenuCategory;
 use App\Models\MenuManagement\MenuItem;
+
 
 class InitPosManagementController extends Controller
 {
@@ -68,10 +70,10 @@ class InitPosManagementController extends Controller
             ->unique()
             ->values();
 
-        $today = now(config('app.business_timezone'))->toDateString();
+        $expiryService = app(InventoryExpiryService::class);
 
         // Calculate usable stock from active and non-expired batches.
-        $inventoryStock = InventoryItem::query()
+        $inventoryStockQuery = InventoryItem::query()
             ->select([
                 'id',
                 'item_name',
@@ -81,36 +83,12 @@ class InitPosManagementController extends Controller
                 'track_expiry',
                 'archived',
             ])
-            ->selectSub(
-                function ($query) use ($today) {
-                    $query
-                        ->from('inventory_batches')
-                        ->selectRaw(
-                            'COALESCE(SUM(inventory_batches.quantity), 0)'
-                        )
-                        ->whereColumn(
-                            'inventory_batches.inventory_item_id',
-                            'inventory_items.id'
-                        )
-                        ->where('inventory_batches.quantity', '>', 0)
-                        ->where(function ($query) use ($today) {
-                            $query
-                                ->where('inventory_items.track_expiry', false)
-                                ->orWhereNull(
-                                    'inventory_batches.expiration_date'
-                                )
-                                ->orWhereDate(
-                                    'inventory_batches.expiration_date',
-                                    '>=',
-                                    $today
-                                );
-                        });
-                },
-                'usable_stock'
-            )
             ->whereIn('id', $inventoryItemIds)
             ->where('archived', false)
-            ->orderBy('item_name')
+            ->orderBy('item_name');
+
+        $inventoryStock = $expiryService
+            ->addUsableStock($inventoryStockQuery)
             ->get();
 
         return response()->json([

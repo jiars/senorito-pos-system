@@ -19,16 +19,28 @@ export const getBatchDaysLeft = (expirationDate) => {
   return Math.ceil(
     (new Date(`${expiryDay}T00:00:00Z`).getTime() -
       new Date(`${today}T00:00:00Z`).getTime()) /
-      DAY_IN_MILLISECONDS,
+    DAY_IN_MILLISECONDS,
   );
 };
 
+export const isBatchExpired = (expirationDate) => {
+  const daysLeft = getBatchDaysLeft(expirationDate);
+
+  // Missing dates are not automatically classified as expired.
+  if (daysLeft === null) return false;
+
+  return daysLeft <= 0;
+};
+
 export const getBatchStatus = (batch) => {
+  // Empty batches remain in history but no longer need expiry warnings.
+  if (Number(batch.quantity) <= 0) return "Depleted";
+
   const daysLeft = getBatchDaysLeft(batch.expiration_date);
 
   if (daysLeft === null) return "No Expiry";
-  if (daysLeft < 0) return "Expired";
-  if (daysLeft <= 7) return "Expiring in 7 days";
+  if (isBatchExpired(batch.expiration_date)) return "Expired";
+  if (daysLeft <= 7) return "Expiring within 7 days";
   return "Good";
 };
 
@@ -45,11 +57,12 @@ export const isDateWithinRange = (value, range) => {
   return (from === null || date >= from) && (to === null || date <= to);
 };
 
-export const flattenInventoryBatches = (inventoryItems = []) => {
+export const flattenInventoryBatches = (inventoryItems = [], purchaseHistory = []) => {
   return inventoryItems.flatMap((item) =>
     (item.inventory_batches ?? []).map((batch) => ({
       ...batch,
       item,
+      purchase: purchaseHistory.find((purchase) => { return purchase.batch_id === batch.id; }),
       itemName: item.item_name ?? "Unknown item",
       categoryName: item.inventory_categories?.category_name ?? "Uncategorized",
       unit: item.base_unit ?? "",
@@ -73,7 +86,7 @@ export const filterAndSortInventoryBatches = ({
     .filter((batch) => {
       const matchesSearch =
         !normalizedSearch ||
-        [batch.itemName, batch.batch_number, batch.source].some((value) =>
+        [batch.itemName, batch.batch_number, batch.displayStatus].some((value) =>
           String(value ?? "").toLocaleLowerCase().includes(normalizedSearch),
         );
       const matchesCategory =
@@ -82,7 +95,7 @@ export const filterAndSortInventoryBatches = ({
         statuses.length === 0 ||
         statuses.includes(batch.displayStatus) ||
         (statuses.includes("At Risk") &&
-          ["Expired", "Expiring in 7 days"].includes(batch.displayStatus));
+          ["Expired", "Expiring within 7 days"].includes(batch.displayStatus));
       const matchesReceivedDate = isDateWithinRange(
         batch.received_date ?? batch.created_at,
         receivedDateRange,

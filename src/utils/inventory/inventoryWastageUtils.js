@@ -3,7 +3,9 @@ import { isDateWithinRange } from "@/utils/inventory/inventoryBatchUtils";
 export const flattenInventoryWastageLogs = (inventoryItems = []) => {
   return inventoryItems.flatMap((item) =>
     (item.inventory_audit_logs ?? [])
-      .filter((log) => log.action === "Wastage")
+      .filter((log) => {
+        return log.action === "Wastage" || log.action === "Expired";
+      })
       .map((log) => {
         const batch = (item.inventory_batches ?? []).find(
           (candidate) => candidate.id === log.batch_id,
@@ -11,7 +13,9 @@ export const flattenInventoryWastageLogs = (inventoryItems = []) => {
         const quantityWasted = Math.abs(Number(log.quantity_change ?? 0));
         const unitCost = Number(batch?.unit_cost ?? item.cost_per_unit ?? 0);
 
-        const reason = log.reason_reference ?? "Unspecified";
+        let reason = log.reason_reference ?? "Unspecified";
+
+        if (log.action === "Expired") { reason = "Expired"; }
 
         return {
           ...log,

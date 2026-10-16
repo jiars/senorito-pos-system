@@ -1,51 +1,65 @@
 import { formatDate } from "@/utils/shared/formatters/dateFormatters";
-import { getBatchDaysLeft } from "@/utils/inventory/inventoryBatchUtils";
+import {
+    getBatchDaysLeft,
+    isBatchExpired,
+} from "@/utils/inventory/inventoryBatchUtils";
 
 export const getExpiryInfo = (item) => {
     if (!item.track_expiry) return { status: 'Non-Perishable', label: 'Does not expire', days: null };
-    
-    if (item.current_stock === 0) {
-        const logs = item.inventory_audit_logs || [];
+
+    if (Number(item.current_stock) <= 0) {
         let label = 'No stock recorded';
-        let isExpiredLoss = false;
-        if (logs.length > 0) {
-            const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            const latest = sortedLogs[0];
-            const dateStr = formatDate(latest.created_at);
-            
-            if (latest.action === 'Expired') {
-                isExpiredLoss = true;
-                label = `Expired on ${dateStr}`;
-            } else {
-                label = `Since ${dateStr}`;
+        if (item.last_stock_action === 'Expired') {
+            label = 'Removed by expiry cleanup';
+            if (item.last_stock_changed_at) {
+                label += ` on ${formatDate(item.last_stock_changed_at)}`;
             }
+            // Cleanup time is not the original batch expiration date.
+            return { status: 'Expired', label, days: null };
         }
-        
-        if (isExpiredLoss) {
-            return { status: 'Expired', label, days: 0 };
-        } else {
-            return { status: 'No Stock', label, days: null };
+
+        if (item.last_stock_changed_at) {
+            label = `Since ${formatDate(item.last_stock_changed_at)}`;
         }
+        return { status: 'No Stock', label, days: null };
     }
 
     const activeBatches = (item.inventory_batches || [])
-        .filter(b => b.quantity > 0 && b.expiration_date)
-        .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
+        .filter(batch => Number(batch.quantity) > 0);
+    const datedBatches = activeBatches
+        .filter(batch => batch.expiration_date)
+        .sort((first, second) => new Date(first.expiration_date) - new Date(second.expiration_date));
 
-    if (activeBatches.length === 0) {
-        return { status: 'No Stock', label: 'Missing expiry dates', days: null };
+    // Match FEFO: skip expired stock and show the next usable dated batch.
+    const nextUsableBatch = datedBatches.find(batch => !isBatchExpired(batch.expiration_date));
+
+    if (nextUsableBatch) {
+        const diffDays = getBatchDaysLeft(nextUsableBatch.expiration_date);
+        const dateStr = formatDate(nextUsableBatch.expiration_date);
+        let status = 'Good';
+        if (diffDays <= 30) status = 'Expiring Soon';
+
+        return { status, label: `Next usable: ${dateStr} (${diffDays}d)`, days: diffDays };
     }
 
-    const nearestBatch = activeBatches[0];
+    // Laravel permits undated stock after dated usable batches.
+    const hasUndatedStock = activeBatches.some(batch => !batch.expiration_date);
+    if (hasUndatedStock) {
+        return { status: 'No Expiry', label: 'Remaining usable stock has no expiry date', days: null };
+    }
+
+    // No usable stock remains; positive expired batches await cleanup.
+    if (datedBatches.length === 0) {
+        return { status: 'No Expiry', label: 'No batch expiry available', days: null };
+    }
+    const nearestBatch = datedBatches[0];
     const diffDays = getBatchDaysLeft(nearestBatch.expiration_date);
-    
+
     const dateStr = formatDate(nearestBatch.expiration_date);
 
-    if (diffDays < 0) {
-        return { status: 'Expired', label: `Expired: ${dateStr} (${Math.abs(diffDays)}d ago)`, days: diffDays };
-    } else if (diffDays <= 30) {
-        return { status: 'Expiring Soon', label: `Nearest: ${dateStr} (${diffDays}d)`, days: diffDays };
-    } else {
-        return { status: 'Good', label: `Nearest: ${dateStr} (${diffDays}d)`, days: diffDays };
-    }
+    let label = `Expired: ${dateStr} (${Math.abs(diffDays)}d ago)`;
+
+    if (diffDays === 0) label = `Expired today: ${dateStr}`;
+
+    return { status: 'Expired', label, days: diffDays };
 };

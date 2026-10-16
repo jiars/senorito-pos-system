@@ -12,10 +12,11 @@ const InventoryBatchInsights = ({
   const stats = useMemo(() => {
     const batches = flattenInventoryBatches(inventoryItems);
 
+    // Use the table's shared status rule so depleted batches are not expiry alerts.
     return {
       overall: batches.length,
       expiring: batches.filter(
-        (batch) => batch.displayStatus === "Expiring in 7 days",
+        (batch) => batch.displayStatus === "Expiring within 7 days",
       ).length,
       expired: batches.filter((batch) => batch.displayStatus === "Expired")
         .length,
@@ -27,30 +28,30 @@ const InventoryBatchInsights = ({
       id: "overall-batches",
       title: "Overall Batches",
       value: stats.overall,
-      description: " batches currently recorded",
+      description: "All batch records, including depleted",
       titleClassName: "text-[var(--app-color-brand)]",
       isActive: selectedStatuses.length === 0,
       onClick: () => onSelectedStatusesChange([]),
     },
     {
       id: "expiring-batches",
-      title: "Expiring in 7 Days",
+      title: "Expiring within 7 days",
       value: stats.expiring,
       descriptionAccent: `${stats.expiring} batches`,
-      description: " require attention",
+      description: " have stock nearing expiry",
       descriptionAccentClassName: "text-[var(--app-color-warning)]",
       titleClassName: "text-[var(--app-color-brand)]",
       isActive:
         selectedStatuses.length === 1 &&
-        selectedStatuses[0] === "Expiring in 7 days",
-      onClick: () => onSelectedStatusesChange(["Expiring in 7 days"]),
+        selectedStatuses[0] === "Expiring within 7 days",
+      onClick: () => onSelectedStatusesChange(["Expiring within 7 days"]),
     },
     {
       id: "expired-batches",
       title: "Expired",
       value: stats.expired,
       descriptionAccent: `${stats.expired} batches`,
-      description: " already expired",
+      description: " have expired stock remaining",
       descriptionAccentClassName: "text-[var(--app-color-danger)]",
       titleClassName: "text-[var(--app-color-brand)]",
       isActive:

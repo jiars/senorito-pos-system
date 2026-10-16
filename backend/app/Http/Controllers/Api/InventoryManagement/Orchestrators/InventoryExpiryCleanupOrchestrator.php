@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\InventoryManagement\AuditLogs\InventoryAuditLogController;
 use App\Http\Controllers\Api\InventoryManagement\Batches\InventoryBatchController;
 use App\Http\Controllers\Api\InventoryManagement\Batches\InventoryBatchExpiryController;
+use App\Services\InventoryManagement\InventoryExpiryService;
 use App\Models\InventoryManagement\InventoryItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,16 +14,17 @@ use RuntimeException;
 
 class InventoryExpiryCleanupOrchestrator extends Controller
 {
-    public function cleanup()
+    public function cleanup(?string $inventoryItemId = null)
     {
-        $today = now(config('app.business_timezone'))->toDateString();
+        // Use one Philippine calendar date throughout this cleanup.
+        $today = app(InventoryExpiryService::class)->today();
 
         $expiryController = app(
             InventoryBatchExpiryController::class
         );
 
         $affectedItemIds = $expiryController
-            ->getAffectedItemIds($today);
+            ->getAffectedItemIds($today, $inventoryItemId);
 
         return DB::transaction(function () use ($today, $affectedItemIds, $expiryController) {
             $cleanedBatchCount = 0;

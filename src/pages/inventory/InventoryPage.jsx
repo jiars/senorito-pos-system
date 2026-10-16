@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import PageLayout from "@/components/layout/PageLayout";
@@ -92,8 +92,12 @@ const InventoryPage = () => {
     refetchInventoryManagement,
   } = useInventoryManagement();
 
+  // Keep archived losses in history without adding archived items to active stock.
+  const wastageInventoryItems = useMemo(() => {
+    return [...inventoryItems, ...archivedInventoryItems];
+  }, [inventoryItems, archivedInventoryItems]);
+
   const itemSelection = useIdSelection();
-  const batchSelection = useIdSelection();
   const [stockStatusFilters, setStockStatusFilters] = useState([]);
   const [batchStatusFilters, setBatchStatusFilters] = useState([]);
   const [wastageQuickFilter, setWastageQuickFilter] = useState(null);
@@ -206,14 +210,12 @@ const InventoryPage = () => {
 
                 <InventoryBatchTable
                   inventoryItems={inventoryItems}
+                  purchaseHistory={purchaseHistory}
                   categories={categories}
                   isLoading={isLoading}
                   error={error}
                   selectedStatuses={batchStatusFilters}
                   onSelectedStatusesChange={setBatchStatusFilters}
-                  selectedBatchIds={batchSelection.selectedIds}
-                  onToggleVisibleBatches={batchSelection.toggleVisible}
-                  onToggleBatch={batchSelection.toggleOne}
                 />
               </div>
             </Suspense>
@@ -222,14 +224,14 @@ const InventoryPage = () => {
             <Suspense fallback={<InventoryTabLoadingFallback />}>
               <div className="inventory-wastage-layout">
                 <InventoryWastageInsights
-                  inventoryItems={inventoryItems}
+                  inventoryItems={wastageInventoryItems}
                   isLoading={isLoading}
                   quickFilter={wastageQuickFilter}
                   onQuickFilterChange={setWastageQuickFilter}
                 />
 
                 <InventoryWastageTable
-                  inventoryItems={inventoryItems}
+                  inventoryItems={wastageInventoryItems}
                   categories={categories}
                   isLoading={isLoading}
                   error={error}

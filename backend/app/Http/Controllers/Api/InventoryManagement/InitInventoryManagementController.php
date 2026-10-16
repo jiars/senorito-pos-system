@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryManagement\InventoryCategory;
 use App\Models\InventoryManagement\InventoryItem;
 use App\Models\InventoryManagement\InventoryPurchaseHistory;
+use App\Services\InventoryManagement\InventoryStockHistoryService;
 use Illuminate\Support\Facades\DB;
 
 class InitInventoryManagementController extends Controller
@@ -30,14 +31,22 @@ class InitInventoryManagementController extends Controller
             'archived_by_profile:id,first_name,last_name',
         ];
 
-        $inventoryItems = InventoryItem::with($relations)
+        $stockHistoryService = app(InventoryStockHistoryService::class);
+
+        $inventoryQuery = InventoryItem::with($relations)
             ->where('archived', false)
-            ->orderBy('item_name', 'asc')
+            ->orderBy('item_name', 'asc');
+
+        $inventoryItems = $stockHistoryService
+            ->addLastStockChange($inventoryQuery)
             ->get();
 
-        $archivedItems = InventoryItem::with($relations)
+        $archivedQuery = InventoryItem::with($relations)
             ->where('archived', true)
-            ->orderBy('item_name', 'asc')
+            ->orderBy('item_name', 'asc');
+
+        $archivedItems = $stockHistoryService
+            ->addLastStockChange($archivedQuery)
             ->get();
 
         // Fetch Purchase History with the related item, batch, and employee.

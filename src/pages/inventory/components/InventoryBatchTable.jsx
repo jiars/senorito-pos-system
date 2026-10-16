@@ -7,9 +7,11 @@ import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+import {
+  formatDate,
+  formatDateTime,
+} from "@/utils/shared/formatters/dateFormatters";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import {
   filterAndSortInventoryBatches,
@@ -18,9 +20,10 @@ import {
 
 const batchStatusOptions = [
   { label: "Good", value: "Good" },
-  { label: "Expiring in 7 days", value: "Expiring in 7 days" },
+  { label: "Expiring within 7 days", value: "Expiring within 7 days" },
   { label: "Expired", value: "Expired" },
   { label: "No Expiry", value: "No Expiry" },
+  { label: "Depleted", value: "Depleted" },
 ];
 
 const sortOptions = [
@@ -29,11 +32,15 @@ const sortOptions = [
 ];
 
 const getStatusClassName = (status) => {
+  if (status === "Depleted") {
+    return "bg-[var(--app-color-filter-bg)] text-[var(--app-color-text-muted)]";
+  }
+
   if (status === "Good" || status === "No Expiry") {
     return "bg-[var(--app-color-success-surface)] text-[var(--app-color-success)]";
   }
 
-  if (status === "Expiring in 7 days") {
+  if (status === "Expiring within 7 days") {
     return "bg-[var(--app-color-warning-surface)] text-[var(--app-color-warning)]";
   }
 
@@ -164,7 +171,7 @@ const InventoryBatchToolbar = ({
     <div className="flex flex-wrap items-center justify-end gap-[var(--app-space-2)]">
       <div className="w-full sm:w-[22rem]">
         <ToolbarSearchInput
-          placeholder="Search item, batch, source..."
+          placeholder="Search item, batch, status..."
           value={searchTerm}
           onValueChange={onSearchChange}
         />
@@ -203,14 +210,12 @@ const InventoryBatchToolbar = ({
 
 const InventoryBatchTable = ({
   inventoryItems,
+  purchaseHistory,
   categories,
   isLoading,
   error,
   selectedStatuses,
   onSelectedStatusesChange,
-  selectedBatchIds,
-  onToggleVisibleBatches,
-  onToggleBatch,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilters, setCategoryFilters] = useState([]);
@@ -221,8 +226,8 @@ const InventoryBatchTable = ({
   const [pageSize, setPageSize] = useState(10);
 
   const allBatches = useMemo(
-    () => flattenInventoryBatches(inventoryItems),
-    [inventoryItems],
+    () => flattenInventoryBatches(inventoryItems, purchaseHistory),
+    [inventoryItems, purchaseHistory],
   );
   const filters = useMemo(
     () => ({
@@ -260,48 +265,50 @@ const InventoryBatchTable = ({
     (safeCurrentPage - 1) * pageSize,
     safeCurrentPage * pageSize,
   );
-  const visibleBatchIds = useMemo(
-    () => paginatedBatches.map((batch) => batch.id),
-    [paginatedBatches],
-  );
-  const areAllVisibleBatchesSelected =
-    visibleBatchIds.length > 0 &&
-    visibleBatchIds.every((id) => selectedBatchIds.includes(id));
-
   const columns = useMemo(
     () => [
-      {
-        id: "select",
-        header: () => (
-          <Checkbox
-            aria-label="Select all visible batches"
-            checked={areAllVisibleBatchesSelected}
-            onCheckedChange={() => onToggleVisibleBatches(visibleBatchIds)}
-          />
-        ),
-        meta: { width: "3rem" },
-        cell: ({ row }) => (
-          <Checkbox
-            aria-label={`Select batch ${row.original.batch_number}`}
-            checked={selectedBatchIds.includes(row.original.id)}
-            onCheckedChange={() => onToggleBatch(row.original.id)}
-          />
-        ),
-      },
       {
         accessorKey: "batch_number",
         header: "Batch #",
         meta: { width: "12rem" },
         cell: ({ row }) => (
-          <span className="font-semibold">
-            {row.original.batch_number || "—"}
-          </span>
+          <div className="grid min-w-0 gap-[var(--app-space-1)]">
+            <span className="font-semibold">
+              {row.original.batch_number || "—"}
+            </span>
+            <span className="whitespace-normal break-words text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              {row.original.itemName}
+            </span>
+          </div>
         ),
       },
       {
+        id: "receivedQuantity",
+        header: "Received Quantity",
+        meta: { width: "12rem" },
+        cell: ({ row }) => {
+          const purchase = row.original.purchase;
+
+          if (!purchase) {
+            return (
+              <span className="text-[var(--app-color-text-muted)]">
+                Not recorded
+              </span>
+            );
+          }
+
+          // Keep the original purchase unit, which can differ from the stock unit.
+          return (
+            <span>
+              {purchase.quantity_purchased} {purchase.purchase_unit}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "quantity",
-        header: "Quantity",
-        meta: { width: "9rem" },
+        header: "Remaining Quantity",
+        meta: { width: "12rem" },
         cell: ({ row }) => (
           <span>
             {row.original.quantity} {row.original.unit}
@@ -344,18 +351,12 @@ const InventoryBatchTable = ({
       {
         accessorKey: "created_at",
         header: "Added",
-        meta: { width: "10rem" },
+        meta: { width: "12rem" },
         cell: ({ row }) =>
-          row.original.created_at ? formatDate(row.original.created_at) : "—",
+          row.original.created_at ? formatDateTime(row.original.created_at) : "—",
       },
     ],
-    [
-      areAllVisibleBatchesSelected,
-      onToggleBatch,
-      onToggleVisibleBatches,
-      selectedBatchIds,
-      visibleBatchIds,
-    ],
+    [],
   );
 
   const handleApplyFilters = (nextFilters) => {

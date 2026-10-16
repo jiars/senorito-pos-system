@@ -25,7 +25,6 @@ export const exportSalesReport = ({
       { Metric: "Gross Revenue", Value: summaryData.grossSales },
       { Metric: "Net Revenue", Value: summaryData.netSales },
       { Metric: "Average Order Value", Value: summaryData.avgOrderValue },
-      { Metric: "Wastage / Shrinkage", Value: summaryData.totalWastageCost },
     ],
     [28, 20],
     "Summary",

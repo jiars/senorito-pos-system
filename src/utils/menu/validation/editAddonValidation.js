@@ -7,6 +7,7 @@ export const editAddonValidationMessages = {
   nameDuplicate: "An add-on with this name already exists.",
   categoriesRequired: "Select at least one category.",
   categoryUnavailable: "Select available categories.",
+  ingredientsRequired: "Add at least one ingredient to this recipe.",
   ingredientRequired: "Select an ingredient.",
   ingredientUnavailable: "Select an available ingredient.",
   ingredientDuplicate: "This ingredient is already selected.",
@@ -33,6 +34,7 @@ export const validateEditAddon = (addonName, recipe, selectedCategories, categor
   }
   const priceError = getSellingPriceError(recipe.sellingPrice);
   if (priceError) errors.sellingPrice = priceError;
+  if (recipe.ingredients.length === 0) errors.ingredients = messages.ingredientsRequired;
   const selectedIds = recipe.ingredients.map((ingredient) => ingredient.ingredientId);
   for (const ingredient of recipe.ingredients) {
     const key = `ing_${ingredient.id}`;
@@ -56,7 +58,7 @@ export const validateEditAddon = (addonName, recipe, selectedCategories, categor
 };
 export const getEditAddonServerFieldErrors = (backendErrors, ingredients) => {
   const errors = {};
-  const baseFields = { "base_info.addon_name": "addonName", "base_info.selling_price": "sellingPrice", categories: "categories" };
+  const baseFields = { "base_info.addon_name": "addonName", "base_info.selling_price": "sellingPrice", categories: "categories", recipes: "ingredients" };
   for (const [field, messages] of Object.entries(backendErrors)) {
     if (!Array.isArray(messages) || !messages.length) continue;
     let key = baseFields[field];

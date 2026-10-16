@@ -49,6 +49,7 @@ const RecipePricingStep = ({
         const prefix = `variant_${recipe.id}`;
         const priceError = errors[`${prefix}_price`];
         const nameError = errors[`${prefix}_name`];
+        const recipeError = errors[`${prefix}_ingredients`];
         const estimatedCost = calculateEstCost(recipe.ingredients, inventoryItems);
         const canPreviewPrice = !getSellingPriceError(recipe.sellingPrice) && Number.isFinite(estimatedCost);
         let profitDisplay = "—";
@@ -164,13 +165,14 @@ const RecipePricingStep = ({
                       <InputGroupInput id={`${ingredientPrefix}-cost`} readOnly value={rowCost.toFixed(2)} className="min-w-0 text-[length:var(--app-font-size-body-secondary)]" />
                     </InputGroup>
                   </Field>
-                  <Button type="button" variant="outline" size="icon" disabled={recipe.ingredients.length === 1} className={`${removeButtonClassName} add-menu-ingredient-remove`} title={recipe.ingredients.length === 1 ? "At least one ingredient is required." : "Remove ingredient"} aria-label={`Remove ingredient ${ingredientIndex + 1}`} onClick={() => onRecipeChange(variantId, (current) => ({ ...current, ingredients: current.ingredients.length > 1 ? current.ingredients.filter((item) => item.id !== ingredient.id) : current.ingredients }))}>
+                  <Button type="button" variant="outline" size="icon" disabled={disabled} className={`${removeButtonClassName} add-menu-ingredient-remove`} title="Remove ingredient" aria-label={`Remove ingredient ${ingredientIndex + 1}`} onClick={() => onRecipeChange(variantId, (current) => ({ ...current, ingredients: current.ingredients.filter((item) => item.id !== ingredient.id) }))}>
                     <i aria-hidden="true" className="bi bi-trash" />
                   </Button>
                 </div>
               );
             })}
-            <Button type="button" variant="outline" onClick={() => onAddIngredient(variantId)} className={addButtonClassName}><i aria-hidden="true" className="bi bi-plus-lg" /> Add Ingredient</Button>
+            {recipeError && <FieldError id={`${prefix}-ingredients-error`} className={errorClassName}>{recipeError}</FieldError>}
+            <Button type="button" variant="outline" disabled={disabled} aria-describedby={recipeError ? `${prefix}-ingredients-error` : undefined} onClick={() => onAddIngredient(variantId)} className={addButtonClassName}><i aria-hidden="true" className="bi bi-plus-lg" /> Add Ingredient</Button>
           </div>
         );
       })}

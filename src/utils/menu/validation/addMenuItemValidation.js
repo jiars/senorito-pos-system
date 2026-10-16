@@ -10,6 +10,7 @@ export const addMenuItemValidationMessages = {
   imageRequired: "Menu image is required.",
   variantsRequired: "Keep at least one non-archived size.",
   variantNameRequired: "Enter a name for every size when there are multiple variants.",
+  ingredientsRequired: "Add at least one ingredient to this recipe.",
   ingredientRequired: "Select an ingredient.",
   ingredientUnavailable: "Select an available ingredient.",
   ingredientDuplicate: "This ingredient is already selected.",
@@ -31,6 +32,7 @@ export const validateAddMenuItem = (baseInfo, variants, categories, inventoryIte
   if (!activeVariants.length) errors.variants = messages.variantsRequired;
   for (const variant of activeVariants) {
     const prefix = `variant_${variant.id}`;
+    if (variant.ingredients.length === 0) errors[`${prefix}_ingredients`] = messages.ingredientsRequired;
     if (activeVariants.length > 1 && !variant.name.trim()) errors[`${prefix}_name`] = messages.variantNameRequired;
     const priceError = getSellingPriceError(variant.sellingPrice);
     if (priceError) errors[`${prefix}_price`] = priceError;
@@ -56,12 +58,13 @@ export const getAddMenuItemServerFieldErrors = (backendErrors, variants) => {
   for (const [field, messages] of Object.entries(backendErrors)) {
     if (!Array.isArray(messages) || !messages.length) continue;
     let key = baseFields[field];
-    const match = field.match(/^prices\.(\d+)\.(variant_name|selling_price|recipes\.(\d+)\.(inventory_item_id|quantity|unit))$/);
+    const match = field.match(/^prices\.(\d+)\.(variant_name|selling_price|recipes|recipes\.(\d+)\.(inventory_item_id|quantity|unit))$/);
     if (match) {
       const variant = variants[Number(match[1])];
       if (!variant) continue;
       if (match[2] === "variant_name") key = `variant_${variant.id}_name`;
       else if (match[2] === "selling_price") key = `variant_${variant.id}_price`;
+      else if (match[2] === "recipes") key = `variant_${variant.id}_ingredients`;
       else {
         const ingredient = variant.ingredients[Number(match[3])];
         const fields = { inventory_item_id: "id", quantity: "qty", unit: "unit" };

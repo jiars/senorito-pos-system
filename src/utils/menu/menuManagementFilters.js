@@ -1,8 +1,34 @@
+const matchesAvailability = (item, statuses) => {
+  if (statuses.length === 0) return true;
+
+  // Active catalogs have calculated availability; archives keep their saved status.
+  let status = item.pos_status;
+  if (item.availability) {
+    status = "Unavailable";
+    if (item.availability.isAvailable) status = "Available";
+  }
+
+  return statuses.includes(status);
+};
+
+const matchesStatusCondition = (item, conditions) => {
+  if (conditions.length === 0) return true;
+  if (!item.availability) return false;
+
+  const variants = item.availability.variants;
+  if (variants && variants.length > 0) {
+    return variants.some((variant) => conditions.includes(variant.status));
+  }
+
+  return conditions.includes(item.availability.status);
+};
+
 export const filterAndSortMenuItems = ({
   items = [],
   searchTerm = "",
   categories = [],
   statuses = [],
+  conditions = [],
   sort = "0-z",
 }) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -22,10 +48,10 @@ export const filterAndSortMenuItems = ({
       categories.length === 0 ||
       categories.includes(item.menu_categories?.category_name);
 
-    const matchesStatus =
-      statuses.length === 0 || statuses.includes(item.pos_status);
+    const matchesStatus = matchesAvailability(item, statuses);
+    const matchesCondition = matchesStatusCondition(item, conditions);
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus && matchesCondition;
   });
 
   return [...filteredItems].sort((firstItem, secondItem) => {
@@ -46,6 +72,7 @@ export const filterAndSortAddons = ({
   searchTerm = "",
   categories = [],
   statuses = [],
+  conditions = [],
   sort = "0-z",
 }) => {
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -68,10 +95,10 @@ export const filterAndSortAddons = ({
       categories.length === 0 ||
       categoryNames.some((categoryName) => categories.includes(categoryName));
 
-    const matchesStatus =
-      statuses.length === 0 || statuses.includes(item.pos_status);
+    const matchesStatus = matchesAvailability(item, statuses);
+    const matchesCondition = matchesStatusCondition(item, conditions);
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus && matchesCondition;
   });
 
   return [...filteredItems].sort((firstItem, secondItem) => {

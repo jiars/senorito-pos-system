@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import MenuAvailabilityBadge from "./MenuAvailabilityBadge";
 
 const getStatusClassName = (status) => {
   if (status === "Available") {
@@ -82,14 +83,20 @@ const MenuAddonsTable = ({
           headerClassName: "text-center",
           cellClassName: "text-center",
         },
-        cell: ({ row }) => (
-          <Badge
-            variant="secondary"
-            className={getStatusClassName(row.original.pos_status)}
-          >
-            {row.original.pos_status}
-          </Badge>
-        ),
+        cell: ({ row }) => {
+          if (!isArchiveMode) {
+            return <MenuAvailabilityBadge availability={row.original.availability} />;
+          }
+
+          return (
+            <Badge
+              variant="secondary"
+              className={getStatusClassName(row.original.pos_status)}
+            >
+              {row.original.pos_status}
+            </Badge>
+          );
+        },
       },
       {
         id: "actions",

@@ -10,6 +10,16 @@ const statusOptions = [
   { label: "Unavailable", value: "Unavailable" },
 ];
 
+const conditionOptions = [
+  { label: "Available / Normal", value: "Available" },
+  { label: "Low Stock", value: "Low Stock" },
+  { label: "Out of Stock", value: "Out of Stock" },
+  { label: "Insufficient Stock", value: "Insufficient Stock" },
+  { label: "Incomplete Recipe", value: "Incomplete" },
+  { label: "On Hold", value: "On Hold" },
+  { label: "Disabled for Sale", value: "Unavailable" },
+];
+
 const sortOptions = [
   { label: "0 - Z", value: "0-z" },
   { label: "Z - 0", value: "z-0" },
@@ -21,6 +31,7 @@ const MenuCatalogToolbar = ({
   searchTerm,
   categories = [],
   filters,
+  showStatusConditions = false,
   sort,
   isLoading,
   onSearchChange,
@@ -40,12 +51,75 @@ const MenuCatalogToolbar = ({
   const clearFilters = () => {
     const clearedFilters = {
       categories: [],
-      statuses: [],
     };
+    if (showStatusConditions) clearedFilters.conditions = [];
+    else clearedFilters.statuses = [];
 
     setDraftFilters(clearedFilters);
     onApplyFilters(clearedFilters);
   };
+
+  const sidebarSections = [
+    {
+      id: `${idPrefix}-category-section`,
+      label: "Categories",
+      icon: "bi-grid",
+      indicator: draftFilters.categories.length > 0,
+      content: (
+        <FilterOptionGroup
+          id={`${idPrefix}-categories`}
+          label="Categories"
+          options={categoryOptions}
+          selectedValues={draftFilters.categories}
+          onSelectedValuesChange={(categories) =>
+            setDraftFilters((current) => ({ ...current, categories }))
+          }
+          collapsible={false}
+        />
+      ),
+    },
+  ];
+
+  if (showStatusConditions) {
+    sidebarSections.push({
+      id: `${idPrefix}-condition-section`,
+      label: "Status Condition",
+      icon: "bi-circle-half",
+      indicator: draftFilters.conditions.length > 0,
+      content: (
+        <FilterOptionGroup
+          id={`${idPrefix}-conditions`}
+          label="Status Condition"
+          options={conditionOptions}
+          selectedValues={draftFilters.conditions}
+          onSelectedValuesChange={(conditions) =>
+            setDraftFilters((current) => ({ ...current, conditions }))
+          }
+          collapsible={false}
+        />
+      ),
+    });
+  } else {
+    // Archive records retain their saved POS status rather than live stock conditions.
+    sidebarSections.push({
+      id: `${idPrefix}-status-section`,
+      label: "POS Status",
+      icon: "bi-circle-half",
+      indicator: draftFilters.statuses.length > 0,
+      content: (
+        <FilterOptionGroup
+          id={`${idPrefix}-statuses`}
+          label="POS Status"
+          options={statusOptions}
+          selectedValues={draftFilters.statuses}
+          onSelectedValuesChange={(statuses) =>
+            setDraftFilters((current) => ({ ...current, statuses }))
+          }
+          collapsible={false}
+        />
+      ),
+    });
+  }
 
   if (isLoading) {
     return (
@@ -68,39 +142,11 @@ const MenuCatalogToolbar = ({
       </div>
 
       <FilterPopover
+        sidebarSections={sidebarSections}
         onApply={() => onApplyFilters(draftFilters)}
         onClear={clearFilters}
-        maxWidth="18rem"
         maxHeight="min(30rem, calc(100svh - 8rem))"
-      >
-        <FilterOptionGroup
-          id={`${idPrefix}-categories`}
-          label="Categories"
-          options={categoryOptions}
-          selectedValues={draftFilters.categories}
-          onSelectedValuesChange={(nextCategories) =>
-            setDraftFilters((current) => ({
-              ...current,
-              categories: nextCategories,
-            }))
-          }
-          defaultOpen
-        />
-
-        <FilterOptionGroup
-          id={`${idPrefix}-statuses`}
-          label="POS Status"
-          options={statusOptions}
-          selectedValues={draftFilters.statuses}
-          onSelectedValuesChange={(nextStatuses) =>
-            setDraftFilters((current) => ({
-              ...current,
-              statuses: nextStatuses,
-            }))
-          }
-          defaultOpen
-        />
-      </FilterPopover>
+      />
 
       <FilterPopover
         label={sortLabel}

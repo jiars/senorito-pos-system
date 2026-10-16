@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import MenuAvailabilityBadge from "./MenuAvailabilityBadge";
 
 const MenuItemCard = ({
   item,
@@ -45,6 +46,9 @@ const MenuItemCard = ({
           <p className="break-words text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-brand-light)]">
             {category}
           </p>
+          {!isArchiveMode && (
+            <MenuAvailabilityBadge availability={item.availability} />
+          )}
         </div>
 
         <div className="mt-auto grid gap-[var(--app-space-1)]">
