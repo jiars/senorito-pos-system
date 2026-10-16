@@ -8,10 +8,31 @@ export const fetchDashboardSummary = async () => {
         'Authorization': `Bearer ${token}`
       }
     });
-    if (!response.ok) throw new Error('Failed to fetch dashboard summary');
-    return await response.json();
+    if (!response.ok) {
+      const error = new Error('Failed to fetch dashboard summary');
+      error.status = response.status;
+      throw error;
+    }
+
+    const data = await response.json();
+
+    // Reject missing sections rather than rendering a broken or empty Dashboard.
+    if (
+      !data || !data.metrics || !data.alerts ||
+      !Array.isArray(data.alerts.lowStockItems) ||
+      !Array.isArray(data.alerts.expiryItems) ||
+      !Array.isArray(data.weeklySales) ||
+      !Array.isArray(data.topItems) ||
+      !Array.isArray(data.recentOrders)
+    ) {
+      const error = new Error('Invalid dashboard summary response');
+      error.code = 'DASHBOARD_INVALID_RESPONSE';
+      throw error;
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error fetching dashboard summary:', error.message);
-    return [];
+    console.error('Error fetching dashboard summary:', error);
+    throw error;
   }
 };

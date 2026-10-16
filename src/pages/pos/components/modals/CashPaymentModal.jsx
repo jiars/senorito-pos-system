@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
-import { validateCashPayment } from "@/utils/pos/validation/cashPaymentValidation";
+import { MAX_CASH_PAYMENT, validateCashPayment } from "@/utils/pos/validation/cashPaymentValidation";
 
 const labelClassName = "text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]";
 const inputGroupClassName = "h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)]";
@@ -118,6 +118,7 @@ const CashPaymentModal = ({
                 id="pos-cash-received"
                 type="number"
                 min="0.01"
+                max={MAX_CASH_PAYMENT}
                 step="0.01"
                 inputMode="decimal"
                 className={inputClassName}
@@ -138,14 +139,14 @@ const CashPaymentModal = ({
             )}
           </Field>
 
-          <Field className="opacity-60">
+          <Field>
             <FieldLabel htmlFor="pos-cash-change" className={labelClassName}>Change</FieldLabel>
-            <InputGroup className={`${inputGroupClassName} !bg-[var(--app-color-canvas)]`}>
+            <InputGroup className={`${inputGroupClassName} !bg-[var(--app-color-canvas)] has-disabled:opacity-100`}>
               <InputGroupAddon className={addonClassName}>₱</InputGroupAddon>
               <InputGroupInput
                 id="pos-cash-change"
                 type="number"
-                className={inputClassName}
+                className={`${inputClassName} font-bold disabled:opacity-100`}
                 value={change > 0 ? change.toFixed(2) : ""}
                 disabled
               />

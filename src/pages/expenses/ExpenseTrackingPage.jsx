@@ -24,7 +24,10 @@ import {
   calculateCategoryBreakdown,
   calculateExpenseDistributionData,
 } from "@/utils/expenses/expenseCalculations";
-import { filterExpenseRecords } from "@/utils/expenses/expenseFilters";
+import {
+  filterExpenseRecords,
+  getDateRangeFromPreset,
+} from "@/utils/expenses/expenseFilters";
 import { exportExpensesToExcel } from "@/utils/expenses/expenseExportUtils";
 import { calculateSalesSummary } from "@/utils/reports/salesReportCalculations";
 import { filterSalesOrders } from "@/utils/reports/salesReportFilters";
@@ -40,9 +43,10 @@ const ExpenseTrackingPage = () => {
   } = useExpenseManagement();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [datePreset, setDatePreset] = useState("All Time");
+  const [initialDateRange] = useState(() => getDateRangeFromPreset("This Week"));
+  const [fromDate, setFromDate] = useState(initialDateRange.start);
+  const [toDate, setToDate] = useState(initialDateRange.end);
+  const [datePreset, setDatePreset] = useState("This Week");
   const [selectedCategories, setSelectedCategories] = useState([]);
 
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
@@ -103,6 +107,9 @@ const ExpenseTrackingPage = () => {
   );
   const expenseDistributionData = calculateExpenseDistributionData(
     filteredExpenseRecords,
+    fromDate,
+    toDate,
+    datePreset,
   );
 
   // --- Handlers ---

@@ -81,21 +81,21 @@
 
   --radius: 0.625rem;
 
-  --sidebar: var(--app-color-surface);
+  --sidebar: var(--app-color-sidebar-bg);
 
-  --sidebar-foreground: var(--app-color-text);
+  --sidebar-foreground: var(--app-color-sidebar-text);
 
-  --sidebar-primary: var(--app-color-brand);
+  --sidebar-primary: var(--app-color-sidebar-active);
 
-  --sidebar-primary-foreground: var(--app-color-surface);
+  --sidebar-primary-foreground: var(--app-color-sidebar-active-text);
 
-  --sidebar-accent: var(--app-color-control-hover);
+  --sidebar-accent: var(--app-color-sidebar-hover);
 
-  --sidebar-accent-foreground: var(--app-color-brand);
+  --sidebar-accent-foreground: var(--app-color-sidebar-text);
 
-  --sidebar-border: var(--app-color-border-subtle);
+  --sidebar-border: var(--app-color-sidebar-border);
 
-  --sidebar-ring: var(--app-color-brand)
+  --sidebar-ring: var(--app-color-sidebar-ring)
 }
 
 @layer base {

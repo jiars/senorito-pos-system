@@ -118,7 +118,7 @@ const Sidebar = () => {
   return (
     <>
       <SidebarPanel collapsible="icon" variant="sidebar" className="layout-sidebar">
-        <SidebarHeader className="items-center justify-center gap-[var(--app-space-4)] bg-[var(--app-color-brand-deep)] p-[var(--app-space-4)] text-[var(--app-color-surface)] group-data-[collapsible=icon]:p-[var(--app-space-2)]">
+        <SidebarHeader className="items-center justify-center gap-[var(--app-space-4)] border-b border-sidebar-border bg-sidebar p-[var(--app-space-4)] text-sidebar-foreground group-data-[collapsible=icon]:p-[var(--app-space-2)]">
           {isMobile && (
             <Button
               type="button"
@@ -126,7 +126,7 @@ const Sidebar = () => {
               size="icon-lg"
               onClick={closeDrawer}
               aria-label="Close navigation menu"
-              className="self-end size-[var(--app-touch-target-min)] text-[var(--app-color-surface)] hover:bg-[var(--app-color-brand)] hover:text-[var(--app-color-surface)]"
+              className="self-end size-[var(--app-touch-target-min)] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring"
             >
               <i className="bi bi-x-lg" aria-hidden="true"></i>
             </Button>
@@ -161,11 +161,11 @@ const Sidebar = () => {
                 {isCollapsed && groupIndex > 0 && (
                   <SidebarSeparator
                     aria-hidden="true"
-                    className="mx-auto mb-[var(--app-space-2)] bg-[var(--app-color-brand-soft)] data-horizontal:h-[calc(var(--app-space-2)/3)] data-horizontal:w-[var(--app-space-8)]"
+                    className="mx-auto mb-[var(--app-space-2)] bg-sidebar-border data-horizontal:h-[calc(var(--app-space-2)/3)] data-horizontal:w-[var(--app-space-8)]"
                   />
                 )}
                 {group.name !== "Overview" && (
-                  <SidebarGroupLabel className="px-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-muted)] font-semibold uppercase motion-reduce:transition-none">
+                  <SidebarGroupLabel className="px-[var(--app-space-4)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-sidebar-muted)] font-semibold uppercase motion-reduce:transition-none">
                     {group.name}
                   </SidebarGroupLabel>
                 )}
@@ -179,7 +179,7 @@ const Sidebar = () => {
                           tooltip={item.label}
                           aria-label={item.label}
                           size="lg"
-                          className="gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] group-data-[collapsible=icon]:justify-center data-active:bg-[var(--app-color-brand)] data-active:text-[var(--app-color-surface)]"
+                          className="gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] group-data-[collapsible=icon]:justify-center data-active:bg-sidebar-primary data-active:text-sidebar-primary-foreground data-active:font-semibold data-active:hover:bg-sidebar-primary data-active:hover:text-sidebar-primary-foreground data-active:active:bg-sidebar-primary data-active:active:text-sidebar-primary-foreground"
                         >
                           <i className={`bi ${item.icon} shrink-0 text-[length:var(--app-font-size-h3)]`} aria-hidden="true"></i>
                           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
@@ -193,7 +193,7 @@ const Sidebar = () => {
           </nav>
         </SidebarContent>
 
-        <SidebarFooter className="border-t border-[var(--app-color-border-subtle)] p-[var(--app-space-4)] group-data-[collapsible=icon]:p-[var(--app-space-2)]">
+        <SidebarFooter className="border-t border-sidebar-border p-[var(--app-space-4)] group-data-[collapsible=icon]:p-[var(--app-space-2)]">
           <SidebarUserMenu
             triggerRef={accountTriggerRef}
             profile={profile}

@@ -40,12 +40,12 @@ const SidebarUserMenu = ({ profile, role, onProfileClick, onLogoutClick, trigger
             render={
               <SidebarMenuButton
                 size="lg"
-                className="h-[var(--app-control-height-primary)] gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] group-data-[collapsible=icon]:justify-center"
+                className="h-[var(--app-control-height-primary)] gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] text-sidebar-foreground data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
               />
             }
           >
             <Avatar className="size-[var(--app-space-8)]">
-              <AvatarFallback className="bg-[var(--app-color-brand-soft)] text-[var(--app-color-brand)] font-semibold">
+              <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground font-semibold">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -53,7 +53,7 @@ const SidebarUserMenu = ({ profile, role, onProfileClick, onLogoutClick, trigger
               <span className="truncate text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] font-semibold" title={fullName}>
                 {fullName}
               </span>
-              <span className="truncate text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              <span className="truncate text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-sidebar-muted)]">
                 {role}
               </span>
             </div>

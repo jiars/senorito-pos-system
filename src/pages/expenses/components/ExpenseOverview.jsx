@@ -12,6 +12,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 const chartConfig = {
@@ -27,12 +28,12 @@ const axisTick = {
   fontSize: 12,
 };
 
-const formatChartDate = (value) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+const groupingLabels = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
 
 const ExpenseOverview = ({
   isLoading,
@@ -46,10 +47,11 @@ const ExpenseOverview = ({
     (record) => record.amount > 0,
   );
   const firstChartDate = expenseDistributionData[0]?.date;
-  const lastChartDate = expenseDistributionData.at(-1)?.date;
+  const lastChartDate = expenseDistributionData.at(-1)?.endDate;
+  const groupingLabel = groupingLabels[expenseDistributionData[0]?.grouping];
   const chartDateRange =
     firstChartDate && lastChartDate
-      ? `${formatChartDate(firstChartDate)} - ${formatChartDate(lastChartDate)}`
+      ? `${formatDate(firstChartDate)} - ${formatDate(lastChartDate)}`
       : "";
 
   const quickActions = [
@@ -99,30 +101,32 @@ const ExpenseOverview = ({
           <header className="mb-[var(--app-gap-related)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
             <div>
               <h2 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
-                Expense Distribution
+                Expenses Over Time
               </h2>
 
               <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-                Monitor recorded expenses across the latest seven dates.
+                {groupingLabel
+                  ? `${groupingLabel} expense totals for the selected range.`
+                  : "Recorded expenses for the selected range."}
               </p>
             </div>
 
             {chartDateRange && (
-              <time className="self-center text-[length:var(--app-font-size-body)] font-normal leading-[var(--app-line-height-body)] text-[var(--app-color-text-subtle)]">
+              <p className="self-center text-[length:var(--app-font-size-caption)] font-normal leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
                 {chartDateRange}
-              </time>
+              </p>
             )}
           </header>
 
           {!hasExpenses ? (
             <EmptyState
               className="min-h-[18rem]"
-              title="No expense distribution yet"
-              description="Expense totals will appear after expenses are recorded."
+              title="No expenses in this range"
+              description="Try another date range or adjust your filters."
             />
           ) : (
             <ScrollArea
-              aria-label="Expense distribution chart. Swipe horizontally on a phone to view every date."
+              aria-label="Expenses over time chart. Swipe horizontally on a phone to view every period."
               className="min-h-[18rem] flex-1 touch-pan-x overscroll-x-contain outline-none focus:outline-none [&_.recharts-surface]:outline-none [&_.recharts-wrapper]:outline-none [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0"
               role="region"
               scrollbarOrientation="horizontal"
@@ -151,6 +155,7 @@ const ExpenseOverview = ({
                   />
 
                   <YAxis
+                    domain={[0, "auto"]}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
@@ -163,6 +168,12 @@ const ExpenseOverview = ({
                     cursor={{ fill: "rgb(123 64 48 / 8%)" }}
                     content={
                       <ChartTooltipContent
+                        labelFormatter={(label, payload) => {
+                          if (payload.length > 0) {
+                            return payload[0].payload.periodLabel;
+                          }
+                          return label;
+                        }}
                         formatter={(value) => formatCurrency(value)}
                       />
                     }
@@ -172,6 +183,7 @@ const ExpenseOverview = ({
                     dataKey="amount"
                     name="expenses"
                     fill="var(--color-expenses)"
+                    maxBarSize={48}
                     radius={[3, 3, 0, 0]}
                   />
                 </BarChart>
