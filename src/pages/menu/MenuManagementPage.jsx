@@ -8,6 +8,7 @@ import {
   filterAndSortAddons,
   filterAndSortMenuItems,
 } from "@/utils/menu/menuManagementFilters";
+import { prepareMenuAvailability } from "@/utils/menu/menuAvailability";
 
 import MenuHeader from "./components/MenuHeader";
 import MenuWorkspace from "./components/MenuWorkspace";
@@ -50,39 +51,44 @@ const MenuManagementPage = () => {
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [menuFilters, setMenuFilters] = useState({
     categories: [],
-    statuses: [],
+    conditions: [],
   });
   const [menuSort, setMenuSort] = useState("0-z");
 
   const [addonSearchTerm, setAddonSearchTerm] = useState("");
   const [addonFilters, setAddonFilters] = useState({
     categories: [],
-    statuses: [],
+    conditions: [],
   });
   const [addonSort, setAddonSort] = useState("0-z");
+
+  const catalog = useMemo(
+    () => prepareMenuAvailability(menuItems, addons, ingredients),
+    [menuItems, addons, ingredients],
+  );
 
   const filteredMenuItems = useMemo(
     () =>
       filterAndSortMenuItems({
-        items: menuItems,
+        items: catalog.menuItems,
         searchTerm: menuSearchTerm,
         categories: menuFilters.categories,
-        statuses: menuFilters.statuses,
+        conditions: menuFilters.conditions,
         sort: menuSort,
       }),
-    [menuFilters, menuItems, menuSearchTerm, menuSort],
+    [catalog.menuItems, menuFilters, menuSearchTerm, menuSort],
   );
 
   const filteredAddons = useMemo(
     () =>
       filterAndSortAddons({
-        items: addons,
+        items: catalog.addons,
         searchTerm: addonSearchTerm,
         categories: addonFilters.categories,
-        statuses: addonFilters.statuses,
+        conditions: addonFilters.conditions,
         sort: addonSort,
       }),
-    [addonFilters, addonSearchTerm, addonSort, addons],
+    [catalog.addons, addonFilters, addonSearchTerm, addonSort],
   );
 
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -145,12 +151,13 @@ const MenuManagementPage = () => {
           onActiveTabChange={handleTabChange}
           menuToolbar={
             <MenuCatalogToolbar
-              key={`${menuFilters.categories.join("|")}::${menuFilters.statuses.join("|")}`}
+              key={`${menuFilters.categories.join("|")}::${menuFilters.conditions.join("|")}`}
               idPrefix="menu-items"
               searchPlaceholder="Search menu item..."
               searchTerm={menuSearchTerm}
               categories={categories}
               filters={menuFilters}
+              showStatusConditions
               sort={menuSort}
               isLoading={isLoading}
               onSearchChange={setMenuSearchTerm}
@@ -160,12 +167,13 @@ const MenuManagementPage = () => {
           }
           addonsToolbar={
             <MenuCatalogToolbar
-              key={`${addonFilters.categories.join("|")}::${addonFilters.statuses.join("|")}`}
+              key={`${addonFilters.categories.join("|")}::${addonFilters.conditions.join("|")}`}
               idPrefix="menu-addons"
               searchPlaceholder="Search add-on..."
               searchTerm={addonSearchTerm}
               categories={categories}
               filters={addonFilters}
+              showStatusConditions
               sort={addonSort}
               isLoading={isLoading}
               onSearchChange={setAddonSearchTerm}
@@ -183,7 +191,7 @@ const MenuManagementPage = () => {
           }
           addonsContent={
             <MenuAddonsTable
-              key={`${addonSearchTerm}::${addonFilters.categories.join("|")}::${addonFilters.statuses.join("|")}::${addonSort}`}
+              key={`${addonSearchTerm}::${addonFilters.categories.join("|")}::${addonFilters.conditions.join("|")}::${addonSort}`}
               addons={filteredAddons}
               isLoading={isLoading}
               onEdit={handleAddonEdit}

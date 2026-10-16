@@ -1,4 +1,4 @@
-import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
+import { isBatchExpired } from "@/utils/inventory/inventoryBatchUtils";
 
 const getRequiredStock = (ingredient, quantity, unit) => {
   let equivalent = 1;
@@ -24,16 +24,13 @@ const getBatchStock = (ingredient) => {
 
   if (ingredient.track_expiry && batches.length > 0) {
     usableStock = 0;
-    const today = getBusinessDateKey(new Date());
 
     batches.forEach((batch) => {
       const batchQuantity = Number(batch.quantity) || 0;
 
-      if (batch.expiration_date && batch.expiration_date < today) {
-        expiredStock += batchQuantity;
-      } else {
-        usableStock += batchQuantity;
-      }
+      if (isBatchExpired(batch.expiration_date)) expiredStock += batchQuantity;
+      else usableStock += batchQuantity;
+
     });
   }
 
@@ -55,27 +52,36 @@ const IngredientStockNotice = ({ ingredient, quantity, unit }) => {
   const stock = getBatchStock(ingredient);
   const requiredStock = getRequiredStock(ingredient, quantity, unit);
   const minimumLevel = Number(ingredient.minimum_level) || 0;
+
+  // Cleanup leaves zero quantities; the latest stock action explains why.
+  const wasClearedByExpiry =
+    Number(ingredient.current_stock) <= 0 &&
+    ingredient.last_stock_action === "Expired";
+  const isExpiredDepletion =
+    ingredient.track_expiry &&
+    (stock.expiredStock > 0 || wasClearedByExpiry);
   const notices = [];
 
-  if (stock.expiredStock > 0) {
-    notices.push({
-      key: "expired",
-      type: "danger",
-      message: "Some batch stock is already expired.",
-    });
-  }
-
+  // Pick one warning, starting with the conditions that prevent a sale.
   if (stock.usableStock <= 0) {
     notices.push({
-      key: "out-of-stock",
+      key: isExpiredDepletion ? "expired" : "out-of-stock",
       type: "danger",
-      message: "Out of stock. This recipe cannot currently be sold.",
+      message: isExpiredDepletion
+        ? "Stock expired. Restock this ingredient."
+        : "Out of stock. This recipe cannot currently be sold.",
     });
   } else if (requiredStock > stock.usableStock) {
     notices.push({
       key: "insufficient",
       type: "danger",
-      message: "Insufficient stock for one order.",
+      message: "Insufficient usable stock for one order.",
+    });
+  } else if (stock.expiredStock > 0) {
+    notices.push({
+      key: "partial-expiry",
+      type: "warning",
+      message: "Some batches expired; usable stock remains.",
     });
   } else if (stock.usableStock <= minimumLevel) {
     notices.push({

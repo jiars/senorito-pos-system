@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\InventoryManagement\Batches;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryManagement\InventoryBatch;
 use App\Models\InventoryManagement\InventoryItem;
+use App\Services\InventoryManagement\InventoryExpiryService;
 use Illuminate\Validation\ValidationException;
 
 class InventorySaleDeductionController extends Controller
@@ -29,15 +30,12 @@ class InventorySaleDeductionController extends Controller
 
         if ($item->track_expiry) {
             // Never sell stock from an expired batch.
-            $batchQuery->where(function ($query) {
-                $query
-                    ->whereNull('expiration_date')
-                    ->orWhere(
-                        'expiration_date',
-                        '>=',
-                        now(config('app.business_timezone'))->toDateString()
-                    );
-            });
+            $expiryService = app(InventoryExpiryService::class);
+
+            $expiryService->applyUsableFilter(
+                $batchQuery,
+                $expiryService->today()
+            );
 
             // Expiry-tracked items use FEFO.
             $batchQuery->orderByRaw(

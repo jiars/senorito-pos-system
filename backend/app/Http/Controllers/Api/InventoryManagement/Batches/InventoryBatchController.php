@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\InventoryManagement\Batches;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryManagement\InventoryBatch;
+use App\Services\InventoryManagement\InventoryExpiryService;
 
 class InventoryBatchController extends Controller
 {
@@ -31,15 +32,12 @@ class InventoryBatchController extends Controller
         // Expiry-tracked items use the batch that expires first.
         if ($trackExpiry) {
             // Ignore expired batches when choosing the effective cost.
-            $query->where(function ($batchQuery) {
-                $batchQuery
-                    ->whereNull('expiration_date')
-                    ->orWhere(
-                        'expiration_date',
-                        '>=',
-                        now(config('app.business_timezone'))->toDateString()
-                    );
-            });
+            $expiryService = app(InventoryExpiryService::class);
+
+            $expiryService->applyUsableFilter(
+                $query,
+                $expiryService->today()
+            );
 
             // Use the batch that expires first.
             $query->orderByRaw(

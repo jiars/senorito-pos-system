@@ -254,7 +254,14 @@ const InventoryWastageTable = ({
         header: "Item",
         meta: { width: "12rem" },
         cell: ({ row }) => (
-          <span className="font-semibold">{row.original.itemName}</span>
+          <div className="flex min-w-0 flex-col gap-[var(--app-space-1)]">
+            <span className="font-semibold">{row.original.itemName}</span>
+            {row.original.item.archived && (
+              <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+                Archived
+              </span>
+            )}
+          </div>
         ),
       },
       {

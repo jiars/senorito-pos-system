@@ -12,7 +12,8 @@ import ModalHeader from "@/components/modals/ModalHeader";
 import ModalBody from "@/components/modals/ModalBody";
 import ModalContent from "@/components/modals/ModalContent";
 import ModalFooter from "@/components/modals/ModalFooter";
-import RecipeStatusBadge from "@/pages/menu/components/RecipeStatusBadge";
+import MenuAvailabilityBadge from "@/pages/menu/components/MenuAvailabilityBadge";
+import { getMenuDraftAvailability } from "@/utils/menu/menuDraftAvailability";
 import { syncMenuItem } from "@/services/menu/menuItemsService";
 import { uploadMenuImage } from "@/utils/menu/imageUploadHelper";
 import { getMenuItemChanges } from "@/utils/menu/menuItemChanges";
@@ -161,6 +162,7 @@ const EditMenuItemModalContent = ({
   const submittingRef = useRef(false);
   const previewRef = useRef(null);
   const validation = validateEditMenuItem(baseInfo, variants, inventoryItems);
+  const draftAvailability = getMenuDraftAvailability(baseInfo, variants, inventoryItems, validation.errors);
   const allErrors = { ...serverFieldErrors, ...validation.errors };
   const errors = hasAttemptedSubmit ? allErrors : {};
   const isFormValid = validation.isFormValid && Object.keys(serverFieldErrors).length === 0;
@@ -654,9 +656,11 @@ const EditMenuItemModalContent = ({
               )}
               {recipes.map((recipe, recipeIndex) => {
                 const variantId = recipe.id;
+                const variantCondition = draftAvailability.variants.find((variant) => variant.variantId === variantId);
                 const prefix = `variant_${recipe.id}`;
                 const priceError = errors[`${prefix}_price`];
                 const nameError = errors[`${prefix}_name`];
+                const recipeError = errors[`${prefix}_ingredients`];
                 const estimatedCost = calculateEstCost(
                   recipe.ingredients,
                   inventoryItems,
@@ -707,17 +711,20 @@ const EditMenuItemModalContent = ({
                         data-invalid={Boolean(nameError)}
                         className="max-sm:col-span-2"
                       >
-                        <FieldLabel
-                          htmlFor={`${prefix}-name`}
-                          className={labelClassName}
-                        >
-                          Size / Variant Name{" "}
-                          {hasVariants && (
-                            <span className="text-[var(--app-color-danger)]">
-                              *
-                            </span>
-                          )}
-                        </FieldLabel>
+                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-[var(--app-space-2)]">
+                          <FieldLabel
+                            htmlFor={`${prefix}-name`}
+                            className={labelClassName}
+                          >
+                            Size / Variant Name{" "}
+                            {hasVariants && (
+                              <span className="text-[var(--app-color-danger)]">
+                                *
+                              </span>
+                            )}
+                          </FieldLabel>
+                          <MenuAvailabilityBadge availability={variantCondition} />
+                        </div>
                         <Input
                           id={`${prefix}-name`}
                           value={recipe.name}
@@ -755,7 +762,7 @@ const EditMenuItemModalContent = ({
                             isAvailable: !current.isAvailable,
                           }))
                         }
-                        className={`${toggleClassName} !bg-transparent sm:mt-6`}
+                        className={`${toggleClassName} !bg-transparent sm:mt-8`}
                       >
                         <span
                           aria-hidden="true"
@@ -773,7 +780,7 @@ const EditMenuItemModalContent = ({
                         type="button"
                         variant="outline"
                         size="icon"
-                        className={`${removeButtonClassName} sm:mt-6`}
+                        className={`${removeButtonClassName} sm:mt-8`}
                         disabled={recipes.length === 1}
                         onClick={() => onRemoveVariant(variantId)}
                         aria-label={`${recipe.persistedId ? "Archive" : "Remove"} variant ${recipeIndex + 1}`}
@@ -882,10 +889,6 @@ const EditMenuItemModalContent = ({
                           inventory when sold.
                         </p>
                       </div>
-                      <RecipeStatusBadge
-                        ingredients={recipe.ingredients}
-                        inventoryItems={inventoryItems}
-                      />
                     </div>
 
                     <div
@@ -1165,23 +1168,16 @@ const EditMenuItemModalContent = ({
                             type="button"
                             variant="outline"
                             size="icon"
-                            disabled={recipe.ingredients.length === 1}
+                            disabled={disabled}
                             className={`${removeButtonClassName} edit-menu-ingredient-remove`}
-                            title={
-                              recipe.ingredients.length === 1
-                                ? "At least one ingredient is required."
-                                : "Remove ingredient"
-                            }
+                            title="Remove ingredient"
                             aria-label={`Remove ingredient ${ingredientIndex + 1}`}
                             onClick={() =>
                               onRecipeChange(variantId, (current) => ({
                                 ...current,
-                                ingredients:
-                                  current.ingredients.length > 1
-                                    ? current.ingredients.filter(
-                                        (item) => item.id !== ingredient.id,
-                                      )
-                                    : current.ingredients,
+                                ingredients: current.ingredients.filter(
+                                  (item) => item.id !== ingredient.id,
+                                ),
                               }))
                             }
                           >
@@ -1190,9 +1186,19 @@ const EditMenuItemModalContent = ({
                         </div>
                       );
                     })}
+                    {recipeError && (
+                      <FieldError
+                        id={`${prefix}-ingredients-error`}
+                        className={errorClassName}
+                      >
+                        {recipeError}
+                      </FieldError>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
+                      disabled={disabled}
+                      aria-describedby={recipeError ? `${prefix}-ingredients-error` : undefined}
                       onClick={() => onAddIngredient(variantId)}
                       className={addButtonClassName}
                     >

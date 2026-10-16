@@ -21,7 +21,7 @@ class WastageCostController extends Controller
             ->with([
                 'inventory_batch:id,unit_cost',
             ])
-            ->where('action', 'Wastage');
+            ->whereIn('action', ['Wastage', 'Expired']);
 
         if ($request->filled('from_date')) {
             $startDate = Carbon::createFromFormat(

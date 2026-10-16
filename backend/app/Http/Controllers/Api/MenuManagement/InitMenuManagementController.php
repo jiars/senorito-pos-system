@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\MenuManagement;
 
 use App\Http\Controllers\Controller;
 use App\Models\InventoryManagement\InventoryItem;
+use App\Services\InventoryManagement\InventoryExpiryService;
+use App\Services\InventoryManagement\InventoryStockHistoryService;
 use App\Models\MenuManagement\MenuCategory;
 use App\Models\MenuManagement\MenuItem;
 use App\Models\MenuManagement\Addon;
@@ -49,7 +51,7 @@ class InitMenuManagementController extends Controller
             ->get();
 
         // Ingredients required by Menu and Add-on recipe forms.
-        $ingredients = InventoryItem::select([
+        $ingredientsQuery = InventoryItem::select([
             'id',
             'item_name',
             'base_unit',
@@ -63,7 +65,14 @@ class InitMenuManagementController extends Controller
                 'inventory_batches:id,inventory_item_id,quantity,expiration_date',
                 'inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
             ])
-            ->orderBy('item_name')
+            ->orderBy('item_name');
+
+        // Include the same usable-stock value that POS receives.
+        $ingredientsQuery = app(InventoryExpiryService::class)
+            ->addUsableStock($ingredientsQuery);
+
+        $ingredients = app(InventoryStockHistoryService::class)
+            ->addLastStockChange($ingredientsQuery)
             ->get();
 
         return response()->json([
