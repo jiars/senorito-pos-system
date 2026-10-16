@@ -1,3 +1,5 @@
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
+
 // Premium Color Palette for Categories
 export const CATEGORY_PALETTE = [
   "#4E342E", // Deep Brown
@@ -117,42 +119,94 @@ export const calculateExpenseSummary = (
   };
 };
 
-/**
- * Groups expenses into the current Sunday-to-Saturday week used by Dashboard.
- * Missing calendar days remain visible with a zero total.
- */
-export const calculateExpenseDistributionData = (expenseRecords = []) => {
-  const totalsByDate = expenseRecords.reduce((totals, expense) => {
-    const dateKey = String(expense.expense_date ?? "").slice(0, 10);
+// Group the selected range, not a second independent current-week filter.
+export const calculateExpenseDistributionData = (
+  expenseRecords = [],
+  fromDate = "",
+  toDate = "",
+  datePreset = "All Time",
+) => {
+  const recordedDates = expenseRecords
+    .map((expense) => String(expense.expense_date || "").slice(0, 10))
+    .filter((date) => Boolean(date))
+    .sort();
 
-    if (!dateKey) {
-      return totals;
+  // All Time uses the earliest/latest matching record, including filtered categories.
+  const rangeStart = fromDate || recordedDates[0];
+  const rangeEnd = toDate || recordedDates.at(-1);
+  if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) return [];
+
+  // Manila date-only labels are stepped in UTC so device timezone/DST cannot shift them.
+  const start = new Date(`${rangeStart}T00:00:00Z`);
+  const end = new Date(`${rangeEnd}T00:00:00Z`);
+  const dayCount = Math.round((end - start) / 86400000) + 1;
+  let grouping = "daily";
+  if (dayCount > 731) {
+    grouping = "yearly";
+  } else if (dayCount > 90) {
+    grouping = "monthly";
+  } else if (dayCount > 14 || datePreset === "This Month") {
+    grouping = "weekly";
+  }
+
+  const includesMultipleYears = start.getUTCFullYear() !== end.getUTCFullYear();
+  const periods = [];
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    const periodEnd = new Date(cursor);
+    if (grouping === "weekly") {
+      periodEnd.setUTCDate(cursor.getUTCDate() + 6 - cursor.getUTCDay());
+    } else if (grouping === "monthly") {
+      periodEnd.setUTCMonth(cursor.getUTCMonth() + 1, 0);
+    } else if (grouping === "yearly") {
+      periodEnd.setUTCMonth(11, 31);
+    }
+    // Partial weeks/months/years count only dates inside the selected range.
+    if (periodEnd > end) periodEnd.setTime(end.getTime());
+
+    const date = cursor.toISOString().slice(0, 10);
+    const endDate = periodEnd.toISOString().slice(0, 10);
+    let label = cursor.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+
+    if (grouping === "daily" && dayCount <= 7) {
+      label = cursor.toLocaleDateString("en-US", {
+        weekday: "short",
+        timeZone: "UTC",
+      });
+    } else if (grouping === "weekly" && date !== endDate) {
+      const endLabel = periodEnd.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      });
+      label = `${label} - ${endLabel}`;
+    } else if (grouping === "monthly") {
+      const monthOptions = { month: "short", timeZone: "UTC" };
+      if (includesMultipleYears) monthOptions.year = "numeric";
+      label = cursor.toLocaleDateString("en-US", monthOptions);
+    } else if (grouping === "yearly") {
+      label = String(cursor.getUTCFullYear());
     }
 
-    totals[dateKey] = (totals[dateKey] || 0) + (Number(expense.amount) || 0);
+    let periodLabel = formatDate(date);
+    if (date !== endDate) periodLabel += ` - ${formatDate(endDate)}`;
+    periods.push({ date, endDate, label, periodLabel, grouping, amount: 0 });
+    cursor.setTime(periodEnd.getTime());
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
 
-    return totals;
-  }, {});
-
-  const startOfWeek = new Date();
-  startOfWeek.setHours(0, 0, 0, 0);
-  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-
-  return Array.from({ length: 7 }, (_, dayIndex) => {
-    const currentDate = new Date(startOfWeek);
-    currentDate.setDate(startOfWeek.getDate() + dayIndex);
-
-    const timezoneOffset = currentDate.getTimezoneOffset() * 60 * 1000;
-    const date = new Date(currentDate.getTime() - timezoneOffset)
-      .toISOString()
-      .slice(0, 10);
-
-    return {
-      date,
-      label: currentDate.toLocaleDateString("en-US", { weekday: "short" }),
-      amount: totalsByDate[date] || 0,
-    };
+  expenseRecords.forEach((expense) => {
+    const date = String(expense.expense_date || "").slice(0, 10);
+    const period = periods.find((row) => date >= row.date && date <= row.endDate);
+    if (period) period.amount += Number(expense.amount) || 0;
   });
+
+  return periods;
 };
 
 /**

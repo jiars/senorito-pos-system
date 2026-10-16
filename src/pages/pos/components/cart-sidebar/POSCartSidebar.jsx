@@ -246,7 +246,7 @@ const POSCartSidebar = ({
                 onClick={() => setPaymentMethod('GCash')}
                 disabled={isPaymentLocked || orderSource !== 'In-Store'}
               >
-                <i className="bi bi-credit-card"></i> Card
+                <i className="bi bi-credit-card"></i> Non-Cash
               </button>
               <button
                 className={`${standardBtnClasses} ${paymentMethod === 'External' ? btnActive : btnInactive} ${isPaymentLocked || orderSource === 'In-Store' ? btnDisabled : ''}`}

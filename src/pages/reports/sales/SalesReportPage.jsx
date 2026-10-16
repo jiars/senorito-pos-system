@@ -22,6 +22,7 @@ import {
 import {
   filterSalesOrders,
   filterWastageRecords,
+  getSalesReportPresetDates,
 } from "@/utils/reports/salesReportFilters";
 import { exportSalesReport } from "@/utils/reports/salesReportExportUtils";
 
@@ -35,9 +36,11 @@ import SalesPrintLayout from "./components/SalesPrintLayout";
 const categoryColors = ["#b06a58", "#C98A5B", "#6F9C8F", "#D8B45C", "#8C7BA8"];
 
 const SalesReportPage = () => {
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [datePreset, setDatePreset] = useState("All Time");
+  // Start every report section on the same Manila business day.
+  const [initialDateRange] = useState(() => getSalesReportPresetDates("Today"));
+  const [fromDate, setFromDate] = useState(initialDateRange.fromDate);
+  const [toDate, setToDate] = useState(initialDateRange.toDate);
+  const [datePreset, setDatePreset] = useState("Today");
   const [filterSources, setFilterSources] = useState([]);
   const [filterCategories, setFilterCategories] = useState([]);
   const { orders, wastageRecords, categories, isLoading, error } = useSalesReport();
