@@ -124,12 +124,12 @@ const InventoryValuationReport = () => {
         className="max-w-[32rem] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)]"
       >
         <p>
-          It is a financial document that lists a company&apos;s current stock
-          items, their quantities on hand, and their total monetary value.
-          <br />
-          <br />
-          <strong>Valuation Basis:</strong> Current stock × recorded unit cost
-          (per item&apos;s stock unit).
+          This section shows the current value of your inventory on hand,
+          broken down by category. Each slice of the chart represents a
+          category's share of the total value, computed as quantity on hand
+          multiplied by unit cost. The figures on the right summarize the
+          total value, top expense, and losses from waste and spillage, and
+          the table lists the categories with the highest value.
         </p>
       </TooltipContent>
     </Tooltip>

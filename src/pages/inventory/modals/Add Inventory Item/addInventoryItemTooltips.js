@@ -3,9 +3,9 @@ export const addInventoryItemTooltips = {
   baseUnit:
     "The absolute smallest unit used to track this item in your stockroom (e.g., grams, ml, pieces). All purchases and recipes will convert down to this unit.",
   purchaseUnit:
-    "How this item is packaged when you buy it from the supplier (e.g., Box of 50, 5kg Sack, 1L Bottle).",
+    "The unit your supplier sells this item in. Example: Box, Sack, Bottle, or kg. The system converts this into the base unit when recording your stock.",
   minimumLevel:
-    "Your low-stock threshold. The system will alert you to restock when your inventory drops below this number.",
+    "The lowest stock amount you want to keep on hand. When the quantity falls below this level, the item is flagged as low stock so you know it is time to reorder.",
   recipeConversion:
-    "Map a custom serving size to your Base Unit so the system deducts stock correctly. For example, if your Base Unit is 'ml', you can set 1 'Pump' to equal '15 ml'.",
+    "Other units used when preparing menu recipes, such as shot, tbsp, or scoop. Enter how much of the base unit each one equals so recipes can deduct the correct amount from inventory.",
 };

@@ -119,7 +119,12 @@ const SalesPerformancePanel = ({
               align="end"
               className="max-w-[32rem] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] "
             >
-              <p>Replace this tooltip content with your final explanation.</p>
+              <p>
+                This chart shows how many orders were placed in each 2-hour time
+                slot. A taller bar means more orders during that time. Use it to
+                identify peak and slow hours so you can plan staffing and stock
+                preparation.
+              </p>
             </TooltipContent>
           </Tooltip>
         </header>
