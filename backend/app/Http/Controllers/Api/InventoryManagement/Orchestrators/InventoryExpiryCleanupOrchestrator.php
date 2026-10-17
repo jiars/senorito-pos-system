@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\InventoryManagement\AuditLogs\InventoryAuditLogCont
 use App\Http\Controllers\Api\InventoryManagement\Batches\InventoryBatchController;
 use App\Http\Controllers\Api\InventoryManagement\Batches\InventoryBatchExpiryController;
 use App\Services\InventoryManagement\InventoryExpiryService;
+use App\Models\InventoryManagement\InventoryCleanupRun;
 use App\Models\InventoryManagement\InventoryItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,17 +15,55 @@ use RuntimeException;
 
 class InventoryExpiryCleanupOrchestrator extends Controller
 {
-    public function cleanup(?string $inventoryItemId = null)
+    public function cleanupDaily(): array
     {
-        // Use one Philippine calendar date throughout this cleanup.
         $today = app(InventoryExpiryService::class)->today();
 
-        $expiryController = app(
-            InventoryBatchExpiryController::class
-        );
+        return DB::transaction(function () use ($today) {
+            // Create today's record without replacing an existing one.
+            InventoryCleanupRun::query()->insertOrIgnore([
+                'business_date' => $today,
+            ]);
 
-        $affectedItemIds = $expiryController
-            ->getAffectedItemIds($today, $inventoryItemId);
+            // Only one daily attempt can work on this record at a time.
+            $run = InventoryCleanupRun::where('business_date', $today)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($run->completed_at !== null) {
+                return [
+                    'business_date' => $today,
+                    'already_completed' => true,
+                    'cleaned_batch_count' => (int) $run->cleaned_batch_count,
+                ];
+            }
+
+            // Reuse the existing cleanup for all eligible ingredients.
+            $cleanedBatchCount = $this->cleanup(null, $today);
+
+            // Save completion together with the stock and audit changes.
+            $run->update([
+                'cleaned_batch_count' => $cleanedBatchCount,
+                'completed_at' => now()->toIso8601String(),
+            ]);
+
+            return [
+                'business_date' => $today,
+                'already_completed' => false,
+                'cleaned_batch_count' => $cleanedBatchCount,
+            ];
+        });
+    }
+
+    public function cleanup(?string $inventoryItemId = null, ?string $businessDate = null)
+    {
+        $today = $businessDate;
+
+        if ($today === null) $today = app(InventoryExpiryService::class)->today();
+
+        $expiryController = app(InventoryBatchExpiryController::class);
+
+        $affectedItemIds = $expiryController->getAffectedItemIds($today, $inventoryItemId);
 
         return DB::transaction(function () use ($today, $affectedItemIds, $expiryController) {
             $cleanedBatchCount = 0;
@@ -35,12 +74,9 @@ class InventoryExpiryCleanupOrchestrator extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $expiredBatches = $expiryController
-                    ->getExpiredBatches($item->id, $today);
+                $expiredBatches = $expiryController->getExpiredBatches($item->id, $today);
 
-                if ($expiredBatches->isEmpty()) {
-                    continue;
-                }
+                if ($expiredBatches->isEmpty()) continue;
 
                 $stockBefore = (float) $item->current_stock;
                 $totalExpiredQuantity =
