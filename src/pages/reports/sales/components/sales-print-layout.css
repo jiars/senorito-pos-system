@@ -1,0 +1,259 @@
+/* Sales Report only. Other print layouts keep their own page settings. */
+.sales-print-layout {
+  display: none;
+}
+
+@media print {
+  html:has(body > .sales-print-layout),
+  body:has(> .sales-print-layout) {
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    display: block !important;
+    page: auto;
+    height: auto !important;
+    min-height: 0 !important;
+    background: var(--app-color-surface) !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* Remove the whole app from print flow so it cannot reserve an empty sheet. */
+  body:has(> .sales-print-layout) > :not(.sales-print-layout) {
+    display: none !important;
+  }
+
+  .sales-print-layout,
+  .sales-print-layout * {
+    visibility: visible !important;
+  }
+
+  body > .sales-print-layout {
+    display: block !important;
+    /* Avoid a named-page switch before the first visible report content. */
+    page: auto;
+    position: static;
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 10mm 12mm 18mm;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    overflow: visible;
+    box-sizing: border-box;
+    font-size: 8pt;
+    line-height: 1.35;
+    color: var(--app-color-brand-deep);
+    font-family: var(--app-font-family);
+  }
+
+  /* Simple first-page heading; all spacing is inside the print document. */
+  .sales-print-layout .print-sales-header-container {
+    margin-bottom: 6mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .sales-print-layout .print-sales-brand-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6mm;
+  }
+
+  .sales-print-layout .print-sales-brand-copy {
+    min-width: 0;
+  }
+
+  .sales-print-layout .print-sales-brand-name {
+    margin: 0;
+    color: var(--app-color-brand-deep);
+    font-size: 26pt;
+    font-weight: 600;
+  }
+
+  .sales-print-layout .print-sales-brand-mark {
+    flex: none;
+  }
+
+  .sales-print-layout .print-sales-brand-mark img {
+    display: block;
+    width: 18mm;
+    height: 18mm;
+    object-fit: contain;
+  }
+
+  .sales-print-layout .print-sales-generated {
+    margin: 4mm 0 2mm;
+    color: var(--app-color-text-muted);
+    font-size: 8pt;
+    text-align: right;
+  }
+
+  .sales-print-layout .print-sales-filters-box {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    border-bottom: 0.2mm solid var(--app-color-border-subtle);
+    font-size: 8pt;
+  }
+
+  .sales-print-layout .print-sales-filters-box > div {
+    min-width: 0;
+  }
+
+  .sales-print-layout .print-sales-filters-box dt {
+    padding: 1.5mm 2mm;
+    background: var(--app-color-brand-deep);
+    color: var(--app-color-surface-soft);
+    font-weight: 600;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sales-print-layout .print-sales-filters-box dd {
+    margin: 0;
+    padding: 2mm;
+    color: var(--app-color-text);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .sales-print-layout .print-sales-section {
+    margin-top: 6mm;
+  }
+
+  .sales-print-layout .print-sales-section--compact {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Profitability starts on a fresh page; long tables can continue naturally. */
+  .sales-print-layout .print-sales-section--new-page {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .sales-print-layout .print-section-title {
+    margin: 0 0 1mm;
+    padding-bottom: 1mm;
+    border-bottom: 0.2mm solid var(--app-color-brand-light);
+    color: var(--app-color-brand-deep);
+    font-size: 11pt;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: uppercase;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .sales-print-layout .print-sales-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: var(--app-color-text);
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sales-print-layout .print-sales-table thead {
+    display: table-header-group;
+  }
+
+  .sales-print-layout .print-sales-table tfoot {
+    display: table-row-group;
+    font-weight: 600;
+  }
+
+  .sales-print-layout .print-sales-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .sales-print-layout .print-sales-table th,
+  .sales-print-layout .print-sales-table td {
+    padding: 1mm 1.5mm;
+    border: 0;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .sales-print-layout .print-sales-table thead th {
+    background: var(--app-color-brand-deep);
+    color: var(--app-color-surface-soft);
+    font-weight: 600;
+  }
+
+  .sales-print-layout .print-sales-table tbody tr:nth-child(even),
+  .sales-print-layout .print-sales-table tfoot tr {
+    background: var(--app-color-control-hover);
+  }
+
+  .sales-print-layout .print-sales-table .print-sales-number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sales-print-layout .print-sales-summary-table th,
+  .sales-print-layout .print-sales-summary-table td {
+    text-align: center;
+  }
+
+  .sales-print-layout .print-sales-summary-table thead {
+    font-size: 7.5pt;
+  }
+
+  .sales-print-layout .print-sales-table .print-sales-empty {
+    padding: 3mm;
+    text-align: center;
+    color: var(--app-color-text-muted);
+  }
+
+  .sales-print-layout .print-sales-col-rank { width: 8%; }
+  .sales-print-layout .print-sales-col-category { width: 23%; }
+  .sales-print-layout .print-sales-col-units { width: 14%; }
+  .sales-print-layout .print-sales-col-amount { width: 23%; }
+  .sales-print-layout .print-sales-col-percent { width: 15%; }
+  .sales-print-layout .print-sales-col-count { width: 20%; }
+  .sales-print-layout .print-sales-col-quadrant { width: 30%; }
+
+  .sales-print-layout .print-sales-profit-table {
+    font-size: 7pt;
+  }
+
+  .sales-print-layout .print-sales-profit-table th,
+  .sales-print-layout .print-sales-profit-table td {
+    padding: 1mm;
+  }
+
+  .sales-print-layout .print-sales-profit-item { width: 24%; }
+  .sales-print-layout .print-sales-profit-category { width: 12%; }
+  .sales-print-layout .print-sales-profit-money { width: 10%; }
+  .sales-print-layout .print-sales-profit-margin { width: 7%; }
+  .sales-print-layout .print-sales-profit-sold { width: 5%; }
+  .sales-print-layout .print-sales-profit-revenue { width: 11%; }
+  .sales-print-layout .print-sales-profit-quadrant { width: 11%; }
+
+  .sales-print-layout .print-sales-insight {
+    margin-top: 2mm;
+    color: var(--app-color-text-muted);
+    font-size: 7pt;
+  }
+
+  .sales-print-layout .print-footer {
+    position: fixed;
+    right: 12mm;
+    bottom: 6mm;
+    left: 12mm;
+    padding-top: 2mm;
+    border-top: 0.2mm solid var(--app-color-brand-border);
+    background: var(--app-color-surface);
+    color: var(--app-color-text-muted);
+    font-size: 6.5pt;
+    text-align: left;
+  }
+}

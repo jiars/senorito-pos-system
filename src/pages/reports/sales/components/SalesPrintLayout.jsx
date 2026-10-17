@@ -1,6 +1,23 @@
-import { DonutChart, PieChart, QuadBadge } from './SalesCharts';
+import { createPortal } from 'react-dom';
 import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 import { formatDate } from '@/utils/shared/formatters/dateFormatters';
+
+import './sales-print-layout.css';
+
+const profitabilityGroups = [
+  { name: 'Top Performer', meaning: 'High Profit · High Sales' },
+  { name: 'Promote More', meaning: 'High Profit · Low Sales' },
+  { name: 'Improve Pricing', meaning: 'Low Profit · High Sales' },
+  { name: 'Review or Remove', meaning: 'Low Profit · Low Sales' },
+];
+
+const EmptyPrintRow = ({ colSpan }) => (
+  <tr>
+    <td colSpan={colSpan} className="print-sales-empty">
+      No records for the selected filters.
+    </td>
+  </tr>
+);
 
 const SalesPrintLayout = ({
   datePreset,
@@ -8,191 +25,271 @@ const SalesPrintLayout = ({
   filterCategory,
   fromDate,
   toDate,
-  summaryCards,
   sourceData,
   summaryData,
   topSellingItems,
   quadCounts,
   detailedProfitability,
   categorySales,
-  categoryColors,
   hourlyData,
-  maxOrders,
   peakHour,
-  totalOrders
+  totalOrders,
 }) => {
   const generatedDate = formatDate(new Date());
+  const categoryRevenue = categorySales.reduce((total, category) => total + category.rev, 0);
+  const categoryUnits = categorySales.reduce((total, category) => total + category.units, 0);
 
-  return (
+  // Print outside the application shell, like the QR and receipt print copies.
+  return createPortal(
     <div className="sales-print-layout">
-      <div className="print-sales-header-container">
-        <div className="print-sales-title-row">
-          <h2>Sales Performance Report</h2>
-          <div className="print-sales-meta">
-            <span className="print-brand">SEÑORITO CAFÉ</span>
-            <span className="print-date">Generated: {generatedDate}</span>
-            <span className="print-period">Report Period: {datePreset}</span>
+      <style media="print">
+        {'@page { size: letter portrait; margin: 0; }'}
+      </style>
+      <header className="print-sales-header-container">
+        <div className="print-sales-brand-header">
+          <div className="print-sales-brand-copy">
+            <p className="print-sales-brand-name">SEÑORITO CAFÉ</p>
+          </div>
+          <div className="print-sales-brand-mark" aria-hidden="true">
+            <img src="/smoke.png" alt="" width="100" height="100" />
           </div>
         </div>
-        
-        <div className="print-sales-filters-box">
-           <span><strong>Period:</strong> {datePreset}</span>
-           <span><strong>Order Source:</strong> {filterSource}</span>
-           <span><strong>Category:</strong> {filterCategory}</span>
-           <span><strong>Date Range:</strong> {fromDate && toDate ? `${fromDate} to ${toDate}` : 'Not specified'}</span>
-        </div>
-      </div>
 
-      <div className="print-sales-summary-cards">
-        {summaryCards.map(card => (
-          <div key={card.id} className={`print-card print-card--${card.color}`}>
-             <h3>{card.value}</h3>
-             <p>{card.label.toUpperCase()}</p>
+        <p className="print-sales-generated">Generated: {generatedDate}</p>
+
+        <dl className="print-sales-filters-box">
+          <div>
+            <dt>Period</dt>
+            <dd>{datePreset}</dd>
           </div>
-        ))}
-      </div>
+          <div>
+            <dt>Order Source</dt>
+            <dd>{filterSource}</dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd>{filterCategory}</dd>
+          </div>
+          <div>
+            <dt>Date Range</dt>
+            <dd>{fromDate && toDate ? `${formatDate(fromDate)} to ${formatDate(toDate)}` : 'Not specified'}</dd>
+          </div>
+        </dl>
+      </header>
 
-      <h3 className="print-section-title">SALES BY ORDER SOURCE</h3>
-      <div className="print-source-section">
-         <div className="print-chart-wrapper">
-           <DonutChart data={sourceData} total={summaryData.netSales} />
-         </div>
-         <ul className="print-source-list">
-            {sourceData.map(s => (
-              <li key={s.label}>
-                <div className="print-source-left">
-                  <span className="print-source-color" style={{backgroundColor: s.color}}></span>
-                  <span className="print-source-name">{s.label}</span>
-                </div>
-                <span className="print-source-value">{formatCurrency(s.value)} ({(summaryData.netSales > 0 ? (s.value / summaryData.netSales) * 100 : 0).toFixed(1)}%)</span>
-              </li>
-            ))}
-         </ul>
-      </div>
+      <section className="print-sales-section print-sales-section--compact">
+        <h3 className="print-section-title">Summary</h3>
+        <table className="print-sales-table print-sales-summary-table" aria-label="Sales summary">
+          <thead>
+            <tr>
+              <th scope="col">Total Orders</th>
+              <th scope="col">Gross Sales</th>
+              <th scope="col">Net Sales</th>
+              <th scope="col">Avg Order Value</th>
+              <th scope="col">Total Wastage Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{summaryData.totalOrders}</td>
+              <td>{formatCurrency(summaryData.grossSales)}</td>
+              <td>{formatCurrency(summaryData.netSales)}</td>
+              <td>{formatCurrency(summaryData.avgOrderValue)}</td>
+              <td>{formatCurrency(summaryData.totalWastageCost)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
-      <h3 className="print-section-title">TOP SELLING ITEMS</h3>
-      <table className="print-sales-table">
-        <tbody>
-           {topSellingItems.map((item, i) => (
-              <tr key={i}>
-                <td className="print-rank"><span>{i+1}</span></td>
-                <td>
-                  <strong>{item.name}</strong><br/>
-                  <small>{item.category}</small>
-                </td>
-                <td style={{textAlign: 'right'}}>
-                  <strong>{formatCurrency(item.revenue)}</strong> <small>({item.sold} Sold)</small>
-                </td>
+      <section className="print-sales-section print-sales-section--compact">
+        <h3 className="print-section-title">Sales by Order Source</h3>
+        <table className="print-sales-table" aria-label="Sales by order source">
+          <colgroup><col /><col className="print-sales-col-amount" /><col className="print-sales-col-percent" /></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Order Source</th>
+              <th scope="col" className="print-sales-number">Revenue</th>
+              <th scope="col" className="print-sales-number">% Net Sales</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sourceData.length === 0 && <EmptyPrintRow colSpan={3} />}
+            {sourceData.map((source) => (
+              <tr key={source.label}>
+                <td>{source.label}</td>
+                <td className="print-sales-number">{formatCurrency(source.value)}</td>
+                <td className="print-sales-number">{source.pct.toFixed(1)}%</td>
               </tr>
-           ))}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <td className="print-sales-number">{formatCurrency(summaryData.netSales)}</td>
+              <td className="print-sales-number">{summaryData.netSales > 0 ? '100.0%' : '0.0%'}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
 
-      {/* --- PAGE BREAK (CSS will handle) --- */}
-      <div className="print-page-break"></div>
+      <section className="print-sales-section print-sales-section--compact">
+        <h3 className="print-section-title">Top Selling Items</h3>
+        <table className="print-sales-table" aria-label="Top selling items">
+          <colgroup>
+            <col className="print-sales-col-rank" /><col /><col className="print-sales-col-category" />
+            <col className="print-sales-col-units" /><col className="print-sales-col-amount" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Rank</th><th scope="col">Item</th><th scope="col">Category</th>
+              <th scope="col" className="print-sales-number">Units Sold</th>
+              <th scope="col" className="print-sales-number">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            {topSellingItems.length === 0 && <EmptyPrintRow colSpan={5} />}
+            {topSellingItems.map((item, index) => (
+              <tr key={item.id}>
+                <td className="print-sales-number">{index + 1}</td>
+                <td>{item.name}</td><td>{item.category}</td>
+                <td className="print-sales-number">{item.sold}</td>
+                <td className="print-sales-number">{formatCurrency(item.revenue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-      <h3 className="print-section-title">MENU PROFITABILITY OVERVIEW</h3>
-      <div className="print-profit-cards">
-          <div className="print-profit-card p-green">
-            <div className="p-icon"><i className="bi bi-star"></i></div>
-            <h3>{quadCounts['Top Performer'] || 0}</h3>
-            <p className="p-title">Top Performer</p>
-            <p className="p-sub">High Profit • High Sales</p>
-          </div>
-          <div className="print-profit-card p-blue">
-            <div className="p-icon"><i className="bi bi-megaphone"></i></div>
-            <h3>{quadCounts['Promote More'] || 0}</h3>
-            <p className="p-title">Promote More</p>
-            <p className="p-sub">High Profit • Low Sales</p>
-          </div>
-          <div className="print-profit-card p-yellow">
-            <div className="p-icon"><i className="bi bi-tag"></i></div>
-            <h3>{quadCounts['Improve Pricing'] || 0}</h3>
-            <p className="p-title">Improve Pricing</p>
-            <p className="p-sub">Low Profit • High Sales</p>
-          </div>
-          <div className="print-profit-card p-red">
-            <div className="p-icon"><i className="bi bi-x-circle"></i></div>
-            <h3>{quadCounts['Review or Remove'] || 0}</h3>
-            <p className="p-title">Review or Remove</p>
-            <p className="p-sub">Low Profit • Low Sales</p>
-          </div>
-      </div>
+      <section className="print-sales-section print-sales-section--new-page print-sales-section--compact">
+        <h3 className="print-section-title">Menu Profitability Overview</h3>
+        <table className="print-sales-table" aria-label="Menu profitability overview">
+          <colgroup><col className="print-sales-col-quadrant" /><col /><col className="print-sales-col-count" /></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Quadrant</th><th scope="col">Meaning</th>
+              <th scope="col" className="print-sales-number">No. of Items</th>
+            </tr>
+          </thead>
+          <tbody>
+            {profitabilityGroups.map((group) => (
+              <tr key={group.name}>
+                <td>{group.name}</td><td>{group.meaning}</td>
+                <td className="print-sales-number">{quadCounts[group.name] || 0}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-      <h3 className="print-section-title">DETAILED PROFITABILITY TABLE</h3>
-      <table className="print-sales-table print-profit-table">
-        <thead>
-          <tr>
-            <th style={{textAlign: 'left'}}>ITEM</th>
-            <th style={{textAlign: 'left'}}>CATEGORY</th>
-            <th style={{textAlign: 'right'}}>PRICE</th>
-            <th style={{textAlign: 'right'}}>EST. COST</th>
-            <th style={{textAlign: 'right'}}>PROFIT/ITEM</th>
-            <th style={{textAlign: 'right'}}>MARGIN %</th>
-            <th style={{textAlign: 'center'}}>SOLD</th>
-            <th style={{textAlign: 'right'}}>REVENUE</th>
-            <th style={{textAlign: 'left'}}>QUADRANT</th>
-          </tr>
-        </thead>
-        <tbody>
-           {detailedProfitability.map((row, i) => (
-             <tr key={i}>
-                <td style={{fontWeight: 600}}>{row.item}</td>
-                <td>{row.category}</td>
-                <td style={{textAlign: 'right'}}>{formatCurrency(row.price)}</td>
-                <td style={{textAlign: 'right'}}>{formatCurrency(row.cost)}</td>
-                <td style={{textAlign: 'right'}}>{formatCurrency(row.profitPerItem)}</td>
-                <td style={{textAlign: 'right'}}>{row.margin.toFixed(1)}%</td>
-                <td style={{textAlign: 'center'}}>{row.qty}</td>
-                <td style={{textAlign: 'right'}}>{formatCurrency(row.revenue)}</td>
-                <td><QuadBadge quad={row.quad} badge={row.badge} /></td>
-             </tr>
-           ))}
-        </tbody>
-      </table>
+      <section className="print-sales-section">
+        <h3 className="print-section-title">Detailed Profitability Table</h3>
+        <table className="print-sales-table print-sales-profit-table" aria-label="Detailed menu profitability">
+          <colgroup>
+            <col className="print-sales-profit-item" /><col className="print-sales-profit-category" />
+            <col className="print-sales-profit-money" /><col className="print-sales-profit-money" />
+            <col className="print-sales-profit-money" /><col className="print-sales-profit-margin" />
+            <col className="print-sales-profit-sold" /><col className="print-sales-profit-revenue" />
+            <col className="print-sales-profit-quadrant" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Item</th><th scope="col">Category</th>
+              <th scope="col" className="print-sales-number">Price</th>
+              <th scope="col" className="print-sales-number">Cost</th>
+              <th scope="col" className="print-sales-number">Profit</th>
+              <th scope="col" className="print-sales-number">Margin</th>
+              <th scope="col" className="print-sales-number">Sold</th>
+              <th scope="col" className="print-sales-number">Revenue</th>
+              <th scope="col">Quadrant</th>
+            </tr>
+          </thead>
+          <tbody>
+            {detailedProfitability.length === 0 && <EmptyPrintRow colSpan={9} />}
+            {detailedProfitability.map((row, index) => (
+              <tr key={index}>
+                <td>{row.item}</td><td>{row.category}</td>
+                <td className="print-sales-number">{formatCurrency(row.price)}</td>
+                <td className="print-sales-number">{formatCurrency(row.cost)}</td>
+                <td className="print-sales-number">{formatCurrency(row.profitPerItem)}</td>
+                <td className="print-sales-number">{row.margin.toFixed(1)}%</td>
+                <td className="print-sales-number">{row.qty}</td>
+                <td className="print-sales-number">{formatCurrency(row.revenue)}</td>
+                <td>{row.quad}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
 
-      <div className="print-bottom-grid">
-         <div className="print-bottom-col">
-           <h3 className="print-section-title">SALES BY CATEGORY</h3>
-           <div className="print-chart-wrapper">
-             <PieChart data={categorySales} colors={categoryColors} />
-           </div>
-           <ul className="print-source-list">
-              {categorySales.map((cat, idx) => (
-                <li key={cat.cat}>
-                  <div className="print-source-left">
-                    <span className="print-source-color" style={{backgroundColor: categoryColors[idx % categoryColors.length]}}></span>
-                    <span className="print-source-name">{cat.cat}</span>
-                  </div>
-                  <span className="print-source-value">{cat.units} units • {formatCurrency(cat.rev)} ({cat.pct.toFixed(1)}%)</span>
-                </li>
-              ))}
-           </ul>
-         </div>
-         
-         <div className="print-bottom-col">
-           <h3 className="print-section-title">HOURLY SALES PATTERN</h3>
-           <div className="print-hourly-chart">
-             {hourlyData.map(d => (
-               <div key={d.time} className="print-hourly-bar">
-                  <div className="p-bar-fill" style={{height: `${maxOrders > 0 ? (d.orders / maxOrders) * 100 : 0}%`, backgroundColor: d.time === peakHour.time ? '#5A2D15' : '#A07156'}}></div>
-                  <span className="p-bar-label">{d.time}</span>
-               </div>
-             ))}
-           </div>
-           <div className="print-insight-box">
-              <i className="bi bi-lightning-fill" style={{color: '#F59E0B'}}></i>
-              <span>
-                <strong>Peak hours are {peakHour.time} with {peakHour.orders} orders.</strong> A total of {totalOrders} orders were recorded across this period.
-              </span>
-           </div>
-         </div>
-      </div>
+      <section className="print-sales-section print-sales-section--compact">
+        <h3 className="print-section-title">Sales by Category</h3>
+        <table className="print-sales-table" aria-label="Sales by category">
+          <colgroup><col /><col className="print-sales-col-units" /><col className="print-sales-col-amount" /><col className="print-sales-col-percent" /></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Category</th><th scope="col" className="print-sales-number">Units</th>
+              <th scope="col" className="print-sales-number">Revenue</th>
+              <th scope="col" className="print-sales-number">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categorySales.length === 0 && <EmptyPrintRow colSpan={4} />}
+            {categorySales.map((category) => (
+              <tr key={category.cat}>
+                <td>{category.cat}</td><td className="print-sales-number">{category.units}</td>
+                <td className="print-sales-number">{formatCurrency(category.rev)}</td>
+                <td className="print-sales-number">{category.pct.toFixed(1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th><td className="print-sales-number">{categoryUnits}</td>
+              <td className="print-sales-number">{formatCurrency(categoryRevenue)}</td>
+              <td className="print-sales-number">{categoryRevenue > 0 ? '100.0%' : '0.0%'}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </section>
 
-      <div className="print-footer">
-         Señorito Café — Point of Sale & Inventory Management System | Sales Report | Generated {generatedDate}
-      </div>
-    </div>
+      <section className="print-sales-section print-sales-section--compact">
+        <h3 className="print-section-title">Hourly Sales</h3>
+        <table className="print-sales-table" aria-label="Orders by two-hour time slot">
+          <colgroup><col /><col className="print-sales-col-count" /><col className="print-sales-col-percent" /></colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Time Slot</th><th scope="col" className="print-sales-number">Orders</th>
+              <th scope="col" className="print-sales-number">%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hourlyData.length === 0 && <EmptyPrintRow colSpan={3} />}
+            {hourlyData.map((slot) => (
+              <tr key={slot.time}>
+                <td>{slot.time}</td><td className="print-sales-number">{slot.orders}</td>
+                <td className="print-sales-number">{totalOrders > 0 ? ((slot.orders / totalOrders) * 100).toFixed(1) : '0.0'}%</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th><td className="print-sales-number">{totalOrders}</td>
+              <td className="print-sales-number">{totalOrders > 0 ? '100.0%' : '0.0%'}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p className="print-sales-insight">
+          {totalOrders > 0
+            ? `Peak hours are ${peakHour.time} with ${peakHour.orders} orders. A total of ${totalOrders} orders were recorded across these time slots.`
+            : 'No orders were recorded across these time slots for the selected period.'}
+        </p>
+      </section>
+
+      <footer className="print-footer">
+        Señorito Café | POS &amp; Inventory Management System | Sales Report
+      </footer>
+    </div>,
+    document.body,
   );
 };
 
