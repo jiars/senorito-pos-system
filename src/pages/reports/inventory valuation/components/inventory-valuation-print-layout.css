@@ -1,39 +1,26 @@
+/* Inventory Valuation only; shared print infrastructure is intentionally deferred. */
 .val-print-layout {
   display: none;
 }
 
 @media print {
-  @page {
-    margin: 4mm 0;
-  }
-
-  body:has(.val-page),
-  html:has(.val-page),
-  body:has(.val-page) #root {
-    display: block !important;
-    height: auto !important;
-    margin: 0 !important;
-    overflow: visible !important;
-    padding: 0 !important;
+  html:has(body > .val-print-layout),
+  body:has(> .val-print-layout) {
     position: static !important;
-  }
-
-  body:has(.val-page) .layout-sidebar,
-  body:has(.val-page) .layout-topbar,
-  body:has(.val-page) [data-slot="breadcrumb"],
-  body:has(.val-page) .valuation-page-shell > header,
-  .val-page > *:not(.val-print-layout) {
-    display: none !important;
-  }
-
-  body:has(.val-page) .layout-container,
-  body:has(.val-page) .layout-content-wrapper,
-  body:has(.val-page) .layout-main {
+    inset: auto !important;
+    transform: none !important;
     display: block !important;
+    page: auto;
+    height: auto !important;
     min-height: 0 !important;
+    background: var(--app-color-surface) !important;
     margin: 0 !important;
-    padding: 0 !important;
     overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  body:has(> .val-print-layout) > :not(.val-print-layout) {
+    display: none !important;
   }
 
   .val-print-layout,
@@ -41,123 +28,195 @@
     visibility: visible !important;
   }
 
-  .val-print-layout {
+  body > .val-print-layout {
     display: block !important;
+    page: auto;
+    position: static;
     box-sizing: border-box;
     width: 100%;
-    padding: 0 5mm 40px;
-    color: #2c1810;
-    font-family: var(--app-font-family);
-  }
-
-  .print-val-header-container,
-  .print-val-section {
-    margin-bottom: 20px;
-  }
-
-  .print-val-title-row,
-  .print-val-filters-box {
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .print-val-title-row {
-    align-items: flex-end;
-    margin-bottom: 15px;
-  }
-
-  .print-val-title-row h2 {
+    min-height: 0;
     margin: 0;
-    color: #3a1a0a;
-    font-size: 24px;
+    padding: 10mm 12mm 18mm;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    overflow: visible;
+    color: var(--app-color-brand-deep);
+    font-family: var(--app-font-family);
+    font-size: 8pt;
+    line-height: 1.35;
   }
 
-  .print-val-meta {
+  .val-print-layout .print-val-header-container {
+    margin-bottom: 6mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .val-print-layout .print-val-brand-header {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    color: #6c757d;
-    font-size: 11px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6mm;
   }
 
-  .print-brand {
-    margin-bottom: 2px;
-    color: #3a1a0a;
-    font-weight: 700;
-    font-size: 14px;
+  .val-print-layout .print-val-brand-name {
+    min-width: 0;
+    margin: 0;
+    font-size: 26pt;
+    font-weight: 600;
   }
 
-  .print-val-filters-box {
-    padding: 10px 15px;
-    border: 1px solid #d9c0ae;
-    background: #fff;
-    color: #495057;
-    font-size: 11px;
+  .val-print-layout .print-val-brand-header img {
+    display: block;
+    flex: none;
+    width: 18mm;
+    height: 18mm;
+    object-fit: contain;
   }
 
-  .print-val-section h3 {
-    margin-bottom: 8px;
-    color: #000;
-    font-size: 12pt;
+  .val-print-layout .print-val-generated {
+    margin: 4mm 0 2mm;
+    color: var(--app-color-text-muted);
+    font-size: 8pt;
+    text-align: right;
   }
 
-  .val-print-table {
-    width: 100%;
-    border-collapse: collapse;
-    color: #000;
-    font-size: 9pt;
+  .val-print-layout .print-val-filters-box {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    padding: 0;
+    border-bottom: 0.2mm solid var(--app-color-border-subtle);
+    font-size: 8pt;
   }
 
-  .val-print-table th,
-  .val-print-table td {
-    padding: 6px 8px;
-    border: 1px solid #ddd;
-    text-align: left;
+  .val-print-layout .print-val-filters-box > div {
+    min-width: 0;
   }
 
-  .val-print-table th {
-    border-bottom: 2px solid #000;
-    background: #f2f2f2 !important;
-    font-weight: 700;
+  .val-print-layout .print-val-filters-box dt {
+    padding: 1.5mm 2mm;
+    background: var(--app-color-brand-deep);
+    color: var(--app-color-surface-soft);
+    font-weight: 600;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .print-align-right,
-  .print-total-label,
-  .print-total-value {
-    text-align: right !important;
+  .val-print-layout .print-val-filters-box dd {
+    margin: 0;
+    padding: 2mm;
+    color: var(--app-color-text);
+    overflow-wrap: anywhere;
   }
 
-  .print-empty-cell {
-    padding: 20px !important;
-    text-align: center !important;
+  .val-print-layout .print-val-section {
+    margin-top: 6mm;
   }
 
-  .print-value-cell {
+  .val-print-layout .print-val-section--compact {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .val-print-layout .print-val-section h2,
+  .val-print-layout .print-val-section h3 {
+    margin: 0 0 1mm;
+    padding-bottom: 1mm;
+    border-bottom: 0.2mm solid var(--app-color-brand-light);
+    color: var(--app-color-brand-deep);
+    font-size: 11pt;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: uppercase;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .val-print-layout .val-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: var(--app-color-text);
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .val-print-layout .val-print-table thead {
+    display: table-header-group;
+  }
+
+  .val-print-layout .val-print-table tfoot {
+    display: table-row-group;
     font-weight: 600;
   }
 
-  .print-total-label,
-  .print-total-value {
-    font-weight: 700;
+  .val-print-layout .val-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
-  .val-print-table-grand td {
-    border-top: 2px solid #000;
-    font-size: 10pt;
+  .val-print-layout .val-print-table th,
+  .val-print-layout .val-print-table td {
+    padding: 1mm 1.5mm;
+    border: 0;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
   }
 
-  .print-footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 10px 0 15px;
-    border-top: 1px solid #d9c0ae;
-    background: #fff;
-    color: #6c757d;
-    font-size: 9px;
+  .val-print-layout .val-print-table thead th {
+    background: var(--app-color-brand-deep);
+    color: var(--app-color-surface-soft);
+    font-weight: 600;
+  }
+
+  .val-print-layout .val-print-table tbody tr:nth-child(even),
+  .val-print-layout .val-print-table tfoot tr {
+    background: var(--app-color-control-hover);
+  }
+
+  .val-print-layout .val-print-table .print-align-right {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .val-print-layout .print-val-summary-table th,
+  .val-print-layout .print-val-summary-table td {
     text-align: center;
+  }
+
+  .val-print-layout .val-print-table .print-empty-cell {
+    padding: 3mm;
+    text-align: center;
+    color: var(--app-color-text-muted);
+  }
+
+  .val-print-layout .print-val-col-item { width: 26%; }
+  .val-print-layout .print-val-col-category { width: 18%; }
+  .val-print-layout .print-val-col-stock { width: 12%; }
+  .val-print-layout .print-val-col-unit { width: 10%; }
+  .val-print-layout .print-val-col-cost { width: 16%; }
+  .val-print-layout .print-val-col-value { width: 18%; }
+  .val-print-layout .print-val-col-percent { width: 25%; }
+
+  .val-print-layout .print-val-note {
+    margin-top: 2mm;
+    color: var(--app-color-text-muted);
+    font-size: 7pt;
+  }
+
+  .val-print-layout .print-val-footer {
+    position: fixed;
+    right: 12mm;
+    bottom: 6mm;
+    left: 12mm;
+    padding-top: 2mm;
+    border-top: 0.2mm solid var(--app-color-brand-border);
+    background: var(--app-color-surface);
+    color: var(--app-color-text-muted);
+    font-size: 6.5pt;
+    text-align: left;
   }
 }

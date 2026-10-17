@@ -116,16 +116,6 @@ const SalesReportPage = () => {
     },
   ];
 
-  const printSummaryCards = salesSummaryCards.map((card, index) => {
-    const printColors = ["brown", "green", "gray", "yellow"];
-
-    return {
-      ...card,
-      label: card.title,
-      color: printColors[index],
-    };
-  });
-
   const handleApplySalesFilters = (nextFilters) => {
     setDatePreset(nextFilters.datePreset);
     setFromDate(nextFilters.fromDate);
@@ -260,16 +250,13 @@ const SalesReportPage = () => {
         filterCategory={filterCategories.join(", ") || "All Categories"}
         fromDate={fromDate}
         toDate={toDate}
-        summaryCards={printSummaryCards}
         sourceData={sourceData}
         summaryData={summaryData}
-        topSellingItems={topSellingItems}
+        topSellingItems={analytics.topSelling.slice(0, 10)}
         quadCounts={quadCounts}
         detailedProfitability={detailedProfitability}
         categorySales={categorySales}
-        categoryColors={categoryColors}
         hourlyData={safeHourlyData}
-        maxOrders={maxOrders}
         peakHour={peakHour}
         totalOrders={totalOrders}
       />}

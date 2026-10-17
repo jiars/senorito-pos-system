@@ -150,6 +150,7 @@ const InventoryValuationReport = () => {
       <Button
         type="button"
         onClick={() => window.print()}
+        disabled={isLoading || Boolean(error)}
         className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] bg-[var(--app-color-brand)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-white hover:bg-[var(--app-color-brand)]/90"
       >
         <i aria-hidden="true" className="bi bi-printer" />
@@ -208,14 +209,14 @@ const InventoryValuationReport = () => {
           />
         </section>
 
-        <InventoryValuationPrintLayout
+        {!isLoading && !error && <InventoryValuationPrintLayout
           items={filteredItems}
           categorySummary={categorySummary}
           searchTerm={searchTerm}
           category={categories.join(", ") || "All Categories"}
           sort={sort}
           filteredTotal={filteredTotal}
-        />
+        />}
       </div>
     </PageLayout>
   );
