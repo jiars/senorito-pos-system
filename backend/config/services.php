@@ -19,6 +19,10 @@ return [
         'key' => env('BREVO_API_KEY'),
     ],
 
+    'maintenance' => [
+        'token' => env('MAINTENANCE_TOKEN'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

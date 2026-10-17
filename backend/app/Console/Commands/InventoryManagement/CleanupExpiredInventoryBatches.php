@@ -37,7 +37,24 @@ class CleanupExpiredInventoryBatches extends Command
 
         $expiryCleanup = app(InventoryExpiryCleanupOrchestrator::class);
 
-        $cleanedBatchCount = $expiryCleanup->cleanup($inventoryItemId);
+        if ($inventoryItemId !== null) {
+            // Targeted cleanup must not mark the whole day complete.
+            $cleanedBatchCount = $expiryCleanup->cleanup($inventoryItemId);
+        } else {
+            // Full cleanup uses the daily completion record.
+            $result = $expiryCleanup->cleanupDaily();
+
+            if ($result['already_completed']) {
+                $this->info(
+                    'Daily expiry cleanup already completed for '
+                        . $result['business_date'] . '.'
+                );
+
+                return self::SUCCESS;
+            }
+
+            $cleanedBatchCount = $result['cleaned_batch_count'];
+        }
 
         if ($cleanedBatchCount === 0) {
             $this->info('No expired inventory batches found.');

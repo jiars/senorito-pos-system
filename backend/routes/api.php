@@ -60,6 +60,10 @@ use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeEditContro
 use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeDeactivateController;
 use App\Http\Controllers\Api\EmployeeManagement\Orchestrators\EmployeeReactivateController;
 
+// inventory expired cleanup
+use App\Http\Middleware\EnsureMaintenanceToken;
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryExpiryCleanupOrchestrator;
+
 use Illuminate\Support\Facades\Route;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
@@ -69,6 +73,9 @@ Route::prefix('auth/password')->group(function () {
     Route::post('/reset', [ResetPasswordController::class, 'store'])->middleware('throttle:password-reset');
     Route::post('/setup', [SetupPasswordController::class, 'store'])->middleware('throttle:password-reset');
 });
+
+// Scheduled maintenance uses its own secret, not a cashier login.
+Route::post('/maintenance/inventory/cleanup-expired', [InventoryExpiryCleanupOrchestrator::class, 'cleanupDaily',])->middleware(EnsureMaintenanceToken::class);
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth related
