@@ -1,5 +1,6 @@
 import { getBusinessHour } from "@/utils/shared/formatters/businessDates";
 import { normalizeOrderSource, orderSourceOptions } from "@/utils/orders/orderOptions";
+import { calculateEstCost } from "@/utils/menu/pricingCalculations";
 
 const getCategoryName = (orderItem) => {
   const menuItem = orderItem.menu_item;
@@ -224,7 +225,35 @@ export const calculateOrderTrends = (orders) => {
   };
 };
 
-// Calculate estimated profitability for every Menu item and variant.
+const getCurrentRecipeCost = (menuItem, variantId) => {
+  // Do not present a missing recipe response as zero cost / 100% margin.
+  if (!Array.isArray(menuItem.menu_recipes) || !Array.isArray(menuItem.menu_prices)) {
+    return null;
+  }
+
+  const recipes = menuItem.menu_recipes.filter((recipe) => {
+    return recipe.menu_item_price_id === variantId ||
+      (menuItem.menu_prices.length === 1 && recipe.menu_item_price_id == null);
+  });
+  if (recipes.length === 0 || recipes.some((recipe) => !recipe.inventory_items)) {
+    return null;
+  }
+
+  const ingredients = recipes.map((recipe) => {
+    return {
+      ingredientId: recipe.inventory_item_id,
+      qty: recipe.quantity,
+      unit: recipe.unit,
+    };
+  });
+  const inventoryItems = recipes.map((recipe) => {
+    return recipe.inventory_items;
+  });
+
+  return calculateEstCost(ingredients, inventoryItems);
+};
+
+// Current recipe estimates combined with sales quantities from the selected period.
 export const calculateDetailedProfitability = (orders, selectedCategory) => {
   const profitabilityTotals = {};
 
@@ -249,13 +278,11 @@ export const calculateDetailedProfitability = (orders, selectedCategory) => {
 
       let variantName = "";
       let sellingPrice = quantity > 0 ? revenue / quantity : 0;
-      let estimatedCost = 0;
       let variantId = "single";
 
       if (variant) {
         variantId = variant.id;
         sellingPrice = Number(variant.selling_price) || sellingPrice;
-        estimatedCost = Number(variant.estimated_cost) || 0;
 
         if (isVariant && variant.variant_name) {
           variantName = ` (${variant.variant_name})`;
@@ -265,6 +292,8 @@ export const calculateDetailedProfitability = (orders, selectedCategory) => {
       const uniqueKey = `${menuItem.id}-${variantId}`;
 
       if (!profitabilityTotals[uniqueKey]) {
+        const estimatedCost = getCurrentRecipeCost(menuItem, variantId);
+        if (estimatedCost === null || !Number.isFinite(estimatedCost)) return;
         profitabilityTotals[uniqueKey] = {
           item: `${menuItem.item_name}${variantName}`,
           category: categoryName,

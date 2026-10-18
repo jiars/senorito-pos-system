@@ -24,6 +24,11 @@ class OrderSalesController extends Controller
                 'order_items:id,order_id,menu_item_id,price_id,quantity,unit_price,subtotal',
                 'order_items.menu_item:id,item_name,category_id,pricing_type,image_url,archived',
                 'order_items.menu_item.menu_categories:id,category_name',
+                // Current recipe inputs match the Edit Menu cost preview.
+                'order_items.menu_item.menu_prices:id,menu_item_id',
+                'order_items.menu_item.menu_recipes:id,menu_item_id,menu_item_price_id,inventory_item_id,quantity,unit',
+                'order_items.menu_item.menu_recipes.inventory_items:id,base_unit,cost_per_unit',
+                'order_items.menu_item.menu_recipes.inventory_items.inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
                 'order_items.variant:id,variant_name,selling_price,estimated_cost,archived',
             ])
             ->where('status', '!=', 'Cancelled');
