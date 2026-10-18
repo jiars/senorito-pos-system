@@ -1,5 +1,9 @@
 import api from "../utils/axios/axiosInstance";
 import { getLoginDeviceId } from "../utils/auth/loginDevice";
+import {
+  clearInventoryCleanupPending,
+  markInventoryCleanupPending,
+} from "../utils/inventory/inventoryCleanupSession";
 
 let logoutInProgress = false;
 
@@ -15,6 +19,7 @@ export const loginUser = async (login, password) => {
 
     // Preserve the existing successful-login behavior.
     localStorage.setItem("auth_token", response.data.token);
+    markInventoryCleanupPending(response.data.user);
 
     return response.data;
   } catch (error) {
@@ -46,6 +51,7 @@ export const logoutUser = async () => {
 
     // Delete the token from the browser
     localStorage.removeItem("auth_token");
+    clearInventoryCleanupPending();
   } catch (error) {
     console.error("Error logging out:", error.message);
     throw error;

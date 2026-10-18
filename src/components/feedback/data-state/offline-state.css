@@ -1,0 +1,10 @@
+/* Hidden report/QR print portals must not expose cached data from a blocked page. */
+@media print {
+  body:has([data-offline-page="true"]) > :not(#root) {
+    display: none !important;
+  }
+
+  body:has([data-offline-page="true"]) > #root {
+    display: block !important;
+  }
+}

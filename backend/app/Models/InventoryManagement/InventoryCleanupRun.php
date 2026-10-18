@@ -22,4 +22,9 @@ class InventoryCleanupRun extends Model
         'cleaned_batch_count',
         'completed_at',
     ];
+
+    public function audit_logs()
+    {
+        return $this->hasMany(InventoryAuditLog::class, 'cleanup_run_id', 'id');
+    }
 }

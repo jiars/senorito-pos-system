@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { INVENTORY_CLEANUP_COPY } from "@/utils/inventory/feedback/inventoryCleanupFeedback";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
+const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem, onOpenExpirySummary }) => {
   const navigate = useNavigate();
 
   return (
@@ -27,7 +28,7 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
           }
         />
 
-        <DropdownMenuContent align="end" className="z-[100] w-52">
+        <DropdownMenuContent align="end" className="z-[100] w-60">
           <DropdownMenuItem disabled>
             <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
             Export
@@ -42,6 +43,13 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem }) => {
             <i aria-hidden="true" className="bi bi-tags" />
             Manage Categories
           </DropdownMenuItem>
+
+          {onOpenExpirySummary && (
+            <DropdownMenuItem onClick={onOpenExpirySummary} className="min-h-[var(--app-touch-target-min)]">
+              <i aria-hidden="true" className="bi bi-calendar-check" />
+              {INVENTORY_CLEANUP_COPY.TITLE}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

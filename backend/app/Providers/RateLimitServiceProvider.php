@@ -23,6 +23,14 @@ class RateLimitServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Both Profile forms can verify a password; share one account/IP limit.
+        RateLimiter::for('profile-update', function (Request $request) {
+            return [
+                Limit::perMinute(5)->by('profile-user:'.$request->user()->id),
+                Limit::perMinute(20)->by('profile-ip:'.$request->ip()),
+            ];
+        });
+
         // Login: protect individual accounts and the requesting IP.
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(20)

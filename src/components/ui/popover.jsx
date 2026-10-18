@@ -1,3 +1,4 @@
+import PagePortal from "@/components/ui/page-portal";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { cn } from "cn";
 
@@ -19,7 +20,7 @@ function PopoverContent({
   ...props
 }) {
   return (
-    <PopoverPrimitive.Portal>
+    <PagePortal component={PopoverPrimitive.Portal}>
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
@@ -36,7 +37,7 @@ function PopoverContent({
           {...props}
         />
       </PopoverPrimitive.Positioner>
-    </PopoverPrimitive.Portal>
+    </PagePortal>
   );
 }
 

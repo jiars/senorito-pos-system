@@ -1,5 +1,6 @@
 "use client"
 
+import PagePortal from "@/components/ui/page-portal";
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
@@ -70,7 +71,7 @@ function SelectContent({
   ...props
 }) {
   return (
-    <SelectPrimitive.Portal>
+    <PagePortal component={SelectPrimitive.Portal}>
       <SelectPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}
@@ -90,7 +91,7 @@ function SelectContent({
           <SelectScrollDownButton />
         </SelectPrimitive.Popup>
       </SelectPrimitive.Positioner>
-    </SelectPrimitive.Portal>
+    </PagePortal>
   )
 }
 

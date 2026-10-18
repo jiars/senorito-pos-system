@@ -1,3 +1,4 @@
+import PagePortal from "@/components/ui/page-portal";
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import { cn } from "cn";
 
@@ -15,7 +16,7 @@ function AlertDialogTrigger({ ...props }) {
 
 function AlertDialogPortal({ ...props }) {
   return (
-    <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />
+    <PagePortal component={AlertDialogPrimitive.Portal} data-slot="alert-dialog-portal" {...props} />
   );
 }
 

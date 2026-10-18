@@ -24,7 +24,7 @@ class InventoryAuditLogController extends Controller
     public function store(array $auditData)
     {
         // Audit records are permanent and insert-only.
-        return InventoryAuditLog::create([
+        $attributes = [
             'inventory_item_id' => $auditData['inventory_item_id'],
             'batch_id' => $auditData['batch_id'] ?? null,
             'transaction_reference' => $auditData['transaction_reference'] ?? null,
@@ -36,6 +36,13 @@ class InventoryAuditLogController extends Controller
             'reason_reference' =>
             $auditData['reason_reference'] ?? null,
             'performed_by' => $auditData['performed_by'],
-        ]);
+        ];
+
+        // Only the daily cleanup supplies this link; other actions stay unchanged.
+        if (isset($auditData['cleanup_run_id'])) {
+            $attributes['cleanup_run_id'] = $auditData['cleanup_run_id'];
+        }
+
+        return InventoryAuditLog::create($attributes);
     }
 }

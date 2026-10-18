@@ -1,3 +1,4 @@
+import PagePortal from "@/components/ui/page-portal";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
 
@@ -19,7 +20,7 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <PagePortal component={DialogPrimitive.Portal} data-slot="dialog-portal" {...props} />
 }
 
 function DialogClose({

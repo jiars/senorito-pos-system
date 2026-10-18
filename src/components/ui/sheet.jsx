@@ -1,3 +1,4 @@
+import PagePortal from "@/components/ui/page-portal";
 import * as React from "react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "cn"
@@ -26,7 +27,7 @@ function SheetClose({
 function SheetPortal({
   ...props
 }) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  return <PagePortal component={SheetPrimitive.Portal} data-slot="sheet-portal" {...props} />
 }
 
 function SheetOverlay({

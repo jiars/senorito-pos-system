@@ -10,6 +10,10 @@ class PasswordChangedNotification extends Notification
 {
     use Queueable;
 
+    public function __construct(private bool $keepCurrentSession = false)
+    {
+    }
+
     /**
      * Get the notification's delivery channels.
      *
@@ -38,7 +42,9 @@ class PasswordChangedNotification extends Notification
                 'accountExplanation' => 'Your Señorito POS password was successfully changed for',
             ])
             ->line("Date and time: {$changedAt} (Philippine Time)")
-            ->line('All previous login sessions were signed out for your security.')
+            ->line($this->keepCurrentSession
+                ? 'Other login sessions were signed out. This device remains signed in.'
+                : 'All previous login sessions were signed out for your security.')
             ->line('If you did not request this change, contact the cafe Owner immediately.');
     }
 

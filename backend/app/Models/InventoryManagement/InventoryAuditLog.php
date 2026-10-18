@@ -20,6 +20,7 @@ class InventoryAuditLog extends Model
         'inventory_item_id',
         'batch_id',
         'transaction_reference',
+        'cleanup_run_id',
         'action',
         'source',
         'quantity_change',
@@ -36,6 +37,11 @@ class InventoryAuditLog extends Model
             'inventory_item_id',
             'id'
         );
+    }
+
+    public function cleanup_run()
+    {
+        return $this->belongsTo(InventoryCleanupRun::class, 'cleanup_run_id', 'id');
     }
 
     public function inventory_batch()
