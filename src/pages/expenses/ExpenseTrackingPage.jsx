@@ -95,7 +95,7 @@ const ExpenseTrackingPage = () => {
     salaryTransactionCount,
     totalInventoryPurchases,
     inventoryPurchasePercentage,
-    topOperatingExpense,
+    topExpenseCategory,
     expenseTransactionCount,
     netOperational,
   } = calculateExpenseSummary(filteredExpenseRecords, netSales);
@@ -181,7 +181,7 @@ const ExpenseTrackingPage = () => {
             salaryTransactionCount={salaryTransactionCount}
             totalInventoryPurchases={totalInventoryPurchases}
             inventoryPurchasePercentage={inventoryPurchasePercentage}
-            topOperatingExpense={topOperatingExpense}
+            topExpenseCategory={topExpenseCategory}
             expenseTransactionCount={expenseTransactionCount}
             isLoading={isLoading}
           />

@@ -4,6 +4,7 @@ import { formatCurrency } from '@/utils/shared/formatters/currencyFormatters';
 import CashPaymentModal from '../modals/CashPaymentModal';
 import { Skeleton } from "@/components/ui/skeleton";
 import { POS_FEEDBACK, getPOSStatusFeedback } from "@/utils/pos/feedback/posFeedback";
+import { paymentMethodOptions, orderSourceOptions } from "@/utils/orders/orderOptions";
 
 const standardBtnClasses = "flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-[var(--app-radius-panel-standard,1rem)] border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex flex-wrap items-center justify-center gap-[var(--app-space-1)]";
 const btnActive = "bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white shadow-sm";
@@ -150,19 +151,19 @@ const POSCartSidebar = ({
 
       {/* Order Source */}
       <div className="flex flex-wrap gap-[var(--app-space-2)] p-[var(--app-space-4)] shrink-0 bg-[var(--app-color-canvas)]">
-        {['In-Store', 'Foodpanda', 'Grab'].map(source => (
+        {orderSourceOptions.map((source) => (
           <button
-            key={source}
+            key={source.value}
             type="button"
             disabled={isPaymentLocked}
             className={`flex-1 min-w-[70px] h-[var(--app-touch-target-min,2.75rem)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold rounded-full border transition-all whitespace-normal leading-[var(--app-line-height-caption)] text-center flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed ${
-              orderSource === source
+              orderSource === source.value
                 ? 'bg-[var(--app-color-brand)] border-[var(--app-color-brand)] text-white shadow-sm'
                 : 'bg-[var(--app-color-surface)] border-[var(--app-color-border)] text-[var(--app-color-text-soft)] hover:bg-[var(--app-color-canvas)]'
             }`}
-            onClick={() => handleOrderSourceChange(source)}
+            onClick={() => handleOrderSourceChange(source.value)}
           >
-            {source}
+            {source.label}
           </button>
         ))}
       </div>
@@ -229,32 +230,32 @@ const POSCartSidebar = ({
           <div className="flex flex-col gap-[var(--app-space-2)] mt-[var(--app-space-1)]">
             <h4 className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text-subtle)] m-0">Payment Method</h4>
             <div className="flex flex-wrap gap-[var(--app-space-2)] w-full">
-              <button
-                className={`${standardBtnClasses} ${paymentMethod === 'Cash' ? btnActive : btnInactive} ${isPaymentLocked || orderSource !== 'In-Store' ? btnDisabled : ''}`}
-                onClick={() => {
-                  setPaymentMethod('Cash');
-                  if (subtotal > 0) {
-                    setIsCashModalOpen(true);
-                  }
-                }}
-                disabled={isPaymentLocked || orderSource !== 'In-Store'}
-              >
-                <i className="bi bi-cash"></i> Cash
-              </button>
-              <button
-                className={`${standardBtnClasses} ${paymentMethod === 'GCash' ? btnActive : btnInactive} ${isPaymentLocked || orderSource !== 'In-Store' ? btnDisabled : ''}`}
-                onClick={() => setPaymentMethod('GCash')}
-                disabled={isPaymentLocked || orderSource !== 'In-Store'}
-              >
-                <i className="bi bi-credit-card"></i> Non-Cash
-              </button>
-              <button
-                className={`${standardBtnClasses} ${paymentMethod === 'External' ? btnActive : btnInactive} ${isPaymentLocked || orderSource === 'In-Store' ? btnDisabled : ''}`}
-                onClick={() => setPaymentMethod('External')}
-                disabled={isPaymentLocked || orderSource === 'In-Store'}
-              >
-                <i className="bi bi-bag"></i> External
-              </button>
+              {paymentMethodOptions.map((method) => {
+                let isDisabled = isPaymentLocked;
+                if (method.value === 'External') {
+                  if (orderSource === 'In-Store') isDisabled = true;
+                } else if (orderSource !== 'In-Store') {
+                  isDisabled = true;
+                }
+
+                return (
+                  <button
+                    key={method.value}
+                    type="button"
+                    className={`${standardBtnClasses} ${paymentMethod === method.value ? btnActive : btnInactive} ${isDisabled ? btnDisabled : ''}`}
+                    onClick={() => {
+                      if (isDisabled) return;
+                      setPaymentMethod(method.value);
+                      if (method.value === 'Cash' && subtotal > 0) {
+                        setIsCashModalOpen(true);
+                      }
+                    }}
+                    disabled={isDisabled}
+                  >
+                    <i className={method.iconClassName} aria-hidden="true" /> {method.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

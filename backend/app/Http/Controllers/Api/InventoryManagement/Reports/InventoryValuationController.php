@@ -19,10 +19,11 @@ class InventoryValuationController extends Controller
                 'minimum_level',
                 'cost_per_unit',
                 'current_stock',
+                'track_expiry',
             ])
             ->with([
                 'inventory_categories:id,category_name',
-                'inventory_batches:id,inventory_item_id,quantity,unit_cost',
+                'inventory_batches:id,inventory_item_id,quantity,unit_cost,expiration_date',
             ])
             ->where('archived', false)
             ->orderBy('item_name')

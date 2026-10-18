@@ -3,18 +3,20 @@
 namespace App\Http\Controllers\Api\DashboardManagement\Sales;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class TopSellingItemsController extends Controller
 {
-    // Get the five best-selling items from the last seven days.
+    // Match Sales Report's This Week: Sunday through today in Philippine time.
     public function fetch()
     {
-        $sevenDaysAgo = now(config('app.business_timezone'))
-            ->subDays(7)
-            ->startOfDay()
+        $today = now(config('app.business_timezone'))->startOfDay();
+        $start = $today->copy()
+            ->startOfWeek(Carbon::SUNDAY)
             ->utc()
             ->toISOString();
+        $end = $today->copy()->addDay()->utc()->toISOString();
 
         return DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -25,8 +27,10 @@ class TopSellingItemsController extends Controller
                 '=',
                 'menu_categories.id'
             )
-            ->where('orders.order_datetime', '>=', $sevenDaysAgo)
+            ->where('orders.order_datetime', '>=', $start)
+            ->where('orders.order_datetime', '<', $end)
             ->where('orders.status', '!=', 'Cancelled')
+            ->where('menu_items.archived', false)
             ->select(
                 'menu_items.id',
                 'menu_items.item_name as name',
@@ -42,6 +46,7 @@ class TopSellingItemsController extends Controller
                 'menu_categories.category_name'
             )
             ->orderByDesc('sold')
+            ->orderBy('menu_items.id')
             ->limit(5)
             ->get()
             ->map(function ($item, $index) {

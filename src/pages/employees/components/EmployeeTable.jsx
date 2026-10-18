@@ -8,6 +8,12 @@ import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import ResendSetupLinkModal from "../modals/Resend Setup Link/ResendSetupLinkModal";
+import {
+  employeeStatusOptions,
+  getEmployeeDisplayStatus,
+  getEmployeeRequestMap,
+  filterAndSortEmployees,
+} from "@/utils/employees/employeeTableUtils";
 
 import EmployeeActionsMenu from "./EmployeeActionsMenu";
 
@@ -31,22 +37,6 @@ const EmployeeActionCell = ({ row }) => {
       cooldown={cooldown}
     />
   );
-};
-
-const statusOptions = [
-  { label: "Active", value: "Active" },
-  { label: "Deactivated", value: "Deactivated" },
-];
-
-const getEmployeeDisplayStatus = (employee, resetRequest) => {
-  const accountStatus = String(employee.status || "Active").toLowerCase();
-
-  if (accountStatus !== "active") return "Deactivated";
-  if (employee.requires_password_setup) return "Pending Setup";
-  if (resetRequest?.status === "pending") return "Reset Requested";
-  if (resetRequest?.status === "approved") return "Reset Link Sent";
-
-  return "Active";
 };
 
 const getStatusClassName = (status) => {
@@ -121,7 +111,7 @@ const EmployeeTableToolbar = ({
         <FilterOptionGroup
           id="employee-table-statuses"
           label="Status"
-          options={statusOptions}
+          options={employeeStatusOptions}
           selectedValues={draftFilters.statuses}
           onSelectedValuesChange={(nextStatuses) =>
             setDraftFilters((current) => ({
@@ -185,47 +175,14 @@ const EmployeeTable = ({
   };
 
   const requestByEmployeeId = useMemo(
-    () =>
-      new Map(
-        passwordResetRequests.map((request) => [
-          String(request.user_id),
-          request,
-        ]),
-      ),
+    () => getEmployeeRequestMap(passwordResetRequests),
     [passwordResetRequests],
   );
 
-  const filteredEmployees = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return employees.filter((employee) => {
-      const roleName = employee.role?.role_name || employee.role_name || "";
-      const status = employee.status || "Active";
-      const searchableText = [
-        employee.first_name,
-        employee.last_name,
-        employee.full_name,
-        employee.username,
-        employee.contact_number,
-        employee.contact,
-        employee.email,
-        roleName,
-        status,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch =
-        normalizedSearch === "" || searchableText.includes(normalizedSearch);
-      const matchesRole =
-        filters.roles.length === 0 || filters.roles.includes(roleName);
-      const matchesStatus =
-        filters.statuses.length === 0 || filters.statuses.includes(status);
-
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [employees, filters, searchTerm]);
+  const filteredEmployees = useMemo(
+    () => filterAndSortEmployees(employees, filters, searchTerm, requestByEmployeeId),
+    [employees, filters, searchTerm, requestByEmployeeId],
+  );
 
   const totalPages = Math.max(
     1,

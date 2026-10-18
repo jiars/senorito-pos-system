@@ -229,6 +229,7 @@ const MenuManagementPage = () => {
         refetchMenu={refetchMenu}
         categories={categories}
         inventoryItems={ingredients}
+        existingItems={[...menuItems, ...archivedMenuItems]}
         supportsVariantArchiving={true}
       />
 

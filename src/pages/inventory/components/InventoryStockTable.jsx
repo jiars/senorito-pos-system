@@ -40,8 +40,8 @@ const expiryStatusOptions = [
 ];
 
 const sortOptions = [
-  { label: "0 - Z", value: "0-z" },
-  { label: "Z - 0", value: "z-0" },
+  { label: "A - Z", value: "0-z" },
+  { label: "Z - A", value: "z-0" },
   { label: "Latest Added", value: "latest" },
   { label: "Oldest Added", value: "oldest" },
 ];
@@ -84,7 +84,7 @@ const InventoryStockToolbar = ({
     value: category.category_name,
   }));
   const sortLabel =
-    sortOptions.find((option) => option.value === sort)?.label ?? "0 - Z";
+    sortOptions.find((option) => option.value === sort)?.label ?? "A - Z";
 
   const clearFilters = () => {
     const clearedFilters = {

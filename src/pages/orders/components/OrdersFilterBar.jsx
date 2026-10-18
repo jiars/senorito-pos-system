@@ -8,18 +8,7 @@ import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getOrderDateKey, getOrderReportPeriodDates } from "@/utils/orders/orderDates";
 import { validateOrderFilterDates } from "@/utils/orders/validation/orderFilterValidation";
-
-const paymentMethodOptions = [
-  { label: "Cash", value: "Cash" },
-  { label: "Non-Cash", value: "GCash" },
-  { label: "External", value: "External" },
-];
-
-const orderSourceOptions = [
-  { label: "In-Store", value: "In-Store" },
-  { label: "Food Panda", value: "Foodpanda" },
-  { label: "Grab", value: "Grab" },
-];
+import { paymentMethodOptions, orderSourceOptions } from "@/utils/orders/orderOptions";
 
 const reportPeriodOptions = [
   { label: "All Time", value: "all" },

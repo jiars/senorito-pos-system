@@ -29,16 +29,6 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem, onOpenExpirySu
         />
 
         <DropdownMenuContent align="end" className="z-[100] w-60">
-          <DropdownMenuItem disabled>
-            <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
-            Export
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => navigate("/inventory/archive")}>
-            <i aria-hidden="true" className="bi bi-archive" />
-            View Archive
-          </DropdownMenuItem>
-
           <DropdownMenuItem onClick={onOpenManageCategories}>
             <i aria-hidden="true" className="bi bi-tags" />
             Manage Categories
@@ -50,6 +40,11 @@ const InventoryHeader = ({ onOpenManageCategories, onOpenAddItem, onOpenExpirySu
               {INVENTORY_CLEANUP_COPY.TITLE}
             </DropdownMenuItem>
           )}
+
+          <DropdownMenuItem onClick={() => navigate("/inventory/archive")}>
+            <i aria-hidden="true" className="bi bi-archive" />
+            View Archive
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -7,7 +7,7 @@ const ExpenseSummaryCards = ({
   salaryTransactionCount,
   totalInventoryPurchases,
   inventoryPurchasePercentage,
-  topOperatingExpense,
+  topExpenseCategory,
   expenseTransactionCount,
   isLoading,
 }) => {
@@ -40,10 +40,10 @@ const ExpenseSummaryCards = ({
       titleClassName: "text-[var(--app-color-brand)]",
     },
     {
-      id: "top-operating-expense",
-      title: "Top Operating Expense",
-      value: topOperatingExpense.category,
-      descriptionAccent: formatCurrency(topOperatingExpense.amount),
+      id: "top-expense-category",
+      title: "Top Expense Category",
+      value: topExpenseCategory.category,
+      descriptionAccent: formatCurrency(topExpenseCategory.amount),
       description: " in the selected period",
       descriptionAccentClassName: "text-[var(--app-color-brand)]",
       titleClassName: "text-[var(--app-color-brand)]",

@@ -36,15 +36,15 @@ const TopSellingPanel = ({ topSellingItems, isLoading }) => {
           </h3>
 
           <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-            Your best-performing menu items based on sales this week.
+            Non-archived items ranked by units sold from Sunday through today.
           </p>
         </div>
       </header>
 
       {topSellingItems.length === 0 ? (
         <EmptyState
-          title="No top-selling items yet"
-          description="Top items will appear here after completed sales are recorded."
+          title="No top-selling items this week"
+          description="Top items will appear here after sales are recorded this week."
         />
       ) : (
         <div className="-mx-[var(--app-space-2)] flex gap-[var(--app-gap-related)] overflow-x-auto px-[var(--app-space-2)] py-[var(--app-space-2)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

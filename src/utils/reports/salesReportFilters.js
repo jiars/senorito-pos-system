@@ -2,6 +2,7 @@ import {
   getBusinessDateKey,
   getBusinessPeriodDates,
 } from "@/utils/shared/formatters/businessDates";
+import { matchesOrderSource } from "@/utils/orders/orderOptions";
 
 export const getSalesReportPresetDates = (reportPeriod) => {
   if (reportPeriod === "All Time") return getBusinessPeriodDates("all");
@@ -44,15 +45,7 @@ export const filterSalesOrders = (
     if (fromDate && orderDate < fromDate) return false;
     if (toDate && orderDate > toDate) return false;
 
-    if (
-      selectedSources.length > 0 &&
-      !selectedSources.some(
-        (selectedSource) =>
-          orderSource.toLowerCase() === selectedSource.toLowerCase(),
-      )
-    ) {
-      return false;
-    }
+    if (!matchesOrderSource(orderSource, selectedSources)) return false;
 
     return orderHasCategory(order, selectedCategories);
   });

@@ -4,7 +4,9 @@ import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
 export const editMenuItemValidationMessages = {
   ...sellingPriceValidationMessages,
   nameRequired: "Item name is required.",
+  nameDuplicate: "An item with this name already exists.",
   categoryRequired: "Category is required.",
+  categoryUnavailable: "Select an available category.",
   variantsRequired: "Keep at least one non-archived size.",
   variantNameRequired: "Enter a name for every size when there are multiple variants.",
   ingredientsRequired: "Add at least one ingredient to this recipe.",
@@ -16,11 +18,25 @@ export const editMenuItemValidationMessages = {
   unitRequired: "Unit is required.",
 };
 
-export const validateEditMenuItem = (baseInfo, variants, inventoryItems) => {
+export const validateEditMenuItem = (
+  baseInfo,
+  variants,
+  categories,
+  inventoryItems,
+  existingItems = [],
+  currentItemId,
+) => {
   const errors = {};
   const messages = editMenuItemValidationMessages;
+  // Check other items only; keeping this item's current name is allowed.
+  const duplicateName = existingItems.some((item) => {
+    return item.id !== currentItemId &&
+      item.item_name.trim().toLowerCase() === baseInfo.name.trim().toLowerCase();
+  });
   if (!baseInfo.name.trim()) errors.name = messages.nameRequired;
+  else if (duplicateName) errors.name = messages.nameDuplicate;
   if (!baseInfo.category) errors.category = messages.categoryRequired;
+  else if (!categories.some((category) => category.id === baseInfo.category)) errors.category = messages.categoryUnavailable;
   const activeVariants = variants.filter((variant) => !variant.archived);
   if (!activeVariants.length) errors.variants = messages.variantsRequired;
   for (const variant of activeVariants) {

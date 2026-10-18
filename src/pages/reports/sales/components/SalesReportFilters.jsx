@@ -7,12 +7,7 @@ import FilterSelectField from "@/components/filters/FilterSelectField";
 import { getSalesReportPresetDates } from "@/utils/reports/salesReportFilters";
 import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 import { validateSalesReportDates } from "@/utils/reports/validation/salesReportValidation";
-
-const orderSourceOptions = [
-  { label: "In-Store", value: "In-Store" },
-  { label: "Food Panda", value: "FoodPanda" },
-  { label: "Grab", value: "Grab" },
-];
+import { orderSourceOptions } from "@/utils/orders/orderOptions";
 
 const reportPeriodOptions = [
   { label: "All Time", value: "All Time" },

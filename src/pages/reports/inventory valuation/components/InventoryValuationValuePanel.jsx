@@ -21,6 +21,9 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const InventoryValuationValuePanel = ({
   categorySummary,
   totalValuation,
+  highestValueCategory,
+  highestValueItem,
+  expiringStockValue,
   isLoading = false,
 }) => {
   const [hoveredSegment, setHoveredSegment] = useState(null);
@@ -96,8 +99,10 @@ const InventoryValuationValuePanel = ({
               broken down by category. Each slice of the chart represents a
               category's share of the total value, computed as quantity on hand
               multiplied by unit cost. The figures on the right summarize the
-              total value, top expense, and losses from waste and spillage, and
-              the table lists the categories with the highest value.
+              total value, highest-value category and item, and the remaining value of
+              stock expiring within the next 7 days, excluding already-expired
+              stock. The four metrics
+              cover all non-archived items and do not change with table filters.
             </p>
           </TooltipContent>
         </Tooltip>
@@ -195,38 +200,44 @@ const InventoryValuationValuePanel = ({
 
             <div className="flex flex-col gap-[var(--app-space-2)]">
               <p className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text-subtle)]">
-                Top Expense
+                Highest-Value Category
               </p>
               <ResponsiveMetricValue
-                value="—"
+                value={formatCurrency(highestValueCategory.value)}
                 maxFontSize={24}
                 minFontSize={16}
-                className="text-[var(--app-color-text-subtle)]"
               />
+              <p className="font-semibold text-[length:var(--app-font-size-caption)] text-[var(--app-color-brand)] [overflow-wrap:anywhere]">
+                {highestValueCategory.category}
+              </p>
             </div>
 
             <div className="flex flex-col gap-[var(--app-space-2)]">
               <p className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text-subtle)]">
-                Waste / Shrinkage Value
+                Expiring Stock Value
               </p>
               <ResponsiveMetricValue
-                value="—"
+                value={formatCurrency(expiringStockValue)}
                 maxFontSize={24}
                 minFontSize={16}
-                className="text-[var(--app-color-text-subtle)]"
               />
+              <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
+                Within 7 days
+              </p>
             </div>
 
             <div className="flex flex-col gap-[var(--app-space-2)]">
               <p className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text-subtle)]">
-                Spillage & Prep Waste Value
+                Highest-Value Item
               </p>
               <ResponsiveMetricValue
-                value="—"
+                value={formatCurrency(highestValueItem.value)}
                 maxFontSize={24}
                 minFontSize={16}
-                className="text-[var(--app-color-text-subtle)]"
               />
+              <p className="font-semibold text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)] [overflow-wrap:anywhere]">
+                {highestValueItem.item}
+              </p>
             </div>
           </div>
 
