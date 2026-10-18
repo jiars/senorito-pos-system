@@ -1,107 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../services/supabaseClient';
+import { Card } from '@/components/ui/card';
 import { formatDateTime } from '@/utils/shared/formatters/dateFormatters';
 
-const RecentActivityPanel = ({ user, profile, role }) => {
-    const [thirdSlot, setThirdSlot] = useState({ title: 'Loading...', date: null });
+const RecentActivityPanel = ({ profile, lastActivityAt }) => {
+    let activityTitle = 'Last System Update';
+    let activityIcon = 'bi-boxes';
 
-    useEffect(() => {
-        if (!user || !profile || !role) return;
+    if (profile.role.role_name === 'Cashier') {
+        activityTitle = 'Last Order Processed';
+        activityIcon = 'bi-receipt';
+    } else if (profile.role.role_name === 'Inventory Clerk') {
+        activityTitle = 'Last Inventory Update';
+    }
 
-        const fetchDynamicActivity = async () => {
-            try {
-                if (role === 'Cashier') {
-                    // Use the original sale time, matching Order History (including offline sales).
-                    const { data } = await supabase
-                        .from('orders')
-                        .select('order_datetime')
-                        .eq('cashier_id', user.id)
-                        .order('order_datetime', { ascending: false })
-                        .limit(1);
-
-                    if (data && data.length > 0) {
-                        setThirdSlot({ title: 'Last Order Processed', date: data[0].order_datetime });
-                    } else {
-                        setThirdSlot({ title: 'Last Order Processed', date: null });
-                    }
-                }
-                else if (role === 'Inventory Clerk') {
-                    // Fetch Last Inventory Update
-                    const { data } = await supabase
-                        .from('inventory_audit_logs')
-                        .select('created_at')
-                        .eq('performed_by', user.id)
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-
-                    if (data && data.length > 0) {
-                        setThirdSlot({ title: 'Last Inventory Update', date: data[0].created_at });
-                    } else {
-                        setThirdSlot({ title: 'Last Inventory Update', date: null });
-                    }
-                } else if (role === 'Owner') {
-                    // Just use the timestamp from their profile
-                    setThirdSlot({ title: 'Last System Update', date: profile.last_system_activity_at || null });
-                }
-            } catch (error) {
-                console.error("Failed to fetch dynamic activity:", error);
-                setThirdSlot({ title: 'No Recent Activity', date: null });
-            }
-        };
-
-        fetchDynamicActivity();
-    }, [user, profile, role]);
-
-    const formatActivityDate = (dateString) => {
-        if (!dateString) return 'No activity yet';
-        return formatDateTime(dateString);
-    };
+    const activities = [
+        { title: 'Last Login', date: profile.last_login_at, icon: 'bi-box-arrow-in-right' },
+        { title: activityTitle, date: lastActivityAt, icon: activityIcon },
+    ];
 
     return (
-        <div className="profile-panel">
-            <div className="profile-panel-header">
-                <h3 className="profile-panel-title">Recent Activity</h3>
-            </div>
-            <div className="profile-panel-body">
-                <div className="profile-divider"></div>
-
-                <div className="profile-activity-list">
-                    {/* Slot 1: Last Login */}
-                    <div className="profile-activity-item">
-                        <div className="profile-activity-icon activity-login">
-                            <i className="bi bi-box-arrow-in-right"></i>
+        <Card
+            role="region"
+            aria-labelledby="profile-activity-heading"
+            className="min-w-0 gap-[var(--app-gap-section)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-none ring-0"
+        >
+            <header>
+                <h2 id="profile-activity-heading" className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-brand-header)]">Recent Activity</h2>
+                <p className="m-0 mt-[var(--app-space-1)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-muted)]">Your latest recorded account activity.</p>
+            </header>
+            <ul className="m-0 grid min-w-0 list-none gap-[var(--app-gap-related)] p-0 sm:grid-cols-2">
+                {activities.map((activity) => (
+                    <li key={activity.title} className="flex min-w-0 items-start gap-[var(--app-space-4)] rounded-[var(--app-radius-nested)] bg-[var(--app-color-canvas)] p-[var(--app-space-4)]">
+                        <i aria-hidden="true" className={`bi ${activity.icon} shrink-0 text-[length:var(--app-font-size-h3)] text-[var(--app-color-brand)]`} />
+                        <div className="min-w-0">
+                            <p className="m-0 text-[length:var(--app-font-size-body-secondary)] font-medium leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">{activity.title}</p>
+                            <p className={`m-0 mt-[var(--app-space-2)] text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] [overflow-wrap:anywhere] ${activity.date ? "font-semibold text-[var(--app-color-text)]" : "font-normal text-[var(--app-color-text-muted)]"}`}>{activity.date ? formatDateTime(activity.date) : 'No activity yet'}</p>
                         </div>
-                        <div className="profile-activity-info">
-                            <p className="profile-activity-title">Last Login</p>
-                            <p className="profile-activity-date">{formatActivityDate(profile?.last_login_at)}</p>
-                        </div>
-                    </div>
-
-                    {/* Slot 2: Last Password Change */}
-                    <div className="profile-activity-item">
-                        <div className="profile-activity-icon activity-password">
-                            <i className="bi bi-key"></i>
-                        </div>
-                        <div className="profile-activity-info">
-                            <p className="profile-activity-title">Last Password Change</p>
-                            <p className="profile-activity-date">{formatActivityDate(profile?.last_password_change_at)}</p>
-                        </div>
-                    </div>
-
-                    {/* Slot 3: Dynamic Role-Based Activity */}
-                    <div className="profile-activity-item">
-                        <div className="profile-activity-icon activity-dynamic">
-                            {role === 'Cashier' ? <i className="bi bi-receipt"></i> : <i className="bi bi-boxes"></i>}
-                        </div>
-                        <div className="profile-activity-info">
-                            <p className="profile-activity-title">{thirdSlot.title}</p>
-                            <p className="profile-activity-date">{formatActivityDate(thirdSlot.date)}</p>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
+                    </li>
+                ))}
+            </ul>
+        </Card>
     );
 };
 

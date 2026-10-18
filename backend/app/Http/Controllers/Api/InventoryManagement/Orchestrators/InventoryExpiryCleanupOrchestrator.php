@@ -9,12 +9,42 @@ use App\Http\Controllers\Api\InventoryManagement\Batches\InventoryBatchExpiryCon
 use App\Services\InventoryManagement\InventoryExpiryService;
 use App\Models\InventoryManagement\InventoryCleanupRun;
 use App\Models\InventoryManagement\InventoryItem;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 class InventoryExpiryCleanupOrchestrator extends Controller
 {
+    public function cleanupForApp(Request $request)
+    {
+        // Only active, authenticated staff may trigger this fallback.
+        if ($request->user()->status !== 'Active') {
+            return response()->json([
+                'message' => 'Your account is not active.',
+            ], 403);
+        }
+
+        try {
+            // Reuse the same daily check and cleanup used by Cron.
+            $result = $this->cleanupDaily();
+
+            // Return readiness information, not inventory details.
+            return response()->json([
+                'business_date' => $result['business_date'],
+                'already_completed' => $result['already_completed'],
+            ]);
+        } catch (Throwable $exception) {
+            // Keep the technical error in Laravel's logs.
+            report($exception);
+
+            return response()->json([
+                'message' => 'Unable to complete the inventory check. Please retry.',
+            ], 500);
+        }
+    }
+
     public function cleanupDaily(): array
     {
         $today = app(InventoryExpiryService::class)->today();
@@ -39,7 +69,7 @@ class InventoryExpiryCleanupOrchestrator extends Controller
             }
 
             // Reuse the existing cleanup for all eligible ingredients.
-            $cleanedBatchCount = $this->cleanup(null, $today);
+            $cleanedBatchCount = $this->cleanup(null, $today, $run->id);
 
             // Save completion together with the stock and audit changes.
             $run->update([
@@ -55,7 +85,11 @@ class InventoryExpiryCleanupOrchestrator extends Controller
         });
     }
 
-    public function cleanup(?string $inventoryItemId = null, ?string $businessDate = null)
+    public function cleanup(
+        ?string $inventoryItemId = null,
+        ?string $businessDate = null,
+        ?string $cleanupRunId = null
+    )
     {
         $today = $businessDate;
 
@@ -65,7 +99,7 @@ class InventoryExpiryCleanupOrchestrator extends Controller
 
         $affectedItemIds = $expiryController->getAffectedItemIds($today, $inventoryItemId);
 
-        return DB::transaction(function () use ($today, $affectedItemIds, $expiryController) {
+        return DB::transaction(function () use ($today, $affectedItemIds, $expiryController, $cleanupRunId) {
             $cleanedBatchCount = 0;
 
             foreach ($affectedItemIds as $itemId) {
@@ -105,6 +139,8 @@ class InventoryExpiryCleanupOrchestrator extends Controller
                         'batch_id' => $batch->id,
                         'transaction_reference' =>
                         $transactionReference,
+                        // Keep the deducted quantity linked to this daily result.
+                        'cleanup_run_id' => $cleanupRunId,
                         'action' => 'Expired',
                         'source' => 'System',
                         'quantity_change' => -abs($expiredQuantity),

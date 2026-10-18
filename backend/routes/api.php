@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\InventoryManagement\AuditLogs\InventoryAuditLogCont
 use App\Http\Controllers\Api\InventoryManagement\Reports\InventoryValuationController;
 use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryAddController;
 use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryEditController;
+use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryCleanupSummaryController;
 
 // expense
 use App\Http\Controllers\Api\ExpenseManagement\InitExpenseManagementController;
@@ -47,6 +48,11 @@ use App\Http\Controllers\Api\OrderManagement\OrderItems\OrderItemController;
 
 // reports
 use App\Http\Controllers\Api\ReportManagement\InitSalesReportController;
+
+// profile
+use App\Http\Controllers\Api\ProfileManagement\InitProfileManagementController;
+use App\Http\Controllers\Api\ProfileManagement\Orchestrators\ProfileEditController;
+use App\Http\Controllers\Api\ProfileManagement\Orchestrators\ProfilePasswordController;
 
 // pos
 use App\Http\Controllers\Api\PosManagement\InitPosManagementController;
@@ -82,6 +88,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    Route::prefix('profile-management')->middleware('role:Owner,Cashier,Inventory Clerk')->group(function () {
+        // Fetch the signed-in account and its latest activity together.
+        Route::get('/init', [InitProfileManagementController::class, 'index']);
+        Route::patch('/profile', [ProfileEditController::class, 'update'])->middleware('throttle:profile-update');
+        Route::patch('/password', [ProfilePasswordController::class, 'update'])->middleware('throttle:profile-update');
+    });
+
+    // App-startup fallback: all three staff roles can trigger the check.
+    Route::post(
+        '/inventory-management/cleanup-expired',
+        [InventoryExpiryCleanupOrchestrator::class, 'cleanupForApp']
+    )->middleware('role:Owner,Cashier,Inventory Clerk');
+
     Route::prefix('auth/password/requests')->middleware('role:Owner')->group(function () {
         Route::post('{id}/approve', [ApprovePasswordResetRequestController::class, 'store',]);
         Route::patch('{id}/cancel', [CancelPasswordResetRequestController::class, 'update',]);
@@ -114,6 +133,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('inventory-management')->name('inventory-management.')->middleware('role:Owner,Inventory Clerk')->group(function () {
         // 1. Unified Data Fetch for Inventory Management
         Route::get('/init', [InitInventoryManagementController::class, 'index']);
+
+        // Read the saved daily result without running cleanup.
+        Route::get('cleanup-summary', [InventoryCleanupSummaryController::class, 'index']);
 
         // 2. Categories (Fetch, Add, Edit, Delete)
         Route::apiResource('categories', InventoryCategoryController::class)->only(['index', 'store', 'update', 'destroy']);

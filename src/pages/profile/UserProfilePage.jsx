@@ -1,27 +1,61 @@
-import React from "react";
-import "./userProfile.css";
-import { useAuth } from "../../hooks/useAuth";
+import { useState } from "react";
+import PageLayout from "@/components/layout/PageLayout";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfileManagement } from "@/hooks/useProfileManagement";
 
-import ProfileCard from "./components/ProfileCard";
-import PersonalInfoPanel from "./components/PersonalInfoPanel";
-import RecentActivityPanel from "./components/RecentActivityPanel";
+import ProfileContent from "./components/ProfileContent";
+import EditProfileModal from "./modals/Edit Profile/EditProfileModal";
+import ChangePasswordModal from "./modals/Change Password/ChangePasswordModal";
+import "./userProfile.css";
 
 const UserProfilePage = () => {
-  const { user, profile, role } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const {
+    profile,
+    lastActivityAt,
+    isLoading,
+    isFetching,
+    error,
+    refetchProfileManagement,
+  } = useProfileManagement(user ? user.id : null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+
+  // A saved edit must refresh both this page and the shared account display.
+  const refreshProfileAndSession = async () => {
+    await refetchProfileManagement({ throwOnError: true });
+    await refreshUser();
+  };
 
   return (
-    <div className="profile-page">
-      <div className="profile-grid">
-        {/* Left Column */}
-        <ProfileCard user={user} profile={profile} role={role} />
-
-        {/* Right Column */}
-        <div className="profile-settings-col">
-          <PersonalInfoPanel user={user} profile={profile} />
-          <RecentActivityPanel user={user} profile={profile} role={role} />
-        </div>
-      </div>
-    </div>
+    <PageLayout
+      title="My Profile"
+      subtitle="View your account details, security, and recent activity."
+      className="profile-page-shell flex min-w-0 flex-col gap-[var(--app-gap-section)]"
+    >
+      <ProfileContent
+        profile={profile}
+        lastActivityAt={lastActivityAt}
+        isLoading={isLoading}
+        isFetching={isFetching}
+        error={error}
+        onRetry={() => refetchProfileManagement({ cancelRefetch: false })}
+        onEdit={() => setIsEditOpen(true)}
+        onChangePassword={() => setIsPasswordOpen(true)}
+      />
+      <EditProfileModal
+        isOpen={isEditOpen}
+        profile={profile}
+        onClose={() => setIsEditOpen(false)}
+        refetchProfileManagement={refreshProfileAndSession}
+      />
+      <ChangePasswordModal
+        isOpen={isPasswordOpen}
+        profile={profile}
+        onClose={() => setIsPasswordOpen(false)}
+        refetchProfileManagement={refreshProfileAndSession}
+      />
+    </PageLayout>
   );
 };
 

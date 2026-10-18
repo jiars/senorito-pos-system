@@ -1,5 +1,6 @@
 "use client";
 
+import PagePortal from "@/components/ui/page-portal";
 import * as React from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "cn";
@@ -10,7 +11,7 @@ function DropdownMenu({ ...props }) {
 }
 
 function DropdownMenuPortal({ ...props }) {
-  return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />;
+  return <PagePortal component={MenuPrimitive.Portal} data-slot="dropdown-menu-portal" {...props} />;
 }
 
 function DropdownMenuTrigger({ ...props }) {
@@ -26,7 +27,7 @@ function DropdownMenuContent({
   ...props
 }) {
   return (
-    <MenuPrimitive.Portal>
+    <PagePortal component={MenuPrimitive.Portal}>
       <MenuPrimitive.Positioner
         className="isolate z-120 outline-none"
         align={align}
@@ -43,7 +44,7 @@ function DropdownMenuContent({
           {...props}
         />
       </MenuPrimitive.Positioner>
-    </MenuPrimitive.Portal>
+    </PagePortal>
   );
 }
 

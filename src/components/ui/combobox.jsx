@@ -1,5 +1,6 @@
 "use client"
 
+import PagePortal from "@/components/ui/page-portal";
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
 import { cn } from "cn"
 
@@ -96,7 +97,7 @@ function ComboboxContent({
   ...props
 }) {
   return (
-    <ComboboxPrimitive.Portal>
+    <PagePortal component={ComboboxPrimitive.Portal}>
       <ComboboxPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}
@@ -112,7 +113,7 @@ function ComboboxContent({
           {...props}
         />
       </ComboboxPrimitive.Positioner>
-    </ComboboxPrimitive.Portal>
+    </PagePortal>
   )
 }
 

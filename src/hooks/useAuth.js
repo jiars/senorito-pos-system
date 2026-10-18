@@ -10,6 +10,7 @@ export const useAuth = () => {
     profile: contextData.profile,
     role: contextData.role,
     loading: contextData.loading,
+    refreshUser: contextData.refreshUser,
     login: loginUser,
     logout: logoutUser,
   };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import LoadingState from "@/components/feedback/data-state/LoadingState";
+import { fetchCurrentProfile } from "@/services/profile/profileService";
 import { AuthContext } from "./authContext";
 
 export const AuthProvider = ({ children }) => {
@@ -45,6 +46,16 @@ export const AuthProvider = ({ children }) => {
     checkActiveSession();
   }, []);
 
+  // Refresh account displays without restarting the app or changing login behavior.
+  const refreshUser = async () => {
+    const updatedUser = await fetchCurrentProfile();
+    if (!user || String(updatedUser.id) !== String(user.id)) {
+      throw new Error("The refreshed account does not match the signed-in user.");
+    }
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   const userRole = user?.role?.role_name ?? null;
 
   const contextValue = {
@@ -53,9 +64,10 @@ export const AuthProvider = ({ children }) => {
     profile: user,
     role: userRole,
     loading,
+    refreshUser,
   };
 
-  if (loading === true) return <LoadingState message="Loading..." />;
+  if (loading === true) return <LoadingState message="Checking your session..." />;
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

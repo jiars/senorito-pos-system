@@ -11,7 +11,7 @@ import { validateOrderFilterDates } from "@/utils/orders/validation/orderFilterV
 
 const paymentMethodOptions = [
   { label: "Cash", value: "Cash" },
-  { label: "G-Cash", value: "GCash" },
+  { label: "Non-Cash", value: "GCash" },
   { label: "External", value: "External" },
 ];
 

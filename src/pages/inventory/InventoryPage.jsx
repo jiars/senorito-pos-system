@@ -4,6 +4,9 @@ import { useSearchParams } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInventoryManagement } from "@/hooks/useInventoryManagement";
+import { useAuth } from "@/hooks/useAuth";
+import { useInventoryCleanupSummary } from "@/hooks/useInventoryCleanupSummary";
+import { clearInventoryCleanupPending } from "@/utils/inventory/inventoryCleanupSession";
 import { useRefreshMenuManagement } from "@/hooks/useMenuManagement";
 import { useRefreshPosManagement } from "@/hooks/usePosManagement";
 import {
@@ -26,6 +29,7 @@ import ManageCategoriesModal from "./modals/Manage Categories/ManageCategoriesMo
 import PrintQRCodeModal from "./modals/Print QR/PrintQRCodeModal";
 import RestockModal from "./modals/Restock/RestockModal";
 import StockHistoryModal from "./modals/Stock History/StockHistoryModal";
+import InventoryCleanupSummaryModal from "./modals/Expiry Summary/InventoryCleanupSummaryModal";
 import WastageModal from "./modals/Wastage/WastageModal";
 
 import "./inventory.css";
@@ -79,6 +83,8 @@ const useIdSelection = () => {
 };
 
 const InventoryPage = () => {
+  const { user, role } = useAuth();
+  const canViewExpirySummary = role === "Owner" || role === "Inventory Clerk";
   const refreshMenuManagement = useRefreshMenuManagement();
   const refreshPosManagement = useRefreshPosManagement();
   const {
@@ -102,6 +108,10 @@ const InventoryPage = () => {
   const [batchStatusFilters, setBatchStatusFilters] = useState([]);
   const [wastageQuickFilter, setWastageQuickFilter] = useState(null);
   const [modal, setModal] = useState({ type: null, item: null });
+  const cleanupSummary = useInventoryCleanupSummary(
+    user?.id,
+    canViewExpirySummary && modal.type === "expiry-summary",
+  );
   const [searchParams, setSearchParams] = useSearchParams();
   const qrRequest = getInventoryQrRequest(searchParams);
   const closeModal = () => {
@@ -111,6 +121,14 @@ const InventoryPage = () => {
     }
   };
   const openItemModal = (type, item = null) => setModal({ type, item });
+
+  const closeExpirySummary = () => {
+    // Only dismiss a fresh-login reminder after a successful completed result.
+    if (!cleanupSummary.isFetching && !cleanupSummary.isError && cleanupSummary.data?.completed) {
+      clearInventoryCleanupPending();
+    }
+    closeModal();
+  };
 
   const handleAddAnotherItem = () => {
     setModal((currentModal) => {
@@ -152,6 +170,7 @@ const InventoryPage = () => {
     <InventoryHeader
       onOpenManageCategories={() => openItemModal("manage-categories")}
       onOpenAddItem={() => openItemModal("add-item")}
+      onOpenExpirySummary={canViewExpirySummary ? () => openItemModal("expiry-summary") : undefined}
     />
   );
 
@@ -304,6 +323,18 @@ const InventoryPage = () => {
         onClose={closeModal}
         item={modal.item}
       />
+
+      {canViewExpirySummary && modal.type === "expiry-summary" && (
+        <InventoryCleanupSummaryModal
+          isOpen={true}
+          onClose={closeExpirySummary}
+          summary={cleanupSummary.data}
+          isLoading={cleanupSummary.isPending || cleanupSummary.isFetching}
+          error={cleanupSummary.error}
+          errorUpdatedAt={cleanupSummary.errorUpdatedAt}
+          onRetry={() => cleanupSummary.refetch({ cancelRefetch: false })}
+        />
+      )}
 
       <RestockModal
         key={qrRequest && !modal.type ? `qr-${qrRequest.itemId}` : "restock"}

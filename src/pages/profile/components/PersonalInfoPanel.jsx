@@ -1,41 +1,45 @@
-import React from 'react';
-import { formatFullName, formatPhoneNumber } from '@/utils/shared/formatters/stringFormatters';
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { formatPhoneNumber } from "@/utils/shared/formatters/stringFormatters";
 
-const PersonalInfoPanel = ({ user, profile }) => {
-  let fullName = formatFullName(profile.first_name, profile.last_name);
-  let userEmail = user.email;
-  let contactNumber = formatPhoneNumber(profile.contact_number);
+const PersonalInfoPanel = ({ profile, onEdit }) => {
+  const details = [
+    { label: "First Name", value: profile.first_name || "Not set", hasValue: Boolean(profile.first_name) },
+    { label: "Last Name", value: profile.last_name || "Not set", hasValue: Boolean(profile.last_name) },
+    { label: "Email", value: profile.email || "Not set", hasValue: Boolean(profile.email) },
+    { label: "Contact Number", value: formatPhoneNumber(profile.contact_number), hasValue: Boolean(profile.contact_number) },
+  ];
 
   return (
-    <div className="profile-panel">
-      <div className="profile-panel-header">
-        <h3 className="profile-panel-title">Update Profile</h3>
-        <p className="profile-panel-desc">
-          You can update your display name and contact number. Username and role cannot be changed here.
-        </p>
-      </div>
-      <div className="profile-panel-body">
-        <div className="profile-divider"></div>
-        <div className="profile-form-grid">
-          <div className="profile-form-group">
-            <label className="profile-form-label">Display Name</label>
-            <input type="text" className="profile-form-input" placeholder="Full Name" defaultValue={fullName} />
-            <span className="profile-form-hint">This is shown in the sidebar and top bar</span>
-          </div>
-
-          <div className="profile-form-group">
-            <label className="profile-form-label">Email</label>
-            <input type="email" className="profile-form-input" placeholder="Email" value={userEmail} readOnly />
-          </div>
-
-          <div className="profile-form-group full-width" style={{ maxWidth: 'calc(50% - 0.625rem)' }}>
-            <label className="profile-form-label">Contact number</label>
-            <input type="text" className="profile-form-input" placeholder="Contact Number" defaultValue={contactNumber} />
-          </div>
+    <Card
+      role="region"
+      aria-labelledby="profile-personal-heading"
+      className="min-w-0 gap-[var(--app-gap-section)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] shadow-none ring-0"
+    >
+      <header className="flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
+        <div className="min-w-0">
+          <h2 id="profile-personal-heading" className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-brand-header)]">Personal Information</h2>
+          <p className="m-0 mt-[var(--app-space-1)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-muted)]">Your personal and contact details.</p>
         </div>
-        <button className="profile-btn profile-btn--brown">Save Changes</button>
-      </div>
-    </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onEdit}
+          className="h-[var(--app-touch-target-min)] gap-[var(--app-space-2)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
+        >
+          <i aria-hidden="true" className="bi bi-pencil-square" />
+          Edit Profile
+        </Button>
+      </header>
+      <dl className="m-0 grid min-w-0 grid-cols-1 gap-[var(--app-gap-section)] border-t border-[var(--app-color-border-subtle)] pt-[var(--app-space-6)] sm:grid-cols-2">
+        {details.map((detail) => (
+          <div key={detail.label} className="min-w-0">
+            <dt className="text-[length:var(--app-font-size-body-secondary)] font-medium leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text-muted)]">{detail.label}</dt>
+            <dd className={`m-0 mt-[var(--app-space-2)] text-[length:var(--app-font-size-body)] leading-[var(--app-line-height-body)] [overflow-wrap:anywhere] ${detail.hasValue ? "font-semibold text-[var(--app-color-text)]" : "font-normal text-[var(--app-color-text-muted)]"}`}>{detail.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
   );
 };
 
