@@ -7,6 +7,7 @@ import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 import { getOrderDateKey } from "@/utils/orders/orderDates";
 import { getOrderCashierName, getOrderRecordedByOptions } from "@/utils/orders/orderFilters";
+import { matchesOrderSource, normalizeOrderSource } from "@/utils/orders/orderOptions";
 
 import ViewOrderDetails from "./View Order Details/ViewOrderDetails";
 import OrdersFilterBar from "./components/OrdersFilterBar";
@@ -81,7 +82,7 @@ const OrdersPage = () => {
       order_number: order.order_number,
       date: new Date(order.order_datetime),
       cashier: getOrderCashierName(order),
-      orderSource: order.order_source,
+      orderSource: normalizeOrderSource(order.order_source),
       paymentMethod: order.payment_method,
       discountType: order.discount_type || "None",
       subtotal: Number(order.subtotal) || 0,
@@ -123,7 +124,7 @@ const OrdersPage = () => {
       return false;
     }
 
-    if (orderSources.length > 0 && !orderSources.includes(order.order_source)) {
+    if (!matchesOrderSource(order.order_source, orderSources)) {
       return false;
     }
 

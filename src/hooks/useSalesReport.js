@@ -14,6 +14,8 @@ const salesReportQueryOptions = {
 export const useSalesReport = () => {
   const { data, isLoading, error, refetch } = useQuery({
     ...salesReportQueryOptions,
+    // Recheck menu archive flags when returning from Menu Management.
+    refetchOnMount: "always",
   });
 
   return {

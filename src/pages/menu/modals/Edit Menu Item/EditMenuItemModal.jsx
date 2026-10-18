@@ -142,6 +142,7 @@ const EditMenuItemModalContent = ({
   refetchMenu,
   categories = [],
   inventoryItems = [],
+  existingItems = [],
   maxWidth = "42rem",
   maxHeight = "min(90svh, 48rem)",
   supportsVariantArchiving = false,
@@ -161,7 +162,14 @@ const EditMenuItemModalContent = ({
   const uploadedImageRef = useRef(null);
   const submittingRef = useRef(false);
   const previewRef = useRef(null);
-  const validation = validateEditMenuItem(baseInfo, variants, inventoryItems);
+  const validation = validateEditMenuItem(
+    baseInfo,
+    variants,
+    categories,
+    inventoryItems,
+    existingItems,
+    item.id,
+  );
   const draftAvailability = getMenuDraftAvailability(baseInfo, variants, inventoryItems, validation.errors);
   const allErrors = { ...serverFieldErrors, ...validation.errors };
   const errors = hasAttemptedSubmit ? allErrors : {};
@@ -199,7 +207,6 @@ const EditMenuItemModalContent = ({
 
   const onChange = (field, value) => {
     if (submittingRef.current || disabled) return;
-    if (field === "name" || field === "category") return;
     clearFormFeedback();
     setBaseInfo((current) => ({ ...current, [field]: value }));
   };
@@ -332,8 +339,8 @@ const EditMenuItemModalContent = ({
       // Preserve the existing sync payload and saved record IDs.
       const payload = {
         base_info: {
-          item_name: item.item_name,
-          category_id: item.category_id,
+          item_name: baseInfo.name.trim(),
+          category_id: baseInfo.category,
           recipe_status: item.recipe_status || "Complete",
           pos_status: baseInfo.isAvailable ? "Available" : "Unavailable",
           pricing_type: recipes.length === 1 ? "Fixed" : "Variants",
@@ -530,7 +537,8 @@ const EditMenuItemModalContent = ({
                     <Input
                       id="edit-menu-name"
                       value={baseInfo.name}
-                      disabled
+                      onChange={(event) => onChange("name", event.target.value)}
+                      disabled={disabled}
                       placeholder="e.g. Blueberry Dream Frappe"
                       aria-invalid={Boolean(errors.name)}
                       aria-describedby={
@@ -556,7 +564,7 @@ const EditMenuItemModalContent = ({
                       <span className="text-[var(--app-color-danger)]">*</span>
                     </FieldLabel>
                     <Combobox
-                      disabled
+                      disabled={disabled}
                       items={categories}
                       value={category}
                       onValueChange={(value) =>

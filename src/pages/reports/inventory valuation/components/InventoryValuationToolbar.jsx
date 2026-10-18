@@ -25,9 +25,10 @@ const InventoryValuationToolbar = ({
   const sortOptions = [
     { label: "Highest Value", value: "Sort: Highest Value First" },
     { label: "Lowest Value", value: "Sort: Lowest Value First" },
-    { label: "0 - Z", value: "Sort: 0-Z" },
-    { label: "Z - 0", value: "Sort: Z-0" },
+    { label: "A - Z", value: "Sort: 0-Z" },
+    { label: "Z - A", value: "Sort: Z-0" },
   ];
+  const sortLabel = sortOptions.find((option) => option.value === sort)?.label ?? "A - Z";
 
   const handleApply = () => {
     onCategoryChange(draftCategories);
@@ -77,7 +78,7 @@ const InventoryValuationToolbar = ({
       </FilterPopover>
 
       <FilterPopover
-        label="0 - Z"
+        label={sortLabel}
         triggerIcon="bi-arrow-down-up"
         showFooter={false}
         maxWidth={"14rem"}

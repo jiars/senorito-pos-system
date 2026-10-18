@@ -34,11 +34,6 @@ const MenuHeader = ({
         />
 
         <DropdownMenuContent align="end" className="z-[100] w-52">
-          <DropdownMenuItem disabled>
-            <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
-            Export
-          </DropdownMenuItem>
-
           <DropdownMenuItem onClick={onManageCategories}>
             <i aria-hidden="true" className="bi bi-tags" />
             Manage Categories

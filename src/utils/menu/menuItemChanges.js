@@ -14,6 +14,8 @@ const getRecipeSnapshot = (ingredients) => {
 
 export const getMenuItemChanges = (initialDraft, baseInfo, variants) => {
   const changes = {
+    itemNameUpdated: baseInfo.name.trim() !== initialDraft.baseInfo.name.trim(),
+    categoryUpdated: baseInfo.category !== initialDraft.baseInfo.category,
     imageUpdated: Boolean(baseInfo.image),
     availabilityChanged: baseInfo.isAvailable !== initialDraft.baseInfo.isAvailable,
     isAvailable: baseInfo.isAvailable,

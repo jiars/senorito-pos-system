@@ -1,4 +1,5 @@
 import { getBusinessHour } from "@/utils/shared/formatters/businessDates";
+import { normalizeOrderSource, orderSourceOptions } from "@/utils/orders/orderOptions";
 
 const getCategoryName = (orderItem) => {
   const menuItem = orderItem.menu_item;
@@ -19,15 +20,6 @@ const matchesCategory = (categoryName, selectedCategories = []) => {
     (selectedCategory) =>
       categoryName.toLowerCase() === selectedCategory.toLowerCase(),
   );
-};
-
-const normalizeOrderSource = (source) => {
-  const normalizedSource = (source || "In-Store").toLowerCase();
-
-  if (normalizedSource === "foodpanda") return "FoodPanda";
-  if (normalizedSource === "grab") return "Grab";
-
-  return "In-Store";
 };
 
 // Calculate the values shown in the summary cards.
@@ -61,7 +53,13 @@ export const calculateSalesSummary = (orders, wastageRecords) => {
   };
 };
 
-// Calculate top-selling items and category sales.
+const isArchivedOrderItem = (orderItem) => {
+  if (orderItem.menu_item.archived) return true;
+  if (orderItem.variant && orderItem.variant.archived) return true;
+  return false;
+};
+
+// Item rankings exclude archived records; category sales retain historical revenue.
 export const calculateSalesAnalytics = (orders, selectedCategory) => {
   const itemTotals = {};
   const categoryTotals = {};
@@ -83,19 +81,21 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
       const quantity = Number(orderItem.quantity) || 0;
       const revenue = Number(orderItem.subtotal) || 0;
 
-      if (!itemTotals[menuItem.id]) {
-        itemTotals[menuItem.id] = {
-          id: menuItem.id,
-          name: menuItem.item_name,
-          image_url: menuItem.image_url,
-          category: categoryName,
-          sold: 0,
-          revenue: 0,
-        };
-      }
+      if (!isArchivedOrderItem(orderItem)) {
+        if (!itemTotals[menuItem.id]) {
+          itemTotals[menuItem.id] = {
+            id: menuItem.id,
+            name: menuItem.item_name,
+            image_url: menuItem.image_url,
+            category: categoryName,
+            sold: 0,
+            revenue: 0,
+          };
+        }
 
-      itemTotals[menuItem.id].sold += quantity;
-      itemTotals[menuItem.id].revenue += revenue;
+        itemTotals[menuItem.id].sold += quantity;
+        itemTotals[menuItem.id].revenue += revenue;
+      }
 
       if (!categoryTotals[categoryName]) {
         categoryTotals[categoryName] = {
@@ -111,7 +111,12 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
   });
 
   const topSelling = Object.values(itemTotals)
-    .sort((first, second) => second.sold - first.sold)
+    .sort((first, second) => {
+      const quantityDifference = second.sold - first.sold;
+      if (quantityDifference !== 0) return quantityDifference;
+      // Dashboard uses the same stable tie-breaker for equal quantities sold.
+      return String(first.id).localeCompare(String(second.id));
+    })
     .map((item, index) => {
       return {
         ...item,
@@ -152,23 +157,19 @@ const hourlySalesBuckets = [
 
 // Calculate sales by source and order totals for each fixed two-hour period.
 export const calculateOrderTrends = (orders) => {
-  const sourceTotals = {
-    "In-Store": {
-      label: "In-Store",
-      value: 0,
-      color: "#7189A6",
-    },
-    Grab: {
-      label: "Grab",
-      value: 0,
-      color: "#6F9C8F",
-    },
-    FoodPanda: {
-      label: "FoodPanda",
-      value: 0,
-      color: "#D47A82",
-    },
+  const sourceColors = {
+    "In-Store": "#7189A6",
+    Foodpanda: "#D47A82",
+    Grab: "#6F9C8F",
   };
+  const sourceTotals = {};
+  orderSourceOptions.forEach((source) => {
+    sourceTotals[source.value] = {
+      label: source.label,
+      value: 0,
+      color: sourceColors[source.value],
+    };
+  });
 
   const hourlyTotals = hourlySalesBuckets.map((bucket) => ({
     ...bucket,
@@ -177,7 +178,9 @@ export const calculateOrderTrends = (orders) => {
   let totalHourlyOrders = 0;
 
   orders.forEach((order) => {
-    const source = normalizeOrderSource(order.order_source);
+    let source = normalizeOrderSource(order.order_source);
+    // Preserve the report's existing In-Store fallback for missing/unknown sources.
+    if (!Object.hasOwn(sourceTotals, source)) source = "In-Store";
     const orderTotal = Number(order.total) || 0;
 
     sourceTotals[source].value += orderTotal;
@@ -231,7 +234,7 @@ export const calculateDetailedProfitability = (orders, selectedCategory) => {
     orderItems.forEach((orderItem) => {
       const menuItem = orderItem.menu_item;
 
-      if (!menuItem) return;
+      if (!menuItem || isArchivedOrderItem(orderItem)) return;
 
       const categoryName = getCategoryName(orderItem);
 

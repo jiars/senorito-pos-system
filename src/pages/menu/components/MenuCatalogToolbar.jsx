@@ -5,11 +5,6 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const statusOptions = [
-  { label: "Available", value: "Available" },
-  { label: "Unavailable", value: "Unavailable" },
-];
-
 const conditionOptions = [
   { label: "Available / Normal", value: "Available" },
   { label: "Low Stock", value: "Low Stock" },
@@ -21,8 +16,8 @@ const conditionOptions = [
 ];
 
 const sortOptions = [
-  { label: "0 - Z", value: "0-z" },
-  { label: "Z - 0", value: "z-0" },
+  { label: "A - Z", value: "0-z" },
+  { label: "Z - A", value: "z-0" },
 ];
 
 const MenuCatalogToolbar = ({
@@ -46,18 +41,30 @@ const MenuCatalogToolbar = ({
   }));
 
   const sortLabel =
-    sortOptions.find((option) => option.value === sort)?.label ?? "0 - Z";
+    sortOptions.find((option) => option.value === sort)?.label ?? "A - Z";
 
   const clearFilters = () => {
     const clearedFilters = {
       categories: [],
     };
     if (showStatusConditions) clearedFilters.conditions = [];
-    else clearedFilters.statuses = [];
 
     setDraftFilters(clearedFilters);
     onApplyFilters(clearedFilters);
   };
+
+  const categoryFilter = (
+    <FilterOptionGroup
+      id={`${idPrefix}-categories`}
+      label="Categories"
+      options={categoryOptions}
+      selectedValues={draftFilters.categories}
+      onSelectedValuesChange={(categories) =>
+        setDraftFilters((current) => ({ ...current, categories }))
+      }
+      collapsible={false}
+    />
+  );
 
   const sidebarSections = [
     {
@@ -65,18 +72,7 @@ const MenuCatalogToolbar = ({
       label: "Categories",
       icon: "bi-grid",
       indicator: draftFilters.categories.length > 0,
-      content: (
-        <FilterOptionGroup
-          id={`${idPrefix}-categories`}
-          label="Categories"
-          options={categoryOptions}
-          selectedValues={draftFilters.categories}
-          onSelectedValuesChange={(categories) =>
-            setDraftFilters((current) => ({ ...current, categories }))
-          }
-          collapsible={false}
-        />
-      ),
+      content: categoryFilter,
     },
   ];
 
@@ -94,26 +90,6 @@ const MenuCatalogToolbar = ({
           selectedValues={draftFilters.conditions}
           onSelectedValuesChange={(conditions) =>
             setDraftFilters((current) => ({ ...current, conditions }))
-          }
-          collapsible={false}
-        />
-      ),
-    });
-  } else {
-    // Archive records retain their saved POS status rather than live stock conditions.
-    sidebarSections.push({
-      id: `${idPrefix}-status-section`,
-      label: "POS Status",
-      icon: "bi-circle-half",
-      indicator: draftFilters.statuses.length > 0,
-      content: (
-        <FilterOptionGroup
-          id={`${idPrefix}-statuses`}
-          label="POS Status"
-          options={statusOptions}
-          selectedValues={draftFilters.statuses}
-          onSelectedValuesChange={(statuses) =>
-            setDraftFilters((current) => ({ ...current, statuses }))
           }
           collapsible={false}
         />
@@ -142,11 +118,13 @@ const MenuCatalogToolbar = ({
       </div>
 
       <FilterPopover
-        sidebarSections={sidebarSections}
+        sidebarSections={showStatusConditions ? sidebarSections : []}
         onApply={() => onApplyFilters(draftFilters)}
         onClear={clearFilters}
         maxHeight="min(30rem, calc(100svh - 8rem))"
-      />
+      >
+        {!showStatusConditions && categoryFilter}
+      </FilterPopover>
 
       <FilterPopover
         label={sortLabel}

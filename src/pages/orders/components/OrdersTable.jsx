@@ -4,6 +4,7 @@ import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 import { getOrderUploaderName } from "@/utils/orders/orderFilters";
+import { normalizeOrderSource } from "@/utils/orders/orderOptions";
 
 const getStatusClassName = (status) => {
   if (status === "Completed") {
@@ -78,6 +79,9 @@ const getOrderHistoryColumns = (handleViewOrder) => {
       accessorKey: "order_source",
       header: "Source",
       meta: { width: "8rem" },
+      cell: ({ row }) => {
+        return normalizeOrderSource(row.original.order_source);
+      },
     },
     {
       id: "status",

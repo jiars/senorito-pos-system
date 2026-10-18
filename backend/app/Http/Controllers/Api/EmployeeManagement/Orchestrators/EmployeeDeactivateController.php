@@ -25,6 +25,7 @@ class EmployeeDeactivateController extends Controller
 
         $employee = DB::transaction(
             function () use ($employee, $request) {
+                $employee->last_system_activity_at = now();
                 $employee->update([
                     'status' => 'Deactivated',
                 ]);

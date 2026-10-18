@@ -68,12 +68,8 @@ export const calculateExpenseSummary = (
     0,
   );
 
-  const operatingCategoryTotals = normalizedRecords.reduce(
+  const categoryTotals = normalizedRecords.reduce(
     (totals, expense) => {
-      if (expense.normalizedCategory === "inventory purchase") {
-        return totals;
-      }
-
       const categoryName =
         expense.expense_categories?.category_name || "Uncategorized";
 
@@ -85,14 +81,14 @@ export const calculateExpenseSummary = (
     {},
   );
 
-  const topOperatingExpenseEntry = Object.entries(operatingCategoryTotals).sort(
+  const topExpenseCategoryEntry = Object.entries(categoryTotals).sort(
     ([, amountA], [, amountB]) => amountB - amountA,
   )[0];
 
-  const topOperatingExpense = topOperatingExpenseEntry
+  const topExpenseCategory = topExpenseCategoryEntry
     ? {
-        category: topOperatingExpenseEntry[0],
-        amount: topOperatingExpenseEntry[1],
+        category: topExpenseCategoryEntry[0],
+        amount: topExpenseCategoryEntry[1],
       }
     : {
         category: "No data",
@@ -113,7 +109,7 @@ export const calculateExpenseSummary = (
     salaryTransactionCount: salaryRecords.length,
     totalInventoryPurchases,
     inventoryPurchasePercentage,
-    topOperatingExpense,
+    topExpenseCategory,
     expenseTransactionCount: normalizedRecords.length,
     netOperational,
   };

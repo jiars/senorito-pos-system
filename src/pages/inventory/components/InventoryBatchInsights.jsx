@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 
 import SummaryCards from "@/components/summary-cards/SummaryCards";
-import { flattenInventoryBatches } from "@/utils/inventory/inventoryBatchUtils";
+import { getInventoryBatchSummary } from "@/utils/inventory/inventoryBatchUtils";
+import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 
 const InventoryBatchInsights = ({
   inventoryItems = [],
@@ -10,17 +11,7 @@ const InventoryBatchInsights = ({
   onSelectedStatusesChange,
 }) => {
   const stats = useMemo(() => {
-    const batches = flattenInventoryBatches(inventoryItems);
-
-    // Use the table's shared status rule so depleted batches are not expiry alerts.
-    return {
-      overall: batches.length,
-      expiring: batches.filter(
-        (batch) => batch.displayStatus === "Expiring within 7 days",
-      ).length,
-      expired: batches.filter((batch) => batch.displayStatus === "Expired")
-        .length,
-    };
+    return getInventoryBatchSummary(inventoryItems);
   }, [inventoryItems]);
 
   const cards = [
@@ -51,7 +42,7 @@ const InventoryBatchInsights = ({
       title: "Expired",
       value: stats.expired,
       descriptionAccent: `${stats.expired} batches`,
-      description: " have expired stock remaining",
+      description: " have reached their expiry date, including depleted",
       descriptionAccentClassName: "text-[var(--app-color-danger)]",
       titleClassName: "text-[var(--app-color-brand)]",
       isActive:
@@ -61,12 +52,11 @@ const InventoryBatchInsights = ({
     {
       id: "batch-value-at-risk",
       title: "Value at Risk",
-      value: "₱0.00",
-      description: " placeholder value",
+      value: formatCurrency(stats.valueAtRisk),
+      descriptionAccent: formatCurrency(stats.expiredValue),
+      description: " in expired stock",
+      descriptionAccentClassName: "text-[var(--app-color-danger)]",
       titleClassName: "text-[var(--app-color-brand)]",
-      isActive:
-        selectedStatuses.length === 1 && selectedStatuses[0] === "At Risk",
-      onClick: () => onSelectedStatusesChange(["At Risk"]),
     },
   ];
 

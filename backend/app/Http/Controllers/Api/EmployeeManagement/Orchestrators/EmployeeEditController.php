@@ -58,6 +58,7 @@ class EmployeeEditController extends Controller
 
         $updatedEmployee = DB::transaction(
             function () use ($employee, $employeeData) {
+                $employee->last_system_activity_at = now();
                 $employee->update([
                     'role_id' => $employeeData['role_id'],
                     'email' => $employeeData['email'],

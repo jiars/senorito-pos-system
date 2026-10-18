@@ -66,9 +66,36 @@ export const flattenInventoryBatches = (inventoryItems = [], purchaseHistory = [
       itemName: item.item_name ?? "Unknown item",
       categoryName: item.inventory_categories?.category_name ?? "Uncategorized",
       unit: item.base_unit ?? "",
-      displayStatus: getBatchStatus(batch),
+      // Batch history includes expired records even after their stock is depleted.
+      // Keep getBatchStatus unchanged for remaining-stock/availability calculations.
+      displayStatus: isBatchExpired(batch.expiration_date) ? "Expired" : getBatchStatus(batch),
     })),
   );
+};
+
+export const getInventoryBatchSummary = (inventoryItems = []) => {
+  const batches = flattenInventoryBatches(inventoryItems);
+  const summary = {
+    overall: batches.length,
+    expiring: 0,
+    expired: 0,
+    valueAtRisk: 0,
+    expiredValue: 0,
+  };
+
+  // Counts include depleted expired batches; monetary values use remaining stock only.
+  for (const batch of batches) {
+    const stockValue = Math.max(0, Number(batch.quantity) || 0) * Number(batch.unit_cost ?? 0);
+    if (batch.displayStatus === "Expiring within 7 days") {
+      summary.expiring += 1;
+      summary.valueAtRisk += stockValue;
+    } else if (batch.displayStatus === "Expired") {
+      summary.expired += 1;
+      summary.expiredValue += stockValue;
+    }
+  }
+
+  return summary;
 };
 
 export const filterAndSortInventoryBatches = ({

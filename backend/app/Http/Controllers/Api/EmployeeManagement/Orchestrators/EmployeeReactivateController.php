@@ -22,6 +22,7 @@ class EmployeeReactivateController extends Controller
         }
 
         $employee = DB::transaction(function () use ($employee) {
+            $employee->last_system_activity_at = now();
             $employee->update([
                 'status' => 'Active',
             ]);

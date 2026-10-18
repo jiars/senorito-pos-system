@@ -38,7 +38,10 @@ const InventoryValuationReport = () => {
     error,
   } = useInventoryValuation();
 
-  const { processedItems, totalValuation, availableCategories } =
+  const {
+    processedItems, totalValuation, availableCategories,
+    highestValueCategory, highestValueItem, expiringStockValue,
+  } =
     useMemo(() => {
       return calculateInventoryValuation(rawItems);
     }, [rawItems]);
@@ -71,6 +74,9 @@ const InventoryValuationReport = () => {
       filteredItems,
       filteredTotal,
       totalValuation,
+      highestValueCategory,
+      highestValueItem,
+      expiringStockValue,
     });
   };
 
@@ -128,8 +134,10 @@ const InventoryValuationReport = () => {
           broken down by category. Each slice of the chart represents a
           category's share of the total value, computed as quantity on hand
           multiplied by unit cost. The figures on the right summarize the
-          total value, top expense, and losses from waste and spillage, and
-          the table lists the categories with the highest value.
+          total value, highest-value category and item, and the remaining value of
+          stock expiring within the next 7 days. These are current-stock values, not
+          historical purchases or wastage. The overview covers all non-archived
+          items; table filters do not change these four metrics.
         </p>
       </TooltipContent>
     </Tooltip>
@@ -172,6 +180,9 @@ const InventoryValuationReport = () => {
           <InventoryValuationValuePanel
             categorySummary={categorySummary}
             totalValuation={totalValuation}
+            highestValueCategory={highestValueCategory}
+            highestValueItem={highestValueItem}
+            expiringStockValue={expiringStockValue}
             isLoading={isLoading}
           />
         </section>
@@ -216,6 +227,10 @@ const InventoryValuationReport = () => {
           category={categories.join(", ") || "All Categories"}
           sort={sort}
           filteredTotal={filteredTotal}
+          totalValuation={totalValuation}
+          highestValueCategory={highestValueCategory}
+          highestValueItem={highestValueItem}
+          expiringStockValue={expiringStockValue}
         />}
       </div>
     </PageLayout>

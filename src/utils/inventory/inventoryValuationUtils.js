@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { getBusinessDateKey } from '@/utils/shared/formatters/businessDates';
+import { getBatchStatus } from './inventoryBatchUtils';
 
 const CATEGORY_COLORS = {
   Ingredient: '#5A2D15',
@@ -40,20 +41,35 @@ export const createValuationChartSegments = (
 
 export const calculateInventoryValuation = (rawItems = []) => {
   let totalValuation = 0;
+  let expiringStockValue = 0;
   const categoryValues = {};
 
-  const baseItems = rawItems.map((databaseItem) => {
+  // Keep archived items out of every metric and the table/print/export rows.
+  const activeItems = rawItems.filter((item) => {
+    return !item.archived;
+  });
+
+  const baseItems = activeItems.map((databaseItem) => {
     const stock = Number(databaseItem.current_stock) || 0;
     const fallbackCost = Number(databaseItem.cost_per_unit) || 0;
 
-    // Preserve the current valuation: add every batch's remaining value.
-    const value = databaseItem.inventory_batches?.length > 0
-      ? databaseItem.inventory_batches.reduce((total, batch) => {
-          const quantity = Number(batch.quantity) || 0;
-          const unitCost = Number(batch.unit_cost) || fallbackCost;
-          return total + quantity * unitCost;
-        }, 0)
-      : stock * fallbackCost;
+    // Total includes expired stock still on hand; expiry values are portions of it.
+    let value = stock * fallbackCost;
+    const batches = databaseItem.inventory_batches || [];
+    if (batches.length > 0) {
+      value = 0;
+      batches.forEach((batch) => {
+        const quantity = Math.max(0, Number(batch.quantity) || 0);
+        // A recorded zero cost is valid; only missing costs use the item cost.
+        const unitCost = Number(batch.unit_cost ?? fallbackCost) || 0;
+        const batchValue = quantity * unitCost;
+        value += batchValue;
+
+        if (!databaseItem.track_expiry) return;
+        const status = getBatchStatus(batch);
+        if (status === 'Expiring within 7 days') expiringStockValue += batchValue;
+      });
+    }
 
     const category =
       databaseItem.inventory_categories?.category_name || 'Uncategorized';
@@ -81,9 +97,28 @@ export const calculateInventoryValuation = (rawItems = []) => {
         : '0.0',
   }));
 
+  let highestValueCategory = { category: 'None recorded', value: 0 };
+  Object.entries(categoryValues).sort(([first], [second]) => first.localeCompare(second))
+    .forEach(([category, value]) => {
+      if (value > highestValueCategory.value) highestValueCategory = { category, value };
+    });
+
+  let highestValueItem = { item: 'None recorded', value: 0 };
+  baseItems.forEach((item) => {
+    const hasHigherValue = item.value > highestValueItem.value;
+    const winsTie = item.value > 0 && item.value === highestValueItem.value &&
+      item.item.localeCompare(highestValueItem.item) < 0;
+    if (hasHigherValue || winsTie) {
+      highestValueItem = { item: item.item, value: item.value };
+    }
+  });
+
   return {
     processedItems,
     totalValuation,
+    highestValueCategory,
+    highestValueItem,
+    expiringStockValue,
     availableCategories: Object.keys(categoryValues).sort(),
   };
 };
@@ -161,6 +196,9 @@ export const exportInventoryValuation = ({
   filteredItems,
   filteredTotal,
   totalValuation,
+  highestValueCategory,
+  highestValueItem,
+  expiringStockValue,
 }) => {
   const workbook = XLSX.utils.book_new();
   const allData = filteredItems.map(createExportItem);
@@ -184,6 +222,15 @@ export const exportInventoryValuation = ({
     { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 10 },
     { wch: 15 }, { wch: 20 }, { wch: 15 },
   ];
+  XLSX.utils.sheet_add_aoa(allSheet, [
+    [],
+    ['Current Stock Overview - All Non-Archived Items'],
+    ['Metric', 'Value', 'Item / Category'],
+    ['Total Inventory Value', totalValuation, ''],
+    ['Highest-Value Category', highestValueCategory.value, highestValueCategory.category],
+    ['Expiring Stock Value', expiringStockValue, ''],
+    ['Highest-Value Item', highestValueItem.value, highestValueItem.item],
+  ], { origin: -1 });
   XLSX.utils.book_append_sheet(workbook, allSheet, 'All Items');
 
   const categories = [...new Set(filteredItems.map((item) => item.category))];

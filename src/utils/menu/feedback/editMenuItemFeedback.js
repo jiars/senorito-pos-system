@@ -42,6 +42,8 @@ export const EDIT_MENU_ITEM_TOAST_FEEDBACK = {
 // Feedback owns the wording; the comparison helper only reports changes.
 const getEditMenuItemSummary = (changes) => {
   const summary = [];
+  if (changes.itemNameUpdated) summary.push("item name updated");
+  if (changes.categoryUpdated) summary.push("category updated");
   if (changes.availabilityChanged) {
     if (changes.isAvailable) summary.push("Available for Sale enabled");
     else summary.push("Available for Sale disabled");

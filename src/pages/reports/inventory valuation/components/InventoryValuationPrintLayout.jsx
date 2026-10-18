@@ -11,6 +11,10 @@ const InventoryValuationPrintLayout = ({
   category,
   sort,
   filteredTotal,
+  totalValuation,
+  highestValueCategory,
+  highestValueItem,
+  expiringStockValue,
 }) => {
   const generatedDate = formatDate(new Date());
 
@@ -29,12 +33,27 @@ const InventoryValuationPrintLayout = ({
         <dl className="print-val-filters-box">
           <div><dt>Search</dt><dd>{searchTerm || "None"}</dd></div>
           <div><dt>Category</dt><dd>{category}</dd></div>
-          <div><dt>Sort By</dt><dd>{sort.replace("Sort: ", "")}</dd></div>
+          <div><dt>Sort By</dt><dd>{sort.replace("Sort: ", "").replace("0-Z", "A-Z").replace("Z-0", "Z-A")}</dd></div>
         </dl>
       </header>
 
       <section className="print-val-section print-val-section--compact">
-        <h2>Inventory Valuation Summary</h2>
+        <h2>Current Stock Overview</h2>
+        <table className="val-print-table" aria-label="Current inventory overview">
+          <thead>
+            <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">Item / Category</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Total Inventory Value</td><td>{formatCurrency(totalValuation)}</td><td></td></tr>
+            <tr><td>Highest-Value Category</td><td>{formatCurrency(highestValueCategory.value)}</td><td>{highestValueCategory.category}</td></tr>
+            <tr><td>Expiring Stock Value</td><td>{formatCurrency(expiringStockValue)}</td><td></td></tr>
+            <tr><td>Highest-Value Item</td><td>{formatCurrency(highestValueItem.value)}</td><td>{highestValueItem.item}</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section className="print-val-section print-val-section--compact">
+        <h3>Filtered Items Summary</h3>
         <table className="val-print-table print-val-summary-table" aria-label="Inventory valuation summary">
           <thead>
             <tr>

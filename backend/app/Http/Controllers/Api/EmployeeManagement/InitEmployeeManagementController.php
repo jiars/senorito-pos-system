@@ -25,6 +25,7 @@ class InitEmployeeManagementController extends Controller
                 'created_at',
                 'last_login_at',
                 'last_password_change_at',
+                'last_system_activity_at',
             ])
             ->selectRaw(
                 'password IS NULL AS requires_password_setup'

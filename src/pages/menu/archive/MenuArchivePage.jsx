@@ -20,7 +20,6 @@ import "../menuManagement.css";
 
 const createEmptyFilters = () => ({
   categories: [],
-  statuses: [],
 });
 
 const MenuArchivePage = () => {
@@ -53,7 +52,6 @@ const MenuArchivePage = () => {
         items: archivedMenuItems,
         searchTerm: menuSearchTerm,
         categories: menuFilters.categories,
-        statuses: menuFilters.statuses,
         sort: menuSort,
       }),
     [archivedMenuItems, menuFilters, menuSearchTerm, menuSort],
@@ -65,7 +63,6 @@ const MenuArchivePage = () => {
         items: archivedAddons,
         searchTerm: addonSearchTerm,
         categories: addonFilters.categories,
-        statuses: addonFilters.statuses,
         sort: addonSort,
       }),
     [addonFilters, addonSearchTerm, addonSort, archivedAddons],
@@ -106,7 +103,7 @@ const MenuArchivePage = () => {
           onActiveTabChange={setActiveTab}
           menuToolbar={
             <MenuCatalogToolbar
-              key={`${menuFilters.categories.join("|")}::${menuFilters.statuses.join("|")}`}
+              key={menuFilters.categories.join("|")}
               idPrefix="archived-menu-items"
               searchPlaceholder="Search archived menu item..."
               searchTerm={menuSearchTerm}
@@ -121,7 +118,7 @@ const MenuArchivePage = () => {
           }
           addonsToolbar={
             <MenuCatalogToolbar
-              key={`${addonFilters.categories.join("|")}::${addonFilters.statuses.join("|")}`}
+              key={addonFilters.categories.join("|")}
               idPrefix="archived-menu-addons"
               searchPlaceholder="Search archived add-on..."
               searchTerm={addonSearchTerm}
@@ -144,7 +141,7 @@ const MenuArchivePage = () => {
           }
           addonsContent={
             <MenuAddonsTable
-              key={`${addonSearchTerm}::${addonFilters.categories.join("|")}::${addonFilters.statuses.join("|")}::${addonSort}`}
+              key={`${addonSearchTerm}::${addonFilters.categories.join("|")}::${addonSort}`}
               addons={filteredAddons}
               isLoading={isLoading}
               mode="archive"

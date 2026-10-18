@@ -34,14 +34,14 @@ const ExpenseHeader = ({
             Export
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={onViewArchive}>
-            <i aria-hidden="true" className="bi bi-archive" />
-            View Archive
-          </DropdownMenuItem>
-
           <DropdownMenuItem onClick={onManageCategories}>
             <i aria-hidden="true" className="bi bi-tags" />
             Manage Categories
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={onViewArchive}>
+            <i aria-hidden="true" className="bi bi-archive" />
+            View Archive
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
