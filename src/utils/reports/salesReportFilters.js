@@ -3,31 +3,13 @@ import {
   getBusinessPeriodDates,
 } from "@/utils/shared/formatters/businessDates";
 import { matchesOrderSource } from "@/utils/orders/orderOptions";
+import { getCategoryScopedOrder } from "./salesRevenue";
 
 export const getSalesReportPresetDates = (reportPeriod) => {
   if (reportPeriod === "All Time") return getBusinessPeriodDates("all");
   if (reportPeriod === "Today") return getBusinessPeriodDates("today");
   if (reportPeriod === "This Week") return getBusinessPeriodDates("week");
   return getBusinessPeriodDates("month");
-};
-
-const orderHasCategory = (order, selectedCategories = []) => {
-  if (selectedCategories.length === 0) {
-    return true;
-  }
-
-  const orderItems = order.order_items || [];
-
-  return orderItems.some((orderItem) => {
-    const menuItem = orderItem.menu_item;
-    const category = menuItem ? menuItem.menu_categories : null;
-    const categoryName = category ? category.category_name : "Uncategorized";
-
-    return selectedCategories.some(
-      (selectedCategory) =>
-        categoryName.toLowerCase() === selectedCategory.toLowerCase(),
-    );
-  });
 };
 
 // Filter Orders without requesting Laravel again.
@@ -47,8 +29,11 @@ export const filterSalesOrders = (
 
     if (!matchesOrderSource(orderSource, selectedSources)) return false;
 
-    return orderHasCategory(order, selectedCategories);
-  });
+    return true;
+  }).map((order) => {
+    // Allocate discounts before selecting categories, never after removing lines.
+    return getCategoryScopedOrder(order, selectedCategories);
+  }).filter(Boolean);
 };
 
 // Wastage is affected only by the selected date range.

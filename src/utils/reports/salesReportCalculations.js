@@ -1,39 +1,19 @@
 import { getBusinessHour } from "@/utils/shared/formatters/businessDates";
 import { normalizeOrderSource, orderSourceOptions } from "@/utils/orders/orderOptions";
 import { calculateEstCost } from "@/utils/menu/pricingCalculations";
-
-const getCategoryName = (orderItem) => {
-  const menuItem = orderItem.menu_item;
-
-  if (!menuItem || !menuItem.menu_categories) {
-    return "Uncategorized";
-  }
-
-  return menuItem.menu_categories.category_name;
-};
-
-const matchesCategory = (categoryName, selectedCategories = []) => {
-  if (selectedCategories.length === 0) {
-    return true;
-  }
-
-  return selectedCategories.some(
-    (selectedCategory) =>
-      categoryName.toLowerCase() === selectedCategory.toLowerCase(),
-  );
-};
+import { getSalesCategory, matchesSalesCategory, getSalesCents } from "./salesRevenue";
 
 // Calculate the values shown in the summary cards.
 export const calculateSalesSummary = (orders, wastageRecords) => {
   const totalOrders = orders.length;
 
   const grossSales = orders.reduce((total, order) => {
-    return total + (Number(order.subtotal) || 0);
-  }, 0);
+    return total + getSalesCents(order.subtotal);
+  }, 0) / 100;
 
   const netSales = orders.reduce((total, order) => {
-    return total + (Number(order.total) || 0);
-  }, 0);
+    return total + getSalesCents(order.total);
+  }, 0) / 100;
 
   const avgOrderValue = totalOrders > 0 ? netSales / totalOrders : 0;
 
@@ -71,18 +51,16 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
     orderItems.forEach((orderItem) => {
       const menuItem = orderItem.menu_item;
 
-      if (!menuItem) return;
+      const categoryName = getSalesCategory(orderItem);
 
-      const categoryName = getCategoryName(orderItem);
-
-      if (!matchesCategory(categoryName, selectedCategory)) {
+      if (!matchesSalesCategory(categoryName, selectedCategory)) {
         return;
       }
 
       const quantity = Number(orderItem.quantity) || 0;
-      const revenue = Number(orderItem.subtotal) || 0;
+      const revenueCents = getSalesCents(orderItem.report_net_subtotal ?? orderItem.subtotal);
 
-      if (!isArchivedOrderItem(orderItem)) {
+      if (menuItem && !isArchivedOrderItem(orderItem)) {
         if (!itemTotals[menuItem.id]) {
           itemTotals[menuItem.id] = {
             id: menuItem.id,
@@ -95,7 +73,8 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
         }
 
         itemTotals[menuItem.id].sold += quantity;
-        itemTotals[menuItem.id].revenue += revenue;
+        itemTotals[menuItem.id].revenue =
+          (getSalesCents(itemTotals[menuItem.id].revenue) + revenueCents) / 100;
       }
 
       if (!categoryTotals[categoryName]) {
@@ -107,7 +86,8 @@ export const calculateSalesAnalytics = (orders, selectedCategory) => {
       }
 
       categoryTotals[categoryName].units += quantity;
-      categoryTotals[categoryName].rev += revenue;
+      categoryTotals[categoryName].rev =
+        (getSalesCents(categoryTotals[categoryName].rev) + revenueCents) / 100;
     });
   });
 
@@ -184,7 +164,8 @@ export const calculateOrderTrends = (orders) => {
     if (!Object.hasOwn(sourceTotals, source)) source = "In-Store";
     const orderTotal = Number(order.total) || 0;
 
-    sourceTotals[source].value += orderTotal;
+    sourceTotals[source].value =
+      (getSalesCents(sourceTotals[source].value) + getSalesCents(orderTotal)) / 100;
 
     if (order.order_datetime) {
       const hour = getBusinessHour(order.order_datetime);
@@ -265,14 +246,14 @@ export const calculateDetailedProfitability = (orders, selectedCategory) => {
 
       if (!menuItem || isArchivedOrderItem(orderItem)) return;
 
-      const categoryName = getCategoryName(orderItem);
+      const categoryName = getSalesCategory(orderItem);
 
-      if (!matchesCategory(categoryName, selectedCategory)) {
+      if (!matchesSalesCategory(categoryName, selectedCategory)) {
         return;
       }
 
       const quantity = Number(orderItem.quantity) || 0;
-      const revenue = Number(orderItem.subtotal) || 0;
+      const revenue = Number(orderItem.report_net_subtotal ?? orderItem.subtotal) || 0;
       const variant = orderItem.variant;
       const isVariant = menuItem.pricing_type === "Variants";
 
@@ -305,7 +286,8 @@ export const calculateDetailedProfitability = (orders, selectedCategory) => {
       }
 
       profitabilityTotals[uniqueKey].qty += quantity;
-      profitabilityTotals[uniqueKey].revenue += revenue;
+      profitabilityTotals[uniqueKey].revenue =
+        (getSalesCents(profitabilityTotals[uniqueKey].revenue) + getSalesCents(revenue)) / 100;
     });
   });
 
@@ -399,11 +381,19 @@ export const calculateHourlyOverview = (hourlyData, totalHourlyOrders) => {
 export const calculateHeatmapLimits = (profitability) => {
   const quantities = profitability.map((item) => item.qty);
   const revenues = profitability.map((item) => item.revenue);
+  const margins = profitability.map((item) => item.margin);
 
   return {
-    maxQty: Math.max(...quantities, 1),
+    maxQty: Math.max(...quantities, 6),
     maxRev: Math.max(...revenues, 1),
+    minMargin: Math.floor(Math.min(...margins, 0) / 20) * 20,
+    maxMargin: Math.ceil(Math.max(...margins, 100) / 20) * 20,
   };
+};
+
+// Leave room around the plot edges without changing the actual margin values.
+export const getHeatmapMarginPosition = (margin, minMargin, maxMargin) => {
+  return 10 + ((margin - minMargin) / (maxMargin - minMargin)) * 80;
 };
 
 export const getQuadrantColorClass = (quadrant) => {

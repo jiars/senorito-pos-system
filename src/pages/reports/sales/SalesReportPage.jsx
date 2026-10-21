@@ -94,25 +94,27 @@ const SalesReportPage = () => {
       id: "total-orders",
       title: "Total Orders",
       value: summaryData.totalOrders,
-      description: "Total orders made in this period",
+      description: filterCategories.length > 0
+        ? "Orders containing the selected categories"
+        : "Total orders made in this period",
     },
     {
       id: "gross-revenue",
       title: "Gross Revenue",
       value: formatCurrency(summaryData.grossSales),
-      description: "Sales before deductions",
+      description: "Matching item sales before discounts",
     },
     {
       id: "net-revenue",
       title: "Net Revenue",
       value: formatCurrency(summaryData.netSales),
-      description: "Completed sales after deductions",
+      description: "Matching item sales after discounts",
     },
     {
       id: "average-order-value",
       title: "Average Order Value",
       value: formatCurrency(summaryData.avgOrderValue),
-      description: "Average value per completed order",
+      description: "Matching net sales per included order",
     },
   ];
 
@@ -217,6 +219,8 @@ const SalesReportPage = () => {
             quadCounts={quadCounts}
             maxQty={maxQty}
             maxRev={maxRev}
+            minMargin={heatmapLimits.minMargin}
+            maxMargin={heatmapLimits.maxMargin}
             getQuadColorClass={getQuadrantColorClass}
           />
         </section>
@@ -236,6 +240,8 @@ const SalesReportPage = () => {
         <section className="sales-page-distribution">
           <SalesDistributionPanel
             isLoading={isLoading}
+            fromDate={fromDate}
+            toDate={toDate}
             sourceData={sourceData}
             categorySales={categorySales}
             categoryColors={categoryColors}
