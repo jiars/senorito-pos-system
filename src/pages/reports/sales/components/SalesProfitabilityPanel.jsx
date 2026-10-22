@@ -9,6 +9,7 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { getHeatmapMarginPosition } from "@/utils/reports/salesReportCalculations";
 
 import SalesProfitabilityTable, {
   sortProfitabilityRows,
@@ -58,6 +59,8 @@ const SalesProfitabilityPanel = ({
   quadCounts,
   maxQty,
   maxRev,
+  minMargin,
+  maxMargin,
   getQuadColorClass,
 }) => {
   const [profitabilitySort, setProfitabilitySort] = useState("Highest Revenue");
@@ -199,12 +202,31 @@ const SalesProfitabilityPanel = ({
 
         <article className="flex h-full min-h-0 min-w-0 flex-col gap-[var(--app-space-8)] px-[var(--app-space-6)]">
           <div
-            className="scatter-plot-container"
+            className="scatter-plot-container before:hidden after:hidden"
             onClick={() => setHeatmapActive(null)}
           >
+            {[minMargin, 0, 40, maxMargin].filter((margin, index, margins) => margins.indexOf(margin) === index).map((margin) => (
+              <div
+                key={margin}
+                className="pointer-events-none absolute inset-x-0 border-t border-dashed border-[var(--app-color-border-subtle)]"
+                style={{ bottom: `${getHeatmapMarginPosition(margin, minMargin, maxMargin)}%` }}
+              >
+                <span className="absolute right-0 -translate-y-full bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
+                  {margin}%
+                </span>
+              </div>
+            ))}
+            <div
+              className="pointer-events-none absolute inset-y-0 border-l border-dashed border-[var(--app-color-brand-border)]"
+              style={{ left: `${10 + (5 / maxQty) * 80}%` }}
+            >
+              <span className="absolute bottom-0 whitespace-nowrap bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
+                5 sold
+              </span>
+            </div>
             {detailedProfitability.map((item, index) => {
-              const bottomPosition = Math.min(Math.max(item.margin, 5), 95);
-              const leftPosition = (item.qty / maxQty) * 90;
+              const bottomPosition = getHeatmapMarginPosition(item.margin, minMargin, maxMargin);
+              const leftPosition = 10 + (item.qty / maxQty) * 80;
               const size = 12 + (item.revenue / maxRev) * 24;
               const isActive = heatmapActive === index;
 
@@ -235,11 +257,8 @@ const SalesProfitabilityPanel = ({
               <div
                 className="absolute z-10 -translate-x-1/2 rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-center "
                 style={{
-                  bottom: `calc(${Math.min(
-                    Math.max(activeProfitabilityItem.margin, 5),
-                    95,
-                  )}% + 2rem)`,
-                  left: `${(activeProfitabilityItem.qty / maxQty) * 90}%`,
+                  bottom: `calc(${getHeatmapMarginPosition(activeProfitabilityItem.margin, minMargin, maxMargin)}% + 2rem)`,
+                  left: `${10 + (activeProfitabilityItem.qty / maxQty) * 80}%`,
                 }}
               >
                 <p className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text)]">

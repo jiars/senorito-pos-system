@@ -4,6 +4,7 @@ import EmptyState from "@/components/feedback/data-state/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
+import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 
 import { DonutChart, PieChart } from "./SalesCharts";
 
@@ -18,7 +19,7 @@ const sourceColumns = [
   },
   {
     accessorKey: "value",
-    header: "Revenue",
+    header: "Net Revenue",
     meta: { width: "10rem" },
     cell: ({ row }) => formatCurrency(row.original.value),
   },
@@ -42,7 +43,7 @@ const categoryColumns = [
   { accessorKey: "units", header: "Units Sold", meta: { width: "9rem" } },
   {
     accessorKey: "rev",
-    header: "Revenue",
+    header: "Net Revenue",
     meta: { width: "10rem" },
     cell: ({ row }) => formatCurrency(row.original.rev),
   },
@@ -215,7 +216,18 @@ const SalesDistributionPanel = ({
   categorySales,
   categoryColors,
   summaryData,
+  fromDate,
+  toDate,
 }) => {
+  let periodLabel = "all time";
+  if (fromDate && toDate) {
+    periodLabel = `${formatDate(fromDate)} to ${formatDate(toDate)}`;
+    if (fromDate === toDate) periodLabel = formatDate(fromDate);
+  } else if (fromDate) {
+    periodLabel = `from ${formatDate(fromDate)}`;
+  } else if (toDate) {
+    periodLabel = `through ${formatDate(toDate)}`;
+  }
   const hasSourceData = sourceData.some((source) => source.value > 0);
   const hasCategoryData = categorySales.length > 0;
 
@@ -224,9 +236,9 @@ const SalesDistributionPanel = ({
       <SalesDistributionCard
         isLoading={isLoading}
         title="Sales by Order Source"
-        caption="Monitor sales trends and performance over the past 7 days."
+        caption={`Net sales by order source · ${periodLabel}.`}
         sheetTitle="Detailed Sales by Order Source"
-        sheetDescription="Review revenue contribution for each order source."
+        sheetDescription="Review after-discount revenue for each order source."
         sheetColumns={sourceColumns}
         sheetData={sourceData}
         getRowId={(source) => source.label}
@@ -253,9 +265,9 @@ const SalesDistributionPanel = ({
       <SalesDistributionCard
         isLoading={isLoading}
         title="Sales by Menu Category"
-        caption="Monitor sales trends and performance over the past 7 days."
+        caption={`Net sales by menu category · ${periodLabel}.`}
         sheetTitle="Detailed Sales by Menu Category"
-        sheetDescription="Review units sold and revenue contribution by menu category."
+        sheetDescription="Review units sold and after-discount revenue by menu category."
         sheetColumns={categoryColumns}
         sheetData={categorySales}
         getRowId={(category) => category.cat}
