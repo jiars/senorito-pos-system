@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
-import { MAX_CASH_PAYMENT, validateCashPayment } from "@/utils/pos/validation/cashPaymentValidation";
+import { getMaxCashPayment, validateCashPayment } from "@/utils/pos/validation/cashPaymentValidation";
 
 const labelClassName = "text-[length:var(--app-font-size-body-secondary)] font-semibold leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]";
 const inputGroupClassName = "h-[var(--app-touch-target-min)] overflow-hidden rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] shadow-none focus-within:border-[var(--app-color-brand)]";
@@ -118,7 +118,7 @@ const CashPaymentModal = ({
                 id="pos-cash-received"
                 type="number"
                 min="0.01"
-                max={MAX_CASH_PAYMENT}
+                max={getMaxCashPayment(total)}
                 step="0.01"
                 inputMode="decimal"
                 className={inputClassName}
