@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import DataTable from "@/components/data-table/DataTable";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
-import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
+import { formatDate, formatTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 import { getOrderUploaderName } from "@/utils/orders/orderFilters";
 import { normalizeOrderSource } from "@/utils/orders/orderOptions";
@@ -31,17 +31,17 @@ const getOrderHistoryColumns = (handleViewOrder) => {
     {
       accessorKey: "order_number",
       header: "Order No.",
-      meta: { width: "10rem" },
+      meta: { width: "18%" },
       cell: ({ row }) => {
         return (
-          <span className="font-semibold">{row.original.order_number}</span>
+          <span className="font-semibold [overflow-wrap:anywhere]">{row.original.order_number}</span>
         );
       },
     },
     {
       id: "cashier",
       header: "Cashier",
-      meta: { width: "10rem" },
+      meta: { width: "18%" },
       cell: ({ row }) => {
         const uploadedByName = getOrderUploaderName(row.original);
 
@@ -60,33 +60,26 @@ const getOrderHistoryColumns = (handleViewOrder) => {
     },
     {
       accessorKey: "total",
-      header: "Total",
-      meta: { width: "8rem" },
+      header: "Total / Payment",
+      meta: { width: "20%", headerClassName: "whitespace-normal" },
       cell: ({ row }) => {
         return (
-          <span className="font-semibold">
-            {formatCurrency(row.original.total)}
-          </span>
+          <div className="flex flex-col gap-[var(--app-space-1)]">
+            <span className="font-semibold">{formatCurrency(row.original.total)}</span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              Payment: {row.original.payment_method}
+            </span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+              Source: {normalizeOrderSource(row.original.order_source)}
+            </span>
+          </div>
         );
-      },
-    },
-    {
-      accessorKey: "payment_method",
-      header: "Payment",
-      meta: { width: "8rem" },
-    },
-    {
-      accessorKey: "order_source",
-      header: "Source",
-      meta: { width: "8rem" },
-      cell: ({ row }) => {
-        return normalizeOrderSource(row.original.order_source);
       },
     },
     {
       id: "status",
       header: "Status",
-      meta: { width: "8rem" },
+      meta: { width: "15%" },
       cell: ({ row }) => {
         const status = row.original.status || "Completed";
 
@@ -102,20 +95,23 @@ const getOrderHistoryColumns = (handleViewOrder) => {
     {
       accessorKey: "order_datetime",
       header: "Date & Time",
-      meta: { width: "13rem" },
+      meta: { width: "18%" },
       cell: ({ row }) => {
         return (
-          <span className="text-[var(--app-color-text-subtle)]">
-            {formatDateTime(row.original.order_datetime, BUSINESS_TIME_ZONE)}
-          </span>
+          <div className="flex flex-col gap-[var(--app-space-1)]">
+            <span>{formatDate(row.original.order_datetime, BUSINESS_TIME_ZONE)}</span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              {formatTime(row.original.order_datetime, BUSINESS_TIME_ZONE)}
+            </span>
+          </div>
         );
       },
     },
     {
       id: "view",
-      header: "View",
+      header: "Actions",
       meta: {
-        width: "4.5rem",
+        width: "11%",
         headerClassName: "text-center",
         cellClassName: "text-center",
       },
@@ -156,6 +152,7 @@ const OrdersTable = ({
         skeletonRowCount={6}
         errorMessage={errorMessage}
         emptyMessage="No orders found matching your criteria."
+        tableClassName="table-fixed"
         scrollAreaClassName="orders-table-scroll-area"
         scrollbarOrientation="both"
       />

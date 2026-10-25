@@ -2,6 +2,7 @@ import { format, isValid, parse } from "date-fns";
 import { getPurchaseExpirationMinDate } from "@/utils/expenses/expenseDateLimits";
 import { isWholeQuantityValid } from "@/utils/inventory/quantityRules";
 import { validateExpenseDate } from "./expenseDateValidation";
+import { getReceiptReferenceError } from "@/utils/shared/validation/receiptReferenceValidation";
 
 export const addExpenseValidationMessages = {
   categoryRequired: "Category is required.",
@@ -73,6 +74,12 @@ export const validateExpenseForm = (formData, options = {}) => {
     errors.amount = messages.amountInvalid;
   }
 
+  const selectedCategory = categories && categories.find((category) => category.id === formData.category_id);
+  if (selectedCategory && selectedCategory.requires_receipt) {
+    const receiptError = getReceiptReferenceError(formData.receipt_reference, true);
+    if (receiptError) errors.receipt_reference = receiptError;
+  }
+
   if (isPurchase) {
     if (!formData.description?.trim()) {
       errors.description = messages.descriptionRequired;
@@ -122,11 +129,13 @@ export const getAddExpenseServerFieldErrors = (backendErrors) => {
   const fieldNames = {
     category_id: "category_id", expense_date: "expense_date", description: "description",
     amount: "amount", payment_method: "payment_method", inventory_item_id: "inventory_item_id",
+    receipt_reference: "receipt_reference",
     quantity_to_add: "quantity_to_add", reason: "reason", expiration_date: "expiration_date",
     "stockData.quantity": "quantity_to_add", "stockData.reason": "reason",
     "purchaseData.total_cost": "amount", "purchaseData.expense_date": "expense_date",
     "purchaseData.expiration_date": "expiration_date",
     "purchaseData.description": "description",
+    "purchaseData.receipt_reference": "receipt_reference",
   };
   const errors = {};
   for (const [backendField, formField] of Object.entries(fieldNames)) {

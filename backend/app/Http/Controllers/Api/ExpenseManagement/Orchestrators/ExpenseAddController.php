@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\ExpenseManagement\Orchestrators;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExpenseManagement\Expense;
+use App\Models\ExpenseManagement\ExpenseCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,6 +22,12 @@ class ExpenseAddController extends Controller
             'payment_method' => 'required|string|max:100',
             'receipt_reference' => 'nullable|string|max:255',
             'expense_date' => 'required|date',
+        ]);
+
+        // Check the current policy even if the browser has an older category list.
+        $category = ExpenseCategory::findOrFail($expenseData['category_id']);
+        $request->validate([
+            'receipt_reference' => $category->receiptReferenceRules(),
         ]);
 
         // The logged-in profile owns the new record.

@@ -22,33 +22,46 @@ class InitMenuManagementController extends Controller
             ->orderBy('category_name', 'asc')
             ->get();
 
-        $menuItems = MenuItem::with(['menu_categories', 'menu_prices', 'menu_recipes'])
-            ->where('archived', false)
-            ->orderBy('item_name', 'asc')
-            ->get();
-
-        $archivedMenuItems = MenuItem::with([
+        $menuRelations = [
             'menu_categories',
             'menu_prices',
             'menu_recipes',
-        ])
+        ];
+
+        $menuItems = MenuItem::query()
+            ->where('archived', false)
+            ->orderBy('item_name', 'asc')
+            ->get();
+
+        $archivedMenuItems = MenuItem::query()
             ->where('archived', true)
             ->orderBy('item_name', 'asc')
             ->get();
 
-        $addons = Addon::with(['addon_categories.menu_categories', 'addon_recipes'])
+        $menuItems->merge($archivedMenuItems)->load($menuRelations);
+
+        $addonRelations = [
+            'addon_categories.menu_categories',
+            'addon_recipes',
+        ];
+
+        $addons = Addon::query()
             ->where('archived', false)
             ->orderBy('addon_name', 'asc')
             ->get();
 
-        // Fetch archived Add-ons using the same relationships.
-        $archivedAddons = Addon::with([
-            'addon_categories.menu_categories',
-            'addon_recipes',
-        ])
+        $archivedAddons = Addon::query()
             ->where('archived', true)
             ->orderBy('addon_name', 'asc')
             ->get();
+
+        $addons->merge($archivedAddons)->load($addonRelations);
+
+        // Related ingredient data needed by recipe forms.
+        $ingredientRelations = [
+            'inventory_batches:id,inventory_item_id,quantity,expiration_date',
+            'inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
+        ];
 
         // Ingredients required by Menu and Add-on recipe forms.
         $ingredientsQuery = InventoryItem::select([
@@ -61,10 +74,7 @@ class InitMenuManagementController extends Controller
             'track_expiry',
             'archived',
         ])
-            ->with([
-                'inventory_batches:id,inventory_item_id,quantity,expiration_date',
-                'inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
-            ])
+            ->with($ingredientRelations)
             ->orderBy('item_name');
 
         // Include the same usable-stock value that POS receives.

@@ -104,6 +104,7 @@ class InventoryRestockOrchestrator extends Controller
                 'amount' => $totalCost,
                 'vendor' => $purchaseData['supplier'] ?? null,
                 'expense_date' => $expenseDate,
+                'receipt_reference' => $purchaseData['receipt_reference'] ?? null,
             ], $userId);
 
             $fifoCost = $batchController->getEffectiveCost($item->id, (bool) $item->track_expiry);

@@ -4,21 +4,38 @@ namespace App\Http\Controllers\Api\InventoryManagement\AuditLogs;
 
 use App\Models\InventoryManagement\InventoryAuditLog;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 
 class InventoryAuditLogController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        // add a page-size optiosn already available in the table
+        $validated = $request->validate([
+            'paginate' => ['sometimes', 'boolean'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'in:12,24,36,48'],
+        ]);
+
         // Return complete audit records with their related item, batch, and performer.
-        $auditLogs = InventoryAuditLog::with([
+        $query = InventoryAuditLog::with([
             'inventory_item:id,item_name,base_unit',
             'inventory_batch:id,batch_number',
             'performer:id,first_name,last_name',
         ])
             ->orderByDesc('created_at')
-            ->get();
+            ->orderByDesc('id');
 
-        return response()->json($auditLogs);
+        if ($request->boolean('paginate')) {
+            $perPage = (int) ($validated['per_page'] ?? 12);
+
+            return response()->json(
+                $query->paginate($perPage)
+            );
+        }
+
+        // Keep the current frontend working during the transition.
+        return response()->json($query->get());
     }
 
     public function store(array $auditData)

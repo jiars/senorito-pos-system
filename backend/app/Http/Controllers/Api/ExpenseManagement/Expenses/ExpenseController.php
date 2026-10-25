@@ -22,6 +22,7 @@ class ExpenseController extends Controller
             'description' => $expenseData['description'],
             'amount' => $expenseData['amount'],
             'vendor' => $expenseData['vendor'] ?? null,
+            'receipt_reference' => $expenseData['receipt_reference'] ?? null,
             'expense_date' => $expenseData['expense_date'] ?? now(config('app.business_timezone'))->toDateString(),
             'recorded_by' => $userId,
         ]);

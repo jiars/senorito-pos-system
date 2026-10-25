@@ -3,20 +3,16 @@ import { formatDate } from "@/utils/shared/formatters/dateFormatters";
 import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 
 /**
- * Exports the filtered expenses and summary data to an Excel file.
+ * Exports only the filtered expense records and their summary to Excel.
  * @param {Array} sortedExpenseRecords The sorted list of filtered expenses.
  * @param {Array} categoryBreakdown The array of breakdown data for categories.
  * @param {number} overallExpenses Total expenses.
- * @param {number} netSales Total net sales.
- * @param {number} netOperational Total net operational profit.
  * @param {string} dateRange The string representation of the selected date range.
  */
 export const exportExpensesToExcel = (
   sortedExpenseRecords,
   categoryBreakdown,
   overallExpenses,
-  netSales,
-  netOperational,
   dateRange
 ) => {
   if (sortedExpenseRecords.length === 0) {
@@ -73,9 +69,7 @@ export const exportExpensesToExcel = (
 
   analyticsData.push({ Metric: "OVERALL SUMMARY", Value: "" });
   analyticsData.push({ Metric: "Date Range", Value: dateRange });
-  analyticsData.push({ Metric: "Net Sales", Value: `₱${netSales.toFixed(2)}` });
   analyticsData.push({ Metric: "Total Expenses", Value: `₱${overallExpenses.toFixed(2)}` });
-  analyticsData.push({ Metric: "Net Operational Income", Value: `₱${netOperational.toFixed(2)}` });
   
   analyticsData.push({ Metric: "", Value: "" }); // blank row
 

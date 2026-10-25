@@ -1,10 +1,12 @@
 import api from "../../utils/axios/axiosInstance";
 
 // Add one new category.
-export const addExpenseCategory = async (categoryName) => {
+export const addExpenseCategory = async (categoryName, requiresReceipt = false, autoArchiveYearly = false) => {
   try {
     const response = await api.post("/expense-management/categories", {
       category_name: categoryName,
+      requires_receipt: requiresReceipt,
+      auto_archive_yearly: autoArchiveYearly,
     });
 
     return response.data;
@@ -16,13 +18,15 @@ export const addExpenseCategory = async (categoryName) => {
   }
 };
 
-// Update an existing category name.
-export const updateExpenseCategory = async (categoryId, categoryName) => {
+// Update the category name and settings. Omitted settings stay unchanged.
+export const updateExpenseCategory = async (categoryId, categoryName, requiresReceipt, autoArchiveYearly) => {
   try {
     const response = await api.put(
       `/expense-management/categories/${categoryId}`,
       {
         category_name: categoryName,
+        requires_receipt: requiresReceipt,
+        auto_archive_yearly: autoArchiveYearly,
       },
     );
 

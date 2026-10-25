@@ -23,18 +23,20 @@ class InitExpenseManagementController extends Controller
         ];
 
         // Fetch active Expenses.
-        $expenses = Expense::with($relations)
+        $expenses = Expense::query()
             ->where('archived', false)
             ->orderBy('expense_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Fetch archived Expenses using the same relationships.
-        $archivedExpenses = Expense::with($relations)
+        $archivedExpenses = Expense::query()
             ->where('archived', true)
             ->orderBy('archived_at', 'desc')
             ->orderBy('expense_date', 'desc')
             ->get();
+
+        $expenses->merge($archivedExpenses)->load($relations);
 
         return response()->json([
             'categories' => $categories,

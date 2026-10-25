@@ -79,7 +79,7 @@ const restockReasons = [
 ];
 
 const labelClassName =
-  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+  "!gap-0 text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
 const controlClassName =
   "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
 const readonlyClassName =
@@ -146,6 +146,7 @@ const AddExpenseModalContent = ({
     ? selectedCategory.category_name.trim().toLowerCase()
     : "";
   const isPurchase = normalizedCategoryName === "inventory purchase";
+  const requiresReceipt = Boolean(selectedCategory && selectedCategory.requires_receipt);
   const showVendor = vendorCategoryNames.has(normalizedCategoryName);
   const selectedItem = inventoryItems.find((inventoryItem) => {
     return inventoryItem.id === formData.inventory_item_id;
@@ -254,6 +255,7 @@ const AddExpenseModalContent = ({
         inventory_item_id: "add-expense-inventory-item", quantity_to_add: "add-expense-quantity",
         expiration_date: "add-expense-expiration-date", reason: "add-expense-purchase-reason",
         payment_method: "add-expense-payment-method",
+        receipt_reference: "add-expense-receipt",
       };
       const input = document.getElementById(fieldIds[Object.keys(errors)[0]]);
       if (input) input.focus();
@@ -300,6 +302,7 @@ const AddExpenseModalContent = ({
               expiration_date: formData.expiration_date || null,
               expense_date: formData.expense_date,
               description: formData.description.trim(),
+              receipt_reference: requiresReceipt ? formData.receipt_reference.trim() : null,
             },
           });
         } else {
@@ -310,7 +313,7 @@ const AddExpenseModalContent = ({
             amount: Number(formData.amount),
             vendor: formData.vendor.trim() || null,
             payment_method: formData.payment_method,
-            receipt_reference: formData.receipt_reference.trim() || null,
+            receipt_reference: requiresReceipt ? formData.receipt_reference.trim() : null,
           });
         }
       } catch (error) {
@@ -348,6 +351,32 @@ const AddExpenseModalContent = ({
   const statusFeedback = getAddExpenseStatusFeedback(statusCode);
   let blockingAction;
   if (isRefreshError) blockingAction = { label: statusFeedback.buttonLabel, onClick: handleRetryRefresh };
+
+  const receiptField = requiresReceipt && (
+    <Field data-invalid={Boolean(errorFor("receipt_reference"))}>
+      <FieldLabel htmlFor="add-expense-receipt" className={labelClassName}>
+        <span>Receipt / Reference Number<span className="text-[var(--app-color-danger)]">*</span></span>
+      </FieldLabel>
+      <Input
+        id="add-expense-receipt"
+        value={formData.receipt_reference}
+        onChange={(event) => updateField("receipt_reference", event.target.value)}
+        placeholder="Receipt number or reference"
+        maxLength={255}
+        required={requiresReceipt}
+        aria-required={requiresReceipt}
+        aria-invalid={Boolean(errorFor("receipt_reference"))}
+        aria-describedby={errorFor("receipt_reference") ? "add-expense-receipt-error" : undefined}
+        disabled={formLocked}
+        className={controlClassName}
+      />
+      {errorFor("receipt_reference") && (
+        <FieldError id="add-expense-receipt-error" className="text-[length:var(--app-font-size-caption)]">
+          {errorFor("receipt_reference")}
+        </FieldError>
+      )}
+    </Field>
+  );
 
   return (
     <>
@@ -820,6 +849,7 @@ const AddExpenseModalContent = ({
                   </Field>
                 </div>
 
+                {receiptField}
                 <div className="flex items-start gap-[var(--app-space-2)] rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-canvas)] p-[var(--app-space-2)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
                   <i
                     className="bi bi-info-circle-fill shrink-0 text-[var(--app-color-brand)]"
@@ -973,24 +1003,7 @@ const AddExpenseModalContent = ({
                     )}
                   </Field>
 
-                  <Field>
-                    <FieldLabel
-                      htmlFor="add-expense-receipt"
-                      className={labelClassName}
-                    >
-                      Receipt
-                    </FieldLabel>
-                    <Input
-                      id="add-expense-receipt"
-                      value={formData.receipt_reference}
-                      onChange={(event) => {
-                        updateField("receipt_reference", event.target.value);
-                      }}
-                      placeholder="Receipt number or reference"
-                      disabled={isSubmitting}
-                      className={controlClassName}
-                    />
-                  </Field>
+                  {receiptField}
                 </div>
 
                 {showVendor && (

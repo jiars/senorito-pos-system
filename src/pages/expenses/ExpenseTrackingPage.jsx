@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useExpenseManagement } from "@/hooks/useExpenseManagement";
-import { useSalesReport } from "@/hooks/useSalesReport";
 
 import ManageExpenseCategoriesModal from "./Manage Expense Categories/ManageExpenseCategoriesModal";
 import AddExpenseModal from "./Add Expense/AddExpenseModal";
@@ -27,17 +26,16 @@ import {
 import {
   filterExpenseRecords,
   getDateRangeFromPreset,
+  sortExpenseRecords,
 } from "@/utils/expenses/expenseFilters";
 import { exportExpensesToExcel } from "@/utils/expenses/expenseExportUtils";
-import { calculateSalesSummary } from "@/utils/reports/salesReportCalculations";
-import { filterSalesOrders } from "@/utils/reports/salesReportFilters";
 
 const ExpenseTrackingPage = () => {
   const navigate = useNavigate();
   const {
     expenses,
     categories,
-    isLoading: isLoadingExpenses,
+    isLoading,
     error,
     refetchExpenseManagement,
   } = useExpenseManagement();
@@ -48,6 +46,7 @@ const ExpenseTrackingPage = () => {
   const [toDate, setToDate] = useState(initialDateRange.end);
   const [datePreset, setDatePreset] = useState("This Week");
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [sortBy, setSortBy] = useState("latest");
 
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
@@ -58,20 +57,6 @@ const ExpenseTrackingPage = () => {
   const [isArchiveExpenseOpen, setIsArchiveExpenseOpen] = useState(false);
   const [expenseToArchive, setExpenseToArchive] = useState(null);
 
-  const { orders: salesOrders, isLoading: isLoadingSales } = useSalesReport();
-  const isLoading = isLoadingExpenses || isLoadingSales;
-
-  // Reuse the cached Sales Report data for the selected Expense date range.
-  const filteredSalesOrders = filterSalesOrders(
-    salesOrders,
-    fromDate,
-    toDate,
-    [],
-    [],
-  );
-  const salesSummary = calculateSalesSummary(filteredSalesOrders, []);
-  const netSales = salesSummary.netSales;
-
   // --- 1. Filter Logic ---
   const filteredExpenseRecords = filterExpenseRecords(
     expenses,
@@ -81,12 +66,10 @@ const ExpenseTrackingPage = () => {
     selectedCategories,
   );
 
-  // --- Sorted records for the table and export ---
-  const sortedExpenseRecords = [...filteredExpenseRecords].sort((a, b) => {
-    const dateDiff = new Date(b.expense_date) - new Date(a.expense_date);
-    if (dateDiff === 0) return new Date(b.created_at) - new Date(a.created_at);
-    return dateDiff;
-  });
+  const sortedExpenseRecords = sortExpenseRecords(filteredExpenseRecords, sortBy);
+
+  // Cards retain their date/search context, just like Inventory's status cards.
+  const summaryRecords = filterExpenseRecords(expenses, searchTerm, fromDate, toDate);
 
   // --- 2. Compute Totals ---
   const {
@@ -97,13 +80,13 @@ const ExpenseTrackingPage = () => {
     inventoryPurchasePercentage,
     topExpenseCategory,
     expenseTransactionCount,
-    netOperational,
-  } = calculateExpenseSummary(filteredExpenseRecords, netSales);
+  } = calculateExpenseSummary(summaryRecords);
+  const filteredSummary = calculateExpenseSummary(filteredExpenseRecords);
 
   // --- 3. Expense Breakdown by Category ---
   const categoryBreakdown = calculateCategoryBreakdown(
     filteredExpenseRecords,
-    overallExpenses,
+    filteredSummary.overallExpenses,
   );
   const expenseDistributionData = calculateExpenseDistributionData(
     filteredExpenseRecords,
@@ -113,6 +96,11 @@ const ExpenseTrackingPage = () => {
   );
 
   // --- Handlers ---
+  const handleSummaryCategorySelect = (nextCategories, highestAmountFirst = false) => {
+    setSelectedCategories(nextCategories);
+    if (highestAmountFirst) setSortBy("highest-amount");
+  };
+
   const handleEditExpense = (record) => {
     setExpenseToEdit(record);
     setIsEditExpenseOpen(true);
@@ -150,9 +138,7 @@ const ExpenseTrackingPage = () => {
     exportExpensesToExcel(
       sortedExpenseRecords,
       categoryBreakdown,
-      overallExpenses,
-      netSales,
-      netOperational,
+      filteredSummary.overallExpenses,
       dateRangeStr,
     );
   };
@@ -184,6 +170,9 @@ const ExpenseTrackingPage = () => {
             topExpenseCategory={topExpenseCategory}
             expenseTransactionCount={expenseTransactionCount}
             isLoading={isLoading}
+            categories={categories}
+            selectedCategories={selectedCategories}
+            onCategorySelect={handleSummaryCategorySelect}
           />
         </section>
 
@@ -209,6 +198,9 @@ const ExpenseTrackingPage = () => {
             fromDate={fromDate}
             toDate={toDate}
             selectedCategories={selectedCategories}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            onExport={handleExportExcel}
             isLoading={isLoading}
             error={error}
             getCategoryColor={getCategoryColor}

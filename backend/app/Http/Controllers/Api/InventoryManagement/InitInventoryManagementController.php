@@ -33,7 +33,7 @@ class InitInventoryManagementController extends Controller
 
         $stockHistoryService = app(InventoryStockHistoryService::class);
 
-        $inventoryQuery = InventoryItem::with($relations)
+        $inventoryQuery = InventoryItem::query()
             ->where('archived', false)
             ->orderBy('item_name', 'asc');
 
@@ -41,13 +41,15 @@ class InitInventoryManagementController extends Controller
             ->addLastStockChange($inventoryQuery)
             ->get();
 
-        $archivedQuery = InventoryItem::with($relations)
+        $archivedQuery = InventoryItem::query()
             ->where('archived', true)
             ->orderBy('item_name', 'asc');
 
         $archivedItems = $stockHistoryService
             ->addLastStockChange($archivedQuery)
             ->get();
+
+        $inventoryItems->merge($archivedItems)->load($relations);
 
         // Fetch Purchase History with the related item, batch, and employee.
         $purchaseHistory = InventoryPurchaseHistory::with([
