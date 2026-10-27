@@ -4,13 +4,18 @@ namespace App\Http\Controllers\Api\OrderManagement\OrderItems;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuManagement\MenuItemPrice;
+use App\Models\OrderManagement\Order;
 use App\Models\OrderManagement\OrderItem;
+use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class OrderItemController extends Controller
 {
-    public function index(string $orderId)
+    public function index(Request $request, string $orderId)
     {
+        // A guessed receipt ID must not bypass the history ownership rule.
+        $order = Order::visibleTo($request->user())->whereKey($orderId)->firstOrFail();
+
         // Fetch the items, variants, and add-ons of one receipt.
         $items = OrderItem::with([
             'menu_item:id,item_name',
@@ -23,7 +28,8 @@ class OrderItemController extends Controller
 
         return response()->json([
             'items' => $items,
-        ]);
+            'order_status' => $order->status,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function store(array $itemData, string $orderId)

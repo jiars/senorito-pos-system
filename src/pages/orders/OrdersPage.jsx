@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import PageLayout from "../../components/layout/PageLayout";
 import { useOrderManagement } from "../../hooks/useOrderManagement";
+import { useAuth } from "../../hooks/useAuth";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDateTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
@@ -13,10 +14,14 @@ import ViewOrderDetails from "./View Order Details/ViewOrderDetails";
 import OrdersFilterBar from "./components/OrdersFilterBar";
 import OrdersPagination from "./components/OrdersPagination";
 import OrdersTable from "./components/OrdersTable";
+import RequestOrderVoidModal from "./modals/Request Void/RequestOrderVoidModal";
+import ReviewOrderVoidModal from "./modals/Review Void/ReviewOrderVoidModal";
+import { hasPendingOrderVoid } from "@/utils/orders/orderVoidUtils";
 import "./ordersPage.css";
 
-const OrdersPage = () => {
-  const { orders, isLoading, error } = useOrderManagement();
+const OrdersPageContent = () => {
+  const { orders, isLoading, error, refetchOrderManagement } = useOrderManagement();
+  const { user, role } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [reportPeriod, setReportPeriod] = useState("all");
@@ -26,6 +31,9 @@ const OrdersPage = () => {
   const [orderSources, setOrderSources] = useState([]);
   const [recordedBy, setRecordedBy] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [voidOrder, setVoidOrder] = useState(null);
+  const [reviewOrder, setReviewOrder] = useState(null);
+  const [showPendingOnly, setShowPendingOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const recordedByOptions = getOrderRecordedByOptions(orders);
@@ -38,6 +46,7 @@ const OrdersPage = () => {
     setPaymentMethods([]);
     setOrderSources([]);
     setRecordedBy([]);
+    setShowPendingOnly(false);
     setCurrentPage(1);
   };
 
@@ -79,6 +88,7 @@ const OrdersPage = () => {
   const handleViewOrder = (order) => {
     setSelectedOrder({
       id: order.id,
+      status: order.status,
       order_number: order.order_number,
       date: new Date(order.order_datetime),
       cashier: getOrderCashierName(order),
@@ -135,9 +145,13 @@ const OrdersPage = () => {
     return true;
   });
 
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+  const pendingOrders = filteredOrders.filter(hasPendingOrderVoid);
+  const displayedOrders = showPendingOnly ? pendingOrders : filteredOrders;
+  const totalPages = Math.max(1, Math.ceil(displayedOrders.length / itemsPerPage));
+  const visiblePage = Math.min(currentPage, totalPages);
+  const paginatedOrders = displayedOrders.slice(
+    (visiblePage - 1) * itemsPerPage,
+    visiblePage * itemsPerPage,
   );
 
   return (
@@ -166,6 +180,10 @@ const OrdersPage = () => {
             recordedByOptions={recordedByOptions}
             handleResetFilters={handleResetFilters}
             isLoading={isLoading}
+            canReviewVoids={role === "Owner"}
+            pendingVoidCount={pendingOrders.length}
+            showPendingOnly={showPendingOnly}
+            onTogglePending={() => { setShowPendingOnly(!showPendingOnly); setCurrentPage(1); }}
           />
         </section>
 
@@ -175,14 +193,18 @@ const OrdersPage = () => {
             error={error}
             paginatedOrders={paginatedOrders}
             handleViewOrder={handleViewOrder}
+            handleRequestVoid={setVoidOrder}
+            userId={user.id}
+            role={role}
+            handleReviewVoid={setReviewOrder}
           />
         </section>
 
         <section className="orders-page-pagination">
           <OrdersPagination
-            totalOrders={filteredOrders.length}
+            totalOrders={displayedOrders.length}
             pageSize={itemsPerPage}
-            currentPage={currentPage}
+            currentPage={visiblePage}
             onPageChange={setCurrentPage}
             onPageSizeChange={setItemsPerPage}
             isLoading={isLoading}
@@ -194,8 +216,41 @@ const OrdersPage = () => {
         orderDetails={selectedOrder}
         onClose={() => setSelectedOrder(null)}
       />
+      {voidOrder && (
+        <RequestOrderVoidModal
+          key={voidOrder.id}
+          order={voidOrder}
+          userId={user.id}
+          role={role}
+          refetchOrderManagement={refetchOrderManagement}
+          onClose={(needsRefresh) => {
+            setVoidOrder(null);
+            if (needsRefresh) refetchOrderManagement();
+          }}
+        />
+      )}
+      {reviewOrder && (
+        <ReviewOrderVoidModal
+          key={reviewOrder.id}
+          order={reviewOrder}
+          role={role}
+          refetchOrderManagement={refetchOrderManagement}
+          onClose={(needsRefresh) => {
+            setReviewOrder(null);
+            if (needsRefresh) refetchOrderManagement();
+          }}
+        />
+      )}
     </PageLayout>
   );
+};
+
+const OrdersPage = () => {
+  const { user, role } = useAuth();
+  if (!user) return null;
+
+  // Switching accounts clears the selected receipt, filters and pagination.
+  return <OrdersPageContent key={`${user.id}-${role}`} />;
 };
 
 export default OrdersPage;

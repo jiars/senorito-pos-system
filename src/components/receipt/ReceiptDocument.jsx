@@ -24,6 +24,12 @@ const ReceiptDocument = ({ receipt }) => {
         <h2 className="text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-brand-header)]">Señorito Cafe</h2>
         <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-muted)]">284 FR. CORDERO ST., LAMBAKIN, MARILAO, BULACAN, 3019</p>
         <p className="[overflow-wrap:anywhere]">{receipt.transactionId}</p>
+        {receipt.status === "Voided" && (
+          <div className="rounded-[var(--app-radius-nested)] border border-[var(--app-color-danger)] p-[var(--app-space-2)]">
+            <p className="font-bold">VOIDED</p>
+            <p className="text-[length:var(--app-font-size-caption)]">Retained for audit. This does not confirm a refund.</p>
+          </div>
+        )}
       </header>
 
       <hr className="receipt-divider my-[var(--app-space-4)] border-dashed border-[var(--app-color-border-subtle)]" />

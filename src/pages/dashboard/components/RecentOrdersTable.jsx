@@ -9,7 +9,7 @@ const getStatusClassName = (status) => {
   if (status === "Completed")
     return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
 
-  if (status === "Cancelled")
+  if (status === "Cancelled" || status === "Voided")
     return "bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger-foreground)]";
 
   return "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]";

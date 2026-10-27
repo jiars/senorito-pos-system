@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\DashboardManagement\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderManagement\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +30,7 @@ class TopSellingItemsController extends Controller
             )
             ->where('orders.order_datetime', '>=', $start)
             ->where('orders.order_datetime', '<', $end)
-            ->where('orders.status', '!=', 'Cancelled')
+            ->whereNotIn('orders.status', Order::NON_SALE_STATUSES)
             ->where('menu_items.archived', false)
             ->select(
                 'menu_items.id',
