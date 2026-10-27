@@ -126,7 +126,28 @@
   font-size: var(--app-font-size-caption);
 }
 
-/* Complex profitability heatmap. */
+/* Profitability views and chart layout. */
+.sales-profitability-matrix {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-gap-related);
+}
+
+.sales-profitability-matrix-items {
+  min-width: 0;
+  max-height: clamp(10rem, 28svh, 16rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding: var(--app-space-1);
+}
+
+.sales-profitability-inline-table .data-table-scroll-viewport,
+.sales-profitability-bar-viewport {
+  max-height: clamp(18rem, 50svh, 30rem);
+}
+
 .scatter-plot-container {
   position: relative;
   flex: 1;
@@ -211,6 +232,11 @@
 }
 
 @media (max-width: 1023px) {
+  .sales-profitability-inline-table .data-table-scroll-viewport,
+  .sales-profitability-bar-viewport {
+    max-height: var(--app-panel-height-tablet-portrait);
+  }
+
   .sales-page-performance,
   .sales-page-distribution {
     grid-template-columns: minmax(0, 1fr);
@@ -224,6 +250,15 @@
 }
 
 @media (max-width: 639px) {
+  .sales-profitability-matrix {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-profitability-inline-table .data-table-scroll-viewport,
+  .sales-profitability-bar-viewport {
+    max-height: var(--app-panel-height-phone);
+  }
+
   .sales-page-layout {
     --app-gap-section: var(--app-space-4);
     --app-padding-panel: var(--app-space-4);
