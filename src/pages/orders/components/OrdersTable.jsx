@@ -1,17 +1,19 @@
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import DataTable from "@/components/data-table/DataTable";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDate, formatTime } from "@/utils/shared/formatters/dateFormatters";
 import { BUSINESS_TIME_ZONE } from "@/utils/shared/formatters/businessDates";
 import { getOrderUploaderName } from "@/utils/orders/orderFilters";
 import { normalizeOrderSource } from "@/utils/orders/orderOptions";
+import OrderActionsMenu from "./OrderActionsMenu";
 
 const getStatusClassName = (status) => {
   if (status === "Completed") {
     return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
   }
 
-  if (status === "Cancelled") {
+  if (status === "Cancelled" || status === "Voided") {
     return "bg-[var(--app-color-danger-surface)] text-[var(--app-color-danger-foreground)]";
   }
 
@@ -26,7 +28,7 @@ const getCashierName = (cashier) => {
   return "Owner / System";
 };
 
-const getOrderHistoryColumns = (handleViewOrder) => {
+const getOrderHistoryColumns = (handleViewOrder, handleRequestVoid, userId, role, handleReviewVoid) => {
   return [
     {
       accessorKey: "order_number",
@@ -82,13 +84,35 @@ const getOrderHistoryColumns = (handleViewOrder) => {
       meta: { width: "15%" },
       cell: ({ row }) => {
         const status = row.original.status || "Completed";
+        const voidRequest = row.original.pending_void_request;
+        const hasPendingRequest = status === "Completed" && voidRequest && voidRequest.status === "pending";
+        let displayStatus = status;
+        if (hasPendingRequest) displayStatus = "Void requested";
+
+        // This changes the visible label only, not the saved sale status.
+        const statusBadge = (
+          <Badge
+            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getStatusClassName(displayStatus)}`}
+          >
+            {displayStatus}
+          </Badge>
+        );
+        if (!hasPendingRequest) return statusBadge;
 
         return (
-          <Badge
-            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getStatusClassName(status)}`}
-          >
-            {status}
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger
+              type="button"
+              closeOnClick={false}
+              aria-label="Void requested. Awaiting Owner approval. Still included in sales."
+              className="inline-flex min-h-[var(--app-touch-target-min)] cursor-help items-center rounded-[var(--app-radius-nested)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-color-brand)]"
+            >
+              {statusBadge}
+            </TooltipTrigger>
+            <TooltipContent className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)]">
+              Awaiting Owner approval. Still included in sales.
+            </TooltipContent>
+          </Tooltip>
         );
       },
     },
@@ -117,15 +141,14 @@ const getOrderHistoryColumns = (handleViewOrder) => {
       },
       cell: ({ row }) => {
         return (
-          <button
-            type="button"
-            aria-label={`View ${row.original.order_number}`}
-            title="View order"
-            onClick={() => handleViewOrder(row.original)}
-            className="inline-flex size-[var(--app-touch-target-min)] items-center justify-center rounded-[var(--app-radius-nested)] text-[var(--app-color-brand)] transition-colors hover:bg-[var(--app-color-control-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-color-brand-border)]"
-          >
-            <i aria-hidden="true" className="bi bi-eye text-base" />
-          </button>
+          <OrderActionsMenu
+            order={row.original}
+            userId={userId}
+            role={role}
+            onViewOrder={handleViewOrder}
+            onRequestVoid={handleRequestVoid}
+            onReviewVoid={handleReviewVoid}
+          />
         );
       },
     },
@@ -137,8 +160,12 @@ const OrdersTable = ({
   error,
   paginatedOrders,
   handleViewOrder,
+  handleRequestVoid,
+  userId,
+  role,
+  handleReviewVoid,
 }) => {
-  const columns = getOrderHistoryColumns(handleViewOrder);
+  const columns = getOrderHistoryColumns(handleViewOrder, handleRequestVoid, userId, role, handleReviewVoid);
   const errorMessage = error || "";
 
   return (

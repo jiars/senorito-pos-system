@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\DashboardManagement\Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderManagement\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -20,7 +21,7 @@ class WeeklySalesController extends Controller
         $orders = DB::table('orders')
             ->where('order_datetime', '>=', $start)
             ->where('order_datetime', '<', $end)
-            ->where('status', '!=', 'Cancelled')
+            ->whereNotIn('status', Order::NON_SALE_STATUSES)
             ->select('order_datetime', 'total')
             ->get();
 

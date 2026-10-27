@@ -4,12 +4,13 @@ import { getOrderReceiptItems } from "@/utils/receipt/receiptItems";
 
 const ViewOrderDetails = ({ orderDetails, onClose }) => {
   const orderId = orderDetails ? orderDetails.id : null;
-  const { items, isLoading, error } = useOrderItems(orderId);
+  const { items, isLoading, error, orderStatus } = useOrderItems(orderId);
 
   if (!orderDetails) return null;
 
   const receipt = {
     ...orderDetails,
+    status: orderStatus || orderDetails.status,
     transactionId: orderDetails.order_number || orderDetails.id,
     items: getOrderReceiptItems(items),
   };

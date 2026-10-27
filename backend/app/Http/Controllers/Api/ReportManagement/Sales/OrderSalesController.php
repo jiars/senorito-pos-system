@@ -31,7 +31,7 @@ class OrderSalesController extends Controller
                 'order_items.menu_item.menu_recipes.inventory_items.inventory_conversion_units:id,inventory_item_id,converted_unit,equivalent_base_amount',
                 'order_items.variant:id,variant_name,selling_price,estimated_cost,archived',
             ])
-            ->where('status', '!=', 'Cancelled');
+            ->whereNotIn('status', Order::NON_SALE_STATUSES);
 
         if ($request->filled('from_date')) {
             $startDate = Carbon::createFromFormat(

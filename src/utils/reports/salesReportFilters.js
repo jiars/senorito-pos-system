@@ -4,6 +4,7 @@ import {
 } from "@/utils/shared/formatters/businessDates";
 import { matchesOrderSource } from "@/utils/orders/orderOptions";
 import { getCategoryScopedOrder } from "./salesRevenue";
+import { isCountedSalesOrder } from "@/utils/orders/orderVoidUtils";
 
 export const getSalesReportPresetDates = (reportPeriod) => {
   if (reportPeriod === "All Time") return getBusinessPeriodDates("all");
@@ -21,6 +22,7 @@ export const filterSalesOrders = (
   selectedCategories = [],
 ) => {
   return orders.filter((order) => {
+    if (!isCountedSalesOrder(order)) return false;
     const orderDate = getBusinessDateKey(order.order_datetime);
     const orderSource = order.order_source || "In-Store";
 

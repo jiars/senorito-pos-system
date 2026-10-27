@@ -6,6 +6,7 @@ import FilterPopover from "@/components/filters/FilterPopover";
 import FilterSelectField from "@/components/filters/FilterSelectField";
 import ToolbarSearchInput from "@/components/filters/ToolbarSearchInput";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { getOrderDateKey, getOrderReportPeriodDates } from "@/utils/orders/orderDates";
 import { validateOrderFilterDates } from "@/utils/orders/validation/orderFilterValidation";
 import { paymentMethodOptions, orderSourceOptions } from "@/utils/orders/orderOptions";
@@ -35,6 +36,10 @@ const OrdersFilterBar = ({
   recordedByOptions,
   handleResetFilters,
   isLoading = false,
+  canReviewVoids = false,
+  pendingVoidCount = 0,
+  showPendingOnly = false,
+  onTogglePending,
 }) => {
   const [draftFilters, setDraftFilters] = useState({
     fromDate,
@@ -209,6 +214,19 @@ const OrdersFilterBar = ({
 
   return (
     <section className="flex flex-wrap items-center justify-end gap-[var(--app-space-2)]">
+      {canReviewVoids && (
+        <Button
+          type="button"
+          variant="outline"
+          aria-pressed={showPendingOnly}
+          title="Pending requests within the current search and filters"
+          onClick={onTogglePending}
+          className={`min-h-[var(--app-touch-target-min)] whitespace-normal rounded-[var(--app-radius-control)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] ${showPendingOnly ? "border-[var(--app-color-brand)] bg-[var(--app-color-control-hover)] text-[var(--app-color-brand)]" : "border-[var(--app-color-border-subtle)] text-[var(--app-color-text)]"}`}
+        >
+          <i className="bi bi-clipboard-check" aria-hidden="true" />
+          Pending void requests ({pendingVoidCount})
+        </Button>
+      )}
       <div className="w-full sm:w-[22rem]">
         <ToolbarSearchInput
           placeholder="Search order #, date, cashier, source..."

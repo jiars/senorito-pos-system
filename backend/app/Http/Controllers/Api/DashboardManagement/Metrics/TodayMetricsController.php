@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\DashboardManagement\Metrics;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderManagement\Order;
 use Illuminate\Support\Facades\DB;
 
 class TodayMetricsController extends Controller
@@ -19,7 +20,7 @@ class TodayMetricsController extends Controller
         $orders = DB::table('orders')
             ->where('order_datetime', '>=', $start)
             ->where('order_datetime', '<', $end)
-            ->where('status', '!=', 'Cancelled')
+            ->whereNotIn('status', Order::NON_SALE_STATUSES)
             ->get();
 
         $totalExpenses = DB::table('expenses')

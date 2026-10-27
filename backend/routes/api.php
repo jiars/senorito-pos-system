@@ -46,6 +46,8 @@ use App\Http\Controllers\Api\MenuManagement\Orchestrators\MenuEditController;
 // orders
 use App\Http\Controllers\Api\OrderManagement\InitOrderManagementController;
 use App\Http\Controllers\Api\OrderManagement\OrderItems\OrderItemController;
+use App\Http\Controllers\Api\OrderManagement\VoidRequests\OrderVoidRequestController;
+use App\Http\Controllers\Api\OrderManagement\Orchestrators\ReviewOrderVoidRequestController;
 
 // reports
 use App\Http\Controllers\Api\ReportManagement\InitSalesReportController;
@@ -192,7 +194,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/init', [InitOrderManagementController::class, 'index']);
 
         // Fetch the items and add-ons of one receipt.
-        Route::get('/orders/{orderId}/items', [OrderItemController::class, 'index',]);
+        Route::get('/orders/{orderId}/items', [OrderItemController::class, 'index',])
+            ->whereUuid('orderId');
+
+        Route::post('/orders/{orderId}/void-requests', [OrderVoidRequestController::class, 'store'])
+            ->whereUuid('orderId')->middleware(['role:Cashier', 'throttle:10,1']);
+
+        Route::patch('/void-requests/{requestId}/review', [ReviewOrderVoidRequestController::class, 'update'])
+            ->whereUuid('requestId')->middleware(['role:Owner', 'throttle:10,1']);
     });
 
     Route::prefix('report-management')->middleware('role:Owner')->group(function () {
