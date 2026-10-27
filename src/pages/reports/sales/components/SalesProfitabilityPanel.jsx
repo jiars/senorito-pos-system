@@ -3,14 +3,20 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import DataTablePagination from "@/components/data-table/DataTablePagination";
 import ResponsiveMetricValue from "@/components/metrics/ResponsiveMetricValue";
-import DataTableSheet from "@/components/data-table/DataTableSheet";
 import FilterOptionGroup from "@/components/filters/FilterOptionGroup";
 import FilterPopover from "@/components/filters/FilterPopover";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
-import { getHeatmapMarginPosition } from "@/utils/reports/salesReportCalculations";
-
+import SalesProfitabilityBubbleChart from "./SalesProfitabilityBubbleChart";
+import SalesProfitabilityBarChart from "./SalesProfitabilityBarChart";
+import SalesProfitabilityMatrix from "./SalesProfitabilityMatrix";
 import SalesProfitabilityTable, {
   sortProfitabilityRows,
 } from "./SalesProfitabilityTable";
@@ -19,7 +25,7 @@ const profitabilityMetricItems = [
   {
     id: "top-performer",
     label: "Top Performer",
-    caption: "Menu with high profit and high sales",
+    caption: "Menu with high margin and high sales",
     icon: "bi-star-fill",
     countKey: "Top Performer",
   },
@@ -27,20 +33,20 @@ const profitabilityMetricItems = [
     id: "promote-more",
     label: "Promote More",
     icon: "bi-megaphone-fill",
-    caption: "Menu with high profit and low sales",
+    caption: "Menu with high margin and low sales",
     countKey: "Promote More",
   },
   {
     id: "improve-pricing",
     label: "Improve Pricing",
-    caption: "Menu with low profit and high sales",
+    caption: "Menu with low margin and high sales",
     icon: "bi-tag-fill",
     countKey: "Improve Pricing",
   },
   {
     id: "review-remove",
     label: "Review or Remove",
-    caption: "Menu with low profit and low sales",
+    caption: "Menu with low margin and low sales",
     icon: "bi-x-circle-fill",
     countKey: "Review or Remove",
   },
@@ -53,6 +59,13 @@ const profitabilitySortOptions = [
   { label: "Highest Unit Sold", value: "Highest Unit Sold" },
 ];
 
+const profitabilityViewOptions = [
+  { label: "Heatmap", value: "bubble", icon: "bi-bounding-box-circles" },
+  { label: "Matrix", value: "matrix", icon: "bi-grid" },
+  { label: "Bar chart", value: "bar", icon: "bi-bar-chart" },
+  { label: "Table", value: "table", icon: "bi-table" },
+];
+
 const SalesProfitabilityPanel = ({
   isLoading,
   detailedProfitability,
@@ -63,12 +76,13 @@ const SalesProfitabilityPanel = ({
   maxMargin,
   getQuadColorClass,
 }) => {
+  const [profitabilityView, setProfitabilityView] = useState("bubble");
   const [profitabilitySort, setProfitabilitySort] = useState("Highest Revenue");
-  const [heatmapActive, setHeatmapActive] = useState(null);
   const [detailCurrentPage, setDetailCurrentPage] = useState(1);
   const [detailPageSize, setDetailPageSize] = useState(10);
-  const activeProfitabilityItem =
-    heatmapActive === null ? null : detailedProfitability[heatmapActive];
+  const isBubbleView = profitabilityView === "bubble";
+  const isMatrixView = profitabilityView === "matrix";
+  const isPagedView = profitabilityView === "bar" || profitabilityView === "table";
   const sortedProfitability = sortProfitabilityRows(detailedProfitability, profitabilitySort);
   // Keep the table on an existing page when filters reduce its rows.
   const totalPages = Math.max(1, Math.ceil(sortedProfitability.length / detailPageSize));
@@ -80,32 +94,109 @@ const SalesProfitabilityPanel = ({
     setDetailCurrentPage(1);
   }, [profitabilitySort, detailPageSize]);
 
+  const profitabilitySortControl = (
+    <FilterPopover
+      label="Sort"
+      triggerIcon="bi-arrow-down-up"
+      showFooter={false}
+      maxWidth="14rem"
+    >
+      <FilterOptionGroup
+        id="sales-profitability-sort"
+        label="Sort profitability"
+        options={profitabilitySortOptions}
+        selectedValues={[profitabilitySort]}
+        onSelectedValuesChange={(values) => {
+          const selectedSort = values[0];
+
+          if (selectedSort) setProfitabilitySort(selectedSort);
+        }}
+        selectionMode="single"
+        collapsible={false}
+        showLabel={false}
+      />
+    </FilterPopover>
+  );
+  const profitabilityPagination = (
+    <DataTablePagination
+      totalItems={sortedProfitability.length}
+      pageSize={detailPageSize}
+      pageSizeOptions={[10, 20, 30]}
+      currentPage={currentPage}
+      onPageChange={setDetailCurrentPage}
+      onPageSizeChange={setDetailPageSize}
+    />
+  );
+
+  let profitabilityContent = (
+    <SalesProfitabilityBubbleChart
+      detailedProfitability={detailedProfitability}
+      maxQty={maxQty}
+      maxRev={maxRev}
+      minMargin={minMargin}
+      maxMargin={maxMargin}
+      getQuadColorClass={getQuadColorClass}
+    />
+  );
+  if (profitabilityView === "bar") {
+    profitabilityContent = (
+      <SalesProfitabilityBarChart
+        items={visibleProfitability}
+        sortBy={profitabilitySort}
+      />
+    );
+  }
+  if (profitabilityView === "table") {
+    profitabilityContent = <SalesProfitabilityTable items={visibleProfitability} />;
+  }
+  if (isMatrixView) {
+    profitabilityContent = (
+      <SalesProfitabilityMatrix
+        items={detailedProfitability}
+        groups={profitabilityMetricItems}
+        quadCounts={quadCounts}
+        getQuadColorClass={getQuadColorClass}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <section
         aria-busy="true"
-        aria-label="Loading menu profitability heatmap"
+        aria-label="Loading menu profitability"
         className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)]"
       >
-        <div className="mb-[var(--app-gap-section)]">
-          <Skeleton className="h-5 w-64" />
-          <Skeleton className="mt-[var(--app-space-1)] h-3 w-80" />
+        <div className="mb-[var(--app-gap-section)] flex flex-wrap justify-between gap-[var(--app-gap-related)]">
+          <div className="min-w-0">
+            <Skeleton className="h-5 w-64 max-w-full" />
+            <Skeleton className="mt-[var(--app-space-1)] h-3 w-80 max-w-full" />
+          </div>
+          <Skeleton className="h-[var(--app-touch-target-min)] w-64 max-w-full rounded-[var(--app-radius-control)]" />
         </div>
 
-        <div className="grid grid-cols-1 gap-[var(--app-gap-section)] lg:grid-cols-[minmax(18rem,1fr)_minmax(0,1.1fr)]">
-          <Skeleton className="min-h-[20rem] rounded-[var(--app-radius-nested)]" />
-          <Skeleton className="min-h-[20rem] rounded-[var(--app-radius-nested)]" />
-        </div>
+        {isMatrixView ? (
+          <div className="sales-profitability-matrix">
+            {profitabilityMetricItems.map((metric) => (
+              <Skeleton key={metric.id} className="min-h-[12rem] rounded-[var(--app-radius-nested)]" />
+            ))}
+          </div>
+        ) : (
+          <div className={`grid grid-cols-1 gap-[var(--app-gap-section)] ${isPagedView ? "" : "lg:grid-cols-[minmax(18rem,1fr)_minmax(0,1.1fr)]"}`}>
+            <Skeleton className={`${isPagedView ? "min-h-[10rem]" : "min-h-[20rem]"} rounded-[var(--app-radius-nested)]`} />
+            <Skeleton className="min-h-[20rem] rounded-[var(--app-radius-nested)]" />
+          </div>
+        )}
       </section>
     );
   }
 
   return (
-    <section className="rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)] ">
+    <section aria-label="Menu profitability" className="min-w-0 rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-padding-panel)]">
       <header className="mb-[var(--app-gap-section)] flex flex-wrap items-start justify-between gap-[var(--app-gap-related)]">
         <div className="flex-1 min-w-0 max-w-[16rem] lg:max-w-none">
           <h2 className="m-0 text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
-            Menu Profitability Heatmap
+            Menu Profitability
           </h2>
 
           <p className="mt-[var(--app-space-1)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
@@ -113,199 +204,89 @@ const SalesProfitabilityPanel = ({
           </p>
         </div>
 
-        <DataTableSheet
-          trigger={
-            <Button
-              type="button"
-              variant="outline"
-              className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-text)] hover:bg-[var(--app-color-control-hover)]"
-            >
-              View More
-            </Button>
-          }
-          title="Detailed Menu Profitability"
-          description="Review revenue, margin, sales quantity, and profitability grouping."
-          pagination={
-            <DataTablePagination
-              totalItems={sortedProfitability.length}
-              pageSize={detailPageSize}
-              pageSizeOptions={[10, 20, 30]}
-              currentPage={currentPage}
-              onPageChange={setDetailCurrentPage}
-              onPageSizeChange={setDetailPageSize}
+        <div className="flex w-full flex-wrap items-center gap-[var(--app-space-2)] sm:w-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label="Profitability view"
+                  className="h-[var(--app-touch-target-min)] gap-[var(--app-space-2)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] hover:bg-[var(--app-color-control-hover)]"
+                >
+                  <i className="bi bi-layout-three-columns" aria-hidden="true" />
+                  View
+                  <i className="bi bi-chevron-down" aria-hidden="true" />
+                </Button>
+              }
             />
-          }
-          rightActions={
-            <FilterPopover
-              label="Sort"
-              triggerIcon="bi-arrow-down-up"
-              showFooter={false}
-              maxWidth="14rem"
-            >
-              <FilterOptionGroup
-                id="sales-profitability-sort"
-                label="Sort profitability"
-                options={profitabilitySortOptions}
-                selectedValues={[profitabilitySort]}
-                onSelectedValuesChange={(values) => {
-                  const selectedSort = values[0];
-
-                  if (selectedSort) setProfitabilitySort(selectedSort);
-                }}
-                selectionMode="single"
-                collapsible={false}
-                showLabel={false}
-              />
-            </FilterPopover>
-          }
-        >
-          <SalesProfitabilityTable items={visibleProfitability} />
-        </DataTableSheet>
+            <DropdownMenuContent align="end" className="min-w-48 bg-[var(--app-color-surface)] text-[var(--app-color-text)]">
+              <DropdownMenuRadioGroup value={profitabilityView} onValueChange={setProfitabilityView} aria-label="Profitability view">
+                {profitabilityViewOptions.map((option) => (
+                  <DropdownMenuRadioItem
+                    key={option.value}
+                    value={option.value}
+                    closeOnClick
+                    className="min-h-[var(--app-touch-target-min)] gap-[var(--app-space-2)] pl-[var(--app-space-4)] pr-[var(--app-space-8)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]"
+                  >
+                    <i className={`bi ${option.icon}`} aria-hidden="true" />
+                    {option.label}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {isPagedView && profitabilitySortControl}
+        </div>
       </header>
 
-      <div className="grid min-w-0 grid-cols-1 gap-[var(--app-gap-section)] lg:grid-cols-[minmax(18rem,1fr)_minmax(0,1.1fr)]">
-        <article className="grid grid-cols-2 gap-[var(--app-gap-related)] p-[var(--app-space-4)]">
-          {profitabilityMetricItems.map((metric) => (
-            <article
-              key={metric.id}
-              className="flex min-h-[10rem] flex-col gap-[var(--app-space-2)]"
-            >
-              <div className="flex flex-col gap-[var(--app-space-2)]">
-                <p className="text-[length:var(--app-font-size-body-secondary)] font-bold text-[var(--app-color-text)]">
-                  {metric.label}
-                </p>
+      <div className={`grid min-w-0 grid-cols-1 gap-[var(--app-gap-section)] ${isBubbleView ? "lg:grid-cols-[minmax(18rem,1fr)_minmax(0,1.1fr)]" : ""}`}>
+        {!isMatrixView && (
+          <article className={`grid grid-cols-2 gap-[var(--app-gap-related)] p-[var(--app-space-4)] ${isPagedView ? "lg:grid-cols-4" : ""}`}>
+            {profitabilityMetricItems.map((metric) => (
+              <article
+                key={metric.id}
+                className="flex min-h-[10rem] flex-col gap-[var(--app-space-2)]"
+              >
+                <div className="flex flex-col gap-[var(--app-space-2)]">
+                  <p className="text-[length:var(--app-font-size-body-secondary)] font-bold text-[var(--app-color-text)]">
+                    {metric.label}
+                  </p>
 
-                <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-                  {metric.caption}
-                </p>
-              </div>
-
-              <div className="flex min-h-0 flex-1 items-center justify-start gap-[var(--app-space-2)]">
-                <i
-                  aria-hidden="true"
-                  className={`bi ${metric.icon} profitability-metric-icon ${getQuadColorClass(
-                    metric.countKey,
-                  )} shrink-0 text-[48px] leading-none`}
-                />
-
-                <div className="min-w-0 flex-1">
-                  <ResponsiveMetricValue
-                    value={quadCounts[metric.countKey] ?? 0}
-                    maxFontSize={32}
-                    minFontSize={20}
-                  />
+                  <p className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+                    {metric.caption}
+                  </p>
                 </div>
-              </div>
-            </article>
-          ))}
-        </article>
 
-        <article className="flex h-full min-h-0 min-w-0 flex-col gap-[var(--app-space-8)] px-[var(--app-space-6)]">
-          <div
-            className="scatter-plot-container before:hidden after:hidden"
-            onClick={() => setHeatmapActive(null)}
-          >
-            {[minMargin, 0, 40, maxMargin].filter((margin, index, margins) => margins.indexOf(margin) === index).map((margin) => (
-              <div
-                key={margin}
-                className="pointer-events-none absolute inset-x-0 border-t border-dashed border-[var(--app-color-border-subtle)]"
-                style={{ bottom: `${getHeatmapMarginPosition(margin, minMargin, maxMargin)}%` }}
-              >
-                <span className="absolute right-0 -translate-y-full bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
-                  {margin}%
-                </span>
-              </div>
+                <div className="flex min-h-0 flex-1 items-center justify-start gap-[var(--app-space-2)]">
+                  <i
+                    aria-hidden="true"
+                    className={`bi ${metric.icon} profitability-metric-icon ${getQuadColorClass(
+                      metric.countKey,
+                    )} shrink-0 text-[48px] leading-none`}
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <ResponsiveMetricValue
+                      value={quadCounts[metric.countKey] ?? 0}
+                      maxFontSize={32}
+                      minFontSize={20}
+                    />
+                  </div>
+                </div>
+              </article>
             ))}
-            <div
-              className="pointer-events-none absolute inset-y-0 border-l border-dashed border-[var(--app-color-brand-border)]"
-              style={{ left: `${10 + (5 / maxQty) * 80}%` }}
-            >
-              <span className="absolute bottom-0 whitespace-nowrap bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
-                5 sold
-              </span>
-            </div>
-            {detailedProfitability.map((item, index) => {
-              const bottomPosition = getHeatmapMarginPosition(item.margin, minMargin, maxMargin);
-              const leftPosition = 10 + (item.qty / maxQty) * 80;
-              const size = 12 + (item.revenue / maxRev) * 24;
-              const isActive = heatmapActive === index;
+          </article>
+        )}
 
-              return (
-                <button
-                  key={`${item.item}-${index}`}
-                  type="button"
-                  aria-label={`View ${item.item} profitability details`}
-                  className={`scatter-bubble border-0 ${getQuadColorClass(
-                    item.quad,
-                  )} ${isActive ? "ring-2 ring-[var(--app-color-brand-deep)]" : ""}`}
-                  style={{
-                    bottom: `${bottomPosition}%`,
-                    left: `${leftPosition}%`,
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    zIndex: isActive ? 5 : 1,
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setHeatmapActive(isActive ? null : index);
-                  }}
-                />
-              );
-            })}
-
-            {activeProfitabilityItem && (
-              <div
-                className="absolute z-10 -translate-x-1/2 rounded-[var(--app-radius-nested)] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] py-[var(--app-space-2)] text-center "
-                style={{
-                  bottom: `calc(${getHeatmapMarginPosition(activeProfitabilityItem.margin, minMargin, maxMargin)}% + 2rem)`,
-                  left: `${10 + (activeProfitabilityItem.qty / maxQty) * 80}%`,
-                }}
-              >
-                <p className="text-[length:var(--app-font-size-body-secondary)] font-semibold text-[var(--app-color-text)]">
-                  {activeProfitabilityItem.item}
-                </p>
-
-                <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
-                  {formatCurrency(activeProfitabilityItem.revenue)}
-                </p>
-
-                <p className="text-[length:var(--app-font-size-caption)] text-[var(--app-color-text-subtle)]">
-                  {activeProfitabilityItem.margin.toFixed(1)}% margin
-                </p>
-              </div>
-            )}
-
-            <span className="scatter-axis-label bottom-[-1.5rem] left-1/2 -translate-x-1/2 text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]">
-              Sales Volume (Qty)
-            </span>
-
-            <span className="scatter-axis-label left-[-2rem] top-1/2 -translate-y-1/2 -rotate-90 text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)]">
-              Margin %
-            </span>
+        {isPagedView ? (
+          <div className="sales-profitability-inline-table grid min-w-0 gap-[var(--app-gap-related)] overflow-hidden">
+            {profitabilityContent}
+            {profitabilityPagination}
           </div>
-
-          <div className="flex flex-wrap justify-center gap-[var(--app-gap-related)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
-            <span className="flex items-center gap-[var(--app-space-1)]">
-              <span className="size-2 rounded-full b-green" />
-              Top Performer
-            </span>
-
-            <span className="flex items-center gap-[var(--app-space-1)]">
-              <span className="size-2 rounded-full b-blue" />
-              Promote More
-            </span>
-
-            <span className="flex items-center gap-[var(--app-space-1)]">
-              <span className="size-2 rounded-full b-yellow" />
-              Improve Pricing
-            </span>
-
-            <span className="flex items-center gap-[var(--app-space-1)]">
-              <span className="size-2 rounded-full b-red" />
-              Review or Remove
-            </span>
-          </div>
-        </article>
+        ) : (
+          profitabilityContent
+        )}
       </div>
     </section>
   );
