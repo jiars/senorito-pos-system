@@ -30,13 +30,9 @@ export const buildCategoryColorMap = (categories) => {
 /**
  * Calculates top-level expense summaries.
  * @param {Array} filteredExpenseRecords The filtered list of expense records.
- * @param {number} netSales Total net sales from the sales report.
- * @returns {Object} Summary totals (overallExpenses, totalInventoryPurchases, netOperational)
+ * @returns {Object} Expense totals, counts, and category summary.
  */
-export const calculateExpenseSummary = (
-  filteredExpenseRecords,
-  netSales = 0,
-) => {
+export const calculateExpenseSummary = (filteredExpenseRecords) => {
   const normalizedRecords = filteredExpenseRecords.map((expense) => ({
     ...expense,
     normalizedCategory:
@@ -100,9 +96,6 @@ export const calculateExpenseSummary = (
       ? Math.round((totalInventoryPurchases / overallExpenses) * 100)
       : 0;
 
-  // Temporarily retained for the existing Excel export.
-  const netOperational = netSales - overallExpenses;
-
   return {
     overallExpenses,
     salaryExpenses,
@@ -111,7 +104,6 @@ export const calculateExpenseSummary = (
     inventoryPurchasePercentage,
     topExpenseCategory,
     expenseTransactionCount: normalizedRecords.length,
-    netOperational,
   };
 };
 

@@ -8,22 +8,10 @@ const getActionBadgeClassName = (action) => {
   }
 
   if (action === "Purchase") {
-    return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
+    return "bg-[var(--app-color-success-surface)] text-[var(--app-color-success)]";
   }
 
   return "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]";
-};
-
-const getSourceBadgeClassName = (source) => {
-  if (source === "Stock Log Modal") {
-    return "bg-[var(--app-color-highlight-muted)] text-[var(--app-color-brand)]";
-  }
-
-  if (source === "Purchase Order") {
-    return "bg-[rgb(70_181_73_/_12%)] text-[var(--app-color-success)]";
-  }
-
-  return "bg-[var(--app-color-brand-border)] text-[var(--app-color-brand)]";
 };
 
 const getAuditColumns = () => {
@@ -31,7 +19,7 @@ const getAuditColumns = () => {
     {
       id: "dateTime",
       header: "Date & Time",
-      meta: { width: "9rem" },
+      meta: { width: "15%", headerClassName: "whitespace-normal" },
       cell: ({ row }) => {
         const auditRow = formatAuditLog(row.original);
 
@@ -47,94 +35,77 @@ const getAuditColumns = () => {
     },
     {
       id: "item",
-      header: "Item",
-      meta: { width: "10rem", cellClassName: "whitespace-normal" },
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {formatAuditLog(row.original).itemName}
-        </span>
-      ),
-    },
-    {
-      id: "action",
-      header: "Action",
-      meta: { width: "9rem" },
+      header: "Item / Batch",
+      meta: { width: "20%", headerClassName: "whitespace-normal" },
       cell: ({ row }) => {
         const auditRow = formatAuditLog(row.original);
-
         return (
-          <Badge
-            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getActionBadgeClassName(auditRow.action)}`}
-          >
-            {auditRow.action}
-          </Badge>
+          <div className="flex min-w-0 flex-col gap-[var(--app-space-1)] [overflow-wrap:anywhere]">
+            <span className="font-medium">{auditRow.itemName}</span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              Batch: {auditRow.batchNumber}
+            </span>
+          </div>
         );
       },
     },
     {
-      id: "source",
-      header: "Source",
-      meta: { width: "9rem" },
+      id: "action",
+      header: "Activity",
+      meta: { width: "17%" },
       cell: ({ row }) => {
         const auditRow = formatAuditLog(row.original);
 
         return (
-          <Badge
-            className={`h-6 rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getSourceBadgeClassName(auditRow.source)}`}
-          >
-            {auditRow.source}
-          </Badge>
+          <div className="flex min-w-0 flex-col items-start gap-[var(--app-space-1)]">
+            <Badge
+              className={`min-h-6 max-w-full whitespace-normal break-words rounded-full px-2 text-[length:var(--app-font-size-caption)] font-medium ${getActionBadgeClassName(auditRow.action)}`}
+            >
+              {auditRow.action}
+            </Badge>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)] [overflow-wrap:anywhere]">
+              Source: {auditRow.source}
+            </span>
+          </div>
         );
       },
     },
     {
       id: "change",
-      header: "Change",
-      meta: { width: "6rem" },
-      cell: ({ row }) => (
-        <span className="font-semibold">
-          {formatAuditLog(row.original).change}
-        </span>
-      ),
-    },
-    {
-      id: "before",
-      header: "Before",
-      meta: { width: "5rem" },
-      cell: ({ row }) => formatAuditLog(row.original).before,
-    },
-    {
-      id: "after",
-      header: "After",
-      meta: { width: "5rem" },
-      cell: ({ row }) => formatAuditLog(row.original).after,
-    },
-    {
-      id: "batch",
-      header: "Batch",
-      meta: { width: "8rem" },
-      cell: ({ row }) => (
-        <span className="font-semibold">
-          {formatAuditLog(row.original).batchNumber}
-        </span>
-      ),
+      header: "Stock Change",
+      meta: { width: "16%", headerClassName: "whitespace-normal" },
+      cell: ({ row }) => {
+        const auditRow = formatAuditLog(row.original);
+        return (
+          <div className="flex flex-col gap-[var(--app-space-1)]">
+            <span className="font-semibold">{auditRow.change}</span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              Before: {auditRow.before ?? "—"} → After: {auditRow.after ?? "—"}
+            </span>
+          </div>
+        );
+      },
     },
     {
       id: "reason",
-      header: "Reason",
-      meta: { width: "10rem", cellClassName: "whitespace-normal" },
-      cell: ({ row }) => formatAuditLog(row.original).reason,
-    },
-    {
-      id: "reference",
-      header: "Ref #",
-      meta: { width: "8rem" },
-      cell: ({ row }) => formatAuditLog(row.original).reference,
+      header: "Reason / Reference",
+      meta: { width: "18%", headerClassName: "whitespace-normal" },
+      cell: ({ row }) => {
+        const auditRow = formatAuditLog(row.original);
+        return (
+          <div className="flex min-w-0 flex-col gap-[var(--app-space-1)] [overflow-wrap:anywhere]">
+            <span>{auditRow.reason}</span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              Ref: {auditRow.reference}
+            </span>
+          </div>
+        );
+      },
     },
     {
       id: "by",
-      header: "By",
-      meta: { width: "9rem" },
+      header: "Recorded By",
+      meta: { width: "14%", headerClassName: "whitespace-normal", cellClassName: "[overflow-wrap:anywhere]" },
       cell: ({ row }) => formatAuditLog(row.original).performerName,
     },
   ];
@@ -153,6 +124,7 @@ const InventoryAuditTable = ({ logs, isLoading, error }) => {
       skeletonRowCount={12}
       errorMessage={errorMessage}
       emptyMessage="No audit logs found."
+      tableClassName="table-fixed"
       scrollAreaClassName="audit-table-scroll-area"
       scrollbarOrientation="both"
     />

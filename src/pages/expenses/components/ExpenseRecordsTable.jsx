@@ -17,11 +17,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/utils/shared/formatters/currencyFormatters";
 import { formatDate } from "@/utils/shared/formatters/dateFormatters";
-import { getDateRangeFromPreset } from "@/utils/expenses/expenseFilters";
+import { expenseSortOptions, getDateRangeFromPreset } from "@/utils/expenses/expenseFilters";
 import { getBusinessDateKey } from "@/utils/shared/formatters/businessDates";
 import { validateExpenseFilterDates } from "@/utils/expenses/validation/expenseFilterValidation";
 
 import ExpenseCategoryBadge from "./ExpenseCategoryBadge";
+import ExpenseArchivingGuide from "./ExpenseArchivingGuide";
 
 const expensePeriodOptions = [
   { label: "All Time", value: "All Time" },
@@ -40,6 +41,10 @@ const ExpenseRecordsToolbar = ({
   isLoading,
   onSearchChange,
   onApplyFilters,
+  sortBy,
+  onSortChange,
+  onExport,
+  exportDisabled,
 }) => {
   const [draftFilters, setDraftFilters] = useState({
     datePreset,
@@ -157,6 +162,31 @@ const ExpenseRecordsToolbar = ({
           defaultOpen
         />
       </FilterPopover>
+
+      <FilterPopover label="Sort" triggerIcon="bi-arrow-down-up" showFooter={false}>
+        <FilterOptionGroup
+          id="expense-records-sort"
+          label="Sort expenses"
+          options={expenseSortOptions}
+          selectedValues={[sortBy]}
+          onSelectedValuesChange={(values) => {
+            if (values[0]) onSortChange(values[0]);
+          }}
+          selectionMode="single"
+          collapsible={false}
+          showLabel={false}
+        />
+      </FilterPopover>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onExport}
+        disabled={exportDisabled}
+        className="h-[var(--app-touch-target-min)] rounded-[var(--app-radius-control)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] text-[var(--app-color-filter-font-color)] hover:bg-[var(--app-color-control-hover)] transition-shadow hover:shadow-brand active:shadow-brand"
+      >
+        <i aria-hidden="true" className="bi bi-box-arrow-up-right" />
+        Export
+      </Button>
     </div>
   );
 };
@@ -176,9 +206,19 @@ const ExpenseRecordsTable = ({
   onApplyFilters,
   onEditExpense,
   onArchiveExpense,
+  sortBy,
+  onSortChange,
+  onExport,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const filterKey = JSON.stringify([searchTerm, datePreset, fromDate, toDate, selectedCategories, sortBy]);
+  const [previousFilterKey, setPreviousFilterKey] = useState(filterKey);
+  // Reset only the page, keeping search focus and the chosen page size.
+  if (previousFilterKey !== filterKey) {
+    setPreviousFilterKey(filterKey);
+    setCurrentPage(1);
+  }
   const totalPages = Math.max(1, Math.ceil(records.length / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedExpenses = records.slice(
@@ -191,39 +231,39 @@ const ExpenseRecordsTable = ({
       {
         accessorKey: "expense_date",
         header: "Date",
-        meta: { width: "10rem" },
+        meta: { width: "16%" },
         cell: ({ row }) => formatDate(row.original.expense_date),
       },
       {
         id: "category",
-        header: "Category",
-        meta: { width: "12rem" },
+        header: "Category / Description",
+        meta: { width: "36%", headerClassName: "whitespace-normal" },
         cell: ({ row }) => {
           const categoryName =
             row.original.expense_categories?.category_name || "Uncategorized";
           return (
-            <ExpenseCategoryBadge
-              categoryName={categoryName}
-              categoryColor={getCategoryColor(categoryName)}
-            />
+            <div className="flex min-w-0 flex-col items-start gap-[var(--app-space-1)]">
+              <ExpenseCategoryBadge
+                categoryName={categoryName}
+                categoryColor={getCategoryColor(categoryName)}
+              />
+              <span className="text-[var(--app-color-text-muted)] [overflow-wrap:anywhere]">
+                {row.original.description || "—"}
+              </span>
+            </div>
           );
         },
       },
       {
-        accessorKey: "description",
-        header: "Description",
-        meta: { width: "16rem" },
-      },
-      {
         accessorKey: "vendor",
         header: "Vendor / Supplier",
-        meta: { width: "12rem" },
+        meta: { width: "22%", headerClassName: "whitespace-normal" },
         cell: ({ row }) => row.original.vendor || "—",
       },
       {
         accessorKey: "amount",
         header: "Amount",
-        meta: { width: "10rem" },
+        meta: { width: "15%" },
         cell: ({ row }) => (
           <span className="font-semibold">
             {formatCurrency(row.original.amount)}
@@ -231,21 +271,10 @@ const ExpenseRecordsTable = ({
         ),
       },
       {
-        id: "recordedBy",
-        header: "Recorded By",
-        meta: { width: "12rem" },
-        cell: ({ row }) => {
-          const profile = row.original.profiles;
-          return profile
-            ? `${profile.first_name} ${profile.last_name}`
-            : "Auto / Unknown";
-        },
-      },
-      {
         id: "actions",
         header: "Actions",
         meta: {
-          width: "5rem",
+          width: "11%",
           headerClassName: "text-center",
           cellClassName: "text-center",
         },
@@ -302,9 +331,12 @@ const ExpenseRecordsTable = ({
   return (
     <section className="grid min-w-0 gap-[var(--app-gap-section)]">
       <div className="flex flex-wrap items-center justify-between gap-[var(--app-gap-related)] max-lg:items-stretch">
-        <h2 className="ml-[var(--app-space-6)] text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)] max-lg:w-full">
-          Expense Records
-        </h2>
+        <div className="ml-[var(--app-space-6)] flex items-center gap-[var(--app-space-1)] max-lg:w-full">
+          <h2 className="text-[length:var(--app-font-size-h3)] font-bold leading-[var(--app-line-height-h3)] text-[var(--app-color-text)]">
+            Expense Records
+          </h2>
+          <ExpenseArchivingGuide />
+        </div>
 
         <ExpenseRecordsToolbar
           key={`${datePreset}-${fromDate}-${toDate}-${selectedCategories.join("|")}`}
@@ -320,6 +352,10 @@ const ExpenseRecordsTable = ({
             setCurrentPage(1);
           }}
           onApplyFilters={handleApplyFilters}
+          sortBy={sortBy}
+          onSortChange={onSortChange}
+          onExport={onExport}
+          exportDisabled={isLoading || Boolean(error) || records.length === 0}
         />
       </div>
 

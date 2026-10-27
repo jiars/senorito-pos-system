@@ -31,16 +31,16 @@
   gap: var(--app-gap-related);
 }
 
-/* Tablet landscape and desktop: keep dense rows inside the table region. */
+/* Short lists fit their rows; long lists scroll within the viewport cap. */
 @media (min-width: 1024px) {
   .expense-table-scroll-area {
-    height: clamp(22rem, 58svh, 38rem);
+    max-height: clamp(22rem, 58svh, 38rem);
   }
 }
 
 @media (min-width: 1440px) {
   .expense-table-scroll-area {
-    height: clamp(24rem, 60svh, 40rem);
+    max-height: clamp(24rem, 60svh, 40rem);
   }
 }
 
@@ -51,7 +51,7 @@
   }
 
   .expense-table-scroll-area {
-    height: var(--app-panel-height-tablet-portrait);
+    max-height: var(--app-panel-height-tablet-portrait);
   }
 }
 
@@ -63,13 +63,13 @@
   }
 
   .expense-table-scroll-area {
-    height: var(--app-panel-height-phone);
+    max-height: var(--app-panel-height-phone);
   }
 }
 
 /* Short landscape viewports: keep pagination reachable below the table. */
 @media (min-width: 1024px) and (max-height: 720px) {
   .expense-table-scroll-area {
-    height: clamp(18rem, 48svh, 24rem);
+    max-height: clamp(18rem, 48svh, 24rem);
   }
 }

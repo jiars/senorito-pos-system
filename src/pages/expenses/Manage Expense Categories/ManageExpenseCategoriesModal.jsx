@@ -16,6 +16,8 @@ import ModalContent from "@/components/modals/ModalContent";
 import ModalHeader from "@/components/modals/ModalHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import ExpenseArchivingGuide from "../components/ExpenseArchivingGuide";
 import { validateExpenseCategory } from "@/utils/expenses/validation/categoryValidation";
 import {
   addExpenseCategory,
@@ -23,14 +25,30 @@ import {
   deleteExpenseCategory,
 } from "@/services/expenses/expenseCategoriesService";
 
+const CategorySettingCheckbox = ({ id, checked, onCheckedChange, disabled, children }) => {
+  return (
+    <label
+      htmlFor={id}
+      className="flex min-h-[var(--app-touch-target-min)] cursor-pointer items-center gap-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
+    >
+      <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+      <span>{children}</span>
+    </label>
+  );
+};
+
 const ManageExpenseCategoriesModalContent = ({
   onClose,
   categories,
   refetch,
 }) => {
   const [newCategory, setNewCategory] = useState("");
+  const [newRequiresReceipt, setNewRequiresReceipt] = useState(false);
+  const [newAutoArchiveYearly, setNewAutoArchiveYearly] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editRequiresReceipt, setEditRequiresReceipt] = useState(false);
+  const [editAutoArchiveYearly, setEditAutoArchiveYearly] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newTouched, setNewTouched] = useState(false);
   const [editTouched, setEditTouched] = useState(false);
@@ -41,6 +59,8 @@ const ManageExpenseCategoriesModalContent = ({
   const savedOperation = useRef(null);
   const { feedback, showFeedback, clearFeedback } = useFeedback(getCategoryInlineFeedback);
   const fieldsDisabled = isSubmitting || hasSaved || hasUnconfirmedSave || Boolean(deleteTarget);
+  const newIsInventoryPurchase = newCategory.trim().toLowerCase() === "inventory purchase";
+  const editIsInventoryPurchase = editName.trim().toLowerCase() === "inventory purchase";
 
   const newValidation = validateExpenseCategory(newCategory, categories);
   const editValidation = validateExpenseCategory(editName, categories, editingId);
@@ -79,11 +99,15 @@ const ManageExpenseCategoriesModalContent = ({
 
     if (savedOperation.current.type === "add") {
       setNewCategory("");
+      setNewRequiresReceipt(false);
+      setNewAutoArchiveYearly(false);
       setNewTouched(false);
     }
     if (savedOperation.current.type === "edit" || savedOperation.current.id === editingId) {
       setEditingId(null);
       setEditName("");
+      setEditRequiresReceipt(false);
+      setEditAutoArchiveYearly(false);
       setEditTouched(false);
     }
     savedOperation.current = null;
@@ -91,7 +115,7 @@ const ManageExpenseCategoriesModalContent = ({
     clearFeedback();
   };
 
-  const saveCategoryChange = async (type, id, name) => {
+  const saveCategoryChange = async (type, id, name, requiresReceipt, autoArchiveYearly) => {
     if (operationInFlight.current || isSubmitting || hasSaved || hasUnconfirmedSave) return;
     if (deleteTarget && type !== "delete") return;
     operationInFlight.current = true;
@@ -99,8 +123,8 @@ const ManageExpenseCategoriesModalContent = ({
     clearFeedback();
     try {
       try {
-        if (type === "add") await addExpenseCategory(name);
-        if (type === "edit") await updateExpenseCategory(id, name);
+        if (type === "add") await addExpenseCategory(name, requiresReceipt, autoArchiveYearly);
+        if (type === "edit") await updateExpenseCategory(id, name, requiresReceipt, autoArchiveYearly);
         if (type === "delete") await deleteExpenseCategory(id);
       } catch (error) {
         let code = getExpenseCategoryErrorCode(error);
@@ -122,12 +146,12 @@ const ManageExpenseCategoriesModalContent = ({
 
   const handleAddCategory = () => {
     if (isAddDisabled) return;
-    return saveCategoryChange("add", null, newCategory.trim());
+    return saveCategoryChange("add", null, newCategory.trim(), newRequiresReceipt, !newIsInventoryPurchase && newAutoArchiveYearly);
   };
 
   const handleSaveEdit = (id) => {
     if (isSaveDisabled || id !== editingId) return;
-    return saveCategoryChange("edit", id, editName.trim());
+    return saveCategoryChange("edit", id, editName.trim(), editRequiresReceipt, !editIsInventoryPurchase && editAutoArchiveYearly);
   };
 
   // Confirm only unused categories; the backend checks usage again on deletion.
@@ -190,6 +214,10 @@ const ManageExpenseCategoriesModalContent = ({
       <ModalBody>
         <ModalContent>
           <InlineFeedback feedback={feedback} id="expense-category-operation-feedback" />
+          <div className="flex items-center gap-[var(--app-space-1)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]">
+            <span className="font-medium">Yearly archiving</span>
+            <ExpenseArchivingGuide />
+          </div>
           <fieldset disabled={fieldsDisabled} aria-busy={isSubmitting} className="contents">
           <div className="flex items-start gap-[var(--app-space-2)] max-sm:flex-col">
             <div className="flex min-w-0 flex-1 flex-col gap-[var(--app-space-1)] max-sm:w-full">
@@ -220,6 +248,30 @@ const ManageExpenseCategoriesModalContent = ({
                   {newError}
                 </small>
               )}
+              <CategorySettingCheckbox
+                id="expense-category-add-receipt"
+                checked={newRequiresReceipt}
+                disabled={fieldsDisabled}
+                onCheckedChange={(checked) => {
+                  if (operationInFlight.current || fieldsDisabled) return;
+                  clearFeedback();
+                  setNewRequiresReceipt(checked);
+                }}
+              >
+                Require receipt/reference number
+              </CategorySettingCheckbox>
+              <CategorySettingCheckbox
+                id="expense-category-add-auto-archive"
+                checked={!newIsInventoryPurchase && newAutoArchiveYearly}
+                disabled={fieldsDisabled || newIsInventoryPurchase}
+                onCheckedChange={(checked) => {
+                  if (operationInFlight.current || fieldsDisabled || newIsInventoryPurchase) return;
+                  clearFeedback();
+                  setNewAutoArchiveYearly(checked);
+                }}
+              >
+                Automatically archive yearly
+              </CategorySettingCheckbox>
             </div>
 
             <Button
@@ -245,7 +297,11 @@ const ManageExpenseCategoriesModalContent = ({
             <div className="flex flex-col">
               {categories.map((category) => {
                 const isEditing = editingId === category.id;
+                const isInventoryPurchase = category.category_name.trim().toLowerCase() === "inventory purchase";
                 const usedByCount = Number(category.expenses_count ?? 0);
+                let editDescriptionId;
+                if (editError) editDescriptionId = `expense-category-edit-error-${category.id}`;
+                if (isInventoryPurchase) editDescriptionId = `expense-category-system-${category.id}`;
 
                 return (
                   <div
@@ -259,22 +315,19 @@ const ManageExpenseCategoriesModalContent = ({
                             id={`expense-category-edit-name-${category.id}`}
                             aria-label={`Category name for ${category.category_name}`}
                             disabled={fieldsDisabled}
+                            readOnly={isInventoryPurchase}
                             onBlur={() => setEditTouched(true)}
                             type="text"
                             className={`h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0 ${editError ? "border-[var(--app-color-danger)]" : ""}`}
                             value={editName}
                             onChange={(event) => {
-                              if (operationInFlight.current || fieldsDisabled) return;
+                              if (operationInFlight.current || fieldsDisabled || isInventoryPurchase) return;
                               clearFeedback();
                               setEditName(event.target.value);
                             }}
-                            autoFocus
+                            autoFocus={!isInventoryPurchase}
                             aria-invalid={Boolean(editError)}
-                            aria-describedby={
-                              editError
-                                ? `expense-category-edit-error-${category.id}`
-                                : undefined
-                            }
+                            aria-describedby={editDescriptionId}
                           />
                           {editError && (
                             <small
@@ -284,6 +337,35 @@ const ManageExpenseCategoriesModalContent = ({
                               {editError}
                             </small>
                           )}
+                          {isInventoryPurchase && (
+                            <small id={`expense-category-system-${category.id}`} className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">
+                              System category: fixed name and excluded from yearly archiving.
+                            </small>
+                          )}
+                          <CategorySettingCheckbox
+                            id={`expense-category-edit-receipt-${category.id}`}
+                            checked={editRequiresReceipt}
+                            disabled={fieldsDisabled}
+                            onCheckedChange={(checked) => {
+                              if (operationInFlight.current || fieldsDisabled) return;
+                              clearFeedback();
+                              setEditRequiresReceipt(checked);
+                            }}
+                          >
+                            Require receipt/reference number
+                          </CategorySettingCheckbox>
+                          <CategorySettingCheckbox
+                            id={`expense-category-edit-auto-archive-${category.id}`}
+                            checked={!isInventoryPurchase && !editIsInventoryPurchase && editAutoArchiveYearly}
+                            disabled={fieldsDisabled || isInventoryPurchase || editIsInventoryPurchase}
+                            onCheckedChange={(checked) => {
+                              if (operationInFlight.current || fieldsDisabled || isInventoryPurchase || editIsInventoryPurchase) return;
+                              clearFeedback();
+                              setEditAutoArchiveYearly(checked);
+                            }}
+                          >
+                            Automatically archive yearly
+                          </CategorySettingCheckbox>
                         </div>
 
                         <div className="flex shrink-0 gap-[var(--app-space-1)]">
@@ -308,6 +390,8 @@ const ManageExpenseCategoriesModalContent = ({
                               clearFeedback();
                               setEditingId(null);
                               setEditName("");
+                              setEditRequiresReceipt(false);
+                              setEditAutoArchiveYearly(false);
                               setEditTouched(false);
                             }}
                             disabled={fieldsDisabled}
@@ -326,6 +410,12 @@ const ManageExpenseCategoriesModalContent = ({
                               ({usedByCount} expenses)
                             </small>
                           )}
+                          <span className="mt-[var(--app-space-1)] block text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                            {category.requires_receipt ? "Receipt required" : "Receipt not required"}
+                          </span>
+                          <span className="mt-[var(--app-space-1)] block text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] font-normal text-[var(--app-color-text-subtle)]">
+                            {isInventoryPurchase ? "Excluded from yearly archiving" : `Yearly archiving: ${category.auto_archive_yearly ? "On" : "Off"}`}
+                          </span>
                         </span>
 
                         <div className="flex shrink-0 gap-[var(--app-space-1)]">
@@ -339,6 +429,8 @@ const ManageExpenseCategoriesModalContent = ({
                               clearFeedback();
                               setEditingId(category.id);
                               setEditName(category.category_name);
+                              setEditRequiresReceipt(Boolean(category.requires_receipt));
+                              setEditAutoArchiveYearly(!isInventoryPurchase && Boolean(category.auto_archive_yearly));
                               setEditTouched(false);
                             }}
                             disabled={fieldsDisabled}

@@ -42,7 +42,7 @@ const vendorCategoryNames = new Set([
 const paymentMethods = ["Cash", "GCash", "Bank Transfer", "Credit Card"];
 
 const labelClassName =
-  "text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
+  "!gap-0 text-[length:var(--app-font-size-caption)] font-semibold leading-[var(--app-line-height-caption)] text-[var(--app-color-text)]";
 const controlClassName =
   "h-[var(--app-touch-target-min)] rounded-[var(--app-radius-nested)] border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] px-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] focus-visible:border-[var(--app-color-brand)] focus-visible:ring-0";
 
@@ -90,6 +90,7 @@ const EditExpenseModalContent = ({
     ? selectedCategory.category_name.trim().toLowerCase()
     : "";
   const isInventoryPurchase = normalizedCategoryName === "inventory purchase";
+  const requiresReceipt = Boolean(selectedCategory && selectedCategory.requires_receipt);
   const showVendor =
     isInventoryPurchase || vendorCategoryNames.has(normalizedCategoryName) || Boolean(formData.vendor) || Boolean(serverFieldErrors.vendor);
 
@@ -153,7 +154,7 @@ const EditExpenseModalContent = ({
     const resultDetails = { description: formData.description.trim() };
     try {
       try {
-        await updateExpense(expenseData.id, {
+        const expensePayload = {
           category_id: expenseData.category_id,
           expense_date: isInventoryPurchase ? originalExpenseDate : formData.expense_date,
           description: formData.description.trim(),
@@ -161,8 +162,10 @@ const EditExpenseModalContent = ({
           amount: Number(isInventoryPurchase ? expenseData.amount : formData.amount),
           vendor: formData.vendor.trim() || null,
           payment_method: formData.payment_method,
-          receipt_reference: formData.receipt_reference.trim() || null,
-        });
+        };
+        // Hidden references are omitted so an unrelated edit cannot erase them.
+        if (requiresReceipt) expensePayload.receipt_reference = formData.receipt_reference.trim();
+        await updateExpense(expenseData.id, expensePayload);
       } catch (error) {
         const code = getEditExpenseErrorCode(error);
         showFeedback(code);
@@ -377,28 +380,34 @@ const EditExpenseModalContent = ({
                 )}
               </Field>
 
-              <Field data-invalid={Boolean(errorFor("receipt_reference"))}>
-                <FieldLabel
-                  htmlFor="edit-expense-receipt"
-                  className={labelClassName}
-                >
-                  Receipt
-                </FieldLabel>
-                <Input
-                  id="edit-expense-receipt"
-                  aria-invalid={Boolean(errorFor("receipt_reference"))}
-                  value={formData.receipt_reference}
-                  onChange={(event) => {
-                    updateField("receipt_reference", event.target.value);
-                  }}
-                  placeholder="Receipt number or reference"
-                  disabled={isSubmitting}
-                  className={controlClassName}
-                />
-                {errorFor("receipt_reference") && (
-                  <FieldError className="text-[length:var(--app-font-size-caption)]">{errorFor("receipt_reference")}</FieldError>
-                )}
-              </Field>
+              {requiresReceipt && (
+                <Field data-invalid={Boolean(errorFor("receipt_reference"))}>
+                  <FieldLabel
+                    htmlFor="edit-expense-receipt"
+                    className={labelClassName}
+                  >
+                    <span>Receipt / Reference Number<span className="text-[var(--app-color-danger)]">*</span></span>
+                  </FieldLabel>
+                  <Input
+                    id="edit-expense-receipt"
+                    required
+                    aria-required="true"
+                    maxLength={255}
+                    aria-invalid={Boolean(errorFor("receipt_reference"))}
+                    aria-describedby={errorFor("receipt_reference") ? "edit-expense-receipt-error" : undefined}
+                    value={formData.receipt_reference}
+                    onChange={(event) => {
+                      updateField("receipt_reference", event.target.value);
+                    }}
+                    placeholder="Receipt number or reference"
+                    disabled={formLocked}
+                    className={controlClassName}
+                  />
+                  {errorFor("receipt_reference") && (
+                    <FieldError id="edit-expense-receipt-error" className="text-[length:var(--app-font-size-caption)]">{errorFor("receipt_reference")}</FieldError>
+                  )}
+                </Field>
+              )}
             </div>
 
             {showVendor && (

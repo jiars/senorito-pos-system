@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\InventoryManagement\Stock;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\InventoryManagement\Orchestrators\InventoryRestockOrchestrator;
+use App\Models\ExpenseManagement\ExpenseCategory;
 
 class InventoryRestockController extends Controller
 {
@@ -21,7 +22,16 @@ class InventoryRestockController extends Controller
             'purchaseData.expiration_date' => 'nullable|date',
             'purchaseData.expense_date' => 'required_if:origin,expense_purchase|nullable|date_format:Y-m-d',
             'purchaseData.description' => 'required_if:origin,expense_purchase|nullable|string|max:1000',
+            'purchaseData.receipt_reference' => 'nullable|string|max:255',
         ]);
+
+        // Only Expense Tracking entries require a reference; Inventory Restock is exempt.
+        if ($request->input('origin') === 'expense_purchase') {
+            $category = ExpenseCategory::where('category_name', 'Inventory Purchase')->firstOrFail();
+            $request->validate([
+                'purchaseData.receipt_reference' => $category->receiptReferenceRules(),
+            ]);
+        }
 
         $result = app(InventoryRestockOrchestrator::class)
             ->store($request, $id);

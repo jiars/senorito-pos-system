@@ -320,17 +320,18 @@ const InventoryStockTable = ({
       },
       {
         accessorKey: "current_stock",
-        header: "Qty",
-        meta: { width: "5rem" },
+        header: "Qty / Min Level",
+        meta: { width: "8rem" },
         cell: ({ row }) => (
-          <span className="font-semibold">{row.original.current_stock}</span>
+          <div className="flex flex-col gap-[var(--app-space-1)]">
+            <span className="font-semibold">
+              {row.original.current_stock} {row.original.base_unit}
+            </span>
+            <span className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-subtle)]">
+              Min: {row.original.minimum_level} {row.original.base_unit}
+            </span>
+          </div>
         ),
-      },
-      { accessorKey: "base_unit", header: "Unit", meta: { width: "5rem" } },
-      {
-        accessorKey: "minimum_level",
-        header: "Min Level",
-        meta: { width: "7rem" },
       },
       {
         id: "status",

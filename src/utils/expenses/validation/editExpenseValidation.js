@@ -1,4 +1,5 @@
 import { validateExpenseDate } from "./expenseDateValidation";
+import { getReceiptReferenceError } from "@/utils/shared/validation/receiptReferenceValidation";
 
 export const editExpenseValidationMessages = {
   categoryRequired: "Category is required.",
@@ -40,7 +41,12 @@ export const validateEditExpenseForm = (formData, categories, paymentMethods, or
   if (formData.payment_method && !paymentMethods.includes(formData.payment_method) && formData.payment_method !== originalPaymentMethod) {
     errors.payment_method = messages.paymentUnavailable;
   }
-  const textLimits = { description: 1000, vendor: 255, receipt_reference: 255 };
+  const category = categories.find((item) => String(item.id) === String(formData.category_id));
+  if (category && category.requires_receipt) {
+    const receiptError = getReceiptReferenceError(formData.receipt_reference, true);
+    if (receiptError) errors.receipt_reference = receiptError;
+  }
+  const textLimits = { description: 1000, vendor: 255 };
   for (const [field, limit] of Object.entries(textLimits)) {
     if (formData[field].trim().length > limit) errors[field] = messages.textTooLong(limit);
   }
