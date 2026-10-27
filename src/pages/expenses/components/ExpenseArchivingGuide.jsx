@@ -29,8 +29,8 @@ const ExpenseArchivingGuide = () => {
       >
         <PopoverTitle className="font-semibold">Yearly expense archiving</PopoverTitle>
         <p>
-          Enable it per category in Manage Expense Categories. The planned run is
-          every January 1, Philippine time, for expenses dated before that year.
+          Enable it per category in Manage Expense Categories. The scheduled run is
+          every January 1 at 12:10 AM, Philippine time, for expenses dated before that year.
           Inventory Purchase is always excluded.
         </p>
         <p>
@@ -38,7 +38,9 @@ const ExpenseArchivingGuide = () => {
           totals, charts, and exports on this page include active records only.
         </p>
         <p className="font-medium">
-          Not active yet: settings can be saved, but scheduled archiving is not connected.
+          Automatic runs require the server scheduler to be configured. A completed
+          year is not repeated, so restoring an expense does not immediately archive it again.
+          Category changes after that run take effect the following year.
         </p>
       </PopoverContent>
     </Popover>

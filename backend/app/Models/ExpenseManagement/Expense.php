@@ -28,6 +28,7 @@ class Expense extends Model
         'archived',
         'archived_by',
         'archived_at',
+        'yearly_archive_run_id',
     ];
 
     // Connect each Expense to its category.

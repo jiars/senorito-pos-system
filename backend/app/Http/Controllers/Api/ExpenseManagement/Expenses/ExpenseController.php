@@ -38,6 +38,7 @@ class ExpenseController extends Controller
             'archived' => true,
             'archived_by' => $request->user()->id,
             'archived_at' => now(),
+            'yearly_archive_run_id' => null,
         ]);
 
         return response()->json([
@@ -54,6 +55,7 @@ class ExpenseController extends Controller
             'archived' => false,
             'archived_by' => null,
             'archived_at' => null,
+            'yearly_archive_run_id' => null,
         ]);
 
         return response()->json([
