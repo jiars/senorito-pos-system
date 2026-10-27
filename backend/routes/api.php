@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\ExpenseManagement\Expenses\ExpenseController;
 use App\Http\Controllers\Api\ExpenseManagement\Categories\ExpenseCategoryController;
 use App\Http\Controllers\Api\ExpenseManagement\Orchestrators\ExpenseAddController;
 use App\Http\Controllers\Api\ExpenseManagement\Orchestrators\ExpenseEditController;
+use App\Http\Controllers\Api\ExpenseManagement\Orchestrators\ExpenseYearlyArchiveController;
 
 // menu
 use App\Http\Controllers\Api\MenuManagement\InitMenuManagementController;
@@ -82,6 +83,13 @@ Route::prefix('auth/password')->group(function () {
 
 // Scheduled maintenance uses its own secret, not a cashier login.
 Route::post('/maintenance/inventory/cleanup-expired', [InventoryExpiryCleanupOrchestrator::class, 'cleanupDaily',])->middleware(EnsureMaintenanceToken::class);
+
+Route::prefix('maintenance/expenses/archive-yearly')
+    ->middleware([EnsureMaintenanceToken::class, 'throttle:6,1'])
+    ->group(function () {
+        Route::get('/preview', [ExpenseYearlyArchiveController::class, 'preview']);
+        Route::post('/', [ExpenseYearlyArchiveController::class, 'store']);
+    });
 
 Route::middleware('auth:sanctum')->group(function () {
     // Auth related

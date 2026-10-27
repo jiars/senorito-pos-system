@@ -189,6 +189,7 @@ const ExpenseArchiveTable = ({
         header: "Archived By",
         meta: { width: "12rem" },
         cell: ({ row }) => {
+          if (row.original.yearly_archive_run_id) return "System (yearly archiving)";
           const profile = row.original.archived_by_profile;
           return profile ? `${profile.first_name} ${profile.last_name}` : "—";
         },

@@ -17,3 +17,8 @@ Schedule::command('inventory:cleanup-expired')
 Schedule::command('auth:clear-resets employee_setup')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
+
+Schedule::command('expenses:archive-yearly --apply')
+    ->yearlyOn(1, 1, '00:10')
+    ->timezone(config('app.business_timezone'))
+    ->withoutOverlapping();
