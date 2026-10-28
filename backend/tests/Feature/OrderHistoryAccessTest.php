@@ -66,6 +66,11 @@ class OrderHistoryAccessTest extends TestCase
         });
         $migration = require database_path('migrations/2026_10_27_000001_create_order_void_requests_table.php');
         $migration->up();
+        Schema::create('inventory_audit_logs', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+        });
+        $stockMigration = require database_path('migrations/2026_10_29_000002_add_void_stock_return_tracking.php');
+        $stockMigration->up();
         Schema::create('menu_items', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('item_name');
@@ -372,10 +377,11 @@ class OrderHistoryAccessTest extends TestCase
         $cashier = $this->createUser('Cashier');
         $owner = $this->createUser('Owner');
         $order = $this->createOrder($cashier);
-        $before = $order->getAttributes();
+        // Compare database-loaded values on both sides, including column defaults.
+        $before = $order->fresh()->getAttributes();
         $request = $this->createVoidRequest($order, $cashier);
         Sanctum::actingAs($owner);
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'reviewed_by' => $cashier->id])
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted', 'reviewed_by' => $cashier->id])
             ->assertOk()->assertJsonPath('void_request.status', 'approved')
             ->assertJsonPath('void_request.reviewed_by', $owner->id)->assertJsonPath('already_reviewed', false);
         $after = $order->fresh()->getAttributes();
@@ -430,14 +436,14 @@ class OrderHistoryAccessTest extends TestCase
         $request = $this->createVoidRequest($this->createOrder($cashier), $cashier);
         $owner = $this->createUser('Owner');
         Sanctum::actingAs($owner);
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'review_reason' => 'Original note.'])->assertOk();
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted', 'review_reason' => 'Original note.'])->assertOk();
         $before = $request->fresh()->getAttributes();
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'review_reason' => 'Retry note.'])
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted', 'review_reason' => 'Retry note.'])
             ->assertOk()->assertJsonPath('already_reviewed', true);
         $this->assertSame($before, $request->fresh()->getAttributes());
         $this->patchJson($this->reviewUrl($request->id), ['decision' => 'rejected', 'review_reason' => 'Changed mind.'])->assertConflict();
         Sanctum::actingAs($this->createUser('Owner'));
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved'])->assertConflict();
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted'])->assertConflict();
     }
 
     public function test_invalid_decisions_and_noncompleted_order_are_rejected(): void
@@ -447,9 +453,9 @@ class OrderHistoryAccessTest extends TestCase
         $request = $this->createVoidRequest($order, $cashier);
         Sanctum::actingAs($this->createUser('Owner'));
         $this->patchJson($this->reviewUrl($request->id), ['decision' => 'other'])->assertUnprocessable();
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'review_reason' => str_repeat('a', 501)])->assertUnprocessable();
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted', 'review_reason' => str_repeat('a', 501)])->assertUnprocessable();
         $order->update(['status' => 'Cancelled']);
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved'])->assertConflict();
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted'])->assertConflict();
         $this->assertSame('pending', $request->fresh()->status);
         $this->patchJson($this->reviewUrl('not-a-uuid'), ['decision' => 'approved'])->assertNotFound();
     }
@@ -466,7 +472,7 @@ class OrderHistoryAccessTest extends TestCase
             if ($updatedOrder->status === 'Voided') throw new \RuntimeException('Simulated write failure');
         });
         try {
-            $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved'])->assertServerError();
+            $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted'])->assertServerError();
         } finally {
             Order::setEventDispatcher($dispatcher);
         }
@@ -486,7 +492,7 @@ class OrderHistoryAccessTest extends TestCase
         $voided = $this->createOrder($cashier);
         $request = $this->createVoidRequest($voided, $cashier);
         Sanctum::actingAs($this->createUser('Owner'));
-        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved'])->assertOk();
+        $this->patchJson($this->reviewUrl($request->id), ['decision' => 'approved', 'stock_handling' => 'keep_deducted'])->assertOk();
         $cancelled = $this->createOrder($cashier);
         $cancelled->update(['status' => 'Cancelled']);
 

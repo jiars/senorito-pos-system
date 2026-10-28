@@ -55,6 +55,7 @@ export const getVoidReviewInlineFeedback = (code) => {
     SAVE_FAILED: "Could not save the decision. Please try again.",
     PERMISSION_DENIED: "Only an active Owner can review void requests.",
     VALIDATION_FAILED: "Review the decision and reason before trying again.",
+    STOCK_REFRESH_FAILED: "Could not prepare the POS stock refresh. No decision was submitted. Please try again.",
     SAVE_UNCONFIRMED: "Could not confirm the decision. Close and refresh Order History before trying again.",
   };
   const message = messages[code] || requestErrors[code];
@@ -62,13 +63,16 @@ export const getVoidReviewInlineFeedback = (code) => {
   return resolveErrorFeedback({ code, type: "critical", message, showCode: true });
 };
 
-export const getVoidReviewToastFeedback = (orderNumber, decision, alreadyReviewed) => {
+export const getVoidReviewToastFeedback = (orderNumber, decision, alreadyReviewed, stockHandling) => {
   const policy = resolveErrorFeedback({ type: "notification", display: "toast" });
   let title = "Void request rejected";
   let description = `${orderNumber} remains completed and included in sales.`;
   if (decision === "approved") {
     title = "Order voided";
-    description = `${orderNumber} is excluded from sales. Refunds and stock are unchanged.`;
+    description = `${orderNumber} is excluded from sales. Stock kept deducted. No automatic refund.`;
+    if (stockHandling === "return_stock") {
+      description = `${orderNumber} is excluded from sales. Unused stock returned. No automatic refund.`;
+    }
   }
   if (alreadyReviewed) title = "Decision already recorded";
   return { type: "success", title, description, timeout: policy.duration };
@@ -76,10 +80,10 @@ export const getVoidReviewToastFeedback = (orderNumber, decision, alreadyReviewe
 
 export const getVoidReviewLoadingFeedback = (code) => {
   if (code === "REFRESH_FAILED") {
-    return { title: "Order History could not refresh", message: "Decision saved. Retry refresh only; do not approve or reject again." };
+    return { title: "Order and stock data could not refresh", message: "Decision saved. Retry refresh only; do not approve or reject again." };
   }
   if (code === "REFRESHING") {
-    return { title: "Refreshing Order History...", message: "Decision saved. Updating the order list." };
+    return { title: "Refreshing order data...", message: "Decision saved. Updating Order History and any returned stock." };
   }
   return { title: "Saving void decision...", message: "Please wait while the decision is recorded." };
 };

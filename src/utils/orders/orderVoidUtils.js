@@ -31,3 +31,14 @@ export const getVoidStaffName = (staff) => {
   if (!staff) return "Staff account";
   return `${staff.first_name} ${staff.last_name}`.trim();
 };
+
+export const canReturnOrderStock = (order) => {
+  return order.stock_deductions_recorded === true;
+};
+
+export const getVoidStockHandlingLabel = (request) => {
+  if (request.status !== "approved") return "";
+  if (request.stock_handling === "return_stock") return "Unused stock returned to original batches.";
+  if (request.stock_handling === "keep_deducted") return "Stock kept deducted.";
+  return "Stock unchanged (approved before stock-return tracking).";
+};

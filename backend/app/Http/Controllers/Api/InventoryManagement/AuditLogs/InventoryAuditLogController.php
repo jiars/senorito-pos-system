@@ -60,6 +60,17 @@ class InventoryAuditLogController extends Controller
             $attributes['cleanup_run_id'] = $auditData['cleanup_run_id'];
         }
 
+        // Checkout supplies the saved order ID, never a client-provided audit link.
+        if (isset($auditData['order_id'])) {
+            $attributes['order_id'] = $auditData['order_id'];
+        }
+        if (isset($auditData['void_request_id'])) {
+            $attributes['void_request_id'] = $auditData['void_request_id'];
+        }
+        if (isset($auditData['original_deduction_id'])) {
+            $attributes['original_deduction_id'] = $auditData['original_deduction_id'];
+        }
+
         return InventoryAuditLog::create($attributes);
     }
 }

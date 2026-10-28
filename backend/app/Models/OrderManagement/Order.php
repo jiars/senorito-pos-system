@@ -3,6 +3,7 @@
 namespace App\Models\OrderManagement;
 
 use App\Models\User;
+use App\Models\InventoryManagement\InventoryAuditLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -37,6 +38,17 @@ class Order extends Model
         'change_amount',
         'status',
     ];
+
+    protected $casts = [
+        'stock_deductions_recorded' => 'boolean',
+    ];
+
+    public function stock_deductions(): HasMany
+    {
+        return $this->hasMany(InventoryAuditLog::class, 'order_id')
+            ->where('action', 'POS Sale')
+            ->where('source', 'POS Checkout');
+    }
 
     // History and receipt reads use the original cashier, not the uploader.
     public function scopeVisibleTo(Builder $query, User $user): Builder

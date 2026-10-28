@@ -158,6 +158,7 @@ class CheckoutOrchestrator extends Controller
                             'inventory_item_id' => $deductionData['inventory_item_id'],
                             'batch_id' => $batchDeduction['batch_id'],
                             'transaction_reference' => $transactionReference,
+                            'order_id' => $order->id,
                             'action' => 'POS Sale',
                             'source' => 'POS Checkout',
                             'quantity_change' => -abs($batchDeduction['quantity']),
@@ -172,6 +173,10 @@ class CheckoutOrchestrator extends Controller
                         $runningStock = $stockAfter;
                     }
                 }
+
+                // Mark completion only after every batch deduction and audit was saved.
+                // Keep this inside the checkout transaction, including orders with no deductions.
+                $order->forceFill(['stock_deductions_recorded' => true])->save();
 
                 return $order->load([
                     'cashier',
