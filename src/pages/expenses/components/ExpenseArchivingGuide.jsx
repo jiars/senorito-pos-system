@@ -1,49 +1,45 @@
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-// A click/tap guide also works on tablets, unlike a hover-only tooltip.
+// Match the valuation guide, including click/tap support for tablets.
 const ExpenseArchivingGuide = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <Popover>
-      <PopoverTrigger
+    <Tooltip open={isOpen} onOpenChange={setIsOpen}>
+      <TooltipTrigger
+        delay={0}
+        closeOnClick={false}
         render={
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="icon"
             aria-label="Yearly archiving guide"
-            className="size-[var(--app-touch-target-min)] shrink-0 rounded-full text-[var(--app-color-text-muted)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)]"
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex size-[var(--app-touch-target-min)] shrink-0 items-center justify-center rounded-full text-[var(--app-color-text-subtle)] hover:bg-[var(--app-color-control-hover)] hover:text-[var(--app-color-brand)] data-open:bg-[var(--app-color-control-hover)] data-open:text-[var(--app-color-brand)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-color-brand)]"
           >
-            <i className="bi bi-info-circle" aria-hidden="true" />
-          </Button>
+            <i className="bi bi-question-circle text-lg" aria-hidden="true" />
+          </button>
         }
       />
-      <PopoverContent
+      <TooltipContent
+        side="bottom"
         align="start"
-        className="w-80 max-w-[calc(100vw-2rem)] gap-[var(--app-space-2)] rounded-[var(--app-radius-panel-standard)] bg-[var(--app-color-surface)] p-[var(--app-space-4)] text-[length:var(--app-font-size-body-secondary)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)]"
+        positionerClassName="!z-[1100]"
+        className="!z-[1100] max-w-[min(24rem,calc(100vw-2rem))] border border-[var(--app-color-border-subtle)] bg-[var(--app-color-surface)] text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-body-secondary)] text-[var(--app-color-text)] shadow-[var(--app-shadow-card)]"
       >
-        <PopoverTitle className="font-semibold">Yearly expense archiving</PopoverTitle>
         <p>
-          Enable it per category in Manage Expense Categories. The scheduled run is
-          every January 1 at 12:10 AM, Philippine time, for expenses dated before that year.
-          Inventory Purchase is always excluded.
+          Enabled categories archive prior-year expenses every January 1 at 12:10 AM,
+          Philippine time. Inventory Purchase is excluded. Records stay in View Archive
+          and can be restored; active totals, charts, and exports exclude them.
+          A completed yearly run is not repeated, including for restored records.
+          Category changes apply to the next run. The server schedule must be enabled.
         </p>
-        <p>
-          Archived records stay in View Archive and can be restored. Expense
-          totals, charts, and exports on this page include active records only.
-        </p>
-        <p className="font-medium">
-          Automatic runs require the server scheduler to be configured. A completed
-          year is not repeated, so restoring an expense does not immediately archive it again.
-          Category changes after that run take effect the following year.
-        </p>
-      </PopoverContent>
-    </Popover>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
