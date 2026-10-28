@@ -5,7 +5,7 @@ const VoidStockHandlingField = ({ value, onChange, canReturnStock, disabled, err
   ];
 
   return (
-    <fieldset disabled={disabled} aria-describedby={error ? "void-stock-choice-help void-stock-help void-stock-error" : "void-stock-choice-help void-stock-help"} className="flex min-w-0 flex-col gap-[var(--app-space-2)]">
+    <fieldset disabled={disabled} aria-describedby={error ? "void-stock-choice-help void-stock-help void-stock-error" : "void-stock-choice-help void-stock-help"} className="m-0 flex min-w-0 flex-col gap-[var(--app-space-2)] border-0 p-0">
       <legend className="mb-[var(--app-space-2)] text-[length:var(--app-font-size-body-secondary)] font-semibold">Stock handling<span className="ml-[var(--app-space-1)] text-[var(--app-color-danger)]" aria-hidden="true">*</span></legend>
       <p id="void-stock-choice-help" className="text-[length:var(--app-font-size-caption)] leading-[var(--app-line-height-caption)] text-[var(--app-color-text-muted)]">Choose one before approving. No stock choice is needed to reject.</p>
       <div className="grid grid-cols-1 gap-[var(--app-space-2)] sm:grid-cols-2">
