@@ -14,7 +14,7 @@ class InitOrderManagementController extends Controller
         $orders = Order::visibleTo($request->user())->with([
             'cashier:id,first_name,last_name',
             'uploader:id,first_name,last_name',
-            'void_requests:id,order_id,requested_by,reason,status,requested_at,reviewed_by,reviewed_at,review_reason',
+            'void_requests:id,order_id,requested_by,reason,status,requested_at,reviewed_by,reviewed_at,review_reason,stock_handling',
             'void_requests.requester:id,first_name,last_name',
             'void_requests.reviewer:id,first_name,last_name',
         ])

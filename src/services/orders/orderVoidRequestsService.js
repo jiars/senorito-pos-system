@@ -6,10 +6,11 @@ export const requestOrderVoid = async (orderId, reason) => {
   return response.data;
 };
 
-export const reviewOrderVoid = async (requestId, decision, reviewReason) => {
+export const reviewOrderVoid = async (requestId, decision, reviewReason, stockHandling) => {
   const response = await api.patch(`/order-management/void-requests/${requestId}/review`, {
     decision,
     review_reason: reviewReason,
+    stock_handling: stockHandling,
   });
   return response.data;
 };

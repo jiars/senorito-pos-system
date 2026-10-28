@@ -3,6 +3,7 @@
 namespace App\Models\InventoryManagement;
 
 use App\Models\User;
+use App\Models\OrderManagement\Order;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,9 @@ class InventoryAuditLog extends Model
         'inventory_item_id',
         'batch_id',
         'transaction_reference',
+        'order_id',
+        'void_request_id',
+        'original_deduction_id',
         'cleanup_run_id',
         'action',
         'source',
@@ -29,6 +33,11 @@ class InventoryAuditLog extends Model
         'reason_reference',
         'performed_by'
     ];
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'order_id');
+    }
 
     public function inventory_item()
     {

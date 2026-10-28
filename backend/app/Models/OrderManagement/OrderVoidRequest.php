@@ -14,6 +14,8 @@ class OrderVoidRequest extends Model
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
+    public const KEEP_STOCK_DEDUCTED = 'keep_deducted';
+    public const RETURN_STOCK = 'return_stock';
 
     protected $table = 'order_void_requests';
     protected $keyType = 'string';
@@ -22,7 +24,7 @@ class OrderVoidRequest extends Model
 
     protected $fillable = [
         'order_id', 'requested_by', 'reason', 'status', 'requested_at',
-        'reviewed_by', 'reviewed_at', 'review_reason',
+        'reviewed_by', 'reviewed_at', 'review_reason', 'stock_handling',
     ];
 
     protected function casts(): array

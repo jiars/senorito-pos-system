@@ -28,6 +28,7 @@ const reportPeriodOptions = [
 const actionOptions = [
   { label: "Purchase", value: "Purchase" },
   { label: "POS Sale", value: "POS Sale" },
+  { label: "Void Stock Return", value: "Void Stock Return" },
   { label: "Wastage", value: "Wastage" },
   { label: "Manual Adjustment", value: "Manual Adjustment" },
   { label: "Expired", value: "Expired" },
@@ -35,6 +36,7 @@ const actionOptions = [
 
 const sourceOptions = [
   { label: "POS Checkout", value: "POS Checkout" },
+  { label: "Order Void", value: "Order Void" },
   { label: "Add Item Modal", value: "Add Item Modal" },
   { label: "Stock Log Modal", value: "Stock Log Modal" },
   { label: "Expense Tracking", value: "Expense Tracking" },
